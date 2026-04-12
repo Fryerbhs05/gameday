@@ -6,7 +6,6 @@
   <title>Game Day — Know Who To Root For</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
-    /* ── Tokens ────────────────────────────────────────────────────────────── */
     :root {
       --bg:         #060912;
       --bg-surface: #0d1220;
@@ -16,44 +15,36 @@
       --text-muted: #5a6a8a;
       --text-dim:   #8898b8;
 
-      --cheer:          #10b981;
-      --cheer-dim:      rgba(16,185,129,0.12);
-      --cheer-border:   rgba(16,185,129,0.35);
-
-      --conflicted:     #f59e0b;
-      --conflicted-dim: rgba(245,158,11,0.12);
+      --cheer:             #10b981;
+      --cheer-dim:         rgba(16,185,129,0.12);
+      --cheer-border:      rgba(16,185,129,0.35);
+      --conflicted:        #f59e0b;
+      --conflicted-dim:    rgba(245,158,11,0.12);
       --conflicted-border: rgba(245,158,11,0.35);
-
-      --enemy:         #ef4444;
-      --enemy-dim:     rgba(239,68,68,0.12);
-      --enemy-border:  rgba(239,68,68,0.35);
-
-      --neutral:     #4b5a78;
-      --neutral-dim: rgba(75,90,120,0.10);
+      --enemy:             #ef4444;
+      --enemy-dim:         rgba(239,68,68,0.12);
+      --enemy-border:      rgba(239,68,68,0.35);
+      --neutral:           #4b5a78;
+      --neutral-dim:       rgba(75,90,120,0.10);
 
       --radius: 10px;
-      --font-d: 'Barlow Condensed', sans-serif;
-      --font-m: 'IBM Plex Mono', monospace;
+      --fd: 'Barlow Condensed', sans-serif;
+      --fm: 'IBM Plex Mono', monospace;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: var(--font-d); min-height: 100vh; overflow-x: hidden; }
+    body { background: var(--bg); color: var(--text); font-family: 'Barlow Condensed', sans-serif; min-height: 100vh; overflow-x: hidden; }
 
-    /* ── Header ────────────────────────────────────────────────────────────── */
-    header {
-      background: var(--bg-surface); border-bottom: 1px solid var(--border);
-      padding: 0 36px; height: 68px;
-      display: flex; align-items: center; justify-content: space-between;
-      position: sticky; top: 0; z-index: 100;
-    }
+    /* ── Header ── */
+    header { background: var(--bg-surface); border-bottom: 1px solid var(--border); padding: 0 36px; height: 68px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
     .header-left { display: flex; align-items: baseline; gap: 14px; }
     .site-title { font-size: 2rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: #fff; }
     .site-title span { color: var(--cheer); }
-    .week-badge { font-family: var(--font-m); font-size: 0.68rem; color: var(--text-muted); background: var(--border); padding: 3px 10px; border-radius: 20px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .week-badge { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--text-muted); background: var(--border); padding: 3px 10px; border-radius: 20px; letter-spacing: 0.08em; text-transform: uppercase; }
     .header-right { display: flex; align-items: center; gap: 10px; }
-    .refresh-time { font-family: var(--font-m); font-size: 0.62rem; color: var(--text-muted); }
+    .refresh-time { font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; color: var(--text-muted); }
 
-    /* ── Buttons ───────────────────────────────────────────────────────────── */
-    .btn { font-family: var(--font-d); font-weight: 700; font-size: 1rem; letter-spacing: 0.06em; text-transform: uppercase; border: none; border-radius: var(--radius); padding: 10px 20px; cursor: pointer; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; }
+    /* ── Buttons ── */
+    .btn { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 1rem; letter-spacing: 0.06em; text-transform: uppercase; border: none; border-radius: var(--radius); padding: 10px 20px; cursor: pointer; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; }
     .btn:active { transform: scale(0.97); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-primary { background: var(--cheer); color: #000; }
@@ -69,323 +60,179 @@
     .btn-live .dot-live { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.6s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
     .btn-sm { font-size: 0.78rem; padding: 6px 13px; }
-    .btn-icon { font-family: var(--font-m); font-size: 1rem; padding: 6px 10px; background: var(--bg-card); color: var(--text-dim); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: background 0.15s, color 0.15s; line-height: 1; }
+    .btn-icon { font-family: 'IBM Plex Mono', monospace; font-size: 1rem; padding: 6px 10px; background: var(--bg-card); color: var(--text-dim); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: background 0.15s, color 0.15s; line-height: 1; }
     .btn-icon:hover:not(:disabled) { background: var(--border); color: var(--text); }
     .btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
 
-    /* ══════════════════════════════════════════════════════════════════════════
-       LANDING PAGE
-    ══════════════════════════════════════════════════════════════════════════ */
-    #setup-panel {
-      display: flex; flex-direction: column; align-items: center;
-      padding: 60px 24px 80px; gap: 0;
-    }
+    /* ══ LANDING PAGE ══════════════════════════════════════════════ */
+    #setup-panel { display: flex; flex-direction: column; align-items: center; padding: 60px 24px 80px; gap: 0; }
 
-    /* Hero */
-    .landing-hero {
-      text-align: center;
-      max-width: 680px;
-      margin-bottom: 56px;
-    }
-    .hero-eyebrow {
-      font-family: var(--font-m);
-      font-size: 0.68rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--cheer);
-      margin-bottom: 20px;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .hero-eyebrow::before, .hero-eyebrow::after {
-      content: ''; display: block; width: 24px; height: 1px; background: var(--cheer); opacity: 0.4;
-    }
-    .landing-hero h1 {
-      font-size: 4.8rem;
-      font-weight: 900;
-      line-height: 0.95;
-      letter-spacing: 0.01em;
-      text-transform: uppercase;
-      color: #fff;
-      margin-bottom: 24px;
-    }
+    .landing-hero { text-align: center; max-width: 680px; margin-bottom: 56px; }
+    .hero-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cheer); margin-bottom: 20px; display: inline-flex; align-items: center; gap: 8px; }
+    .hero-eyebrow::before, .hero-eyebrow::after { content: ''; display: block; width: 24px; height: 1px; background: var(--cheer); opacity: 0.4; }
+    .landing-hero h1 { font-size: 4.8rem; font-weight: 900; line-height: 0.95; letter-spacing: 0.01em; text-transform: uppercase; color: #fff; margin-bottom: 24px; }
     .landing-hero h1 span { color: var(--cheer); }
-    .landing-hero .hero-sub {
-      font-family: var(--font-m);
-      font-size: 0.85rem;
-      color: var(--text-dim);
-      line-height: 1.75;
-      max-width: 520px;
-      margin: 0 auto 32px;
-    }
-    .hero-pain {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--conflicted);
-      border-radius: 8px;
-      padding: 16px 20px;
-      font-family: var(--font-m);
-      font-size: 0.75rem;
-      color: var(--text-dim);
-      line-height: 1.7;
-      text-align: left;
-      max-width: 520px;
-      margin: 0 auto;
-    }
+    .hero-sub { font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; color: var(--text-dim); line-height: 1.75; max-width: 520px; margin: 0 auto 32px; }
+    .hero-pain { background: var(--bg-surface); border: 1px solid var(--border); border-left: 3px solid var(--conflicted); border-radius: 8px; padding: 16px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: var(--text-dim); line-height: 1.7; text-align: left; max-width: 520px; margin: 0 auto; }
     .hero-pain strong { color: var(--conflicted); }
 
-    /* How it works strip */
-    .how-strip {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      margin-bottom: 48px;
-      max-width: 680px;
-      width: 100%;
-    }
-    .how-step {
-      flex: 1;
-      text-align: center;
-      padding: 20px 16px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-    }
+    .how-strip { display: flex; align-items: center; gap: 0; margin-bottom: 48px; max-width: 680px; width: 100%; }
+    .how-step { flex: 1; text-align: center; padding: 20px 16px; background: var(--bg-surface); border: 1px solid var(--border); }
     .how-step:first-child { border-radius: var(--radius) 0 0 var(--radius); }
     .how-step:last-child  { border-radius: 0 var(--radius) var(--radius) 0; }
-    .how-num {
-      font-size: 2rem; font-weight: 900; color: var(--border);
-      line-height: 1; margin-bottom: 6px;
-    }
-    .how-label {
-      font-family: var(--font-m); font-size: 0.65rem;
-      color: var(--text-muted); line-height: 1.5;
-    }
-    .how-arrow {
-      font-size: 1rem; color: var(--border); flex-shrink: 0; margin: 0 -1px; z-index: 1;
-    }
+    .how-num { font-size: 2rem; font-weight: 900; color: var(--border); line-height: 1; margin-bottom: 6px; }
+    .how-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--text-muted); line-height: 1.5; }
+    .how-arrow { font-size: 1rem; color: var(--border); flex-shrink: 0; margin: 0 -1px; z-index: 1; }
 
-    /* Bucket explainer */
-    .bucket-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-      max-width: 680px;
-      width: 100%;
-      margin-bottom: 48px;
-    }
-    .bucket-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px 18px;
-    }
-    .bucket-card.cheer     { border-top: 3px solid var(--cheer);     }
-    .bucket-card.conflicted{ border-top: 3px solid var(--conflicted); }
-    .bucket-card.enemy     { border-top: 3px solid var(--enemy);      }
-    .bucket-icon { font-size: 1.6rem; margin-bottom: 10px; display: block; }
-    .bucket-title {
-      font-size: 1.3rem; font-weight: 900; text-transform: uppercase;
-      letter-spacing: 0.05em; margin-bottom: 6px;
-    }
-    .bucket-card.cheer     .bucket-title { color: var(--cheer);     }
+    .bucket-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; max-width: 680px; width: 100%; margin-bottom: 48px; }
+    .bucket-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 18px; }
+    .bucket-card.cheer      { border-top: 3px solid var(--cheer);     }
+    .bucket-card.conflicted { border-top: 3px solid var(--conflicted); }
+    .bucket-card.enemy      { border-top: 3px solid var(--enemy);     }
+    .bucket-icon  { font-size: 1.6rem; margin-bottom: 10px; display: block; }
+    .bucket-title { font-size: 1.3rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .bucket-card.cheer      .bucket-title { color: var(--cheer);     }
     .bucket-card.conflicted .bucket-title { color: var(--conflicted); }
-    .bucket-card.enemy     .bucket-title { color: var(--enemy);      }
-    .bucket-desc {
-      font-family: var(--font-m); font-size: 0.68rem;
-      color: var(--text-muted); line-height: 1.6;
-    }
+    .bucket-card.enemy      .bucket-title { color: var(--enemy);     }
+    .bucket-desc { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--text-muted); line-height: 1.6; }
 
-    /* Live scoring teaser */
-    .live-teaser {
-      max-width: 680px; width: 100%;
-      background: rgba(16,185,129,0.06);
-      border: 1px solid rgba(16,185,129,0.2);
-      border-radius: var(--radius);
-      padding: 20px 24px;
-      margin-bottom: 48px;
-      display: flex; align-items: flex-start; gap: 16px;
-    }
+    .live-teaser { max-width: 680px; width: 100%; background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 48px; display: flex; align-items: flex-start; gap: 16px; }
     .live-teaser-icon { font-size: 1.8rem; flex-shrink: 0; margin-top: 2px; }
-    .live-teaser-body { font-family: var(--font-m); font-size: 0.72rem; color: var(--text-dim); line-height: 1.7; }
+    .live-teaser-body { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--text-dim); line-height: 1.7; }
     .live-teaser-body strong { color: var(--cheer); display: block; font-size: 0.8rem; margin-bottom: 4px; }
 
-    /* Sign-in card */
-    .setup-card {
-      background: var(--bg-surface); border: 1px solid var(--border);
-      border-radius: 16px; padding: 36px 44px;
-      max-width: 480px; width: 100%; text-align: center;
-    }
+    .setup-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 36px 44px; max-width: 480px; width: 100%; text-align: center; }
     .setup-card h2 { font-size: 1.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; margin-bottom: 6px; }
-    .setup-card .setup-sub { font-family: var(--font-m); font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 22px; }
+    .setup-sub { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 22px; }
     .input-group { display: flex; gap: 10px; width: 100%; }
-    input[type="text"] { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--font-m); font-size: 0.9rem; padding: 12px 16px; outline: none; transition: border-color 0.2s; }
+    input[type="text"] { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 0.9rem; padding: 12px 16px; outline: none; transition: border-color 0.2s; }
     input[type="text"]:focus { border-color: var(--cheer); }
     input[type="text"]::placeholder { color: var(--text-muted); }
-    .setup-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0 0; color: var(--text-muted); font-family: var(--font-m); font-size: 0.65rem; letter-spacing: 0.08em; }
+    .setup-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0 0; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; letter-spacing: 0.08em; }
     .setup-divider::before, .setup-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    /* Loading / Error */
+    /* ── Loading / Error ── */
     #loading-panel { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 68px); gap: 20px; }
     .spinner { width: 44px; height: 44px; border: 3px solid var(--border); border-top-color: var(--cheer); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-msg { font-family: var(--font-m); font-size: 0.78rem; color: var(--text-muted); letter-spacing: 0.04em; }
+    .loading-msg { font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--text-muted); letter-spacing: 0.04em; }
     #error-panel { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 68px); gap: 16px; padding: 40px; text-align: center; }
-    .error-msg { font-family: var(--font-m); font-size: 0.82rem; color: var(--enemy); max-width: 480px; line-height: 1.6; background: var(--enemy-dim); border: 1px solid var(--enemy-border); border-radius: var(--radius); padding: 20px 28px; }
+    .error-msg { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; color: var(--enemy); max-width: 480px; line-height: 1.6; background: var(--enemy-dim); border: 1px solid var(--enemy-border); border-radius: var(--radius); padding: 20px 28px; }
 
-    /* ══════════════════════════════════════════════════════════════════════════
-       BOARD
-    ══════════════════════════════════════════════════════════════════════════ */
+    /* ══ BOARD ══════════════════════════════════════════════════════ */
     #board { display: none; padding: 24px 36px 60px; }
     .board-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-    .board-user { font-family: var(--font-m); font-size: 0.72rem; color: var(--text-muted); }
+    .board-user { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--text-muted); }
     .board-user strong { color: var(--cheer); font-size: 0.82rem; }
 
-    /* Nav */
-    .nav-controls { display: flex; align-items: center; gap: 8px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; margin-bottom: 14px; }
-    .nav-label { font-family: var(--font-m); font-size: 0.6rem; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
-    .nav-value { font-family: var(--font-d); font-size: 1.1rem; font-weight: 700; color: #fff; min-width: 64px; text-align: center; }
-    .nav-divider { width: 1px; height: 28px; background: var(--border); margin: 0 8px; }
-    select.nav-select { font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; color: #fff; background: transparent; border: none; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; padding-right: 20px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a6a8a'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 2px center; }
+    /* ── Nav Controls ── */
+    .nav-controls { display: flex; align-items: center; gap: 8px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; margin-bottom: 14px; flex-wrap: wrap; }
+    .nav-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .nav-value { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 700; color: #fff; min-width: 30px; text-align: center; }
+    .nav-divider { width: 1px; height: 28px; background: var(--border); margin: 0 6px; }
+    select.nav-select { font-family: 'Barlow Condensed', sans-serif; font-size: 1.05rem; font-weight: 700; color: #fff; background: transparent; border: none; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; padding-right: 18px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a6a8a'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 2px center; }
     select.nav-select option { background: #111827; color: #dde3f0; font-size: 0.9rem; }
+    /* Week select — slightly narrower */
+    select.week-select { min-width: 90px; }
     .nav-spacer { flex: 1; }
 
-    /* ── League Scores Strip ───────────────────────────────────────────────── */
-    .scores-strip {
-      display: none;
-      gap: 10px;
-      margin-bottom: 14px;
-      overflow-x: auto;
-    }
+    /* ── League Scores Strip ── */
+    .scores-strip { display: none; gap: 10px; margin-bottom: 14px; overflow-x: auto; }
     .scores-strip.visible { display: flex; }
+    .score-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; min-width: 180px; flex-shrink: 0; position: relative; overflow: hidden; }
+    .score-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .score-card.state-live::before  { background: var(--conflicted); }
+    .score-card.state-win::before   { background: var(--cheer); }
+    .score-card.state-loss::before  { background: var(--enemy); }
+    .score-card.state-final::before { background: var(--neutral); }
+    .score-card.state-live  { border-color: rgba(245,158,11,0.3); }
+    .score-card.state-win   { border-color: rgba(16,185,129,0.3); }
+    .score-card.state-loss  { border-color: rgba(239,68,68,0.3); }
+    .sc-league { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sc-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .sc-matchup { display: flex; align-items: center; gap: 6px; }
+    .sc-team { flex: 1; text-align: center; }
+    .sc-pts { font-size: 1.6rem; font-weight: 900; line-height: 1; color: #fff; }
+    .sc-pts.mine  { color: var(--cheer); }
+    .sc-pts.opp   { color: var(--text-dim); }
+    .sc-pts.mine.losing  { color: var(--text-dim); }
+    .sc-pts.opp.leading  { color: var(--enemy); }
+    .sc-lbl { font-family: 'IBM Plex Mono', monospace; font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .sc-dash { font-family: 'IBM Plex Mono', monospace; color: var(--border); font-size: 0.9rem; }
+    .sc-state { font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; text-align: center; margin-top: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .sc-state.live  { color: var(--conflicted); }
+    .sc-state.win   { color: var(--cheer); }
+    .sc-state.loss  { color: var(--enemy); }
+    .sc-state.final { color: var(--neutral); }
+    .sc-state.none  { color: var(--text-muted); }
 
-    .score-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 10px 14px;
-      min-width: 180px;
-      flex-shrink: 0;
-      position: relative;
-      overflow: hidden;
-    }
-    .score-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-    }
-    .score-card.state-live     { border-color: rgba(245,158,11,0.3); }
-    .score-card.state-live::before     { background: var(--conflicted); }
-    .score-card.state-win      { border-color: rgba(16,185,129,0.3); }
-    .score-card.state-win::before      { background: var(--cheer); }
-    .score-card.state-loss     { border-color: rgba(239,68,68,0.3); }
-    .score-card.state-loss::before     { background: var(--enemy); }
-    .score-card.state-none     { border-color: var(--border); }
-
-    .score-league-name {
-      font-family: var(--font-m); font-size: 0.6rem; letter-spacing: 0.04em;
-      color: var(--text-muted); margin-bottom: 8px;
-      display: flex; align-items: center; gap: 5px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .score-league-name .sc-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-
-    .score-matchup {
-      display: flex; align-items: center; gap: 6px;
-    }
-    .score-team {
-      flex: 1; text-align: center;
-    }
-    .score-pts {
-      font-size: 1.6rem; font-weight: 900; line-height: 1; color: #fff;
-    }
-    .score-pts.mine  { color: var(--cheer); }
-    .score-pts.opp   { color: var(--text-dim); }
-    .score-pts.mine.losing { color: var(--text-dim); }
-    .score-pts.opp.leading { color: var(--enemy); }
-    .score-label {
-      font-family: var(--font-m); font-size: 0.55rem;
-      color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;
-    }
-    .score-dash { font-family: var(--font-m); color: var(--border); font-size: 0.9rem; }
-    .score-state {
-      font-family: var(--font-m); font-size: 0.58rem;
-      text-align: center; margin-top: 8px;
-      letter-spacing: 0.06em; text-transform: uppercase;
-    }
-    .score-state.live { color: var(--conflicted); }
-    .score-state.win  { color: var(--cheer); }
-    .score-state.loss { color: var(--enemy); }
-    .score-state.none { color: var(--text-muted); }
-
-    /* ── League Filters ────────────────────────────────────────────────────── */
+    /* ── League Filters ── */
     .league-filters { display: none; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 14px; }
     .league-filters.visible { display: flex; }
-    .filter-label { font-family: var(--font-m); font-size: 0.6rem; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-right: 4px; flex-shrink: 0; }
-    .filter-pill { font-family: var(--font-m); font-size: 0.65rem; padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 1px solid; transition: opacity 0.15s, transform 0.1s; font-weight: 500; letter-spacing: 0.02em; white-space: nowrap; }
+    .filter-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-right: 4px; flex-shrink: 0; }
+    .filter-pill { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 1px solid; transition: opacity 0.15s, transform 0.1s; font-weight: 500; letter-spacing: 0.02em; white-space: nowrap; }
     .filter-pill:hover { transform: translateY(-1px); }
     .filter-pill.all-pill { background: var(--border); color: var(--text-dim); border-color: var(--border); }
     .filter-pill.all-pill.active { background: var(--text-dim); color: var(--bg); border-color: var(--text-dim); }
     .filter-pill.inactive { opacity: 0.35; }
     .filter-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
-    .filter-count { font-family: var(--font-m); font-size: 0.6rem; color: var(--text-muted); margin-left: auto; }
+    .filter-count { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: var(--text-muted); margin-left: auto; }
 
-    /* Banners */
-    .banner { display: none; align-items: center; gap: 12px; border-radius: var(--radius); padding: 11px 18px; margin-bottom: 12px; font-family: var(--font-m); font-size: 0.7rem; line-height: 1.6; }
+    /* ── Banners ── */
+    .banner { display: none; align-items: center; gap: 12px; border-radius: var(--radius); padding: 11px 18px; margin-bottom: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; line-height: 1.6; }
     .banner.visible { display: flex; }
     .banner-icon { font-size: 1.1rem; flex-shrink: 0; }
     .banner strong { color: #fff; }
-    .banner-demo     { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.28); color: var(--conflicted); }
-    .banner-offseason{ background: rgba(75,90,120,0.10); border: 1px solid rgba(75,90,120,0.28);  color: var(--text-dim); }
-    .banner-history  { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.28); color: #60a5fa; }
-    .banner-scoring  { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.28); color: var(--cheer); }
+    .banner-demo      { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.28); color: var(--conflicted); }
+    .banner-offseason { background: rgba(75,90,120,0.10);  border: 1px solid rgba(75,90,120,0.28);  color: var(--text-dim); }
+    .banner-history   { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.28); color: #60a5fa; }
+    .banner-scoring   { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.28); color: var(--cheer); }
 
-    /* No-data inline */
+    /* ── No-data inline ── */
     #no-data-state { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 60px 20px; text-align: center; }
     #no-data-state.visible { display: flex; }
     .no-data-icon { font-size: 3rem; }
     .no-data-title { font-size: 1.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
-    .no-data-msg { font-family: var(--font-m); font-size: 0.78rem; color: var(--text-muted); line-height: 1.7; max-width: 420px; }
+    .no-data-msg { font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--text-muted); line-height: 1.7; max-width: 420px; }
     .no-data-msg strong { color: var(--conflicted); }
-    .no-data-hint { font-family: var(--font-m); font-size: 0.68rem; color: var(--text-muted); opacity: 0.7; }
+    .no-data-hint { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--text-muted); opacity: 0.7; }
 
-    /* Debug */
+    /* ── Debug ── */
     .debug-panel { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
-    .debug-toggle { width: 100%; background: none; border: none; padding: 10px 15px; display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-muted); font-family: var(--font-m); font-size: 0.63rem; letter-spacing: 0.06em; text-transform: uppercase; text-align: left; transition: background 0.15s; }
+    .debug-toggle { width: 100%; background: none; border: none; padding: 10px 15px; display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 0.63rem; letter-spacing: 0.06em; text-transform: uppercase; text-align: left; transition: background 0.15s; }
     .debug-toggle:hover { background: rgba(255,255,255,0.03); }
     .debug-toggle .arrow { transition: transform 0.2s; margin-left: auto; }
     .debug-toggle.open .arrow { transform: rotate(90deg); }
     .debug-body { display: none; padding: 0 15px 12px; border-top: 1px solid var(--border); }
     .debug-body.open { display: block; }
-    .debug-meta { font-family: var(--font-m); font-size: 0.62rem; color: var(--text-dim); padding: 8px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 18px; }
+    .debug-meta { font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; color: var(--text-dim); padding: 8px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 18px; }
     .debug-meta strong { color: var(--cheer); }
     .debug-meta .warn  { color: var(--conflicted); }
     .debug-leagues { display: flex; flex-direction: column; gap: 5px; }
-    .debug-league { font-family: var(--font-m); font-size: 0.62rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .debug-league { font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .lg-name { color: var(--text); font-weight: 500; flex: 1; min-width: 130px; display: flex; align-items: center; gap: 6px; }
     .lg-color-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .lg-id { color: var(--text-muted); font-size: 0.57rem; }
+    .lg-id   { color: var(--text-muted); font-size: 0.57rem; }
     .dpill { padding: 2px 7px; border-radius: 4px; font-size: 0.57rem; letter-spacing: 0.04em; border: 1px solid; }
     .dp-ok   { background: var(--cheer-dim);   color: var(--cheer);   border-color: var(--cheer-border); }
     .dp-warn { background: var(--enemy-dim);   color: var(--enemy);   border-color: var(--enemy-border); }
     .dp-dim  { background: var(--neutral-dim); color: var(--neutral); border-color: rgba(75,90,120,0.25); }
 
-    /* Summary */
+    /* ── Summary ── */
     .summary-bar { display: flex; gap: 12px; margin-bottom: 22px; }
     .summary-pill { flex: 1; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; border: 1px solid; }
-    .summary-pill.cheer     { background: var(--cheer-dim);     border-color: var(--cheer-border);     }
-    .summary-pill.conflicted{ background: var(--conflicted-dim); border-color: var(--conflicted-border); }
-    .summary-pill.enemy     { background: var(--enemy-dim);     border-color: var(--enemy-border);     }
+    .summary-pill.cheer      { background: var(--cheer-dim);     border-color: var(--cheer-border);     }
+    .summary-pill.conflicted { background: var(--conflicted-dim); border-color: var(--conflicted-border); }
+    .summary-pill.enemy      { background: var(--enemy-dim);     border-color: var(--enemy-border);     }
     .pill-count { font-size: 2.6rem; font-weight: 900; line-height: 1; }
     .summary-pill.cheer      .pill-count { color: var(--cheer);     }
     .summary-pill.conflicted .pill-count { color: var(--conflicted); }
     .summary-pill.enemy      .pill-count { color: var(--enemy);     }
     .pill-label { display: flex; flex-direction: column; gap: 2px; }
     .pill-label strong { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #fff; }
-    .pill-label span { font-family: var(--font-m); font-size: 0.63rem; color: var(--text-muted); }
+    .pill-label span { font-family: 'IBM Plex Mono', monospace; font-size: 0.63rem; color: var(--text-muted); }
 
-    /* Columns */
+    /* ── Columns ── */
     .columns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 22px; align-items: start; }
     .column-header { display: flex; align-items: center; gap: 10px; padding: 0 4px 13px; border-bottom: 2px solid; margin-bottom: 12px; }
     .column.cheer      .column-header { border-color: var(--cheer);     }
@@ -396,9 +243,9 @@
     .column.cheer      .col-title { color: var(--cheer);     }
     .column.conflicted .col-title { color: var(--conflicted); }
     .column.enemy      .col-title { color: var(--enemy);     }
-    .col-subtitle { font-family: var(--font-m); font-size: 0.6rem; color: var(--text-muted); margin-left: auto; }
+    .col-subtitle { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; color: var(--text-muted); margin-left: auto; }
 
-    /* Player Cards */
+    /* ── Player Cards ── */
     .player-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 15px; margin-bottom: 7px; display: flex; flex-direction: column; gap: 6px; transition: transform 0.12s, box-shadow 0.12s; animation: fadeUp 0.26s ease both; }
     @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
     .player-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
@@ -409,986 +256,919 @@
     .player-card.clinched { opacity: 0.45; filter: grayscale(0.4); border-left-color: var(--neutral); }
 
     .card-top { display: flex; align-items: center; gap: 9px; }
-    .pos-badge { font-family: var(--font-m); font-size: 0.6rem; font-weight: 500; padding: 3px 6px; border-radius: 4px; letter-spacing: 0.06em; flex-shrink: 0; }
-    .pos-QB  { background: rgba(99,102,241,0.25);  color: #818cf8; }
-    .pos-RB  { background: rgba(16,185,129,0.20);  color: #34d399; }
-    .pos-WR  { background: rgba(59,130,246,0.20);  color: #60a5fa; }
-    .pos-TE  { background: rgba(245,158,11,0.20);  color: #fbbf24; }
-    .pos-K   { background: rgba(168,85,247,0.20);  color: #c084fc; }
-    .pos-DEF { background: rgba(239,68,68,0.18);   color: #f87171; }
+    .pos-badge { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; font-weight: 500; padding: 3px 6px; border-radius: 4px; letter-spacing: 0.06em; flex-shrink: 0; }
+    .pos-QB  { background: rgba(99,102,241,0.25); color: #818cf8; }
+    .pos-RB  { background: rgba(16,185,129,0.20); color: #34d399; }
+    .pos-WR  { background: rgba(59,130,246,0.20); color: #60a5fa; }
+    .pos-TE  { background: rgba(245,158,11,0.20); color: #fbbf24; }
+    .pos-K   { background: rgba(168,85,247,0.20); color: #c084fc; }
+    .pos-DEF { background: rgba(239,68,68,0.18);  color: #f87171; }
     .pos-default { background: var(--border); color: var(--text-muted); }
-
     .player-name { font-size: 1rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .player-team { font-family: var(--font-m); font-size: 0.62rem; color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
+    .player-team { font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem; color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
 
-    /* Points row */
-    .points-row {
-      display: flex; align-items: center; gap: 8px;
-    }
-    .pts-actual {
-      font-family: var(--font-m); font-size: 0.72rem; font-weight: 500;
-      color: #fff;
-    }
-    .pts-proj {
-      font-family: var(--font-m); font-size: 0.62rem;
-      color: var(--text-muted);
-    }
-    .pts-separator { color: var(--border); font-size: 0.6rem; }
+    /* Per-league points rows */
+    .league-pts-row { font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem; display: flex; align-items: center; gap: 6px; color: var(--text-muted); }
+    .league-pts-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .league-pts-name { flex: 1; }
+    .league-pts-val { color: var(--text); font-weight: 500; }
+    .league-pts-format { opacity: 0.6; font-size: 0.55rem; }
+    .league-pts-proj { color: var(--text-muted); font-size: 0.58rem; }
 
-    /* Scoring context badge */
-    .context-badge {
-      font-family: var(--font-m); font-size: 0.58rem;
-      padding: 2px 8px; border-radius: 4px; letter-spacing: 0.04em;
-      margin-left: auto; flex-shrink: 0; border: 1px solid;
-    }
-    .ctx-need   { background: rgba(16,185,129,0.15);  color: var(--cheer);     border-color: rgba(16,185,129,0.3);  }
-    .ctx-avoid  { background: rgba(239,68,68,0.15);   color: var(--enemy);     border-color: rgba(239,68,68,0.3);   }
-    .ctx-mixed  { background: rgba(245,158,11,0.15);  color: var(--conflicted);border-color: rgba(245,158,11,0.3);  }
-    .ctx-settled{ background: rgba(75,90,120,0.15);   color: var(--neutral);   border-color: rgba(75,90,120,0.3);   }
+    /* Context badge */
+    .context-badge { font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.04em; border: 1px solid; white-space: nowrap; }
+    .ctx-need    { background: rgba(16,185,129,0.15); color: var(--cheer);     border-color: rgba(16,185,129,0.3); }
+    .ctx-avoid   { background: rgba(239,68,68,0.15);  color: var(--enemy);     border-color: rgba(239,68,68,0.3);  }
+    .ctx-mixed   { background: rgba(245,158,11,0.15); color: var(--conflicted);border-color: rgba(245,158,11,0.3); }
+    .ctx-settled { background: rgba(75,90,120,0.15);  color: var(--neutral);   border-color: rgba(75,90,120,0.3);  }
+    .ctx-final   { background: rgba(75,90,120,0.15);  color: var(--neutral);   border-color: rgba(75,90,120,0.3);  }
 
-    /* League context lines */
-    .league-context { display: flex; flex-direction: column; gap: 4px; }
-    .league-line { font-family: var(--font-m); font-size: 0.58rem; letter-spacing: 0.02em; display: flex; align-items: center; gap: 5px; color: var(--text-muted); }
-    .league-line .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    /* League lines (roster context) */
+    .league-context { display: flex; flex-direction: column; gap: 3px; }
+    .league-line { font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; letter-spacing: 0.02em; display: flex; align-items: center; gap: 5px; color: var(--text-muted); }
+    .league-line .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 
-    .empty-state { font-family: var(--font-m); font-size: 0.68rem; color: var(--text-muted); text-align: center; padding: 28px 16px; border: 1px dashed var(--border); border-radius: var(--radius); }
+    .empty-state { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--text-muted); text-align: center; padding: 28px 16px; border: 1px dashed var(--border); border-radius: var(--radius); }
   </style>
 </head>
 <body>
 
-  <!-- ─── Header ────────────────────────────────────────────────────────── -->
-  <header>
-    <div class="header-left">
-      <div class="site-title">Game<span>Day</span></div>
-      <div class="week-badge" id="week-label">NFL Fantasy</div>
-    </div>
-    <div class="header-right">
-      <span class="refresh-time" id="refresh-time"></span>
-      <button class="btn btn-demo btn-sm"    id="demo-btn"        onclick="handleDemo()"       style="display:none">🎭 Demo</button>
-      <button class="btn btn-ghost btn-sm"   id="change-user-btn" onclick="handleChangeUser()" style="display:none">Change User</button>
-      <button class="btn btn-primary btn-sm" id="refresh-btn"     onclick="handleRefresh()"    style="display:none">↻ Refresh</button>
-    </div>
-  </header>
-
-  <!-- ═══════════════════════════════════════════════════════════════════════
-       LANDING PAGE
-  ═══════════════════════════════════════════════════════════════════════ -->
-  <div id="setup-panel">
-
-    <!-- Hero -->
-    <div class="landing-hero">
-      <div class="hero-eyebrow">Multi-League Fantasy Football</div>
-      <h1>Finally Know<br/><span>Who To Root For</span></h1>
-      <p class="hero-sub">
-        Managing multiple fantasy leagues shouldn't feel like solving a math problem on every play. Game Day pulls your rosters, reads the scores, and tells you exactly where your allegiance should be — in real time.
-      </p>
-      <div class="hero-pain">
-        <strong>Sound familiar?</strong> Travis Kelce just scored a touchdown. You cheer — then realize he's your opponent's best weapon in your other league. Now you're doing mental math on a third-down play while everyone around you is just watching the game.
-        <br/><br/>
-        Multiply that across four leagues and a full Sunday slate. That's the problem Game Day solves.
-      </div>
-    </div>
-
-    <!-- How it works -->
-    <div class="how-strip">
-      <div class="how-step">
-        <div class="how-num">01</div>
-        <div class="how-label">Connect your<br/>Sleeper account</div>
-      </div>
-      <div class="how-arrow">›</div>
-      <div class="how-step">
-        <div class="how-num">02</div>
-        <div class="how-label">We read your rosters<br/>and matchups</div>
-      </div>
-      <div class="how-arrow">›</div>
-      <div class="how-step">
-        <div class="how-num">03</div>
-        <div class="how-label">Every player gets<br/>classified instantly</div>
-      </div>
-      <div class="how-arrow">›</div>
-      <div class="how-step">
-        <div class="how-num">04</div>
-        <div class="how-label">Allegiances update<br/>as scores change</div>
-      </div>
-    </div>
-
-    <!-- Three Buckets -->
-    <div class="bucket-grid">
-      <div class="bucket-card cheer">
-        <span class="bucket-icon">🟢</span>
-        <div class="bucket-title">Cheer For</div>
-        <div class="bucket-desc">On your rosters and not hurting you anywhere else. Root for them freely — no asterisks.</div>
-      </div>
-      <div class="bucket-card conflicted">
-        <span class="bucket-icon">🟡</span>
-        <div class="bucket-title">Conflicted</div>
-        <div class="bucket-desc">On your roster in one league, working against you in another. It's complicated — we'll tell you exactly how complicated.</div>
-      </div>
-      <div class="bucket-card enemy">
-        <span class="bucket-icon">🔴</span>
-        <div class="bucket-title">Enemies</div>
-        <div class="bucket-desc">Only on opponent rosters. Root against them freely. No guilt required. That's what they signed up for.</div>
-      </div>
-    </div>
-
-    <!-- Live Scoring Teaser -->
-    <div class="live-teaser">
-      <div class="live-teaser-icon">⚡</div>
-      <div class="live-teaser-body">
-        <strong>Live game-day context</strong>
-        Already winning by 40 with no opponent players left? The player you thought you needed just became irrelevant — Game Day knows. Losing close in another league? That same player might be your enemy right now, even though they're on your roster. Allegiances update in real time as the scores change.
-      </div>
-    </div>
-
-    <!-- Sign-in Card -->
-    <div class="setup-card">
-      <h2>Get Started</h2>
-      <p class="setup-sub">Enter your Sleeper username.<br/>Your leagues load in seconds.</p>
-      <div class="input-group">
-        <input type="text" id="username-input" placeholder="sleeper username" autocomplete="off" />
-        <button class="btn btn-primary" onclick="handleStart()">Load</button>
-      </div>
-      <p id="setup-error" style="color:var(--enemy);margin-top:12px;display:none;font-family:var(--font-m);font-size:0.75rem;"></p>
-      <div class="setup-divider">or try it first</div>
-      <button class="btn btn-demo" style="width:100%;margin-top:12px" onclick="handleDemo()">🎭 Demo Mode — 4 leagues, live scores</button>
-    </div>
-
+<!-- ── Header ──────────────────────────────────────────────────── -->
+<header>
+  <div class="header-left">
+    <div class="site-title">Game<span>Day</span></div>
+    <div class="week-badge" id="week-label">NFL Fantasy</div>
   </div>
+  <div class="header-right">
+    <span class="refresh-time" id="refresh-time"></span>
+    <button class="btn btn-demo btn-sm"    id="demo-btn"        onclick="handleDemo()"       style="display:none">🎭 Demo</button>
+    <button class="btn btn-ghost btn-sm"   id="change-user-btn" onclick="handleChangeUser()" style="display:none">Change User</button>
+    <button class="btn btn-primary btn-sm" id="refresh-btn"     onclick="handleRefresh()"    style="display:none">↻ Refresh</button>
+  </div>
+</header>
 
-  <!-- Loading / Error -->
-  <div id="loading-panel"><div class="spinner"></div><div class="loading-msg" id="loading-msg">Connecting to Sleeper...</div></div>
-  <div id="error-panel"><div class="error-msg" id="error-msg"></div><button class="btn btn-ghost" onclick="showSetup()">← Try Again</button></div>
-
-  <!-- ═══════════════════════════════════════════════════════════════════════
-       BOARD
-  ═══════════════════════════════════════════════════════════════════════ -->
-  <div id="board">
-
-    <div class="board-header">
-      <div class="board-user">Loaded for <strong id="display-username"></strong></div>
-      <span class="refresh-time" id="board-refresh-time"></span>
-    </div>
-
-    <!-- Nav -->
-    <div class="nav-controls">
-      <span class="nav-label">Week</span>
-      <button class="btn-icon" id="week-prev" onclick="changeWeek(-1)">‹</button>
-      <span class="nav-value" id="nav-week-display">—</span>
-      <button class="btn-icon" id="week-next" onclick="changeWeek(+1)">›</button>
-      <div class="nav-divider"></div>
-      <span class="nav-label">Season</span>
-      <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
-      <div class="nav-divider"></div>
-      <button class="btn btn-live btn-sm" id="live-btn" onclick="snapToLive()"><span class="dot-live"></span> Live</button>
-      <div class="nav-spacer"></div>
-      <span class="refresh-time" id="nav-context-label"></span>
-    </div>
-
-    <!-- League Scores Strip -->
-    <div class="scores-strip" id="scores-strip"></div>
-
-    <!-- League Filters -->
-    <div class="league-filters" id="league-filters">
-      <span class="filter-label">Filter</span>
-      <div id="filter-pills"></div>
-      <div class="filter-divider"></div>
-      <span class="filter-count" id="filter-count"></span>
-    </div>
-
-    <!-- Banners -->
-    <div class="banner banner-demo"     id="banner-demo"><span class="banner-icon">🎭</span><div><strong>Demo Mode</strong> — 4 fake leagues with live scores showing the scoring context engine in action. Enter your username to load real data.</div></div>
-    <div class="banner banner-offseason"id="banner-offseason"><span class="banner-icon">📋</span><div><strong>Roster Mode</strong> — No matchup data yet. Showing full rosters; everyone defaults to Cheer For.</div></div>
-    <div class="banner banner-history"  id="banner-history"><span class="banner-icon">📅</span><div id="history-label"></div></div>
-    <div class="banner banner-scoring"  id="banner-scoring"><span class="banner-icon">⚡</span><div><strong>Live Scoring Active</strong> — Allegiances are adjusted based on current scores and projected remaining points. Clinched matchups are dimmed.</div></div>
-
-    <!-- Debug -->
-    <div class="debug-panel" id="debug-panel" style="display:none">
-      <button class="debug-toggle" id="debug-toggle" onclick="toggleDebug()">
-        <span>🔬</span><span>API Debug</span><span class="arrow">▶</span>
-      </button>
-      <div class="debug-body" id="debug-body">
-        <div class="debug-meta"    id="debug-meta"></div>
-        <div class="debug-leagues" id="debug-leagues"></div>
-      </div>
-    </div>
-
-    <!-- No-data -->
-    <div id="no-data-state">
-      <div class="no-data-icon">📭</div>
-      <div class="no-data-title">No League Data</div>
-      <div class="no-data-msg" id="no-data-msg"></div>
-      <div class="no-data-hint">Use the season dropdown or week arrows above to try a different period.</div>
-    </div>
-
-    <!-- Summary -->
-    <div class="summary-bar" id="summary-bar">
-      <div class="summary-pill cheer">
-        <div class="pill-count" id="count-cheer">0</div>
-        <div class="pill-label"><strong>🟢 Cheer For</strong><span>Root for them</span></div>
-      </div>
-      <div class="summary-pill conflicted">
-        <div class="pill-count" id="count-conflicted">0</div>
-        <div class="pill-label"><strong>🟡 Conflicted</strong><span>It's complicated</span></div>
-      </div>
-      <div class="summary-pill enemy">
-        <div class="pill-count" id="count-enemy">0</div>
-        <div class="pill-label"><strong>🔴 Enemies</strong><span>Root against</span></div>
-      </div>
-    </div>
-
-    <!-- Columns -->
-    <div class="columns" id="columns">
-      <div class="column cheer">
-        <div class="column-header"><span class="col-icon">🟢</span><span class="col-title">Cheer For</span><span class="col-subtitle">Only on your rosters</span></div>
-        <div id="cheer-list"></div>
-      </div>
-      <div class="column conflicted">
-        <div class="column-header"><span class="col-icon">🟡</span><span class="col-title">Conflicted</span><span class="col-subtitle">Both sides</span></div>
-        <div id="conflicted-list"></div>
-      </div>
-      <div class="column enemy">
-        <div class="column-header"><span class="col-icon">🔴</span><span class="col-title">Enemies</span><span class="col-subtitle">Only against you</span></div>
-        <div id="enemy-list"></div>
-      </div>
+<!-- ══ LANDING ═════════════════════════════════════════════════════ -->
+<div id="setup-panel">
+  <div class="landing-hero">
+    <div class="hero-eyebrow">Multi-League Fantasy Football</div>
+    <h1>Finally Know<br/><span>Who To Root For</span></h1>
+    <p class="hero-sub">Managing multiple fantasy leagues shouldn't feel like solving a math problem on every play. Game Day pulls your rosters, reads the live scores, and tells you exactly where your allegiance should be — in real time.</p>
+    <div class="hero-pain">
+      <strong>Sound familiar?</strong> Travis Kelce just scored. You cheer — then realize he's your opponent's weapon in your other league. Now you're doing mental math on a third-down play while everyone around you is just watching the game.<br/><br/>
+      Multiply that across four leagues and a full Sunday slate. That's exactly what Game Day solves.
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════
-       SCRIPT
-  ═══════════════════════════════════════════════════════════════════════ -->
-  <script>
-    /* ════════════════════════════════════════════════════════════════
-       CONSTANTS & STATE
-    ════════════════════════════════════════════════════════════════ */
-    const BASE           = 'https://api.sleeper.app/v1';
-    const CACHE_KEY      = 'gd_players_db';
-    const CACHE_TIME_KEY = 'gd_players_db_time';
-    const PROJ_CACHE_KEY = 'gd_proj';
-    const CACHE_TTL      = 12 * 60 * 60 * 1000;
-    const PROJ_TTL       = 15 * 60 * 1000; // projections refresh every 15 min
-    const USER_KEY       = 'gd_username';
-    const POS_ORDER      = ['QB','RB','WR','TE','K','DEF'];
-    const FIRST_SEASON   = 2019;
-    const THIS_YEAR      = new Date().getFullYear();
-    const MAX_WEEK       = 18;
+  <div class="how-strip">
+    <div class="how-step"><div class="how-num">01</div><div class="how-label">Connect your<br/>Sleeper account</div></div>
+    <div class="how-arrow">›</div>
+    <div class="how-step"><div class="how-num">02</div><div class="how-label">We read your rosters<br/>and matchups</div></div>
+    <div class="how-arrow">›</div>
+    <div class="how-step"><div class="how-num">03</div><div class="how-label">Every player gets<br/>classified instantly</div></div>
+    <div class="how-arrow">›</div>
+    <div class="how-step"><div class="how-num">04</div><div class="how-label">Allegiances update<br/>as scores change</div></div>
+  </div>
 
-    const LEAGUE_COLORS  = ['#06b6d4','#a855f7','#f97316','#ec4899','#6366f1','#84cc16','#14b8a6','#f43f5e'];
+  <div class="bucket-grid">
+    <div class="bucket-card cheer">
+      <span class="bucket-icon">🟢</span>
+      <div class="bucket-title">Cheer For</div>
+      <div class="bucket-desc">On your rosters and not hurting you anywhere else. Root for them freely — no asterisks.</div>
+    </div>
+    <div class="bucket-card conflicted">
+      <span class="bucket-icon">🟡</span>
+      <div class="bucket-title">Conflicted</div>
+      <div class="bucket-desc">On your roster in one league, working against you in another. We'll tell you exactly how complicated it is.</div>
+    </div>
+    <div class="bucket-card enemy">
+      <span class="bucket-icon">🔴</span>
+      <div class="bucket-title">Enemies</div>
+      <div class="bucket-desc">Only on opponent rosters. Root against freely. No guilt required. That's fantasy football.</div>
+    </div>
+  </div>
 
-    let isDemoMode     = false;
-    let liveWeek       = 1;
-    let liveSeason     = String(THIS_YEAR);
-    let activeWeek     = 1;
-    let activeSeason   = String(THIS_YEAR);
-    let currentUser    = null;
-    let leagueColorMap = {};
-    let activeFilters  = new Set();
+  <div class="live-teaser">
+    <div class="live-teaser-icon">⚡</div>
+    <div class="live-teaser-body">
+      <strong>Live game-day context</strong>
+      Already winning by 40 with no opponent players left? The player you thought you needed just became irrelevant. Losing close in another league? That same player might be your enemy right now, even though they're on your roster. Allegiances shift in real time as scores change.
+    </div>
+  </div>
 
-    /* ════════════════════════════════════════════════════════════════
-       LEAGUE COLORS
-    ════════════════════════════════════════════════════════════════ */
-    function assignColor(name) {
-      if (!leagueColorMap[name]) {
-        leagueColorMap[name] = LEAGUE_COLORS[Object.keys(leagueColorMap).length % LEAGUE_COLORS.length];
-      }
-      return leagueColorMap[name];
-    }
-    const lc = name => leagueColorMap[name] || '#5a6a8a';
+  <div class="setup-card">
+    <h2>Get Started</h2>
+    <p class="setup-sub">Enter your Sleeper username.<br/>Your leagues load in seconds.</p>
+    <div class="input-group">
+      <input type="text" id="username-input" placeholder="sleeper username" autocomplete="off" />
+      <button class="btn btn-primary" onclick="handleStart()">Load</button>
+    </div>
+    <p id="setup-error" style="color:var(--enemy);margin-top:12px;display:none;font-family:'IBM Plex Mono',monospace;font-size:0.75rem;"></p>
+    <div class="setup-divider">or try it first</div>
+    <button class="btn btn-demo" style="width:100%;margin-top:12px" onclick="handleDemo()">🎭 Demo Mode — 4 leagues, live scoring</button>
+  </div>
+</div>
 
-    /* ════════════════════════════════════════════════════════════════
-       API
-    ════════════════════════════════════════════════════════════════ */
-    async function apiFetch(url) {
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    }
-    const getUser     = u        => apiFetch(`${BASE}/user/${u}`);
-    const getNFLState = ()       => apiFetch(`${BASE}/state/nfl`);
-    const getLeagues  = (uid, s) => apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
-    const getRosters  = lid      => apiFetch(`${BASE}/league/${lid}/rosters`);
-    const getMatchups = (lid, w) => apiFetch(`${BASE}/league/${lid}/matchups/${w}`);
+<!-- Loading / Error -->
+<div id="loading-panel"><div class="spinner"></div><div class="loading-msg" id="loading-msg">Connecting to Sleeper...</div></div>
+<div id="error-panel"><div class="error-msg" id="error-msg"></div><button class="btn btn-ghost" onclick="showSetup()">← Try Again</button></div>
 
-    async function getPlayerDB() {
-      const c = localStorage.getItem(CACHE_KEY), t = localStorage.getItem(CACHE_TIME_KEY);
-      if (c && t && Date.now() - parseInt(t) < CACHE_TTL) { setLoading('Using cached player data...'); return JSON.parse(c); }
-      setLoading('Downloading player database (~5 MB, one-time)...');
-      const db = await apiFetch(`${BASE}/players/nfl`);
-      try { localStorage.setItem(CACHE_KEY, JSON.stringify(db)); localStorage.setItem(CACHE_TIME_KEY, Date.now()); } catch(e) {}
-      return db;
-    }
+<!-- ══ BOARD ════════════════════════════════════════════════════════ -->
+<div id="board">
+  <div class="board-header">
+    <div class="board-user">Loaded for <strong id="display-username"></strong></div>
+    <span class="refresh-time" id="board-refresh-time"></span>
+  </div>
 
-    async function getProjections(season, week) {
-      // Try to fetch Sleeper projections; fail gracefully if unavailable
-      const cKey = `${PROJ_CACHE_KEY}_${season}_${week}`;
-      const tKey = `${cKey}_t`;
-      const c = localStorage.getItem(cKey), t = localStorage.getItem(tKey);
-      if (c && t && Date.now() - parseInt(t) < PROJ_TTL) return JSON.parse(c);
-      try {
-        setLoading('Fetching player projections...');
-        const proj = await apiFetch(`${BASE}/projections/nfl/regular/${season}/${week}`);
-        try { localStorage.setItem(cKey, JSON.stringify(proj)); localStorage.setItem(tKey, Date.now()); } catch(e) {}
-        return proj;
-      } catch(e) {
-        console.warn('Projections unavailable:', e.message);
-        return {}; // graceful fallback — live scoring uses simplified mode
-      }
-    }
+  <!-- Nav Controls -->
+  <div class="nav-controls">
+    <span class="nav-label">Week</span>
+    <button class="btn-icon" id="week-prev" onclick="changeWeek(-1)">‹</button>
+    <select class="nav-select week-select" id="week-select" onchange="changeWeekTo(+this.value)"></select>
+    <button class="btn-icon" id="week-next" onclick="changeWeek(+1)">›</button>
+    <div class="nav-divider"></div>
+    <span class="nav-label">Season</span>
+    <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
+    <div class="nav-divider"></div>
+    <button class="btn btn-live btn-sm" id="live-btn" onclick="snapToLive()"><span class="dot-live"></span> Live</button>
+    <div class="nav-spacer"></div>
+    <span class="refresh-time" id="nav-context-label"></span>
+  </div>
 
-    /* ════════════════════════════════════════════════════════════════
-       SCORING ENGINE
-    ════════════════════════════════════════════════════════════════ */
+  <!-- Scores Strip -->
+  <div class="scores-strip" id="scores-strip"></div>
 
-    // Determine if a matchup is decided based on current scores + projected totals
-    function calcLeagueState(myPts, oppPts, myProjTotal, oppProjTotal) {
-      if (!myProjTotal && !oppProjTotal) return 'LIVE'; // no projections available
-      const myLead = myPts - oppPts;
-      const oppRemaining = Math.max(0, oppProjTotal - oppPts);
-      const myRemaining  = Math.max(0, myProjTotal  - myPts);
-      if (myLead > oppRemaining && oppRemaining >= 0) return 'LOCKED_WIN';
-      if (-myLead > myRemaining && myRemaining >= 0)  return 'LOCKED_LOSS';
-      return 'LIVE';
-    }
+  <!-- League Filters -->
+  <div class="league-filters" id="league-filters">
+    <span class="filter-label">Filter</span>
+    <div id="filter-pills"></div>
+    <div class="filter-divider"></div>
+    <span class="filter-count" id="filter-count"></span>
+  </div>
 
-    // Calculate net scoring signal for a player across all leagues
-    // Returns: { signal: number, allDecided: boolean, details: [] }
-    function calcScoringSignal(player, leagueContexts) {
-      if (!leagueContexts?.length) return null;
-      const liveLCs = leagueContexts.filter(lc => lc.leagueState !== 'NO_MATCHUP');
-      if (!liveLCs.length) return null;
+  <!-- Banners -->
+  <div class="banner banner-demo"     id="banner-demo"><span class="banner-icon">🎭</span><div><strong>Demo Mode</strong> — 4 fake leagues, two live and two decided, showing the scoring context engine. Enter your username to load real data.</div></div>
+  <div class="banner banner-offseason"id="banner-offseason"><span class="banner-icon">📋</span><div><strong>Roster Mode</strong> — No matchup data yet. Everyone defaults to Cheer For until lineups are set.</div></div>
+  <div class="banner banner-history"  id="banner-history"><span class="banner-icon">📅</span><div id="history-label"></div></div>
+  <div class="banner banner-scoring"  id="banner-scoring"><span class="banner-icon">⚡</span><div><strong>Live Scoring Active</strong> — Allegiances are adjusted based on current scores and lead safety. Clinched matchups are dimmed.</div></div>
 
-      let signal = 0, allDecided = true;
-      const details = [];
+  <!-- Debug -->
+  <div class="debug-panel" id="debug-panel" style="display:none">
+    <button class="debug-toggle" id="debug-toggle" onclick="toggleDebug()">
+      <span>🔬</span><span>API Debug</span><span class="arrow">▶</span>
+    </button>
+    <div class="debug-body" id="debug-body">
+      <div class="debug-meta"    id="debug-meta"></div>
+      <div class="debug-leagues" id="debug-leagues"></div>
+    </div>
+  </div>
 
-      liveLCs.forEach(ctx => {
-        const onMine = player.myLeagues.includes(ctx.leagueName);
-        const onOpp  = player.againstLeagues.includes(ctx.leagueName);
-        if (!onMine && !onOpp) return;
+  <!-- No-data -->
+  <div id="no-data-state">
+    <div class="no-data-icon">📭</div>
+    <div class="no-data-title">No League Data</div>
+    <div class="no-data-msg" id="no-data-msg"></div>
+    <div class="no-data-hint">Use the season dropdown or week selector to try a different period.</div>
+  </div>
 
-        const st = ctx.leagueState;
-        if (st === 'LIVE') allDecided = false;
+  <!-- Summary -->
+  <div class="summary-bar" id="summary-bar">
+    <div class="summary-pill cheer">
+      <div class="pill-count" id="count-cheer">0</div>
+      <div class="pill-label"><strong>🟢 Cheer For</strong><span>Root for them</span></div>
+    </div>
+    <div class="summary-pill conflicted">
+      <div class="pill-count" id="count-conflicted">0</div>
+      <div class="pill-label"><strong>🟡 Conflicted</strong><span>It's complicated</span></div>
+    </div>
+    <div class="summary-pill enemy">
+      <div class="pill-count" id="count-enemy">0</div>
+      <div class="pill-label"><strong>🔴 Enemies</strong><span>Root against</span></div>
+    </div>
+  </div>
 
-        if (onMine) {
-          const contrib = st === 'LIVE' ? 1 : 0;
-          signal += contrib;
-          details.push({ league: ctx.leagueName, side: 'mine', state: st, contrib });
-        }
-        if (onOpp) {
-          const contrib = st === 'LIVE' ? -1 : 0;
-          signal += contrib;
-          details.push({ league: ctx.leagueName, side: 'opp', state: st, contrib });
-        }
-      });
+  <!-- Columns -->
+  <div class="columns" id="columns">
+    <div class="column cheer">
+      <div class="column-header"><span class="col-icon">🟢</span><span class="col-title">Cheer For</span><span class="col-subtitle">Only on your rosters</span></div>
+      <div id="cheer-list"></div>
+    </div>
+    <div class="column conflicted">
+      <div class="column-header"><span class="col-icon">🟡</span><span class="col-title">Conflicted</span><span class="col-subtitle">Both sides</span></div>
+      <div id="conflicted-list"></div>
+    </div>
+    <div class="column enemy">
+      <div class="column-header"><span class="col-icon">🔴</span><span class="col-title">Enemies</span><span class="col-subtitle">Only against you</span></div>
+      <div id="enemy-list"></div>
+    </div>
+  </div>
+</div>
 
-      return { signal, allDecided, details };
-    }
+<!-- ══ SCRIPT ════════════════════════════════════════════════════════ -->
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   CONSTANTS & STATE
+════════════════════════════════════════════════════════════════════ */
+const BASE        = 'https://api.sleeper.app/v1';
+const CACHE_KEY   = 'gd_players_db';
+const CACHE_T_KEY = 'gd_players_db_t';
+const CACHE_TTL   = 12 * 60 * 60 * 1000;
+const PROJ_TTL    = 15 * 60 * 1000;
+const USER_KEY    = 'gd_username';
+const POS_ORDER   = ['QB','RB','WR','TE','K','DEF'];
+const FIRST_YR    = 2019;
+const THIS_YR     = new Date().getFullYear();
+const MAX_WEEK    = 18;
+const LC_COLORS   = ['#06b6d4','#a855f7','#f97316','#ec4899','#6366f1','#84cc16','#14b8a6','#f43f5e'];
 
-    // Classify a player using scoring signal (when available) or roster membership
-    function classifyPlayer(player, sigResult) {
-      const mine   = player.myLeagues.length > 0;
-      const theirs = player.againstLeagues.length > 0;
+let isDemoMode    = false;
+let liveWeek      = 1;
+let liveSeason    = String(THIS_YR);
+let activeWeek    = 1;
+let activeSeason  = String(THIS_YR);
+let currentUser   = null;
+let colorMap      = {};   // leagueName → hex
+let activeFilters = new Set();
 
-      if (!sigResult) {
-        // Offseason / no scoring data — pure roster logic
-        if (mine && !theirs)  return { bucket: 'cheer',     clinched: false };
-        if (mine && theirs)   return { bucket: 'conflicted', clinched: false };
-        if (theirs)           return { bucket: 'enemy',      clinched: false };
-        return null;
-      }
+/* ════════════════════════════════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════════════════════════════════ */
+function assignColor(n) { if (!colorMap[n]) colorMap[n] = LC_COLORS[Object.keys(colorMap).length % LC_COLORS.length]; return colorMap[n]; }
+const lc = n => colorMap[n] || '#5a6a8a';
 
-      const { signal, allDecided } = sigResult;
-      if (signal > 0)  return { bucket: 'cheer',     clinched: allDecided };
-      if (signal < 0)  return { bucket: 'enemy',      clinched: allDecided };
-      // signal === 0 — use roster membership to determine which bucket, clinched
-      if (mine && !theirs)  return { bucket: 'cheer',     clinched: allDecided };
-      if (!mine && theirs)  return { bucket: 'enemy',      clinched: allDecided };
-      return { bucket: 'conflicted', clinched: allDecided };
-    }
+// True when the selected week/season is definitively over
+function isHistoricalWeek() {
+  const as = parseInt(activeSeason), ls = parseInt(liveSeason);
+  if (as < ls) return true;
+  if (as === ls && activeWeek < liveWeek) return true;
+  return false;
+}
 
-    // Scoring context badge text for player card
-    function contextBadge(sigResult) {
-      if (!sigResult) return null;
-      const { signal, allDecided } = sigResult;
-      if (allDecided)  return { text: 'Settled', cls: 'ctx-settled' };
-      if (signal > 1)  return { text: 'Need Them', cls: 'ctx-need' };
-      if (signal === 1)return { text: 'Want Points', cls: 'ctx-need' };
-      if (signal < -1) return { text: 'Danger', cls: 'ctx-avoid' };
-      if (signal === -1)return { text: 'Avoid Points', cls: 'ctx-avoid' };
-      return { text: 'Mixed', cls: 'ctx-mixed' };
-    }
+/* ════════════════════════════════════════════════════════════════════
+   API
+════════════════════════════════════════════════════════════════════ */
+async function apiFetch(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+const getUser     = u        => apiFetch(`${BASE}/user/${u}`);
+const getNFLState = ()       => apiFetch(`${BASE}/state/nfl`);
+const getLeagues  = (uid, s) => apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
+const getRosters  = lid      => apiFetch(`${BASE}/league/${lid}/rosters`);
+const getMatchups = (lid, w) => apiFetch(`${BASE}/league/${lid}/matchups/${w}`);
 
-    /* ════════════════════════════════════════════════════════════════
-       PANEL HELPERS
-    ════════════════════════════════════════════════════════════════ */
-    function hideAll() {
-      ['setup-panel','loading-panel','error-panel','board'].forEach(id =>
-        document.getElementById(id).style.display = 'none');
-      ['demo-btn','change-user-btn','refresh-btn'].forEach(id =>
-        document.getElementById(id).style.display = 'none');
-    }
-    function showSetup() { hideAll(); isDemoMode = false; currentUser = null; document.getElementById('setup-panel').style.display = 'flex'; }
-    function showLoading(msg) { hideAll(); document.getElementById('loading-panel').style.display = 'flex'; document.getElementById('loading-msg').textContent = msg || 'Loading...'; }
-    function setLoading(msg) { document.getElementById('loading-msg').textContent = msg; }
-    function showError(msg)  { hideAll(); document.getElementById('error-panel').style.display = 'flex'; document.getElementById('error-msg').textContent = msg; }
-    function showBoard() {
-      hideAll(); document.getElementById('board').style.display = 'block';
-      ['demo-btn','change-user-btn','refresh-btn'].forEach(id => document.getElementById(id).style.display = 'inline-block');
-      document.getElementById('demo-btn').classList.toggle('active', isDemoMode);
-    }
+async function getPlayerDB() {
+  const c = localStorage.getItem(CACHE_KEY), t = localStorage.getItem(CACHE_T_KEY);
+  if (c && t && Date.now() - parseInt(t) < CACHE_TTL) { setLoading('Using cached player data...'); return JSON.parse(c); }
+  setLoading('Downloading player database (~5 MB, one-time)...');
+  const db = await apiFetch(`${BASE}/players/nfl`);
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(db)); localStorage.setItem(CACHE_T_KEY, Date.now()); } catch(e) {}
+  return db;
+}
 
-    /* ════════════════════════════════════════════════════════════════
-       SEASON DROPDOWN
-    ════════════════════════════════════════════════════════════════ */
-    function buildSeasonSelect(sel) {
-      const el = document.getElementById('season-select'); el.innerHTML = '';
-      for (let y = THIS_YEAR; y >= FIRST_SEASON; y--) {
-        const o = document.createElement('option');
-        o.value = String(y); o.textContent = String(y);
-        if (String(y) === String(sel)) o.selected = true;
-        el.appendChild(o);
-      }
-    }
+async function getProjections(season, week) {
+  // Skip entirely for historical weeks
+  if (isHistoricalWeek()) return {};
+  const ck = `gd_proj_${season}_${week}`, tk = `${ck}_t`;
+  const c = localStorage.getItem(ck), t = localStorage.getItem(tk);
+  if (c && t && Date.now() - parseInt(t) < PROJ_TTL) return JSON.parse(c);
+  try {
+    setLoading('Fetching projections...');
+    const p = await apiFetch(`${BASE}/projections/nfl/regular/${season}/${week}`);
+    try { localStorage.setItem(ck, JSON.stringify(p)); localStorage.setItem(tk, Date.now()); } catch(e) {}
+    return p;
+  } catch(e) { return {}; }
+}
 
-    /* ════════════════════════════════════════════════════════════════
-       NAV UI
-    ════════════════════════════════════════════════════════════════ */
-    function updateNavUI() {
-      const isLive = activeWeek === liveWeek && activeSeason === liveSeason;
-      document.getElementById('nav-week-display').textContent = `Week ${activeWeek}`;
-      document.getElementById('week-prev').disabled = activeWeek <= 1;
-      document.getElementById('week-next').disabled = activeWeek >= MAX_WEEK;
-      document.getElementById('season-select').value = activeSeason;
-      document.getElementById('live-btn').classList.toggle('current', isLive);
-      document.getElementById('nav-context-label').textContent = isLive ? `Live · ${liveSeason}` : `${activeSeason} · Wk ${activeWeek}`;
-      document.getElementById('week-label').textContent = `Week ${activeWeek} · ${activeSeason}`;
-      const hb = document.getElementById('banner-history');
-      if (!isDemoMode && !isLive) {
-        hb.classList.add('visible');
-        document.getElementById('history-label').innerHTML = `<strong>Historical View</strong> — ${activeSeason} Season, Week ${activeWeek}. Hit <strong>Live</strong> to return.`;
-      } else { hb.classList.remove('visible'); }
-    }
+// Scoring format label from league settings
+function scoringLabel(league) {
+  const s = league.scoring_settings;
+  if (!s) return '';
+  const recPts = s.rec ?? 0;
+  if (recPts === 1)   return 'PPR';
+  if (recPts === 0.5) return 'Half';
+  return 'Std';
+}
 
-    /* ════════════════════════════════════════════════════════════════
-       LEAGUE SCORES STRIP
-    ════════════════════════════════════════════════════════════════ */
-    function renderScoresStrip(leagueContexts) {
-      const strip = document.getElementById('scores-strip');
-      strip.innerHTML = '';
-      const hasScores = leagueContexts.some(lc => lc.leagueState !== 'NO_MATCHUP');
-      if (!hasScores) { strip.classList.remove('visible'); return; }
-      strip.classList.add('visible');
+/* ════════════════════════════════════════════════════════════════════
+   SCORING ENGINE
+════════════════════════════════════════════════════════════════════ */
 
-      leagueContexts.forEach(ctx => {
-        const color = lc(ctx.leagueName);
-        const stateClass = { LOCKED_WIN:'state-win', LOCKED_LOSS:'state-loss', LIVE:'state-live', NO_MATCHUP:'state-none' }[ctx.leagueState] || 'state-none';
-        const stateText  = { LOCKED_WIN:'Clinched ✓', LOCKED_LOSS:'Eliminated', LIVE:'● Live', NO_MATCHUP:'No Matchup' }[ctx.leagueState] || '';
-        const stateTextClass = { LOCKED_WIN:'win', LOCKED_LOSS:'loss', LIVE:'live', NO_MATCHUP:'none' }[ctx.leagueState] || 'none';
-        const myLeading  = ctx.myPoints >= ctx.oppPoints;
+// For a LIVE week: determine if the matchup outcome is already decided
+function calcLiveState(myPts, oppPts, myProjTotal, oppProjTotal) {
+  if (!myProjTotal && !oppProjTotal) return 'LIVE';
+  const lead = myPts - oppPts;
+  const oppRem = Math.max(0, oppProjTotal - oppPts);
+  const myRem  = Math.max(0, myProjTotal  - myPts);
+  if (lead > oppRem)  return 'LOCKED_WIN';
+  if (-lead > myRem)  return 'LOCKED_LOSS';
+  return 'LIVE';
+}
 
-        const card = document.createElement('div');
-        card.className = `score-card ${stateClass}`;
-        card.innerHTML = `
-          <div class="score-league-name">
-            <span class="sc-dot" style="background:${color}"></span>
-            ${ctx.leagueName}
-          </div>
-          <div class="score-matchup">
-            <div class="score-team">
-              <div class="score-pts mine ${!myLeading?'losing':''}">${ctx.myPoints.toFixed(1)}</div>
-              <div class="score-label">You</div>
-            </div>
-            <div class="score-dash">—</div>
-            <div class="score-team">
-              <div class="score-pts opp ${!myLeading?'leading':''}">${ctx.oppPoints.toFixed(1)}</div>
-              <div class="score-label">Opp</div>
-            </div>
-          </div>
-          <div class="score-state ${stateTextClass}">${stateText}</div>
-        `;
-        strip.appendChild(card);
-      });
-    }
+// For a HISTORICAL week: outcome is known from final scores
+function calcHistoricalState(myPts, oppPts) {
+  if (myPts > oppPts)  return 'FINAL_WIN';
+  if (myPts < oppPts)  return 'FINAL_LOSS';
+  return 'FINAL_TIE';
+}
 
-    /* ════════════════════════════════════════════════════════════════
-       LEAGUE FILTERS
-    ════════════════════════════════════════════════════════════════ */
-    function buildFilterPills(names) {
-      const filtersEl = document.getElementById('league-filters');
-      const container = document.getElementById('filter-pills');
-      container.innerHTML = ''; activeFilters.clear();
-      if (names.length < 2) { filtersEl.classList.remove('visible'); return; }
-      filtersEl.classList.add('visible');
+// Net scoring signal across all leagues for one player
+function calcSignal(player, contexts) {
+  if (!contexts?.length) return null;
+  const relevant = contexts.filter(c => c.leagueState !== 'NO_MATCHUP');
+  if (!relevant.length) return null;
 
-      const allPill = Object.assign(document.createElement('span'), { className:'filter-pill all-pill active', textContent:'All' });
-      allPill.dataset.league = '__all__';
-      allPill.onclick = () => toggleFilter('__all__', names);
-      container.appendChild(allPill);
+  let signal = 0, allDecided = true;
+  relevant.forEach(ctx => {
+    const onMine = player.myLeagues.includes(ctx.leagueName);
+    const onOpp  = player.againstLeagues.includes(ctx.leagueName);
+    if (!onMine && !onOpp) return;
+    const st = ctx.leagueState;
+    // States that are decided (no more signal)
+    const decided = ['LOCKED_WIN','LOCKED_LOSS','FINAL_WIN','FINAL_LOSS','FINAL_TIE'].includes(st);
+    if (!decided) allDecided = false;
+    if (onMine) signal += decided ? 0 :  1;
+    if (onOpp)  signal += decided ? 0 : -1;
+  });
+  return { signal, allDecided };
+}
 
-      names.forEach(name => {
-        const color = lc(name);
-        const pill = document.createElement('span');
-        pill.className = 'filter-pill'; pill.textContent = name; pill.dataset.league = name;
-        pill.style.cssText = `background:${color}1a;border-color:${color}66;color:${color}`;
-        pill.onclick = () => toggleFilter(name, names);
-        container.appendChild(pill);
-      });
-      updateFilterCount();
-    }
+function classifyPlayer(player, sig) {
+  const mine   = player.myLeagues.length > 0;
+  const theirs = player.againstLeagues.length > 0;
+  if (!sig) {
+    if (mine && !theirs) return { bucket:'cheer',     clinched:false };
+    if (mine && theirs)  return { bucket:'conflicted', clinched:false };
+    if (theirs)          return { bucket:'enemy',      clinched:false };
+    return null;
+  }
+  const { signal, allDecided } = sig;
+  if (signal > 0)  return { bucket:'cheer',      clinched: allDecided };
+  if (signal < 0)  return { bucket:'enemy',      clinched: allDecided };
+  if (mine && !theirs) return { bucket:'cheer',      clinched: allDecided };
+  if (!mine && theirs) return { bucket:'enemy',      clinched: allDecided };
+  return { bucket:'conflicted', clinched: allDecided };
+}
 
-    function toggleFilter(league, all) {
-      if (league === '__all__') activeFilters.clear();
-      else activeFilters.has(league) ? activeFilters.delete(league) : activeFilters.add(league);
-      document.querySelectorAll('.filter-pill').forEach(p => {
-        const lg = p.dataset.league;
-        if (lg === '__all__') { p.classList.toggle('active', activeFilters.size === 0); p.classList.toggle('inactive', activeFilters.size > 0); }
-        else p.classList.toggle('inactive', activeFilters.size > 0 && !activeFilters.has(lg));
-      });
-      applyFilters(); updateFilterCount();
-    }
+function ctxBadge(sig, isHist) {
+  if (!sig) return null;
+  if (isHist) return { text:'Final', cls:'ctx-final' };
+  const { signal, allDecided } = sig;
+  if (allDecided)   return { text:'Settled', cls:'ctx-settled' };
+  if (signal > 1)   return { text:'Need Them',    cls:'ctx-need' };
+  if (signal === 1) return { text:'Want Points',  cls:'ctx-need' };
+  if (signal < -1)  return { text:'Danger',       cls:'ctx-avoid' };
+  if (signal === -1)return { text:'Avoid Points', cls:'ctx-avoid' };
+  return { text:'Mixed', cls:'ctx-mixed' };
+}
 
-    function updateFilterCount() {
-      document.getElementById('filter-count').textContent = activeFilters.size ? `Filtering: ${[...activeFilters].join(', ')}` : '';
-    }
+/* ════════════════════════════════════════════════════════════════════
+   PANEL HELPERS
+════════════════════════════════════════════════════════════════════ */
+function hideAll() {
+  ['setup-panel','loading-panel','error-panel','board'].forEach(id => document.getElementById(id).style.display='none');
+  ['demo-btn','change-user-btn','refresh-btn'].forEach(id => document.getElementById(id).style.display='none');
+}
+function showSetup()  { hideAll(); isDemoMode=false; currentUser=null; document.getElementById('setup-panel').style.display='flex'; }
+function showLoading(msg) { hideAll(); document.getElementById('loading-panel').style.display='flex'; document.getElementById('loading-msg').textContent=msg||'Loading...'; }
+function setLoading(msg)  { document.getElementById('loading-msg').textContent=msg; }
+function showError(msg)   { hideAll(); document.getElementById('error-panel').style.display='flex'; document.getElementById('error-msg').textContent=msg; }
+function showBoard() {
+  hideAll(); document.getElementById('board').style.display='block';
+  ['demo-btn','change-user-btn','refresh-btn'].forEach(id => document.getElementById(id).style.display='inline-block');
+  document.getElementById('demo-btn').classList.toggle('active', isDemoMode);
+}
 
-    function applyFilters() {
-      ['cheer-list','conflicted-list','enemy-list'].forEach(id => {
-        const list = document.getElementById(id);
-        const cards = list.querySelectorAll('.player-card');
-        cards.forEach(card => {
-          const matches = !activeFilters.size || card.dataset.leagues.split('|').some(lg => activeFilters.has(lg));
-          card.classList.toggle('filtered-out', !matches);
-        });
-        let empty = list.querySelector('.filter-empty');
-        const visible = [...cards].filter(c => !c.classList.contains('filtered-out'));
-        if (!visible.length && cards.length) {
-          if (!empty) { empty = document.createElement('div'); empty.className = 'empty-state filter-empty'; list.appendChild(empty); }
-          empty.textContent = 'No players match this filter';
-        } else if (empty) empty.remove();
-      });
-    }
+/* ════════════════════════════════════════════════════════════════════
+   WEEK / SEASON DROPDOWNS
+════════════════════════════════════════════════════════════════════ */
+function buildWeekSelect(selected) {
+  const el = document.getElementById('week-select'); el.innerHTML='';
+  for (let w = 1; w <= MAX_WEEK; w++) {
+    const o = document.createElement('option');
+    o.value=w; o.textContent=`Week ${w}`;
+    if (w === selected) o.selected=true;
+    el.appendChild(o);
+  }
+}
+function buildSeasonSelect(selected) {
+  const el = document.getElementById('season-select'); el.innerHTML='';
+  for (let y = THIS_YR; y >= FIRST_YR; y--) {
+    const o = document.createElement('option');
+    o.value=String(y); o.textContent=String(y);
+    if (String(y)===String(selected)) o.selected=true;
+    el.appendChild(o);
+  }
+}
 
-    /* ════════════════════════════════════════════════════════════════
-       DEBUG
-    ════════════════════════════════════════════════════════════════ */
-    function toggleDebug() { document.getElementById('debug-toggle').classList.toggle('open'); document.getElementById('debug-body').classList.toggle('open'); }
-    function renderDebug(info) {
-      if (!info) { document.getElementById('debug-panel').style.display = 'none'; return; }
-      document.getElementById('debug-panel').style.display = 'block';
-      document.getElementById('debug-meta').innerHTML = `
-        <span>Season: <strong>${info.season}</strong></span>
-        <span>Week: <strong>${info.week}</strong></span>
-        <span>Leagues: <strong>${info.leagues.length}</strong></span>
-        <span>Projections: <strong>${info.hasProjections ? 'loaded' : 'unavailable'}</strong></span>
-        ${info.usedFallback ? `<span class="warn">⚠ Season fallback</span>` : ''}
-      `;
-      const c = document.getElementById('debug-leagues'); c.innerHTML = '';
-      info.leagues.forEach(lg => {
-        const row = document.createElement('div'); row.className = 'debug-league';
-        row.innerHTML = `
-          <div class="lg-name"><span class="lg-color-dot" style="background:${lc(lg.name)}"></span>${lg.name}<span class="lg-id">${lg.leagueId}</span></div>
-          <span class="dpill ${lg.rosterFound?'dp-ok':'dp-warn'}">${lg.rosterFound?`${lg.myCount} players`:'NOT FOUND'}</span>
-          <span class="dpill ${lg.matchupFound?'dp-ok':'dp-dim'}">${lg.matchupFound?`Matchup ✓ · opp ${lg.oppCount}`:'No matchup'}</span>
-          <span class="dpill dp-dim">${lg.state || '—'}</span>
-          <span class="dpill ${lg.isCoMgr?'dp-ok':'dp-dim'}">${lg.isCoMgr?'Co-mgr ✓':'Owner'}</span>
-        `;
-        c.appendChild(row);
-      });
-    }
+/* ════════════════════════════════════════════════════════════════════
+   NAV UI
+════════════════════════════════════════════════════════════════════ */
+function updateNavUI() {
+  const isLive = activeWeek===liveWeek && activeSeason===liveSeason;
+  document.getElementById('week-prev').disabled = activeWeek<=1;
+  document.getElementById('week-next').disabled = activeWeek>=MAX_WEEK;
+  document.getElementById('week-select').value  = activeWeek;
+  document.getElementById('season-select').value = activeSeason;
+  document.getElementById('live-btn').classList.toggle('current', isLive);
+  document.getElementById('nav-context-label').textContent = isLive ? `Live · ${liveSeason}` : `${activeSeason} · Wk ${activeWeek}`;
+  document.getElementById('week-label').textContent = `Week ${activeWeek} · ${activeSeason}`;
+  const hb = document.getElementById('banner-history');
+  if (!isDemoMode && !isLive) {
+    hb.classList.add('visible');
+    const isHist = isHistoricalWeek();
+    document.getElementById('history-label').innerHTML = isHist
+      ? `<strong>Historical View</strong> — ${activeSeason} Season, Week ${activeWeek}. Scores are final results. Hit <strong>Live</strong> to return.`
+      : `<strong>Future Week</strong> — Viewing Week ${activeWeek}, ${activeSeason}. No matchup data yet.`;
+  } else { hb.classList.remove('visible'); }
+}
 
-    /* ════════════════════════════════════════════════════════════════
-       CARD BUILDER
-    ════════════════════════════════════════════════════════════════ */
-    const posClass = pos => ({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF'}[pos]||'pos-default');
+/* ════════════════════════════════════════════════════════════════════
+   SCORES STRIP
+════════════════════════════════════════════════════════════════════ */
+function renderScoresStrip(contexts, isHist) {
+  const strip = document.getElementById('scores-strip');
+  strip.innerHTML='';
+  const hasScores = contexts.some(c => c.leagueState !== 'NO_MATCHUP');
+  if (!hasScores) { strip.classList.remove('visible'); return; }
+  strip.classList.add('visible');
 
-    function buildCard(player, delay) {
-      const div = document.createElement('div');
-      div.className = `player-card${player.clinched ? ' clinched' : ''}`;
-      div.style.animationDelay = `${delay}ms`;
-      div.dataset.leagues = [...player.myLeagues, ...player.againstLeagues].join('|');
+  contexts.forEach(ctx => {
+    const color = lc(ctx.leagueName);
+    const st = ctx.leagueState;
+    const stateClass = {
+      LIVE:'state-live', LOCKED_WIN:'state-win', LOCKED_LOSS:'state-loss',
+      FINAL_WIN:'state-win', FINAL_LOSS:'state-loss', FINAL_TIE:'state-final', NO_MATCHUP:'state-none'
+    }[st] || 'state-none';
+    const stateText = {
+      LIVE:'● Live', LOCKED_WIN:'Clinched ✓', LOCKED_LOSS:'Eliminated',
+      FINAL_WIN:'Final · W', FINAL_LOSS:'Final · L', FINAL_TIE:'Final · Tie', NO_MATCHUP:'No Matchup'
+    }[st] || '';
+    const stateTextClass = {
+      LIVE:'live', LOCKED_WIN:'win', LOCKED_LOSS:'loss',
+      FINAL_WIN:'win', FINAL_LOSS:'loss', FINAL_TIE:'final', NO_MATCHUP:'none'
+    }[st] || 'none';
+    const myWin = ctx.myPoints >= ctx.oppPoints;
 
-      // Points row (if scoring data available)
-      let ptsHTML = '';
-      if (player.currentPoints !== null && player.currentPoints !== undefined) {
-        const proj = player.projectedPoints ? `<span class="pts-separator">·</span><span class="pts-proj">${player.projectedPoints.toFixed(1)} proj</span>` : '';
-        ptsHTML = `<div class="points-row"><span class="pts-actual">${player.currentPoints.toFixed(1)} pts</span>${proj}`;
-        // Context badge
-        if (player.contextBadge) {
-          ptsHTML += `<span class="context-badge ${player.contextBadge.cls}">${player.contextBadge.text}</span>`;
-        }
-        ptsHTML += `</div>`;
-      }
-
-      // League lines
-      const myLines  = player.myLeagues.map(n    => `<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)};opacity:0.9">YOUR roster</span><span> · ${n}</span></div>`).join('');
-      const oppLines = player.againstLeagues.map(n => `<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span>OPP roster · ${n}</span></div>`).join('');
-
-      div.innerHTML = `
-        <div class="card-top">
-          <span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span>
-          <span class="player-name">${player.full_name||`Player ${player.id}`}</span>
-          <span class="player-team">${player.team||''}</span>
+    const card = document.createElement('div');
+    card.className = `score-card ${stateClass}`;
+    card.innerHTML = `
+      <div class="sc-league"><span class="sc-dot" style="background:${color}"></span>${ctx.leagueName}</div>
+      <div class="sc-matchup">
+        <div class="sc-team">
+          <div class="sc-pts mine ${!myWin?'losing':''}">${ctx.myPoints.toFixed(2)}</div>
+          <div class="sc-lbl">You</div>
         </div>
-        ${ptsHTML}
-        <div class="league-context">${myLines}${oppLines}</div>
-      `;
-      return div;
+        <div class="sc-dash">—</div>
+        <div class="sc-team">
+          <div class="sc-pts opp ${!myWin?'leading':''}">${ctx.oppPoints.toFixed(2)}</div>
+          <div class="sc-lbl">Opp</div>
+        </div>
+      </div>
+      <div class="sc-state ${stateTextClass}">${stateText}</div>
+    `;
+    strip.appendChild(card);
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   LEAGUE FILTERS
+════════════════════════════════════════════════════════════════════ */
+function buildFilterPills(names) {
+  const fe = document.getElementById('league-filters');
+  const ce = document.getElementById('filter-pills');
+  ce.innerHTML=''; activeFilters.clear();
+  if (names.length < 2) { fe.classList.remove('visible'); return; }
+  fe.classList.add('visible');
+  const all = Object.assign(document.createElement('span'),{className:'filter-pill all-pill active',textContent:'All'});
+  all.dataset.league='__all__'; all.onclick=()=>toggleFilter('__all__',names); ce.appendChild(all);
+  names.forEach(name => {
+    const color=lc(name); const pill=document.createElement('span');
+    pill.className='filter-pill'; pill.textContent=name; pill.dataset.league=name;
+    pill.style.cssText=`background:${color}1a;border-color:${color}66;color:${color}`;
+    pill.onclick=()=>toggleFilter(name,names); ce.appendChild(pill);
+  });
+  updateFilterCount();
+}
+function toggleFilter(lg, all) {
+  if (lg==='__all__') activeFilters.clear();
+  else activeFilters.has(lg) ? activeFilters.delete(lg) : activeFilters.add(lg);
+  document.querySelectorAll('.filter-pill').forEach(p => {
+    const l=p.dataset.league;
+    if (l==='__all__') { p.classList.toggle('active',activeFilters.size===0); p.classList.toggle('inactive',activeFilters.size>0); }
+    else p.classList.toggle('inactive', activeFilters.size>0 && !activeFilters.has(l));
+  });
+  applyFilters(); updateFilterCount();
+}
+function updateFilterCount() { document.getElementById('filter-count').textContent = activeFilters.size?`Filtering: ${[...activeFilters].join(', ')}`:''; }
+function applyFilters() {
+  ['cheer-list','conflicted-list','enemy-list'].forEach(id => {
+    const list=document.getElementById(id); const cards=list.querySelectorAll('.player-card');
+    cards.forEach(c=>{const m=!activeFilters.size||c.dataset.leagues.split('|').some(lg=>activeFilters.has(lg));c.classList.toggle('filtered-out',!m);});
+    let e=list.querySelector('.filter-empty');
+    const vis=[...cards].filter(c=>!c.classList.contains('filtered-out'));
+    if(!vis.length&&cards.length){if(!e){e=document.createElement('div');e.className='empty-state filter-empty';list.appendChild(e);}e.textContent='No players match this filter';}
+    else if(e)e.remove();
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   DEBUG
+════════════════════════════════════════════════════════════════════ */
+function toggleDebug() { document.getElementById('debug-toggle').classList.toggle('open'); document.getElementById('debug-body').classList.toggle('open'); }
+function renderDebug(info) {
+  if (!info) { document.getElementById('debug-panel').style.display='none'; return; }
+  document.getElementById('debug-panel').style.display='block';
+  document.getElementById('debug-meta').innerHTML=`
+    <span>Season: <strong>${info.season}</strong></span>
+    <span>Week: <strong>${info.week}</strong></span>
+    <span>Leagues: <strong>${info.leagues.length}</strong></span>
+    <span>Historical: <strong>${info.isHist?'yes':'no'}</strong></span>
+    <span>Projections: <strong>${info.hasProj?'loaded':'n/a'}</strong></span>
+    ${info.usedFallback?`<span class="warn">⚠ Season fallback</span>`:''}
+  `;
+  const c=document.getElementById('debug-leagues'); c.innerHTML='';
+  info.leagues.forEach(lg=>{
+    const row=document.createElement('div'); row.className='debug-league';
+    row.innerHTML=`
+      <div class="lg-name"><span class="lg-color-dot" style="background:${lc(lg.name)}"></span>${lg.name}<span class="lg-id">${lg.leagueId}</span></div>
+      <span class="dpill ${lg.rosterFound?'dp-ok':'dp-warn'}">${lg.rosterFound?`${lg.myCount}p`:'NOT FOUND'}</span>
+      <span class="dpill ${lg.matchupFound?'dp-ok':'dp-dim'}">${lg.matchupFound?`✓ opp ${lg.oppCount}`:'no matchup'}</span>
+      <span class="dpill dp-dim">${lg.state||'—'}</span>
+      <span class="dpill dp-dim">${lg.scoringFmt}</span>
+      <span class="dpill ${lg.isCoMgr?'dp-ok':'dp-dim'}">${lg.isCoMgr?'Co-mgr':'Owner'}</span>
+    `;
+    c.appendChild(row);
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   CARD BUILDER
+════════════════════════════════════════════════════════════════════ */
+const posClass = pos=>({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF'}[pos]||'pos-default');
+
+function buildCard(player, delay, isHist) {
+  const div=document.createElement('div');
+  div.className=`player-card${player.clinched?' clinched':''}`;
+  div.style.animationDelay=`${delay}ms`;
+  div.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
+
+  // Per-league points rows
+  let ptsHTML='';
+  const leaguePtsData = player.leaguePoints || {};   // { leagueName: { pts, proj, fmt } }
+  const hasAnyPts = Object.keys(leaguePtsData).length > 0;
+  if (hasAnyPts) {
+    const rows = Object.entries(leaguePtsData).map(([lgName, d]) => {
+      const color = lc(lgName);
+      const side  = player.myLeagues.includes(lgName) ? 'YOUR' : 'OPP';
+      const projPart = (!isHist && d.proj != null)
+        ? `<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`
+        : '';
+      return `<div class="league-pts-row">
+        <span class="league-pts-dot" style="background:${color}"></span>
+        <span class="league-pts-name" style="color:${color};opacity:0.85">${side} · ${lgName}</span>
+        <span class="league-pts-format">${d.fmt}</span>
+        <span class="league-pts-val">${d.pts.toFixed(2)}</span>
+        ${projPart}
+      </div>`;
+    }).join('');
+    const badge = player.contextBadge ? `<span class="context-badge ${player.contextBadge.cls}">${player.contextBadge.text}</span>` : '';
+    ptsHTML = `<div style="display:flex;flex-direction:column;gap:3px">${rows}${badge?`<div style="margin-top:2px">${badge}</div>`:''}</div>`;
+  }
+
+  // Roster context lines (only when no per-league points to avoid duplication)
+  let rosterHTML='';
+  if (!hasAnyPts) {
+    const myLines  = player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)};opacity:0.9">YOUR roster</span><span> · ${n}</span></div>`).join('');
+    const oppLines = player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span>OPP roster · ${n}</span></div>`).join('');
+    rosterHTML = `<div class="league-context">${myLines}${oppLines}</div>`;
+  }
+
+  div.innerHTML=`
+    <div class="card-top">
+      <span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span>
+      <span class="player-name">${player.full_name||`Player ${player.id}`}</span>
+      <span class="player-team">${player.team||''}</span>
+    </div>
+    ${ptsHTML}
+    ${rosterHTML}
+  `;
+  return div;
+}
+
+function sortPlayers(arr) {
+  return [...arr].sort((a,b)=>{
+    const ai=POS_ORDER.indexOf(a.position)===-1?99:POS_ORDER.indexOf(a.position);
+    const bi=POS_ORDER.indexOf(b.position)===-1?99:POS_ORDER.indexOf(b.position);
+    return ai!==bi?ai-bi:(a.full_name||'').localeCompare(b.full_name||'');
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   RENDER
+════════════════════════════════════════════════════════════════════ */
+function renderBoard(data, username) {
+  const {cheerFor,conflicted,enemies,offseasonMode,debugInfo,noData,noDataReason,contexts,hasScoring,isHist} = data;
+  showBoard(); updateNavUI();
+  document.getElementById('banner-demo').classList.toggle('visible', isDemoMode);
+  document.getElementById('banner-offseason').classList.toggle('visible', !isDemoMode && !!offseasonMode);
+  document.getElementById('banner-scoring').classList.toggle('visible', !isDemoMode && !!hasScoring && !isHist);
+  renderDebug(isDemoMode?null:debugInfo);
+  document.getElementById('display-username').textContent = isDemoMode?'Demo Mode':username;
+  const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  ['refresh-time','board-refresh-time'].forEach(id=>document.getElementById(id).textContent=`Updated ${now}`);
+
+  const nde=document.getElementById('no-data-state');
+  const sb=document.getElementById('summary-bar');
+  const cols=document.getElementById('columns');
+  if (noData) {
+    nde.classList.add('visible'); sb.style.display='none'; cols.style.display='none';
+    document.getElementById('league-filters').classList.remove('visible');
+    document.getElementById('scores-strip').classList.remove('visible');
+    document.getElementById('no-data-msg').innerHTML=noDataReason;
+    renderDebug(null); return;
+  }
+  nde.classList.remove('visible'); sb.style.display=''; cols.style.display='';
+  if (contexts?.length) renderScoresStrip(contexts, isHist);
+
+  document.getElementById('count-cheer').textContent      = cheerFor.length;
+  document.getElementById('count-conflicted').textContent = conflicted.length;
+  document.getElementById('count-enemy').textContent      = enemies.length;
+
+  const lgNames=[];
+  [...cheerFor,...conflicted,...enemies].forEach(p=>[...p.myLeagues,...p.againstLeagues].forEach(n=>{if(!lgNames.includes(n))lgNames.push(n);}));
+  lgNames.forEach(n=>assignColor(n));
+  buildFilterPills(lgNames);
+
+  function renderList(id, players) {
+    const el=document.getElementById(id); el.innerHTML='';
+    if(!players.length){el.innerHTML='<div class="empty-state">No players in this bucket</div>';return;}
+    sortPlayers(players).forEach((p,i)=>el.appendChild(buildCard(p,i*24,isHist)));
+  }
+  renderList('cheer-list', cheerFor);
+  renderList('conflicted-list', conflicted);
+  renderList('enemy-list', enemies);
+  applyFilters();
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   LOAD DATA
+════════════════════════════════════════════════════════════════════ */
+async function loadData(username) {
+  showLoading('Looking up Sleeper user...');
+  const user = await getUser(username);
+  if (!user?.user_id) throw new Error(`Username "${username}" not found on Sleeper.`);
+
+  setLoading('Fetching NFL state...');
+  const state = await getNFLState();
+  liveWeek   = (state.week>=1&&state.week<=MAX_WEEK)?state.week:1;
+  liveSeason = state.season;
+  if (!currentUser) { activeWeek=liveWeek; activeSeason=liveSeason; }
+  currentUser = username;
+  buildWeekSelect(activeWeek);
+  buildSeasonSelect(activeSeason);
+
+  // Season lookup with fallback
+  setLoading(`Loading ${activeSeason} leagues...`);
+  let leagues = await getLeagues(user.user_id, activeSeason);
+  let usedFallback=false;
+  if (!leagues?.length && activeSeason===liveSeason) {
+    const prev=String(parseInt(activeSeason)-1);
+    setLoading(`No ${activeSeason} leagues — trying ${prev}...`);
+    leagues=await getLeagues(user.user_id,prev);
+    if (leagues?.length) { liveSeason=prev; activeSeason=prev; usedFallback=true; buildSeasonSelect(activeSeason); buildWeekSelect(activeWeek); }
+  }
+  if (!leagues?.length) return {
+    noData:true, noDataReason:`No leagues found for <strong>${username}</strong> in <strong>${activeSeason}</strong>. You may not have been in a league that year, or the season hasn't started yet.`,
+    cheerFor:[],conflicted:[],enemies:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false,
+  };
+
+  setLoading(`Found ${leagues.length} league(s) — loading week ${activeWeek}...`);
+  const isHist = isHistoricalWeek();
+
+  // Projections only for current week
+  const projections = await getProjections(activeSeason, activeWeek);
+  const hasProj = Object.keys(projections).length > 0;
+  const projPts = id => { const p=projections[id]; return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null; };
+  const projSum = ids => ids.reduce((s,id)=>s+(projPts(id)??0),0);
+
+  const debugLeagues=[], leagueContexts=[];
+  // Keep league metadata for scoring format labels
+  const leagueMeta={};
+  leagues.forEach(lg=>{ leagueMeta[lg.league_id]=lg; });
+
+  const results = await Promise.all(leagues.map(async lg => {
+    const rosters = await getRosters(lg.league_id);
+    // Co-manager fix
+    const myRoster = rosters.find(r=>r.owner_id===user.user_id||(Array.isArray(r.co_owners)&&r.co_owners.includes(user.user_id)));
+    const isCoMgr  = myRoster?myRoster.owner_id!==user.user_id:false;
+    const fmt      = scoringLabel(lg);
+
+    if (!myRoster) {
+      debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:false,matchupFound:false,myCount:0,oppCount:0,state:'—',scoringFmt:fmt,isCoMgr:false});
+      return null;
     }
 
-    function sortPlayers(arr) {
-      return [...arr].sort((a,b) => {
-        const ai = POS_ORDER.indexOf(a.position) === -1 ? 99 : POS_ORDER.indexOf(a.position);
-        const bi = POS_ORDER.indexOf(b.position) === -1 ? 99 : POS_ORDER.indexOf(b.position);
-        return ai !== bi ? ai - bi : (a.full_name||'').localeCompare(b.full_name||'');
-      });
-    }
+    let matchups=[];
+    try { const raw=await getMatchups(lg.league_id,activeWeek); matchups=Array.isArray(raw)?raw:[]; } catch(e){matchups=[];}
 
-    /* ════════════════════════════════════════════════════════════════
-       RENDER
-    ════════════════════════════════════════════════════════════════ */
-    function renderBoard(data, username) {
-      const { cheerFor, conflicted, enemies, offseasonMode, debugInfo, noData, noDataReason, leagueContexts, hasScoring } = data;
-      showBoard(); updateNavUI();
+    const myMatchup  = matchups.find(m=>m.roster_id===myRoster.roster_id);
+    const oppMatchup = myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
 
-      document.getElementById('banner-demo').classList.toggle('visible', isDemoMode);
-      document.getElementById('banner-offseason').classList.toggle('visible', !isDemoMode && !!offseasonMode);
-      document.getElementById('banner-scoring').classList.toggle('visible', !isDemoMode && !!hasScoring);
-      renderDebug(isDemoMode ? null : debugInfo);
-      document.getElementById('display-username').textContent = isDemoMode ? 'Demo Mode' : username;
+    let myPlayers=[],oppPlayers=[],hasMatchup=false;
+    let myPoints=0,oppPoints=0;
+    let myPP={},oppPP={};
+    let leagueState='NO_MATCHUP';
 
-      const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-      ['refresh-time','board-refresh-time'].forEach(id => document.getElementById(id).textContent = `Updated ${now}`);
+    if (myMatchup) {
+      hasMatchup=true;
+      myPlayers = myMatchup.starters?.length?myMatchup.starters:(myMatchup.players||myRoster.players||[]);
+      myPoints  = myMatchup.points||0;
+      myPP      = myMatchup.players_points||{};
 
-      // No-data state
-      const noDataEl = document.getElementById('no-data-state');
-      const sumBar   = document.getElementById('summary-bar');
-      const cols     = document.getElementById('columns');
-      if (noData) {
-        noDataEl.classList.add('visible'); sumBar.style.display = 'none'; cols.style.display = 'none';
-        document.getElementById('league-filters').classList.remove('visible');
-        document.getElementById('scores-strip').classList.remove('visible');
-        document.getElementById('no-data-msg').innerHTML = noDataReason;
-        renderDebug(null); return;
+      const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
+      oppPlayers = oppMatchup?(oppMatchup.starters?.length?oppMatchup.starters:(oppMatchup.players||oppRoster?.players||[])):[]; 
+      oppPoints  = oppMatchup?.points||0;
+      oppPP      = oppMatchup?.players_points||{};
+
+      // ── KEY FIX: historical vs live state calculation ──────────────────
+      if (isHist) {
+        leagueState = calcHistoricalState(myPoints, oppPoints);
+      } else {
+        const myProjTotal  = hasProj?projSum(myPlayers):0;
+        const oppProjTotal = hasProj?projSum(oppPlayers):0;
+        leagueState = calcLiveState(myPoints, oppPoints, myProjTotal, oppProjTotal);
       }
-      noDataEl.classList.remove('visible'); sumBar.style.display = ''; cols.style.display = '';
+    } else {
+      myPlayers = myRoster.players||[];
+    }
 
-      // Scores strip
-      if (leagueContexts?.length) renderScoresStrip(leagueContexts);
+    myPlayers  = myPlayers.filter(id=>id&&id!=='0');
+    oppPlayers = oppPlayers.filter(id=>id&&id!=='0');
 
-      // Counts
-      document.getElementById('count-cheer').textContent      = cheerFor.length;
-      document.getElementById('count-conflicted').textContent = conflicted.length;
-      document.getElementById('count-enemy').textContent      = enemies.length;
+    leagueContexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
+    debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr});
+    return {leagueName:lg.name,myPlayers,oppPlayers,hasMatchup,fmt};
+  }));
 
-      // Assign colors
-      const leagueNames = [];
-      [...cheerFor,...conflicted,...enemies].forEach(p => [...p.myLeagues,...p.againstLeagues].forEach(n => { if (!leagueNames.includes(n)) leagueNames.push(n); }));
-      leagueNames.forEach(n => assignColor(n));
+  const valid=results.filter(Boolean);
+  if (!valid.length) throw new Error('Found leagues but could not read roster data.');
 
-      buildFilterPills(leagueNames);
+  const offseasonMode=valid.every(l=>!l.hasMatchup);
+  const hasScoring   =valid.some(l=>l.hasMatchup);
+  const playerDB     =await getPlayerDB();
+  setLoading('Classifying players...');
 
-      function renderList(id, players) {
-        const el = document.getElementById(id); el.innerHTML = '';
-        if (!players.length) { el.innerHTML = '<div class="empty-state">No players in this bucket</div>'; return; }
-        sortPlayers(players).forEach((p,i) => el.appendChild(buildCard(p, i*24)));
+  const map=new Map();
+  function ensure(id) {
+    if (!map.has(id)) {
+      const info=playerDB[id]||{};
+      map.set(id,{id,full_name:info.full_name||info.last_name||`Player ${id}`,position:info.position||(id.length<=4?'DEF':'—'),team:info.team||'',myLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
+    }
+    return map.get(id);
+  }
+
+  valid.forEach(lg=>{
+    const ctx=leagueContexts.find(c=>c.leagueName===lg.leagueName);
+    lg.myPlayers.forEach(id=>{
+      const p=ensure(id);
+      p.myLeagues.push(lg.leagueName);
+      // Per-league points — actual score from this league's matchup
+      const pts = ctx?.myPP[id]??null;
+      const proj = (!isHist&&hasProj)?projPts(id):null;
+      if (pts!==null||proj!==null) {
+        p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
       }
-      renderList('cheer-list',     cheerFor);
-      renderList('conflicted-list', conflicted);
-      renderList('enemy-list',     enemies);
-      applyFilters();
-    }
-
-    /* ════════════════════════════════════════════════════════════════
-       LOAD DATA
-    ════════════════════════════════════════════════════════════════ */
-    async function loadData(username) {
-      showLoading('Looking up Sleeper user...');
-      const user = await getUser(username);
-      if (!user?.user_id) throw new Error(`Username "${username}" not found on Sleeper.`);
-
-      setLoading('Fetching NFL state...');
-      const state = await getNFLState();
-      liveWeek   = (state.week >= 1 && state.week <= MAX_WEEK) ? state.week : 1;
-      liveSeason = state.season;
-      if (!currentUser) { activeWeek = liveWeek; activeSeason = liveSeason; }
-      currentUser = username;
-      buildSeasonSelect(activeSeason);
-
-      setLoading(`Loading ${activeSeason} leagues...`);
-      let leagues = await getLeagues(user.user_id, activeSeason);
-      let usedFallback = false;
-      if (!leagues?.length && activeSeason === liveSeason) {
-        const prev = String(parseInt(activeSeason) - 1);
-        setLoading(`No ${activeSeason} leagues — trying ${prev}...`);
-        leagues = await getLeagues(user.user_id, prev);
-        if (leagues?.length) { liveSeason = prev; activeSeason = prev; usedFallback = true; buildSeasonSelect(activeSeason); }
+    });
+    lg.oppPlayers.forEach(id=>{
+      const p=ensure(id);
+      p.againstLeagues.push(lg.leagueName);
+      const pts=ctx?.oppPP[id]??null;
+      const proj=(!isHist&&hasProj)?projPts(id):null;
+      if (pts!==null||proj!==null) {
+        p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
       }
-      if (!leagues?.length) return {
-        noData: true,
-        noDataReason: `No leagues found for <strong>${username}</strong> in <strong>${activeSeason}</strong>. You may not have been in a league that year, or the season hasn't started. Try another season.`,
-        cheerFor:[], conflicted:[], enemies:[], offseasonMode:false, debugInfo:null, leagueContexts:[], hasScoring:false,
-      };
+    });
+  });
 
-      setLoading(`Found ${leagues.length} league(s) — loading week ${activeWeek}...`);
+  // Classify
+  const cheerFor=[],conflicted=[],enemies=[];
+  map.forEach(p=>{
+    const sig=calcSignal(p,leagueContexts);
+    const cls=classifyPlayer(p,sig);
+    if (!cls) return;
+    p.bucket=cls.bucket; p.clinched=cls.clinched;
+    p.contextBadge=hasScoring?ctxBadge(sig,isHist):null;
+    if (cls.bucket==='cheer')     cheerFor.push(p);
+    else if (cls.bucket==='conflicted') conflicted.push(p);
+    else                                enemies.push(p);
+  });
 
-      // Fetch projections for this week (for lead-safety calculation)
-      const projections = await getProjections(activeSeason, activeWeek);
-      const hasProjections = Object.keys(projections).length > 0;
+  return {
+    cheerFor,conflicted,enemies,noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,
+    debugInfo:{season:activeSeason,week:activeWeek,usedFallback,isHist,hasProj,leagues:debugLeagues},
+  };
+}
 
-      // Helper: sum projected points for a list of player IDs
-      const projSum = ids => ids.reduce((s, id) => {
-        const p = projections[id];
-        return s + (p ? (p.pts_ppr ?? p.pts_std ?? p.pts_half_ppr ?? 0) : 0);
-      }, 0);
+/* ════════════════════════════════════════════════════════════════════
+   DEMO DATA — 4 leagues, 2 live / 2 decided
+════════════════════════════════════════════════════════════════════ */
+function getDemoData() {
+  const L1='Dynasty Royale',L2='Redraft Chaos',L3='The Gridiron',L4='Devy Masters';
+  [L1,L2,L3,L4].forEach((n,i)=>{colorMap[n]=LC_COLORS[i];});
 
-      const debugLeagues = [];
-      const leagueContexts = [];
+  const contexts=[
+    {leagueName:L1,leagueState:'LIVE',       myPoints:95.64, oppPoints:72.82,myPP:{},oppPP:{},fmt:'PPR'},
+    {leagueName:L2,leagueState:'LIVE',       myPoints:68.40, oppPoints:82.14,myPP:{},oppPP:{},fmt:'Half'},
+    {leagueName:L3,leagueState:'LOCKED_WIN', myPoints:134.20,oppPoints:45.82,myPP:{},oppPP:{},fmt:'Std'},
+    {leagueName:L4,leagueState:'LOCKED_LOSS',myPoints:52.10, oppPoints:118.40,myPP:{},oppPP:{},fmt:'PPR'},
+  ];
 
-      const results = await Promise.all(leagues.map(async lg => {
-        const rosters = await getRosters(lg.league_id);
-        // Co-manager fix
-        const myRoster = rosters.find(r => r.owner_id === user.user_id || (Array.isArray(r.co_owners) && r.co_owners.includes(user.user_id)));
-        const isCoMgr  = myRoster ? myRoster.owner_id !== user.user_id : false;
-        if (!myRoster) {
-          debugLeagues.push({ name:lg.name, leagueId:lg.league_id, rosterFound:false, matchupFound:false, myCount:0, oppCount:0, state:'—', isCoMgr:false, type:'—' });
-          return null;
-        }
+  function p(id,name,pos,team,mine,against,lpts,sig,allDecided) {
+    const sigResult={signal:sig,allDecided};
+    const cls=classifyPlayer({myLeagues:mine,againstLeagues:against},sigResult);
+    const badge=ctxBadge(sigResult,false);
+    // Build leaguePoints from lpts array [{lg,pts,proj,fmt}]
+    const leaguePoints={};
+    (lpts||[]).forEach(d=>{leaguePoints[d.lg]={pts:d.pts,proj:d.proj??null,fmt:d.fmt};});
+    return {id,full_name:name,position:pos,team,myLeagues:mine,againstLeagues:against,leaguePoints,contextBadge:badge,bucket:cls?.bucket,clinched:cls?.clinched||false};
+  }
 
-        let matchups = [];
-        try { const raw = await getMatchups(lg.league_id, activeWeek); matchups = Array.isArray(raw) ? raw : []; } catch(e) { matchups = []; }
+  const cheerFor=[
+    p('d1','Patrick Mahomes','QB','KC',[L1,L3],[],[{lg:L1,pts:22.44,proj:28.0,fmt:'PPR'},{lg:L3,pts:22.44,proj:28.0,fmt:'Std'}],2,false),
+    p('d2','Davante Adams',  'WR','NO',[L1],  [],[{lg:L1,pts:11.80,proj:16.0,fmt:'PPR'}],1,false),
+    p('d3','Derrick Henry',  'RB','BAL',[L1], [],[{lg:L1,pts:14.20,proj:18.0,fmt:'PPR'}],1,false),
+    p('d4','Tyreek Hill',    'WR','MIA',[L2,L3],[],[{lg:L2,pts:18.60,proj:22.0,fmt:'Half'},{lg:L3,pts:18.60,proj:22.0,fmt:'Std'}],2,false),
+    // Kelce: L1 mine LIVE(+1) + L4 mine LOCKED_LOSS... L4 is decided → 0. Net +1
+    p('d7','Travis Kelce',   'TE','KC', [L1,L4],[],[{lg:L1,pts:8.60,proj:14.0,fmt:'PPR'},{lg:L4,pts:8.60,proj:null,fmt:'PPR'}],1,false),
+    // McCaffrey: L3 mine LOCKED_WIN → settled
+    p('d8','Christian McCaffrey','RB','SF',[L3],[],[{lg:L3,pts:24.60,proj:null,fmt:'Std'}],0,true),
+  ];
+  const conflicted=[
+    // Jefferson: L1 mine LIVE(+1) + L2 opp LIVE(-1) = 0
+    p('d9', 'Justin Jefferson','WR','MIN',[L1],[L2],[{lg:L1,pts:16.40,proj:20.0,fmt:'PPR'},{lg:L2,pts:16.40,proj:20.0,fmt:'Half'}],0,false),
+    // Allen: L2 mine LIVE(+1) + L1 opp LIVE(-1) = 0
+    p('d10','Josh Allen',      'QB','BUF',[L2],[L1],[{lg:L2,pts:19.80,proj:26.0,fmt:'Half'},{lg:L1,pts:19.80,proj:26.0,fmt:'PPR'}],0,false),
+    // Lamb: L3 mine LOCKED_WIN(+0) + L2 opp LIVE(-1) = -1... actually let's make it 0 by putting L1 mine too
+    p('d11','CeeDee Lamb',     'WR','DAL',[L1],[L2],[{lg:L1,pts:14.20,proj:22.0,fmt:'PPR'},{lg:L2,pts:14.20,proj:22.0,fmt:'Half'}],0,false),
+    p('d12','Saquon Barkley',  'RB','PHI',[L2],[L1],[{lg:L2,pts:11.60,proj:16.0,fmt:'Half'},{lg:L1,pts:11.60,proj:16.0,fmt:'PPR'}],0,false),
+  ];
+  const enemies=[
+    p('d13',"Ja'Marr Chase",   'WR','CIN',[],[L1,L2],[{lg:L1,pts:20.20,proj:24.0,fmt:'PPR'},{lg:L2,pts:20.20,proj:24.0,fmt:'Half'}],-2,false),
+    p('d14','Jalen Hurts',     'QB','PHI',[],[L2,L3],[{lg:L2,pts:21.40,proj:28.0,fmt:'Half'},{lg:L3,pts:21.40,proj:28.0,fmt:'Std'}],-2,false),
+    p('d15','Sam LaPorta',     'TE','DET',[],[L1],   [{lg:L1,pts:6.80, proj:10.0,fmt:'PPR'}],-1,false),
+    p('d16','Tony Pollard',    'RB','TEN',[],[L1],   [{lg:L1,pts:8.40, proj:12.0,fmt:'PPR'}],-1,false),
+    p('d17','Cooper Kupp',     'WR','LAR',[],[L1,L2],[{lg:L1,pts:13.60,proj:16.0,fmt:'PPR'},{lg:L2,pts:13.60,proj:16.0,fmt:'Half'}],-2,false),
+    // Diggs: L4 opp LOCKED_LOSS → settled (L4 is already a loss for you, so opp having good players doesn't hurt)
+    p('d18','Stefon Diggs',    'WR','HOU',[],[L4],   [{lg:L4,pts:11.20,proj:null,fmt:'PPR'}],0,true),
+  ];
 
-        const myMatchup  = matchups.find(m => m.roster_id === myRoster.roster_id);
-        const oppMatchup = myMatchup ? matchups.find(m => m.matchup_id === myMatchup.matchup_id && m.roster_id !== myRoster.roster_id) : null;
+  return {cheerFor,conflicted,enemies,noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,debugInfo:null};
+}
 
-        let myPlayers, oppPlayers, hasMatchup, myPoints = 0, oppPoints = 0, leagueState = 'NO_MATCHUP';
-        let myPlayersPoints = {}, oppPlayersPoints = {};
+/* ════════════════════════════════════════════════════════════════════
+   NAV HANDLERS
+════════════════════════════════════════════════════════════════════ */
+async function changeWeek(delta)   { const n=activeWeek+delta; if(n<1||n>MAX_WEEK)return; activeWeek=n; buildWeekSelect(n); updateNavUI(); if(!isDemoMode&&currentUser)await run(currentUser); }
+async function changeWeekTo(w)     { activeWeek=parseInt(w); buildWeekSelect(activeWeek); updateNavUI(); if(!isDemoMode&&currentUser)await run(currentUser); }
+async function changeSeason(val)   { activeSeason=val; activeWeek=(activeSeason===liveSeason)?liveWeek:1; colorMap={}; activeFilters.clear(); buildWeekSelect(activeWeek); buildSeasonSelect(activeSeason); updateNavUI(); if(!isDemoMode&&currentUser)await run(currentUser); }
+async function snapToLive()        { activeWeek=liveWeek; activeSeason=liveSeason; buildWeekSelect(activeWeek); buildSeasonSelect(activeSeason); updateNavUI(); if(isDemoMode)return; if(currentUser)await run(currentUser); }
 
-        if (myMatchup) {
-          hasMatchup = true;
-          myPlayers  = myMatchup.starters?.length ? myMatchup.starters : (myMatchup.players || myRoster.players || []);
-          myPoints   = myMatchup.points || 0;
-          myPlayersPoints = myMatchup.players_points || {};
+/* ════════════════════════════════════════════════════════════════════
+   EVENT HANDLERS
+════════════════════════════════════════════════════════════════════ */
+async function handleStart() {
+  const input=document.getElementById('username-input').value.trim();
+  if(!input)return;
+  isDemoMode=false; currentUser=null; colorMap={}; activeFilters.clear();
+  localStorage.setItem(USER_KEY,input);
+  await run(input);
+}
+function handleDemo() {
+  isDemoMode=true; activeWeek=7; activeSeason='2025';
+  colorMap={}; activeFilters.clear();
+  buildWeekSelect(7); buildSeasonSelect('2025'); updateNavUI();
+  renderBoard(getDemoData(),'demo');
+}
+async function handleRefresh() { if(isDemoMode){handleDemo();return;} const u=localStorage.getItem(USER_KEY); if(u)await run(u); }
+function handleChangeUser()    { localStorage.removeItem(USER_KEY); currentUser=null; isDemoMode=false; colorMap={}; activeFilters.clear(); showSetup(); }
 
-          const oppRoster = rosters.find(r => r.roster_id === oppMatchup?.roster_id);
-          oppPlayers = oppMatchup ? (oppMatchup.starters?.length ? oppMatchup.starters : (oppMatchup.players || oppRoster?.players || [])) : [];
-          oppPoints  = oppMatchup?.points || 0;
-          oppPlayersPoints = oppMatchup?.players_points || {};
+async function run(username) {
+  try { renderBoard(await loadData(username),username); }
+  catch(err) { console.error(err); showError(err.message||'Something went wrong. Check your username and try again.'); }
+}
 
-          // Calculate lead safety
-          const myProjTotal  = hasProjections ? projSum(myPlayers)  : 0;
-          const oppProjTotal = hasProjections ? projSum(oppPlayers)  : 0;
-          leagueState = hasMatchup ? calcLeagueState(myPoints, oppPoints, myProjTotal, oppProjTotal) : 'NO_MATCHUP';
-        } else {
-          hasMatchup = false;
-          myPlayers  = myRoster.players || [];
-          oppPlayers = [];
-        }
+/* ════════════════════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════════════════ */
+document.getElementById('username-input').addEventListener('keydown',e=>{if(e.key==='Enter')handleStart();});
+buildWeekSelect(1); buildSeasonSelect(THIS_YR);
 
-        myPlayers  = myPlayers.filter(id => id && id !== '0');
-        oppPlayers = oppPlayers.filter(id => id && id !== '0');
-
-        leagueContexts.push({ leagueName:lg.name, leagueState, myPoints, oppPoints, myPlayersPoints, oppPlayersPoints });
-        debugLeagues.push({ name:lg.name, leagueId:lg.league_id, rosterFound:true, matchupFound:hasMatchup, myCount:myPlayers.length, oppCount:oppPlayers.length, state:leagueState, isCoMgr, type:lg.settings?.type===2?'dynasty':'redraft' });
-        return { leagueName:lg.name, myPlayers, oppPlayers, hasMatchup };
-      }));
-
-      const valid = results.filter(Boolean);
-      if (!valid.length) throw new Error('Found leagues but could not read roster data.');
-
-      const offseasonMode = valid.every(l => !l.hasMatchup);
-      const hasScoring    = valid.some(l => l.hasMatchup);
-      const playerDB      = await getPlayerDB();
-      setLoading('Classifying players...');
-
-      // Build player map
-      const map = new Map();
-      function ensure(id) {
-        if (!map.has(id)) {
-          const info = playerDB[id] || {};
-          map.set(id, {
-            id,
-            full_name:  info.full_name || info.last_name || `Player ${id}`,
-            position:   info.position  || (id.length <= 4 ? 'DEF' : '—'),
-            team:       info.team || '',
-            myLeagues: [], againstLeagues: [],
-            currentPoints:   null,
-            projectedPoints: null,
-            contextBadge:    null,
-            bucket:    null,
-            clinched:  false,
-          });
-        }
-        return map.get(id);
-      }
-
-      valid.forEach(lg => {
-        const ctx = leagueContexts.find(c => c.leagueName === lg.leagueName);
-        lg.myPlayers.forEach(id => {
-          const p = ensure(id);
-          p.myLeagues.push(lg.leagueName);
-          // Attach current points (take max across leagues in case player appears in multiple)
-          if (ctx?.myPlayersPoints[id] !== undefined) {
-            p.currentPoints = Math.max(p.currentPoints ?? 0, ctx.myPlayersPoints[id] ?? 0);
-          }
-          if (hasProjections && projections[id]) {
-            p.projectedPoints = projections[id].pts_ppr ?? projections[id].pts_std ?? null;
-          }
-        });
-        lg.oppPlayers.forEach(id => {
-          const p = ensure(id);
-          p.againstLeagues.push(lg.leagueName);
-          if (ctx?.oppPlayersPoints[id] !== undefined) {
-            p.currentPoints = Math.max(p.currentPoints ?? 0, ctx.oppPlayersPoints[id] ?? 0);
-          }
-          if (hasProjections && projections[id]) {
-            p.projectedPoints = projections[id].pts_ppr ?? projections[id].pts_std ?? null;
-          }
-        });
-      });
-
-      // Classify each player using scoring engine
-      const cheerFor = [], conflicted = [], enemies = [];
-      map.forEach(p => {
-        const sigResult = calcScoringSignal(p, leagueContexts);
-        const cls       = classifyPlayer(p, sigResult);
-        if (!cls) return;
-        p.bucket    = cls.bucket;
-        p.clinched  = cls.clinched;
-        p.contextBadge = hasScoring ? contextBadge(sigResult) : null;
-        if (cls.bucket === 'cheer')     cheerFor.push(p);
-        else if (cls.bucket === 'conflicted') conflicted.push(p);
-        else if (cls.bucket === 'enemy')      enemies.push(p);
-      });
-
-      return {
-        cheerFor, conflicted, enemies, noData:false, offseasonMode, hasScoring,
-        leagueContexts,
-        debugInfo: { season:activeSeason, week:activeWeek, usedFallback, hasProjections, leagues:debugLeagues },
-      };
-    }
-
-    /* ════════════════════════════════════════════════════════════════
-       DEMO DATA — 4 leagues with live scoring context
-    ════════════════════════════════════════════════════════════════ */
-    function getDemoData() {
-      const L1='Dynasty Royale', L2='Redraft Chaos', L3='The Gridiron', L4='Devy Masters';
-
-      // League contexts with realistic scores
-      // L1: LIVE (I'm winning but not locked)
-      // L2: LIVE (I'm losing)
-      // L3: LIVE (dead heat)
-      // L4: LOCKED_WIN (clinched — I'm winning by 90, opponent projected 68)
-      const leagueContexts = [
-        { leagueName:L1, leagueState:'LIVE',       myPoints:95.6,  oppPoints:72.8,  myPlayersPoints:{}, oppPlayersPoints:{} },
-        { leagueName:L2, leagueState:'LIVE',       myPoints:68.4,  oppPoints:82.1,  myPlayersPoints:{}, oppPlayersPoints:{} },
-        { leagueName:L3, leagueState:'LIVE',       myPoints:88.5,  oppPoints:87.2,  myPlayersPoints:{}, oppPlayersPoints:{} },
-        { leagueName:L4, leagueState:'LOCKED_WIN', myPoints:134.2, oppPoints:45.8,  myPlayersPoints:{}, oppPlayersPoints:{} },
-      ];
-
-      // Build players with pre-calculated scoring signals
-      function p(id, name, pos, team, mine, against, pts, proj, signal, allDecided) {
-        const sigResult = { signal, allDecided, details:[] };
-        const cls       = classifyPlayer({ myLeagues:mine, againstLeagues:against }, sigResult);
-        const badge     = contextBadge(sigResult);
-        return { id, full_name:name, position:pos, team, myLeagues:mine, againstLeagues:against,
-                 currentPoints:pts, projectedPoints:proj, contextBadge:badge,
-                 bucket:cls?.bucket, clinched:cls?.clinched||false };
-      }
-
-      // Assign demo colors upfront
-      [L1,L2,L3,L4].forEach((n,i) => { leagueColorMap[n] = LEAGUE_COLORS[i]; });
-
-      // KEY DEMO INSIGHT: L4 is LOCKED_WIN so players only relevant to L4 are "settled"
-      // Travis Kelce: L1(mine,LIVE +1) + L4(opp,LOCKED +0) = signal +1 → Cheer For (was Conflicted without scoring)
-      // Stefon Diggs: L4(opp,LOCKED 0) → settled enemy
-
-      const cheerFor = [
-        p('d1','Patrick Mahomes',    'QB', 'KC', [L1,L3],[],        22.4, 28.0,  2, false),
-        p('d2','Davante Adams',      'WR', 'NO', [L1],   [],        11.8, 16.0,  1, false),
-        p('d3','Derrick Henry',      'RB','BAL', [L1],   [],        14.2, 18.0,  1, false),
-        p('d4','Tyreek Hill',        'WR','MIA', [L2,L3],[],        18.6, 22.0,  2, false),
-        p('d5','Mark Andrews',       'TE','BAL', [L2],   [],         9.4, 14.0,  1, false),
-        p('d6','Bijan Robinson',     'RB','ATL', [L3],   [],        12.8, 15.0,  1, false),
-        // Kelce: L1 mine LIVE(+1) + L4 opp LOCKED(0) = +1 → Cheer For (scoring context changed this from Conflicted!)
-        p('d7','Travis Kelce',       'TE', 'KC', [L1],  [L4],       8.6, 14.0,  1, false),
-        // McCaffrey: L4 mine LOCKED → settled, clinched
-        p('d8','Christian McCaffrey','RB', 'SF', [L4],   [],        24.6, 26.0,  0, true),
-      ];
-      const conflicted = [
-        // Justin Jefferson: L1 mine LIVE(+1) + L2 opp LIVE(-1) = 0 → Conflicted
-        p('d9', 'Justin Jefferson',  'WR','MIN', [L1],  [L2],       16.4, 20.0,  0, false),
-        // Josh Allen: L2 mine LIVE(+1) + L1 opp LIVE(-1) = 0 → Conflicted
-        p('d10','Josh Allen',        'QB','BUF', [L2],  [L1],       19.8, 26.0,  0, false),
-        // CeeDee Lamb: L3 mine LIVE(+1) + L2 opp LIVE(-1) = 0 → Conflicted
-        p('d11','CeeDee Lamb',       'WR','DAL', [L3],  [L2],       14.2, 22.0,  0, false),
-        // Saquon: L3 mine LIVE(+1) + L3... wait, can't be both. Let's do L2 mine + L3 opp
-        p('d12','Saquon Barkley',    'RB','PHI', [L2],  [L3],       11.6, 16.0,  0, false),
-      ];
-      const enemies = [
-        p('d13',"Ja'Marr Chase",    'WR','CIN', [],    [L1,L2],    20.2, 24.0, -2, false),
-        p('d14','Jalen Hurts',       'QB','PHI', [],    [L2,L3],    21.4, 28.0, -2, false),
-        p('d15','Sam LaPorta',       'TE','DET', [],    [L1],        6.8, 10.0, -1, false),
-        p('d16','Tony Pollard',      'RB','TEN', [],    [L3],        8.4, 12.0, -1, false),
-        p('d17','Cooper Kupp',       'WR','LAR', [],    [L1,L3],    13.6, 16.0, -2, false),
-        // Diggs: L4 opp LOCKED → settled enemy
-        p('d18','Stefon Diggs',      'WR','HOU', [],    [L4],       11.2, 14.0,  0, true),
-      ];
-
-      return { cheerFor, conflicted, enemies, noData:false, offseasonMode:false, hasScoring:true, leagueContexts,
-               debugInfo:null };
-    }
-
-    /* ════════════════════════════════════════════════════════════════
-       NAV HANDLERS
-    ════════════════════════════════════════════════════════════════ */
-    async function changeWeek(delta) {
-      const n = activeWeek + delta;
-      if (n < 1 || n > MAX_WEEK) return;
-      activeWeek = n; updateNavUI();
-      if (!isDemoMode && currentUser) await run(currentUser);
-    }
-    async function changeSeason(val) {
-      activeSeason = val;
-      activeWeek   = activeSeason === liveSeason ? liveWeek : 1;
-      leagueColorMap = {}; activeFilters.clear(); updateNavUI();
-      if (!isDemoMode && currentUser) await run(currentUser);
-    }
-    async function snapToLive() {
-      activeWeek = liveWeek; activeSeason = liveSeason; updateNavUI();
-      if (isDemoMode) return;
-      if (currentUser) await run(currentUser);
-    }
-
-    /* ════════════════════════════════════════════════════════════════
-       EVENT HANDLERS
-    ════════════════════════════════════════════════════════════════ */
-    async function handleStart() {
-      const input = document.getElementById('username-input').value.trim();
-      if (!input) return;
-      isDemoMode = false; currentUser = null; leagueColorMap = {}; activeFilters.clear();
-      localStorage.setItem(USER_KEY, input);
-      await run(input);
-    }
-    function handleDemo() {
-      isDemoMode = true; activeWeek = 7; activeSeason = '2025';
-      leagueColorMap = {}; activeFilters.clear();
-      buildSeasonSelect(activeSeason); updateNavUI();
-      renderBoard(getDemoData(), 'demo');
-    }
-    async function handleRefresh() { if (isDemoMode) { handleDemo(); return; } const u = localStorage.getItem(USER_KEY); if (u) await run(u); }
-    function handleChangeUser() { localStorage.removeItem(USER_KEY); currentUser = null; isDemoMode = false; leagueColorMap = {}; activeFilters.clear(); showSetup(); }
-
-    async function run(username) {
-      try { renderBoard(await loadData(username), username); }
-      catch(err) { console.error(err); showError(err.message || 'Something went wrong. Check your username and try again.'); }
-    }
-
-    document.getElementById('username-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleStart(); });
-    buildSeasonSelect(THIS_YEAR);
-
-    (async () => {
-      const saved = localStorage.getItem(USER_KEY);
-      if (saved) { document.getElementById('username-input').value = saved; await run(saved); }
-      else showSetup();
-    })();
-  </script>
+(async()=>{
+  const saved=localStorage.getItem(USER_KEY);
+  if(saved){document.getElementById('username-input').value=saved;await run(saved);}
+  else showSetup();
+})();
+</script>
 </body>
 </html>
