@@ -1,8 +1,10 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Game Day — Know Who To Root For</title>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     /* ── Tokens ────────────────────────────────────────────────────────────── */
     :root {
@@ -452,3 +454,941 @@
     .empty-state { font-family: var(--font-m); font-size: 0.68rem; color: var(--text-muted); text-align: center; padding: 28px 16px; border: 1px dashed var(--border); border-radius: var(--radius); }
   </style>
 </head>
+<body>
+
+  <!-- ─── Header ────────────────────────────────────────────────────────── -->
+  <header>
+    <div class="header-left">
+      <div class="site-title">Game<span>Day</span></div>
+      <div class="week-badge" id="week-label">NFL Fantasy</div>
+    </div>
+    <div class="header-right">
+      <span class="refresh-time" id="refresh-time"></span>
+      <button class="btn btn-demo btn-sm"    id="demo-btn"        onclick="handleDemo()"       style="display:none">🎭 Demo</button>
+      <button class="btn btn-ghost btn-sm"   id="change-user-btn" onclick="handleChangeUser()" style="display:none">Change User</button>
+      <button class="btn btn-primary btn-sm" id="refresh-btn"     onclick="handleRefresh()"    style="display:none">↻ Refresh</button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       LANDING PAGE
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <div id="setup-panel">
+
+    <!-- Hero -->
+    <div class="landing-hero">
+      <div class="hero-eyebrow">Multi-League Fantasy Football</div>
+      <h1>Finally Know<br/><span>Who To Root For</span></h1>
+      <p class="hero-sub">
+        Managing multiple fantasy leagues shouldn't feel like solving a math problem on every play. Game Day pulls your rosters, reads the scores, and tells you exactly where your allegiance should be — in real time.
+      </p>
+      <div class="hero-pain">
+        <strong>Sound familiar?</strong> Travis Kelce just scored a touchdown. You cheer — then realize he's your opponent's best weapon in your other league. Now you're doing mental math on a third-down play while everyone around you is just watching the game.
+        <br/><br/>
+        Multiply that across four leagues and a full Sunday slate. That's the problem Game Day solves.
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <div class="how-strip">
+      <div class="how-step">
+        <div class="how-num">01</div>
+        <div class="how-label">Connect your<br/>Sleeper account</div>
+      </div>
+      <div class="how-arrow">›</div>
+      <div class="how-step">
+        <div class="how-num">02</div>
+        <div class="how-label">We read your rosters<br/>and matchups</div>
+      </div>
+      <div class="how-arrow">›</div>
+      <div class="how-step">
+        <div class="how-num">03</div>
+        <div class="how-label">Every player gets<br/>classified instantly</div>
+      </div>
+      <div class="how-arrow">›</div>
+      <div class="how-step">
+        <div class="how-num">04</div>
+        <div class="how-label">Allegiances update<br/>as scores change</div>
+      </div>
+    </div>
+
+    <!-- Three Buckets -->
+    <div class="bucket-grid">
+      <div class="bucket-card cheer">
+        <span class="bucket-icon">🟢</span>
+        <div class="bucket-title">Cheer For</div>
+        <div class="bucket-desc">On your rosters and not hurting you anywhere else. Root for them freely — no asterisks.</div>
+      </div>
+      <div class="bucket-card conflicted">
+        <span class="bucket-icon">🟡</span>
+        <div class="bucket-title">Conflicted</div>
+        <div class="bucket-desc">On your roster in one league, working against you in another. It's complicated — we'll tell you exactly how complicated.</div>
+      </div>
+      <div class="bucket-card enemy">
+        <span class="bucket-icon">🔴</span>
+        <div class="bucket-title">Enemies</div>
+        <div class="bucket-desc">Only on opponent rosters. Root against them freely. No guilt required. That's what they signed up for.</div>
+      </div>
+    </div>
+
+    <!-- Live Scoring Teaser -->
+    <div class="live-teaser">
+      <div class="live-teaser-icon">⚡</div>
+      <div class="live-teaser-body">
+        <strong>Live game-day context</strong>
+        Already winning by 40 with no opponent players left? The player you thought you needed just became irrelevant — Game Day knows. Losing close in another league? That same player might be your enemy right now, even though they're on your roster. Allegiances update in real time as the scores change.
+      </div>
+    </div>
+
+    <!-- Sign-in Card -->
+    <div class="setup-card">
+      <h2>Get Started</h2>
+      <p class="setup-sub">Enter your Sleeper username.<br/>Your leagues load in seconds.</p>
+      <div class="input-group">
+        <input type="text" id="username-input" placeholder="sleeper username" autocomplete="off" />
+        <button class="btn btn-primary" onclick="handleStart()">Load</button>
+      </div>
+      <p id="setup-error" style="color:var(--enemy);margin-top:12px;display:none;font-family:var(--font-m);font-size:0.75rem;"></p>
+      <div class="setup-divider">or try it first</div>
+      <button class="btn btn-demo" style="width:100%;margin-top:12px" onclick="handleDemo()">🎭 Demo Mode — 4 leagues, live scores</button>
+    </div>
+
+  </div>
+
+  <!-- Loading / Error -->
+  <div id="loading-panel"><div class="spinner"></div><div class="loading-msg" id="loading-msg">Connecting to Sleeper...</div></div>
+  <div id="error-panel"><div class="error-msg" id="error-msg"></div><button class="btn btn-ghost" onclick="showSetup()">← Try Again</button></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       BOARD
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <div id="board">
+
+    <div class="board-header">
+      <div class="board-user">Loaded for <strong id="display-username"></strong></div>
+      <span class="refresh-time" id="board-refresh-time"></span>
+    </div>
+
+    <!-- Nav -->
+    <div class="nav-controls">
+      <span class="nav-label">Week</span>
+      <button class="btn-icon" id="week-prev" onclick="changeWeek(-1)">‹</button>
+      <span class="nav-value" id="nav-week-display">—</span>
+      <button class="btn-icon" id="week-next" onclick="changeWeek(+1)">›</button>
+      <div class="nav-divider"></div>
+      <span class="nav-label">Season</span>
+      <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
+      <div class="nav-divider"></div>
+      <button class="btn btn-live btn-sm" id="live-btn" onclick="snapToLive()"><span class="dot-live"></span> Live</button>
+      <div class="nav-spacer"></div>
+      <span class="refresh-time" id="nav-context-label"></span>
+    </div>
+
+    <!-- League Scores Strip -->
+    <div class="scores-strip" id="scores-strip"></div>
+
+    <!-- League Filters -->
+    <div class="league-filters" id="league-filters">
+      <span class="filter-label">Filter</span>
+      <div id="filter-pills"></div>
+      <div class="filter-divider"></div>
+      <span class="filter-count" id="filter-count"></span>
+    </div>
+
+    <!-- Banners -->
+    <div class="banner banner-demo"     id="banner-demo"><span class="banner-icon">🎭</span><div><strong>Demo Mode</strong> — 4 fake leagues with live scores showing the scoring context engine in action. Enter your username to load real data.</div></div>
+    <div class="banner banner-offseason"id="banner-offseason"><span class="banner-icon">📋</span><div><strong>Roster Mode</strong> — No matchup data yet. Showing full rosters; everyone defaults to Cheer For.</div></div>
+    <div class="banner banner-history"  id="banner-history"><span class="banner-icon">📅</span><div id="history-label"></div></div>
+    <div class="banner banner-scoring"  id="banner-scoring"><span class="banner-icon">⚡</span><div><strong>Live Scoring Active</strong> — Allegiances are adjusted based on current scores and projected remaining points. Clinched matchups are dimmed.</div></div>
+
+    <!-- Debug -->
+    <div class="debug-panel" id="debug-panel" style="display:none">
+      <button class="debug-toggle" id="debug-toggle" onclick="toggleDebug()">
+        <span>🔬</span><span>API Debug</span><span class="arrow">▶</span>
+      </button>
+      <div class="debug-body" id="debug-body">
+        <div class="debug-meta"    id="debug-meta"></div>
+        <div class="debug-leagues" id="debug-leagues"></div>
+      </div>
+    </div>
+
+    <!-- No-data -->
+    <div id="no-data-state">
+      <div class="no-data-icon">📭</div>
+      <div class="no-data-title">No League Data</div>
+      <div class="no-data-msg" id="no-data-msg"></div>
+      <div class="no-data-hint">Use the season dropdown or week arrows above to try a different period.</div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-bar" id="summary-bar">
+      <div class="summary-pill cheer">
+        <div class="pill-count" id="count-cheer">0</div>
+        <div class="pill-label"><strong>🟢 Cheer For</strong><span>Root for them</span></div>
+      </div>
+      <div class="summary-pill conflicted">
+        <div class="pill-count" id="count-conflicted">0</div>
+        <div class="pill-label"><strong>🟡 Conflicted</strong><span>It's complicated</span></div>
+      </div>
+      <div class="summary-pill enemy">
+        <div class="pill-count" id="count-enemy">0</div>
+        <div class="pill-label"><strong>🔴 Enemies</strong><span>Root against</span></div>
+      </div>
+    </div>
+
+    <!-- Columns -->
+    <div class="columns" id="columns">
+      <div class="column cheer">
+        <div class="column-header"><span class="col-icon">🟢</span><span class="col-title">Cheer For</span><span class="col-subtitle">Only on your rosters</span></div>
+        <div id="cheer-list"></div>
+      </div>
+      <div class="column conflicted">
+        <div class="column-header"><span class="col-icon">🟡</span><span class="col-title">Conflicted</span><span class="col-subtitle">Both sides</span></div>
+        <div id="conflicted-list"></div>
+      </div>
+      <div class="column enemy">
+        <div class="column-header"><span class="col-icon">🔴</span><span class="col-title">Enemies</span><span class="col-subtitle">Only against you</span></div>
+        <div id="enemy-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SCRIPT
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <script>
+    /* ════════════════════════════════════════════════════════════════
+       CONSTANTS & STATE
+    ════════════════════════════════════════════════════════════════ */
+    const BASE           = 'https://api.sleeper.app/v1';
+    const CACHE_KEY      = 'gd_players_db';
+    const CACHE_TIME_KEY = 'gd_players_db_time';
+    const PROJ_CACHE_KEY = 'gd_proj';
+    const CACHE_TTL      = 12 * 60 * 60 * 1000;
+    const PROJ_TTL       = 15 * 60 * 1000; // projections refresh every 15 min
+    const USER_KEY       = 'gd_username';
+    const POS_ORDER      = ['QB','RB','WR','TE','K','DEF'];
+    const FIRST_SEASON   = 2019;
+    const THIS_YEAR      = new Date().getFullYear();
+    const MAX_WEEK       = 18;
+
+    const LEAGUE_COLORS  = ['#06b6d4','#a855f7','#f97316','#ec4899','#6366f1','#84cc16','#14b8a6','#f43f5e'];
+
+    let isDemoMode     = false;
+    let liveWeek       = 1;
+    let liveSeason     = String(THIS_YEAR);
+    let activeWeek     = 1;
+    let activeSeason   = String(THIS_YEAR);
+    let currentUser    = null;
+    let leagueColorMap = {};
+    let activeFilters  = new Set();
+
+    /* ════════════════════════════════════════════════════════════════
+       LEAGUE COLORS
+    ════════════════════════════════════════════════════════════════ */
+    function assignColor(name) {
+      if (!leagueColorMap[name]) {
+        leagueColorMap[name] = LEAGUE_COLORS[Object.keys(leagueColorMap).length % LEAGUE_COLORS.length];
+      }
+      return leagueColorMap[name];
+    }
+    const lc = name => leagueColorMap[name] || '#5a6a8a';
+
+    /* ════════════════════════════════════════════════════════════════
+       API
+    ════════════════════════════════════════════════════════════════ */
+    async function apiFetch(url) {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    }
+    const getUser     = u        => apiFetch(`${BASE}/user/${u}`);
+    const getNFLState = ()       => apiFetch(`${BASE}/state/nfl`);
+    const getLeagues  = (uid, s) => apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
+    const getRosters  = lid      => apiFetch(`${BASE}/league/${lid}/rosters`);
+    const getMatchups = (lid, w) => apiFetch(`${BASE}/league/${lid}/matchups/${w}`);
+
+    async function getPlayerDB() {
+      const c = localStorage.getItem(CACHE_KEY), t = localStorage.getItem(CACHE_TIME_KEY);
+      if (c && t && Date.now() - parseInt(t) < CACHE_TTL) { setLoading('Using cached player data...'); return JSON.parse(c); }
+      setLoading('Downloading player database (~5 MB, one-time)...');
+      const db = await apiFetch(`${BASE}/players/nfl`);
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(db)); localStorage.setItem(CACHE_TIME_KEY, Date.now()); } catch(e) {}
+      return db;
+    }
+
+    async function getProjections(season, week) {
+      // Try to fetch Sleeper projections; fail gracefully if unavailable
+      const cKey = `${PROJ_CACHE_KEY}_${season}_${week}`;
+      const tKey = `${cKey}_t`;
+      const c = localStorage.getItem(cKey), t = localStorage.getItem(tKey);
+      if (c && t && Date.now() - parseInt(t) < PROJ_TTL) return JSON.parse(c);
+      try {
+        setLoading('Fetching player projections...');
+        const proj = await apiFetch(`${BASE}/projections/nfl/regular/${season}/${week}`);
+        try { localStorage.setItem(cKey, JSON.stringify(proj)); localStorage.setItem(tKey, Date.now()); } catch(e) {}
+        return proj;
+      } catch(e) {
+        console.warn('Projections unavailable:', e.message);
+        return {}; // graceful fallback — live scoring uses simplified mode
+      }
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       SCORING ENGINE
+    ════════════════════════════════════════════════════════════════ */
+
+    // Determine if a matchup is decided based on current scores + projected totals
+    function calcLeagueState(myPts, oppPts, myProjTotal, oppProjTotal) {
+      if (!myProjTotal && !oppProjTotal) return 'LIVE'; // no projections available
+      const myLead = myPts - oppPts;
+      const oppRemaining = Math.max(0, oppProjTotal - oppPts);
+      const myRemaining  = Math.max(0, myProjTotal  - myPts);
+      if (myLead > oppRemaining && oppRemaining >= 0) return 'LOCKED_WIN';
+      if (-myLead > myRemaining && myRemaining >= 0)  return 'LOCKED_LOSS';
+      return 'LIVE';
+    }
+
+    // Calculate net scoring signal for a player across all leagues
+    // Returns: { signal: number, allDecided: boolean, details: [] }
+    function calcScoringSignal(player, leagueContexts) {
+      if (!leagueContexts?.length) return null;
+      const liveLCs = leagueContexts.filter(lc => lc.leagueState !== 'NO_MATCHUP');
+      if (!liveLCs.length) return null;
+
+      let signal = 0, allDecided = true;
+      const details = [];
+
+      liveLCs.forEach(ctx => {
+        const onMine = player.myLeagues.includes(ctx.leagueName);
+        const onOpp  = player.againstLeagues.includes(ctx.leagueName);
+        if (!onMine && !onOpp) return;
+
+        const st = ctx.leagueState;
+        if (st === 'LIVE') allDecided = false;
+
+        if (onMine) {
+          const contrib = st === 'LIVE' ? 1 : 0;
+          signal += contrib;
+          details.push({ league: ctx.leagueName, side: 'mine', state: st, contrib });
+        }
+        if (onOpp) {
+          const contrib = st === 'LIVE' ? -1 : 0;
+          signal += contrib;
+          details.push({ league: ctx.leagueName, side: 'opp', state: st, contrib });
+        }
+      });
+
+      return { signal, allDecided, details };
+    }
+
+    // Classify a player using scoring signal (when available) or roster membership
+    function classifyPlayer(player, sigResult) {
+      const mine   = player.myLeagues.length > 0;
+      const theirs = player.againstLeagues.length > 0;
+
+      if (!sigResult) {
+        // Offseason / no scoring data — pure roster logic
+        if (mine && !theirs)  return { bucket: 'cheer',     clinched: false };
+        if (mine && theirs)   return { bucket: 'conflicted', clinched: false };
+        if (theirs)           return { bucket: 'enemy',      clinched: false };
+        return null;
+      }
+
+      const { signal, allDecided } = sigResult;
+      if (signal > 0)  return { bucket: 'cheer',     clinched: allDecided };
+      if (signal < 0)  return { bucket: 'enemy',      clinched: allDecided };
+      // signal === 0 — use roster membership to determine which bucket, clinched
+      if (mine && !theirs)  return { bucket: 'cheer',     clinched: allDecided };
+      if (!mine && theirs)  return { bucket: 'enemy',      clinched: allDecided };
+      return { bucket: 'conflicted', clinched: allDecided };
+    }
+
+    // Scoring context badge text for player card
+    function contextBadge(sigResult) {
+      if (!sigResult) return null;
+      const { signal, allDecided } = sigResult;
+      if (allDecided)  return { text: 'Settled', cls: 'ctx-settled' };
+      if (signal > 1)  return { text: 'Need Them', cls: 'ctx-need' };
+      if (signal === 1)return { text: 'Want Points', cls: 'ctx-need' };
+      if (signal < -1) return { text: 'Danger', cls: 'ctx-avoid' };
+      if (signal === -1)return { text: 'Avoid Points', cls: 'ctx-avoid' };
+      return { text: 'Mixed', cls: 'ctx-mixed' };
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       PANEL HELPERS
+    ════════════════════════════════════════════════════════════════ */
+    function hideAll() {
+      ['setup-panel','loading-panel','error-panel','board'].forEach(id =>
+        document.getElementById(id).style.display = 'none');
+      ['demo-btn','change-user-btn','refresh-btn'].forEach(id =>
+        document.getElementById(id).style.display = 'none');
+    }
+    function showSetup() { hideAll(); isDemoMode = false; currentUser = null; document.getElementById('setup-panel').style.display = 'flex'; }
+    function showLoading(msg) { hideAll(); document.getElementById('loading-panel').style.display = 'flex'; document.getElementById('loading-msg').textContent = msg || 'Loading...'; }
+    function setLoading(msg) { document.getElementById('loading-msg').textContent = msg; }
+    function showError(msg)  { hideAll(); document.getElementById('error-panel').style.display = 'flex'; document.getElementById('error-msg').textContent = msg; }
+    function showBoard() {
+      hideAll(); document.getElementById('board').style.display = 'block';
+      ['demo-btn','change-user-btn','refresh-btn'].forEach(id => document.getElementById(id).style.display = 'inline-block');
+      document.getElementById('demo-btn').classList.toggle('active', isDemoMode);
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       SEASON DROPDOWN
+    ════════════════════════════════════════════════════════════════ */
+    function buildSeasonSelect(sel) {
+      const el = document.getElementById('season-select'); el.innerHTML = '';
+      for (let y = THIS_YEAR; y >= FIRST_SEASON; y--) {
+        const o = document.createElement('option');
+        o.value = String(y); o.textContent = String(y);
+        if (String(y) === String(sel)) o.selected = true;
+        el.appendChild(o);
+      }
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       NAV UI
+    ════════════════════════════════════════════════════════════════ */
+    function updateNavUI() {
+      const isLive = activeWeek === liveWeek && activeSeason === liveSeason;
+      document.getElementById('nav-week-display').textContent = `Week ${activeWeek}`;
+      document.getElementById('week-prev').disabled = activeWeek <= 1;
+      document.getElementById('week-next').disabled = activeWeek >= MAX_WEEK;
+      document.getElementById('season-select').value = activeSeason;
+      document.getElementById('live-btn').classList.toggle('current', isLive);
+      document.getElementById('nav-context-label').textContent = isLive ? `Live · ${liveSeason}` : `${activeSeason} · Wk ${activeWeek}`;
+      document.getElementById('week-label').textContent = `Week ${activeWeek} · ${activeSeason}`;
+      const hb = document.getElementById('banner-history');
+      if (!isDemoMode && !isLive) {
+        hb.classList.add('visible');
+        document.getElementById('history-label').innerHTML = `<strong>Historical View</strong> — ${activeSeason} Season, Week ${activeWeek}. Hit <strong>Live</strong> to return.`;
+      } else { hb.classList.remove('visible'); }
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       LEAGUE SCORES STRIP
+    ════════════════════════════════════════════════════════════════ */
+    function renderScoresStrip(leagueContexts) {
+      const strip = document.getElementById('scores-strip');
+      strip.innerHTML = '';
+      const hasScores = leagueContexts.some(lc => lc.leagueState !== 'NO_MATCHUP');
+      if (!hasScores) { strip.classList.remove('visible'); return; }
+      strip.classList.add('visible');
+
+      leagueContexts.forEach(ctx => {
+        const color = lc(ctx.leagueName);
+        const stateClass = { LOCKED_WIN:'state-win', LOCKED_LOSS:'state-loss', LIVE:'state-live', NO_MATCHUP:'state-none' }[ctx.leagueState] || 'state-none';
+        const stateText  = { LOCKED_WIN:'Clinched ✓', LOCKED_LOSS:'Eliminated', LIVE:'● Live', NO_MATCHUP:'No Matchup' }[ctx.leagueState] || '';
+        const stateTextClass = { LOCKED_WIN:'win', LOCKED_LOSS:'loss', LIVE:'live', NO_MATCHUP:'none' }[ctx.leagueState] || 'none';
+        const myLeading  = ctx.myPoints >= ctx.oppPoints;
+
+        const card = document.createElement('div');
+        card.className = `score-card ${stateClass}`;
+        card.innerHTML = `
+          <div class="score-league-name">
+            <span class="sc-dot" style="background:${color}"></span>
+            ${ctx.leagueName}
+          </div>
+          <div class="score-matchup">
+            <div class="score-team">
+              <div class="score-pts mine ${!myLeading?'losing':''}">${ctx.myPoints.toFixed(1)}</div>
+              <div class="score-label">You</div>
+            </div>
+            <div class="score-dash">—</div>
+            <div class="score-team">
+              <div class="score-pts opp ${!myLeading?'leading':''}">${ctx.oppPoints.toFixed(1)}</div>
+              <div class="score-label">Opp</div>
+            </div>
+          </div>
+          <div class="score-state ${stateTextClass}">${stateText}</div>
+        `;
+        strip.appendChild(card);
+      });
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       LEAGUE FILTERS
+    ════════════════════════════════════════════════════════════════ */
+    function buildFilterPills(names) {
+      const filtersEl = document.getElementById('league-filters');
+      const container = document.getElementById('filter-pills');
+      container.innerHTML = ''; activeFilters.clear();
+      if (names.length < 2) { filtersEl.classList.remove('visible'); return; }
+      filtersEl.classList.add('visible');
+
+      const allPill = Object.assign(document.createElement('span'), { className:'filter-pill all-pill active', textContent:'All' });
+      allPill.dataset.league = '__all__';
+      allPill.onclick = () => toggleFilter('__all__', names);
+      container.appendChild(allPill);
+
+      names.forEach(name => {
+        const color = lc(name);
+        const pill = document.createElement('span');
+        pill.className = 'filter-pill'; pill.textContent = name; pill.dataset.league = name;
+        pill.style.cssText = `background:${color}1a;border-color:${color}66;color:${color}`;
+        pill.onclick = () => toggleFilter(name, names);
+        container.appendChild(pill);
+      });
+      updateFilterCount();
+    }
+
+    function toggleFilter(league, all) {
+      if (league === '__all__') activeFilters.clear();
+      else activeFilters.has(league) ? activeFilters.delete(league) : activeFilters.add(league);
+      document.querySelectorAll('.filter-pill').forEach(p => {
+        const lg = p.dataset.league;
+        if (lg === '__all__') { p.classList.toggle('active', activeFilters.size === 0); p.classList.toggle('inactive', activeFilters.size > 0); }
+        else p.classList.toggle('inactive', activeFilters.size > 0 && !activeFilters.has(lg));
+      });
+      applyFilters(); updateFilterCount();
+    }
+
+    function updateFilterCount() {
+      document.getElementById('filter-count').textContent = activeFilters.size ? `Filtering: ${[...activeFilters].join(', ')}` : '';
+    }
+
+    function applyFilters() {
+      ['cheer-list','conflicted-list','enemy-list'].forEach(id => {
+        const list = document.getElementById(id);
+        const cards = list.querySelectorAll('.player-card');
+        cards.forEach(card => {
+          const matches = !activeFilters.size || card.dataset.leagues.split('|').some(lg => activeFilters.has(lg));
+          card.classList.toggle('filtered-out', !matches);
+        });
+        let empty = list.querySelector('.filter-empty');
+        const visible = [...cards].filter(c => !c.classList.contains('filtered-out'));
+        if (!visible.length && cards.length) {
+          if (!empty) { empty = document.createElement('div'); empty.className = 'empty-state filter-empty'; list.appendChild(empty); }
+          empty.textContent = 'No players match this filter';
+        } else if (empty) empty.remove();
+      });
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       DEBUG
+    ════════════════════════════════════════════════════════════════ */
+    function toggleDebug() { document.getElementById('debug-toggle').classList.toggle('open'); document.getElementById('debug-body').classList.toggle('open'); }
+    function renderDebug(info) {
+      if (!info) { document.getElementById('debug-panel').style.display = 'none'; return; }
+      document.getElementById('debug-panel').style.display = 'block';
+      document.getElementById('debug-meta').innerHTML = `
+        <span>Season: <strong>${info.season}</strong></span>
+        <span>Week: <strong>${info.week}</strong></span>
+        <span>Leagues: <strong>${info.leagues.length}</strong></span>
+        <span>Projections: <strong>${info.hasProjections ? 'loaded' : 'unavailable'}</strong></span>
+        ${info.usedFallback ? `<span class="warn">⚠ Season fallback</span>` : ''}
+      `;
+      const c = document.getElementById('debug-leagues'); c.innerHTML = '';
+      info.leagues.forEach(lg => {
+        const row = document.createElement('div'); row.className = 'debug-league';
+        row.innerHTML = `
+          <div class="lg-name"><span class="lg-color-dot" style="background:${lc(lg.name)}"></span>${lg.name}<span class="lg-id">${lg.leagueId}</span></div>
+          <span class="dpill ${lg.rosterFound?'dp-ok':'dp-warn'}">${lg.rosterFound?`${lg.myCount} players`:'NOT FOUND'}</span>
+          <span class="dpill ${lg.matchupFound?'dp-ok':'dp-dim'}">${lg.matchupFound?`Matchup ✓ · opp ${lg.oppCount}`:'No matchup'}</span>
+          <span class="dpill dp-dim">${lg.state || '—'}</span>
+          <span class="dpill ${lg.isCoMgr?'dp-ok':'dp-dim'}">${lg.isCoMgr?'Co-mgr ✓':'Owner'}</span>
+        `;
+        c.appendChild(row);
+      });
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       CARD BUILDER
+    ════════════════════════════════════════════════════════════════ */
+    const posClass = pos => ({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF'}[pos]||'pos-default');
+
+    function buildCard(player, delay) {
+      const div = document.createElement('div');
+      div.className = `player-card${player.clinched ? ' clinched' : ''}`;
+      div.style.animationDelay = `${delay}ms`;
+      div.dataset.leagues = [...player.myLeagues, ...player.againstLeagues].join('|');
+
+      // Points row (if scoring data available)
+      let ptsHTML = '';
+      if (player.currentPoints !== null && player.currentPoints !== undefined) {
+        const proj = player.projectedPoints ? `<span class="pts-separator">·</span><span class="pts-proj">${player.projectedPoints.toFixed(1)} proj</span>` : '';
+        ptsHTML = `<div class="points-row"><span class="pts-actual">${player.currentPoints.toFixed(1)} pts</span>${proj}`;
+        // Context badge
+        if (player.contextBadge) {
+          ptsHTML += `<span class="context-badge ${player.contextBadge.cls}">${player.contextBadge.text}</span>`;
+        }
+        ptsHTML += `</div>`;
+      }
+
+      // League lines
+      const myLines  = player.myLeagues.map(n    => `<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)};opacity:0.9">YOUR roster</span><span> · ${n}</span></div>`).join('');
+      const oppLines = player.againstLeagues.map(n => `<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span>OPP roster · ${n}</span></div>`).join('');
+
+      div.innerHTML = `
+        <div class="card-top">
+          <span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span>
+          <span class="player-name">${player.full_name||`Player ${player.id}`}</span>
+          <span class="player-team">${player.team||''}</span>
+        </div>
+        ${ptsHTML}
+        <div class="league-context">${myLines}${oppLines}</div>
+      `;
+      return div;
+    }
+
+    function sortPlayers(arr) {
+      return [...arr].sort((a,b) => {
+        const ai = POS_ORDER.indexOf(a.position) === -1 ? 99 : POS_ORDER.indexOf(a.position);
+        const bi = POS_ORDER.indexOf(b.position) === -1 ? 99 : POS_ORDER.indexOf(b.position);
+        return ai !== bi ? ai - bi : (a.full_name||'').localeCompare(b.full_name||'');
+      });
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       RENDER
+    ════════════════════════════════════════════════════════════════ */
+    function renderBoard(data, username) {
+      const { cheerFor, conflicted, enemies, offseasonMode, debugInfo, noData, noDataReason, leagueContexts, hasScoring } = data;
+      showBoard(); updateNavUI();
+
+      document.getElementById('banner-demo').classList.toggle('visible', isDemoMode);
+      document.getElementById('banner-offseason').classList.toggle('visible', !isDemoMode && !!offseasonMode);
+      document.getElementById('banner-scoring').classList.toggle('visible', !isDemoMode && !!hasScoring);
+      renderDebug(isDemoMode ? null : debugInfo);
+      document.getElementById('display-username').textContent = isDemoMode ? 'Demo Mode' : username;
+
+      const now = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+      ['refresh-time','board-refresh-time'].forEach(id => document.getElementById(id).textContent = `Updated ${now}`);
+
+      // No-data state
+      const noDataEl = document.getElementById('no-data-state');
+      const sumBar   = document.getElementById('summary-bar');
+      const cols     = document.getElementById('columns');
+      if (noData) {
+        noDataEl.classList.add('visible'); sumBar.style.display = 'none'; cols.style.display = 'none';
+        document.getElementById('league-filters').classList.remove('visible');
+        document.getElementById('scores-strip').classList.remove('visible');
+        document.getElementById('no-data-msg').innerHTML = noDataReason;
+        renderDebug(null); return;
+      }
+      noDataEl.classList.remove('visible'); sumBar.style.display = ''; cols.style.display = '';
+
+      // Scores strip
+      if (leagueContexts?.length) renderScoresStrip(leagueContexts);
+
+      // Counts
+      document.getElementById('count-cheer').textContent      = cheerFor.length;
+      document.getElementById('count-conflicted').textContent = conflicted.length;
+      document.getElementById('count-enemy').textContent      = enemies.length;
+
+      // Assign colors
+      const leagueNames = [];
+      [...cheerFor,...conflicted,...enemies].forEach(p => [...p.myLeagues,...p.againstLeagues].forEach(n => { if (!leagueNames.includes(n)) leagueNames.push(n); }));
+      leagueNames.forEach(n => assignColor(n));
+
+      buildFilterPills(leagueNames);
+
+      function renderList(id, players) {
+        const el = document.getElementById(id); el.innerHTML = '';
+        if (!players.length) { el.innerHTML = '<div class="empty-state">No players in this bucket</div>'; return; }
+        sortPlayers(players).forEach((p,i) => el.appendChild(buildCard(p, i*24)));
+      }
+      renderList('cheer-list',     cheerFor);
+      renderList('conflicted-list', conflicted);
+      renderList('enemy-list',     enemies);
+      applyFilters();
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       LOAD DATA
+    ════════════════════════════════════════════════════════════════ */
+    async function loadData(username) {
+      showLoading('Looking up Sleeper user...');
+      const user = await getUser(username);
+      if (!user?.user_id) throw new Error(`Username "${username}" not found on Sleeper.`);
+
+      setLoading('Fetching NFL state...');
+      const state = await getNFLState();
+      liveWeek   = (state.week >= 1 && state.week <= MAX_WEEK) ? state.week : 1;
+      liveSeason = state.season;
+      if (!currentUser) { activeWeek = liveWeek; activeSeason = liveSeason; }
+      currentUser = username;
+      buildSeasonSelect(activeSeason);
+
+      setLoading(`Loading ${activeSeason} leagues...`);
+      let leagues = await getLeagues(user.user_id, activeSeason);
+      let usedFallback = false;
+      if (!leagues?.length && activeSeason === liveSeason) {
+        const prev = String(parseInt(activeSeason) - 1);
+        setLoading(`No ${activeSeason} leagues — trying ${prev}...`);
+        leagues = await getLeagues(user.user_id, prev);
+        if (leagues?.length) { liveSeason = prev; activeSeason = prev; usedFallback = true; buildSeasonSelect(activeSeason); }
+      }
+      if (!leagues?.length) return {
+        noData: true,
+        noDataReason: `No leagues found for <strong>${username}</strong> in <strong>${activeSeason}</strong>. You may not have been in a league that year, or the season hasn't started. Try another season.`,
+        cheerFor:[], conflicted:[], enemies:[], offseasonMode:false, debugInfo:null, leagueContexts:[], hasScoring:false,
+      };
+
+      setLoading(`Found ${leagues.length} league(s) — loading week ${activeWeek}...`);
+
+      // Fetch projections for this week (for lead-safety calculation)
+      const projections = await getProjections(activeSeason, activeWeek);
+      const hasProjections = Object.keys(projections).length > 0;
+
+      // Helper: sum projected points for a list of player IDs
+      const projSum = ids => ids.reduce((s, id) => {
+        const p = projections[id];
+        return s + (p ? (p.pts_ppr ?? p.pts_std ?? p.pts_half_ppr ?? 0) : 0);
+      }, 0);
+
+      const debugLeagues = [];
+      const leagueContexts = [];
+
+      const results = await Promise.all(leagues.map(async lg => {
+        const rosters = await getRosters(lg.league_id);
+        // Co-manager fix
+        const myRoster = rosters.find(r => r.owner_id === user.user_id || (Array.isArray(r.co_owners) && r.co_owners.includes(user.user_id)));
+        const isCoMgr  = myRoster ? myRoster.owner_id !== user.user_id : false;
+        if (!myRoster) {
+          debugLeagues.push({ name:lg.name, leagueId:lg.league_id, rosterFound:false, matchupFound:false, myCount:0, oppCount:0, state:'—', isCoMgr:false, type:'—' });
+          return null;
+        }
+
+        let matchups = [];
+        try { const raw = await getMatchups(lg.league_id, activeWeek); matchups = Array.isArray(raw) ? raw : []; } catch(e) { matchups = []; }
+
+        const myMatchup  = matchups.find(m => m.roster_id === myRoster.roster_id);
+        const oppMatchup = myMatchup ? matchups.find(m => m.matchup_id === myMatchup.matchup_id && m.roster_id !== myRoster.roster_id) : null;
+
+        let myPlayers, oppPlayers, hasMatchup, myPoints = 0, oppPoints = 0, leagueState = 'NO_MATCHUP';
+        let myPlayersPoints = {}, oppPlayersPoints = {};
+
+        if (myMatchup) {
+          hasMatchup = true;
+          myPlayers  = myMatchup.starters?.length ? myMatchup.starters : (myMatchup.players || myRoster.players || []);
+          myPoints   = myMatchup.points || 0;
+          myPlayersPoints = myMatchup.players_points || {};
+
+          const oppRoster = rosters.find(r => r.roster_id === oppMatchup?.roster_id);
+          oppPlayers = oppMatchup ? (oppMatchup.starters?.length ? oppMatchup.starters : (oppMatchup.players || oppRoster?.players || [])) : [];
+          oppPoints  = oppMatchup?.points || 0;
+          oppPlayersPoints = oppMatchup?.players_points || {};
+
+          // Calculate lead safety
+          const myProjTotal  = hasProjections ? projSum(myPlayers)  : 0;
+          const oppProjTotal = hasProjections ? projSum(oppPlayers)  : 0;
+          leagueState = hasMatchup ? calcLeagueState(myPoints, oppPoints, myProjTotal, oppProjTotal) : 'NO_MATCHUP';
+        } else {
+          hasMatchup = false;
+          myPlayers  = myRoster.players || [];
+          oppPlayers = [];
+        }
+
+        myPlayers  = myPlayers.filter(id => id && id !== '0');
+        oppPlayers = oppPlayers.filter(id => id && id !== '0');
+
+        leagueContexts.push({ leagueName:lg.name, leagueState, myPoints, oppPoints, myPlayersPoints, oppPlayersPoints });
+        debugLeagues.push({ name:lg.name, leagueId:lg.league_id, rosterFound:true, matchupFound:hasMatchup, myCount:myPlayers.length, oppCount:oppPlayers.length, state:leagueState, isCoMgr, type:lg.settings?.type===2?'dynasty':'redraft' });
+        return { leagueName:lg.name, myPlayers, oppPlayers, hasMatchup };
+      }));
+
+      const valid = results.filter(Boolean);
+      if (!valid.length) throw new Error('Found leagues but could not read roster data.');
+
+      const offseasonMode = valid.every(l => !l.hasMatchup);
+      const hasScoring    = valid.some(l => l.hasMatchup);
+      const playerDB      = await getPlayerDB();
+      setLoading('Classifying players...');
+
+      // Build player map
+      const map = new Map();
+      function ensure(id) {
+        if (!map.has(id)) {
+          const info = playerDB[id] || {};
+          map.set(id, {
+            id,
+            full_name:  info.full_name || info.last_name || `Player ${id}`,
+            position:   info.position  || (id.length <= 4 ? 'DEF' : '—'),
+            team:       info.team || '',
+            myLeagues: [], againstLeagues: [],
+            currentPoints:   null,
+            projectedPoints: null,
+            contextBadge:    null,
+            bucket:    null,
+            clinched:  false,
+          });
+        }
+        return map.get(id);
+      }
+
+      valid.forEach(lg => {
+        const ctx = leagueContexts.find(c => c.leagueName === lg.leagueName);
+        lg.myPlayers.forEach(id => {
+          const p = ensure(id);
+          p.myLeagues.push(lg.leagueName);
+          // Attach current points (take max across leagues in case player appears in multiple)
+          if (ctx?.myPlayersPoints[id] !== undefined) {
+            p.currentPoints = Math.max(p.currentPoints ?? 0, ctx.myPlayersPoints[id] ?? 0);
+          }
+          if (hasProjections && projections[id]) {
+            p.projectedPoints = projections[id].pts_ppr ?? projections[id].pts_std ?? null;
+          }
+        });
+        lg.oppPlayers.forEach(id => {
+          const p = ensure(id);
+          p.againstLeagues.push(lg.leagueName);
+          if (ctx?.oppPlayersPoints[id] !== undefined) {
+            p.currentPoints = Math.max(p.currentPoints ?? 0, ctx.oppPlayersPoints[id] ?? 0);
+          }
+          if (hasProjections && projections[id]) {
+            p.projectedPoints = projections[id].pts_ppr ?? projections[id].pts_std ?? null;
+          }
+        });
+      });
+
+      // Classify each player using scoring engine
+      const cheerFor = [], conflicted = [], enemies = [];
+      map.forEach(p => {
+        const sigResult = calcScoringSignal(p, leagueContexts);
+        const cls       = classifyPlayer(p, sigResult);
+        if (!cls) return;
+        p.bucket    = cls.bucket;
+        p.clinched  = cls.clinched;
+        p.contextBadge = hasScoring ? contextBadge(sigResult) : null;
+        if (cls.bucket === 'cheer')     cheerFor.push(p);
+        else if (cls.bucket === 'conflicted') conflicted.push(p);
+        else if (cls.bucket === 'enemy')      enemies.push(p);
+      });
+
+      return {
+        cheerFor, conflicted, enemies, noData:false, offseasonMode, hasScoring,
+        leagueContexts,
+        debugInfo: { season:activeSeason, week:activeWeek, usedFallback, hasProjections, leagues:debugLeagues },
+      };
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       DEMO DATA — 4 leagues with live scoring context
+    ════════════════════════════════════════════════════════════════ */
+    function getDemoData() {
+      const L1='Dynasty Royale', L2='Redraft Chaos', L3='The Gridiron', L4='Devy Masters';
+
+      // League contexts with realistic scores
+      // L1: LIVE (I'm winning but not locked)
+      // L2: LIVE (I'm losing)
+      // L3: LIVE (dead heat)
+      // L4: LOCKED_WIN (clinched — I'm winning by 90, opponent projected 68)
+      const leagueContexts = [
+        { leagueName:L1, leagueState:'LIVE',       myPoints:95.6,  oppPoints:72.8,  myPlayersPoints:{}, oppPlayersPoints:{} },
+        { leagueName:L2, leagueState:'LIVE',       myPoints:68.4,  oppPoints:82.1,  myPlayersPoints:{}, oppPlayersPoints:{} },
+        { leagueName:L3, leagueState:'LIVE',       myPoints:88.5,  oppPoints:87.2,  myPlayersPoints:{}, oppPlayersPoints:{} },
+        { leagueName:L4, leagueState:'LOCKED_WIN', myPoints:134.2, oppPoints:45.8,  myPlayersPoints:{}, oppPlayersPoints:{} },
+      ];
+
+      // Build players with pre-calculated scoring signals
+      function p(id, name, pos, team, mine, against, pts, proj, signal, allDecided) {
+        const sigResult = { signal, allDecided, details:[] };
+        const cls       = classifyPlayer({ myLeagues:mine, againstLeagues:against }, sigResult);
+        const badge     = contextBadge(sigResult);
+        return { id, full_name:name, position:pos, team, myLeagues:mine, againstLeagues:against,
+                 currentPoints:pts, projectedPoints:proj, contextBadge:badge,
+                 bucket:cls?.bucket, clinched:cls?.clinched||false };
+      }
+
+      // Assign demo colors upfront
+      [L1,L2,L3,L4].forEach((n,i) => { leagueColorMap[n] = LEAGUE_COLORS[i]; });
+
+      // KEY DEMO INSIGHT: L4 is LOCKED_WIN so players only relevant to L4 are "settled"
+      // Travis Kelce: L1(mine,LIVE +1) + L4(opp,LOCKED +0) = signal +1 → Cheer For (was Conflicted without scoring)
+      // Stefon Diggs: L4(opp,LOCKED 0) → settled enemy
+
+      const cheerFor = [
+        p('d1','Patrick Mahomes',    'QB', 'KC', [L1,L3],[],        22.4, 28.0,  2, false),
+        p('d2','Davante Adams',      'WR', 'NO', [L1],   [],        11.8, 16.0,  1, false),
+        p('d3','Derrick Henry',      'RB','BAL', [L1],   [],        14.2, 18.0,  1, false),
+        p('d4','Tyreek Hill',        'WR','MIA', [L2,L3],[],        18.6, 22.0,  2, false),
+        p('d5','Mark Andrews',       'TE','BAL', [L2],   [],         9.4, 14.0,  1, false),
+        p('d6','Bijan Robinson',     'RB','ATL', [L3],   [],        12.8, 15.0,  1, false),
+        // Kelce: L1 mine LIVE(+1) + L4 opp LOCKED(0) = +1 → Cheer For (scoring context changed this from Conflicted!)
+        p('d7','Travis Kelce',       'TE', 'KC', [L1],  [L4],       8.6, 14.0,  1, false),
+        // McCaffrey: L4 mine LOCKED → settled, clinched
+        p('d8','Christian McCaffrey','RB', 'SF', [L4],   [],        24.6, 26.0,  0, true),
+      ];
+      const conflicted = [
+        // Justin Jefferson: L1 mine LIVE(+1) + L2 opp LIVE(-1) = 0 → Conflicted
+        p('d9', 'Justin Jefferson',  'WR','MIN', [L1],  [L2],       16.4, 20.0,  0, false),
+        // Josh Allen: L2 mine LIVE(+1) + L1 opp LIVE(-1) = 0 → Conflicted
+        p('d10','Josh Allen',        'QB','BUF', [L2],  [L1],       19.8, 26.0,  0, false),
+        // CeeDee Lamb: L3 mine LIVE(+1) + L2 opp LIVE(-1) = 0 → Conflicted
+        p('d11','CeeDee Lamb',       'WR','DAL', [L3],  [L2],       14.2, 22.0,  0, false),
+        // Saquon: L3 mine LIVE(+1) + L3... wait, can't be both. Let's do L2 mine + L3 opp
+        p('d12','Saquon Barkley',    'RB','PHI', [L2],  [L3],       11.6, 16.0,  0, false),
+      ];
+      const enemies = [
+        p('d13',"Ja'Marr Chase",    'WR','CIN', [],    [L1,L2],    20.2, 24.0, -2, false),
+        p('d14','Jalen Hurts',       'QB','PHI', [],    [L2,L3],    21.4, 28.0, -2, false),
+        p('d15','Sam LaPorta',       'TE','DET', [],    [L1],        6.8, 10.0, -1, false),
+        p('d16','Tony Pollard',      'RB','TEN', [],    [L3],        8.4, 12.0, -1, false),
+        p('d17','Cooper Kupp',       'WR','LAR', [],    [L1,L3],    13.6, 16.0, -2, false),
+        // Diggs: L4 opp LOCKED → settled enemy
+        p('d18','Stefon Diggs',      'WR','HOU', [],    [L4],       11.2, 14.0,  0, true),
+      ];
+
+      return { cheerFor, conflicted, enemies, noData:false, offseasonMode:false, hasScoring:true, leagueContexts,
+               debugInfo:null };
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       NAV HANDLERS
+    ════════════════════════════════════════════════════════════════ */
+    async function changeWeek(delta) {
+      const n = activeWeek + delta;
+      if (n < 1 || n > MAX_WEEK) return;
+      activeWeek = n; updateNavUI();
+      if (!isDemoMode && currentUser) await run(currentUser);
+    }
+    async function changeSeason(val) {
+      activeSeason = val;
+      activeWeek   = activeSeason === liveSeason ? liveWeek : 1;
+      leagueColorMap = {}; activeFilters.clear(); updateNavUI();
+      if (!isDemoMode && currentUser) await run(currentUser);
+    }
+    async function snapToLive() {
+      activeWeek = liveWeek; activeSeason = liveSeason; updateNavUI();
+      if (isDemoMode) return;
+      if (currentUser) await run(currentUser);
+    }
+
+    /* ════════════════════════════════════════════════════════════════
+       EVENT HANDLERS
+    ════════════════════════════════════════════════════════════════ */
+    async function handleStart() {
+      const input = document.getElementById('username-input').value.trim();
+      if (!input) return;
+      isDemoMode = false; currentUser = null; leagueColorMap = {}; activeFilters.clear();
+      localStorage.setItem(USER_KEY, input);
+      await run(input);
+    }
+    function handleDemo() {
+      isDemoMode = true; activeWeek = 7; activeSeason = '2025';
+      leagueColorMap = {}; activeFilters.clear();
+      buildSeasonSelect(activeSeason); updateNavUI();
+      renderBoard(getDemoData(), 'demo');
+    }
+    async function handleRefresh() { if (isDemoMode) { handleDemo(); return; } const u = localStorage.getItem(USER_KEY); if (u) await run(u); }
+    function handleChangeUser() { localStorage.removeItem(USER_KEY); currentUser = null; isDemoMode = false; leagueColorMap = {}; activeFilters.clear(); showSetup(); }
+
+    async function run(username) {
+      try { renderBoard(await loadData(username), username); }
+      catch(err) { console.error(err); showError(err.message || 'Something went wrong. Check your username and try again.'); }
+    }
+
+    document.getElementById('username-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleStart(); });
+    buildSeasonSelect(THIS_YEAR);
+
+    (async () => {
+      const saved = localStorage.getItem(USER_KEY);
+      if (saved) { document.getElementById('username-input').value = saved; await run(saved); }
+      else showSetup();
+    })();
+  </script>
+</body>
+</html>
