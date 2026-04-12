@@ -1,27 +1,25 @@
-<!DOCTYPE html>
-<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Game Day — Fantasy Allegiance</title>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Day — Know Who To Root For</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
   <style>
-    /* ─── Tokens ──────────────────────────────────────────────────────────── */
+    /* ── Tokens ────────────────────────────────────────────────────────────── */
     :root {
-      --bg:          #060912;
-      --bg-surface:  #0d1220;
-      --bg-card:     #111827;
-      --border:      #1e2a40;
-      --text:        #dde3f0;
-      --text-muted:  #5a6a8a;
-      --text-dim:    #8898b8;
+      --bg:         #060912;
+      --bg-surface: #0d1220;
+      --bg-card:    #111827;
+      --border:     #1e2a40;
+      --text:       #dde3f0;
+      --text-muted: #5a6a8a;
+      --text-dim:   #8898b8;
 
-      --cheer:         #10b981;
-      --cheer-dim:     rgba(16,185,129,0.12);
-      --cheer-border:  rgba(16,185,129,0.35);
+      --cheer:          #10b981;
+      --cheer-dim:      rgba(16,185,129,0.12);
+      --cheer-border:   rgba(16,185,129,0.35);
 
-      --conflicted:        #f59e0b;
-      --conflicted-dim:    rgba(245,158,11,0.12);
+      --conflicted:     #f59e0b;
+      --conflicted-dim: rgba(245,158,11,0.12);
       --conflicted-border: rgba(245,158,11,0.35);
 
       --enemy:         #ef4444;
@@ -31,15 +29,14 @@
       --neutral:     #4b5a78;
       --neutral-dim: rgba(75,90,120,0.10);
 
-      --radius:  10px;
-      --font-display: 'Barlow Condensed', sans-serif;
-      --font-mono:    'IBM Plex Mono', monospace;
+      --radius: 10px;
+      --font-d: 'Barlow Condensed', sans-serif;
+      --font-m: 'IBM Plex Mono', monospace;
     }
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: var(--font-display); min-height: 100vh; overflow-x: hidden; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-d); min-height: 100vh; overflow-x: hidden; }
 
-    /* ─── Header ──────────────────────────────────────────────────────────── */
+    /* ── Header ────────────────────────────────────────────────────────────── */
     header {
       background: var(--bg-surface); border-bottom: 1px solid var(--border);
       padding: 0 36px; height: 68px;
@@ -49,22 +46,13 @@
     .header-left { display: flex; align-items: baseline; gap: 14px; }
     .site-title { font-size: 2rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: #fff; }
     .site-title span { color: var(--cheer); }
-    .week-badge {
-      font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted);
-      background: var(--border); padding: 3px 10px; border-radius: 20px;
-      letter-spacing: 0.08em; text-transform: uppercase;
-    }
+    .week-badge { font-family: var(--font-m); font-size: 0.68rem; color: var(--text-muted); background: var(--border); padding: 3px 10px; border-radius: 20px; letter-spacing: 0.08em; text-transform: uppercase; }
     .header-right { display: flex; align-items: center; gap: 10px; }
-    .refresh-time { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); }
+    .refresh-time { font-family: var(--font-m); font-size: 0.62rem; color: var(--text-muted); }
 
-    /* ─── Buttons ─────────────────────────────────────────────────────────── */
-    .btn {
-      font-family: var(--font-display); font-weight: 700; font-size: 1rem;
-      letter-spacing: 0.06em; text-transform: uppercase;
-      border: none; border-radius: var(--radius); padding: 10px 20px;
-      cursor: pointer; transition: opacity 0.15s, transform 0.1s; white-space: nowrap;
-    }
-    .btn:active  { transform: scale(0.97); }
+    /* ── Buttons ───────────────────────────────────────────────────────────── */
+    .btn { font-family: var(--font-d); font-weight: 700; font-size: 1rem; letter-spacing: 0.06em; text-transform: uppercase; border: none; border-radius: var(--radius); padding: 10px 20px; cursor: pointer; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; }
+    .btn:active { transform: scale(0.97); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-primary { background: var(--cheer); color: #000; }
     .btn-primary:hover:not(:disabled) { opacity: 0.85; }
@@ -73,261 +61,353 @@
     .btn-demo { background: rgba(245,158,11,0.12); color: var(--conflicted); border: 1px solid var(--conflicted-border); }
     .btn-demo:hover { background: rgba(245,158,11,0.22); }
     .btn-demo.active { background: var(--conflicted); color: #000; }
-    .btn-live {
-      background: rgba(16,185,129,0.12); color: var(--cheer);
-      border: 1px solid var(--cheer-border);
-      display: flex; align-items: center; gap: 5px;
-    }
+    .btn-live { background: rgba(16,185,129,0.12); color: var(--cheer); border: 1px solid var(--cheer-border); display: flex; align-items: center; gap: 5px; }
     .btn-live:hover { background: rgba(16,185,129,0.22); }
     .btn-live.current { background: var(--cheer); color: #000; }
     .btn-live .dot-live { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.6s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
     .btn-sm { font-size: 0.78rem; padding: 6px 13px; }
-    .btn-icon {
-      font-family: var(--font-mono); font-size: 1rem; padding: 6px 10px;
-      background: var(--bg-card); color: var(--text-dim);
-      border: 1px solid var(--border); border-radius: 6px;
-      cursor: pointer; transition: background 0.15s, color 0.15s; line-height: 1;
-    }
+    .btn-icon { font-family: var(--font-m); font-size: 1rem; padding: 6px 10px; background: var(--bg-card); color: var(--text-dim); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: background 0.15s, color 0.15s; line-height: 1; }
     .btn-icon:hover:not(:disabled) { background: var(--border); color: var(--text); }
     .btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
 
-    /* ─── Setup ───────────────────────────────────────────────────────────── */
+    /* ══════════════════════════════════════════════════════════════════════════
+       LANDING PAGE
+    ══════════════════════════════════════════════════════════════════════════ */
     #setup-panel {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      min-height: calc(100vh - 68px); gap: 20px; padding: 40px;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 60px 24px 80px; gap: 0;
     }
+
+    /* Hero */
+    .landing-hero {
+      text-align: center;
+      max-width: 680px;
+      margin-bottom: 56px;
+    }
+    .hero-eyebrow {
+      font-family: var(--font-m);
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--cheer);
+      margin-bottom: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hero-eyebrow::before, .hero-eyebrow::after {
+      content: ''; display: block; width: 24px; height: 1px; background: var(--cheer); opacity: 0.4;
+    }
+    .landing-hero h1 {
+      font-size: 4.8rem;
+      font-weight: 900;
+      line-height: 0.95;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+      color: #fff;
+      margin-bottom: 24px;
+    }
+    .landing-hero h1 span { color: var(--cheer); }
+    .landing-hero .hero-sub {
+      font-family: var(--font-m);
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      line-height: 1.75;
+      max-width: 520px;
+      margin: 0 auto 32px;
+    }
+    .hero-pain {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--conflicted);
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-family: var(--font-m);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+      text-align: left;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+    .hero-pain strong { color: var(--conflicted); }
+
+    /* How it works strip */
+    .how-strip {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 48px;
+      max-width: 680px;
+      width: 100%;
+    }
+    .how-step {
+      flex: 1;
+      text-align: center;
+      padding: 20px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+    }
+    .how-step:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+    .how-step:last-child  { border-radius: 0 var(--radius) var(--radius) 0; }
+    .how-num {
+      font-size: 2rem; font-weight: 900; color: var(--border);
+      line-height: 1; margin-bottom: 6px;
+    }
+    .how-label {
+      font-family: var(--font-m); font-size: 0.65rem;
+      color: var(--text-muted); line-height: 1.5;
+    }
+    .how-arrow {
+      font-size: 1rem; color: var(--border); flex-shrink: 0; margin: 0 -1px; z-index: 1;
+    }
+
+    /* Bucket explainer */
+    .bucket-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      max-width: 680px;
+      width: 100%;
+      margin-bottom: 48px;
+    }
+    .bucket-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 18px;
+    }
+    .bucket-card.cheer     { border-top: 3px solid var(--cheer);     }
+    .bucket-card.conflicted{ border-top: 3px solid var(--conflicted); }
+    .bucket-card.enemy     { border-top: 3px solid var(--enemy);      }
+    .bucket-icon { font-size: 1.6rem; margin-bottom: 10px; display: block; }
+    .bucket-title {
+      font-size: 1.3rem; font-weight: 900; text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 6px;
+    }
+    .bucket-card.cheer     .bucket-title { color: var(--cheer);     }
+    .bucket-card.conflicted .bucket-title { color: var(--conflicted); }
+    .bucket-card.enemy     .bucket-title { color: var(--enemy);      }
+    .bucket-desc {
+      font-family: var(--font-m); font-size: 0.68rem;
+      color: var(--text-muted); line-height: 1.6;
+    }
+
+    /* Live scoring teaser */
+    .live-teaser {
+      max-width: 680px; width: 100%;
+      background: rgba(16,185,129,0.06);
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 48px;
+      display: flex; align-items: flex-start; gap: 16px;
+    }
+    .live-teaser-icon { font-size: 1.8rem; flex-shrink: 0; margin-top: 2px; }
+    .live-teaser-body { font-family: var(--font-m); font-size: 0.72rem; color: var(--text-dim); line-height: 1.7; }
+    .live-teaser-body strong { color: var(--cheer); display: block; font-size: 0.8rem; margin-bottom: 4px; }
+
+    /* Sign-in card */
     .setup-card {
       background: var(--bg-surface); border: 1px solid var(--border);
-      border-radius: 16px; padding: 48px 56px; max-width: 480px; width: 100%; text-align: center;
+      border-radius: 16px; padding: 36px 44px;
+      max-width: 480px; width: 100%; text-align: center;
     }
-    .setup-icon { font-size: 3.5rem; margin-bottom: 16px; display: block; }
-    .setup-card h2 { font-size: 2.2rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; margin-bottom: 8px; }
-    .setup-card p { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 28px; }
+    .setup-card h2 { font-size: 1.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; margin-bottom: 6px; }
+    .setup-card .setup-sub { font-family: var(--font-m); font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 22px; }
     .input-group { display: flex; gap: 10px; width: 100%; }
-    input[type="text"] {
-      flex: 1; background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: var(--radius); color: var(--text);
-      font-family: var(--font-mono); font-size: 0.9rem; padding: 12px 16px;
-      outline: none; transition: border-color 0.2s;
-    }
+    input[type="text"] { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--font-m); font-size: 0.9rem; padding: 12px 16px; outline: none; transition: border-color 0.2s; }
     input[type="text"]:focus { border-color: var(--cheer); }
     input[type="text"]::placeholder { color: var(--text-muted); }
-    .setup-divider {
-      display: flex; align-items: center; gap: 12px; margin: 20px 0 0;
-      color: var(--text-muted); font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.08em;
-    }
+    .setup-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0 0; color: var(--text-muted); font-family: var(--font-m); font-size: 0.65rem; letter-spacing: 0.08em; }
     .setup-divider::before, .setup-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
-    /* ─── Loading / Error ─────────────────────────────────────────────────── */
-    #loading-panel {
-      display: none; flex-direction: column; align-items: center; justify-content: center;
-      min-height: calc(100vh - 68px); gap: 20px;
-    }
+    /* Loading / Error */
+    #loading-panel { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 68px); gap: 20px; }
     .spinner { width: 44px; height: 44px; border: 3px solid var(--border); border-top-color: var(--cheer); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-msg { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); letter-spacing: 0.04em; }
+    .loading-msg { font-family: var(--font-m); font-size: 0.78rem; color: var(--text-muted); letter-spacing: 0.04em; }
+    #error-panel { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 68px); gap: 16px; padding: 40px; text-align: center; }
+    .error-msg { font-family: var(--font-m); font-size: 0.82rem; color: var(--enemy); max-width: 480px; line-height: 1.6; background: var(--enemy-dim); border: 1px solid var(--enemy-border); border-radius: var(--radius); padding: 20px 28px; }
 
-    #error-panel {
-      display: none; flex-direction: column; align-items: center; justify-content: center;
-      min-height: calc(100vh - 68px); gap: 16px; padding: 40px; text-align: center;
-    }
-    .error-msg {
-      font-family: var(--font-mono); font-size: 0.82rem; color: var(--enemy);
-      max-width: 480px; line-height: 1.6;
-      background: var(--enemy-dim); border: 1px solid var(--enemy-border);
-      border-radius: var(--radius); padding: 20px 28px;
-    }
-
-    /* ─── Board ───────────────────────────────────────────────────────────── */
+    /* ══════════════════════════════════════════════════════════════════════════
+       BOARD
+    ══════════════════════════════════════════════════════════════════════════ */
     #board { display: none; padding: 24px 36px 60px; }
     .board-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-    .board-user { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); }
+    .board-user { font-family: var(--font-m); font-size: 0.72rem; color: var(--text-muted); }
     .board-user strong { color: var(--cheer); font-size: 0.82rem; }
 
-    /* ─── Nav Controls ────────────────────────────────────────────────────── */
-    .nav-controls {
-      display: flex; align-items: center; gap: 8px;
-      background: var(--bg-surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 8px 14px; margin-bottom: 14px;
-    }
-    .nav-label { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
-    .nav-value { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: #fff; min-width: 64px; text-align: center; }
+    /* Nav */
+    .nav-controls { display: flex; align-items: center; gap: 8px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; margin-bottom: 14px; }
+    .nav-label { font-family: var(--font-m); font-size: 0.6rem; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .nav-value { font-family: var(--font-d); font-size: 1.1rem; font-weight: 700; color: #fff; min-width: 64px; text-align: center; }
     .nav-divider { width: 1px; height: 28px; background: var(--border); margin: 0 8px; }
-    select.nav-select {
-      font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; color: #fff;
-      background: transparent; border: none; outline: none; cursor: pointer;
-      appearance: none; -webkit-appearance: none; padding-right: 20px;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a6a8a'/%3E%3C/svg%3E");
-      background-repeat: no-repeat; background-position: right 2px center;
-    }
+    select.nav-select { font-family: var(--font-d); font-size: 1.05rem; font-weight: 700; color: #fff; background: transparent; border: none; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; padding-right: 20px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a6a8a'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 2px center; }
     select.nav-select option { background: #111827; color: #dde3f0; font-size: 0.9rem; }
     .nav-spacer { flex: 1; }
 
-    /* ─── League Filter Toggles ───────────────────────────────────────────── */
-    .league-filters {
+    /* ── League Scores Strip ───────────────────────────────────────────────── */
+    .scores-strip {
       display: none;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+      overflow-x: auto;
+    }
+    .scores-strip.visible { display: flex; }
+
+    .score-card {
       background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 10px 14px;
-      margin-bottom: 14px;
+      min-width: 180px;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
     }
+    .score-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+    .score-card.state-live     { border-color: rgba(245,158,11,0.3); }
+    .score-card.state-live::before     { background: var(--conflicted); }
+    .score-card.state-win      { border-color: rgba(16,185,129,0.3); }
+    .score-card.state-win::before      { background: var(--cheer); }
+    .score-card.state-loss     { border-color: rgba(239,68,68,0.3); }
+    .score-card.state-loss::before     { background: var(--enemy); }
+    .score-card.state-none     { border-color: var(--border); }
+
+    .score-league-name {
+      font-family: var(--font-m); font-size: 0.6rem; letter-spacing: 0.04em;
+      color: var(--text-muted); margin-bottom: 8px;
+      display: flex; align-items: center; gap: 5px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .score-league-name .sc-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+    .score-matchup {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .score-team {
+      flex: 1; text-align: center;
+    }
+    .score-pts {
+      font-size: 1.6rem; font-weight: 900; line-height: 1; color: #fff;
+    }
+    .score-pts.mine  { color: var(--cheer); }
+    .score-pts.opp   { color: var(--text-dim); }
+    .score-pts.mine.losing { color: var(--text-dim); }
+    .score-pts.opp.leading { color: var(--enemy); }
+    .score-label {
+      font-family: var(--font-m); font-size: 0.55rem;
+      color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .score-dash { font-family: var(--font-m); color: var(--border); font-size: 0.9rem; }
+    .score-state {
+      font-family: var(--font-m); font-size: 0.58rem;
+      text-align: center; margin-top: 8px;
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .score-state.live { color: var(--conflicted); }
+    .score-state.win  { color: var(--cheer); }
+    .score-state.loss { color: var(--enemy); }
+    .score-state.none { color: var(--text-muted); }
+
+    /* ── League Filters ────────────────────────────────────────────────────── */
+    .league-filters { display: none; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 14px; }
     .league-filters.visible { display: flex; }
-    .filter-label {
-      font-family: var(--font-mono); font-size: 0.6rem;
-      color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase;
-      margin-right: 4px; flex-shrink: 0;
-    }
-    .filter-pill {
-      font-family: var(--font-mono); font-size: 0.65rem;
-      padding: 4px 12px; border-radius: 20px;
-      cursor: pointer; border: 1px solid; transition: opacity 0.15s, transform 0.1s;
-      font-weight: 500; letter-spacing: 0.02em;
-      white-space: nowrap;
-    }
+    .filter-label { font-family: var(--font-m); font-size: 0.6rem; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-right: 4px; flex-shrink: 0; }
+    .filter-pill { font-family: var(--font-m); font-size: 0.65rem; padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 1px solid; transition: opacity 0.15s, transform 0.1s; font-weight: 500; letter-spacing: 0.02em; white-space: nowrap; }
     .filter-pill:hover { transform: translateY(-1px); }
-    .filter-pill.all-pill {
-      background: var(--border); color: var(--text-dim); border-color: var(--border);
-    }
+    .filter-pill.all-pill { background: var(--border); color: var(--text-dim); border-color: var(--border); }
     .filter-pill.all-pill.active { background: var(--text-dim); color: var(--bg); border-color: var(--text-dim); }
-    .filter-pill.inactive { opacity: 0.38; }
-
+    .filter-pill.inactive { opacity: 0.35; }
     .filter-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
-    .filter-count {
-      font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-muted);
-      margin-left: auto;
-    }
+    .filter-count { font-family: var(--font-m); font-size: 0.6rem; color: var(--text-muted); margin-left: auto; }
 
-    /* ─── Banners ─────────────────────────────────────────────────────────── */
-    .banner {
-      display: none; align-items: center; gap: 12px;
-      border-radius: var(--radius); padding: 11px 18px; margin-bottom: 12px;
-      font-family: var(--font-mono); font-size: 0.7rem; line-height: 1.6;
-    }
+    /* Banners */
+    .banner { display: none; align-items: center; gap: 12px; border-radius: var(--radius); padding: 11px 18px; margin-bottom: 12px; font-family: var(--font-m); font-size: 0.7rem; line-height: 1.6; }
     .banner.visible { display: flex; }
     .banner-icon { font-size: 1.1rem; flex-shrink: 0; }
     .banner strong { color: #fff; }
     .banner-demo     { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.28); color: var(--conflicted); }
-    .banner-offseason{ background: rgba(75,90,120,0.10);  border: 1px solid rgba(75,90,120,0.28);  color: var(--text-dim); }
+    .banner-offseason{ background: rgba(75,90,120,0.10); border: 1px solid rgba(75,90,120,0.28);  color: var(--text-dim); }
     .banner-history  { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.28); color: #60a5fa; }
+    .banner-scoring  { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.28); color: var(--cheer); }
 
-    /* ─── No Data inline state ────────────────────────────────────────────── */
-    #no-data-state {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-      padding: 60px 20px;
-      text-align: center;
-    }
+    /* No-data inline */
+    #no-data-state { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 60px 20px; text-align: center; }
     #no-data-state.visible { display: flex; }
     .no-data-icon { font-size: 3rem; }
-    .no-data-title {
-      font-size: 1.8rem; font-weight: 900; text-transform: uppercase;
-      letter-spacing: 0.05em; color: var(--text-dim);
-    }
-    .no-data-msg {
-      font-family: var(--font-mono); font-size: 0.78rem;
-      color: var(--text-muted); line-height: 1.7;
-      max-width: 420px;
-    }
+    .no-data-title { font-size: 1.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+    .no-data-msg { font-family: var(--font-m); font-size: 0.78rem; color: var(--text-muted); line-height: 1.7; max-width: 420px; }
     .no-data-msg strong { color: var(--conflicted); }
-    .no-data-hint {
-      font-family: var(--font-mono); font-size: 0.68rem;
-      color: var(--text-muted); opacity: 0.7;
-    }
+    .no-data-hint { font-family: var(--font-m); font-size: 0.68rem; color: var(--text-muted); opacity: 0.7; }
 
-    /* ─── Debug ───────────────────────────────────────────────────────────── */
+    /* Debug */
     .debug-panel { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
-    .debug-toggle {
-      width: 100%; background: none; border: none; padding: 10px 15px;
-      display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-muted);
-      font-family: var(--font-mono); font-size: 0.63rem; letter-spacing: 0.06em;
-      text-transform: uppercase; text-align: left; transition: background 0.15s;
-    }
+    .debug-toggle { width: 100%; background: none; border: none; padding: 10px 15px; display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-muted); font-family: var(--font-m); font-size: 0.63rem; letter-spacing: 0.06em; text-transform: uppercase; text-align: left; transition: background 0.15s; }
     .debug-toggle:hover { background: rgba(255,255,255,0.03); }
     .debug-toggle .arrow { transition: transform 0.2s; margin-left: auto; }
     .debug-toggle.open .arrow { transform: rotate(90deg); }
     .debug-body { display: none; padding: 0 15px 12px; border-top: 1px solid var(--border); }
     .debug-body.open { display: block; }
-    .debug-meta {
-      font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-dim);
-      padding: 8px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px;
-      display: flex; flex-wrap: wrap; gap: 18px;
-    }
+    .debug-meta { font-family: var(--font-m); font-size: 0.62rem; color: var(--text-dim); padding: 8px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 18px; }
     .debug-meta strong { color: var(--cheer); }
     .debug-meta .warn  { color: var(--conflicted); }
     .debug-leagues { display: flex; flex-direction: column; gap: 5px; }
-    .debug-league {
-      font-family: var(--font-mono); font-size: 0.62rem;
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 6px; padding: 7px 12px;
-      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-    }
-    .lg-name { color: var(--text); font-weight: 500; flex: 1; min-width: 130px; display: flex; align-items: center; gap: 7px; }
+    .debug-league { font-family: var(--font-m); font-size: 0.62rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .lg-name { color: var(--text); font-weight: 500; flex: 1; min-width: 130px; display: flex; align-items: center; gap: 6px; }
     .lg-color-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .lg-id   { color: var(--text-muted); font-size: 0.57rem; }
+    .lg-id { color: var(--text-muted); font-size: 0.57rem; }
     .dpill { padding: 2px 7px; border-radius: 4px; font-size: 0.57rem; letter-spacing: 0.04em; border: 1px solid; }
-    .dp-ok   { background: var(--cheer-dim);   color: var(--cheer);   border-color: var(--cheer-border);   }
-    .dp-warn { background: var(--enemy-dim);   color: var(--enemy);   border-color: var(--enemy-border);   }
+    .dp-ok   { background: var(--cheer-dim);   color: var(--cheer);   border-color: var(--cheer-border); }
+    .dp-warn { background: var(--enemy-dim);   color: var(--enemy);   border-color: var(--enemy-border); }
     .dp-dim  { background: var(--neutral-dim); color: var(--neutral); border-color: rgba(75,90,120,0.25); }
 
-    /* ─── Summary ─────────────────────────────────────────────────────────── */
-    .summary-bar { display: flex; gap: 12px; margin-bottom: 24px; }
-    .summary-pill {
-      flex: 1; border-radius: 8px; padding: 14px 18px;
-      display: flex; align-items: center; gap: 14px; border: 1px solid;
-    }
+    /* Summary */
+    .summary-bar { display: flex; gap: 12px; margin-bottom: 22px; }
+    .summary-pill { flex: 1; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; border: 1px solid; }
     .summary-pill.cheer     { background: var(--cheer-dim);     border-color: var(--cheer-border);     }
-    .summary-pill.conflicted { background: var(--conflicted-dim); border-color: var(--conflicted-border); }
-    .summary-pill.enemy      { background: var(--enemy-dim);      border-color: var(--enemy-border);      }
+    .summary-pill.conflicted{ background: var(--conflicted-dim); border-color: var(--conflicted-border); }
+    .summary-pill.enemy     { background: var(--enemy-dim);     border-color: var(--enemy-border);     }
     .pill-count { font-size: 2.6rem; font-weight: 900; line-height: 1; }
-    .summary-pill.cheer     .pill-count { color: var(--cheer);     }
+    .summary-pill.cheer      .pill-count { color: var(--cheer);     }
     .summary-pill.conflicted .pill-count { color: var(--conflicted); }
-    .summary-pill.enemy      .pill-count { color: var(--enemy);      }
+    .summary-pill.enemy      .pill-count { color: var(--enemy);     }
     .pill-label { display: flex; flex-direction: column; gap: 2px; }
     .pill-label strong { font-size: 1.1rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #fff; }
-    .pill-label span { font-family: var(--font-mono); font-size: 0.63rem; color: var(--text-muted); }
+    .pill-label span { font-family: var(--font-m); font-size: 0.63rem; color: var(--text-muted); }
 
-    /* ─── Columns ─────────────────────────────────────────────────────────── */
+    /* Columns */
     .columns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 22px; align-items: start; }
     .column-header { display: flex; align-items: center; gap: 10px; padding: 0 4px 13px; border-bottom: 2px solid; margin-bottom: 12px; }
     .column.cheer      .column-header { border-color: var(--cheer);     }
     .column.conflicted .column-header { border-color: var(--conflicted); }
-    .column.enemy      .column-header { border-color: var(--enemy);      }
+    .column.enemy      .column-header { border-color: var(--enemy);     }
     .col-icon  { font-size: 1.3rem; }
     .col-title { font-size: 1.55rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
     .column.cheer      .col-title { color: var(--cheer);     }
     .column.conflicted .col-title { color: var(--conflicted); }
-    .column.enemy      .col-title { color: var(--enemy);      }
-    .col-subtitle { font-family: var(--font-mono); font-size: 0.6rem; color: var(--text-muted); margin-left: auto; }
+    .column.enemy      .col-title { color: var(--enemy);     }
+    .col-subtitle { font-family: var(--font-m); font-size: 0.6rem; color: var(--text-muted); margin-left: auto; }
 
-    /* ─── Player Cards ────────────────────────────────────────────────────── */
-    .player-card {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 13px 15px; margin-bottom: 7px;
-      display: flex; flex-direction: column; gap: 6px;
-      transition: transform 0.12s, box-shadow 0.12s;
-      animation: fadeUp 0.26s ease both;
-    }
+    /* Player Cards */
+    .player-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 15px; margin-bottom: 7px; display: flex; flex-direction: column; gap: 6px; transition: transform 0.12s, box-shadow 0.12s; animation: fadeUp 0.26s ease both; }
     @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
     .player-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
     .column.cheer      .player-card { border-left: 3px solid var(--cheer);     }
     .column.conflicted .player-card { border-left: 3px solid var(--conflicted); }
-    .column.enemy      .player-card { border-left: 3px solid var(--enemy);      }
-
-    /* filtered-out cards get hidden */
+    .column.enemy      .player-card { border-left: 3px solid var(--enemy);     }
     .player-card.filtered-out { display: none; }
+    .player-card.clinched { opacity: 0.45; filter: grayscale(0.4); border-left-color: var(--neutral); }
 
     .card-top { display: flex; align-items: center; gap: 9px; }
-    .pos-badge {
-      font-family: var(--font-mono); font-size: 0.6rem; font-weight: 500;
-      padding: 3px 6px; border-radius: 4px; letter-spacing: 0.06em; flex-shrink: 0;
-    }
+    .pos-badge { font-family: var(--font-m); font-size: 0.6rem; font-weight: 500; padding: 3px 6px; border-radius: 4px; letter-spacing: 0.06em; flex-shrink: 0; }
     .pos-QB  { background: rgba(99,102,241,0.25);  color: #818cf8; }
     .pos-RB  { background: rgba(16,185,129,0.20);  color: #34d399; }
     .pos-WR  { background: rgba(59,130,246,0.20);  color: #60a5fa; }
@@ -337,892 +417,38 @@
     .pos-default { background: var(--border); color: var(--text-muted); }
 
     .player-name { font-size: 1rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .player-team { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
+    .player-team { font-family: var(--font-m); font-size: 0.62rem; color: var(--text-muted); margin-left: auto; flex-shrink: 0; }
 
+    /* Points row */
+    .points-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pts-actual {
+      font-family: var(--font-m); font-size: 0.72rem; font-weight: 500;
+      color: #fff;
+    }
+    .pts-proj {
+      font-family: var(--font-m); font-size: 0.62rem;
+      color: var(--text-muted);
+    }
+    .pts-separator { color: var(--border); font-size: 0.6rem; }
+
+    /* Scoring context badge */
+    .context-badge {
+      font-family: var(--font-m); font-size: 0.58rem;
+      padding: 2px 8px; border-radius: 4px; letter-spacing: 0.04em;
+      margin-left: auto; flex-shrink: 0; border: 1px solid;
+    }
+    .ctx-need   { background: rgba(16,185,129,0.15);  color: var(--cheer);     border-color: rgba(16,185,129,0.3);  }
+    .ctx-avoid  { background: rgba(239,68,68,0.15);   color: var(--enemy);     border-color: rgba(239,68,68,0.3);   }
+    .ctx-mixed  { background: rgba(245,158,11,0.15);  color: var(--conflicted);border-color: rgba(245,158,11,0.3);  }
+    .ctx-settled{ background: rgba(75,90,120,0.15);   color: var(--neutral);   border-color: rgba(75,90,120,0.3);   }
+
+    /* League context lines */
     .league-context { display: flex; flex-direction: column; gap: 4px; }
-    .league-line {
-      font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.02em;
-      display: flex; align-items: center; gap: 5px; color: var(--text-muted);
-    }
+    .league-line { font-family: var(--font-m); font-size: 0.58rem; letter-spacing: 0.02em; display: flex; align-items: center; gap: 5px; color: var(--text-muted); }
     .league-line .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    /* dot colors come from inline style (league color) */
 
-    .empty-state {
-      font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-muted);
-      text-align: center; padding: 28px 16px;
-      border: 1px dashed var(--border); border-radius: var(--radius);
-    }
-
-    /* future: clinched */
-    .player-card.clinched { opacity: 0.42; border-left-color: var(--neutral); filter: grayscale(0.5); }
+    .empty-state { font-family: var(--font-m); font-size: 0.68rem; color: var(--text-muted); text-align: center; padding: 28px 16px; border: 1px dashed var(--border); border-radius: var(--radius); }
   </style>
 </head>
-<body>
-
-  <!-- ─── Header ────────────────────────────────────────────────────────── -->
-  <header>
-    <div class="header-left">
-      <div class="site-title">Game<span>Day</span></div>
-      <div class="week-badge" id="week-label">NFL Fantasy</div>
-    </div>
-    <div class="header-right">
-      <span class="refresh-time" id="refresh-time"></span>
-      <button class="btn btn-demo btn-sm"    id="demo-btn"        onclick="handleDemo()"       style="display:none">🎭 Demo</button>
-      <button class="btn btn-ghost btn-sm"   id="change-user-btn" onclick="handleChangeUser()" style="display:none">Change User</button>
-      <button class="btn btn-primary btn-sm" id="refresh-btn"     onclick="handleRefresh()"    style="display:none">↻ Refresh</button>
-    </div>
-  </header>
-
-  <!-- ─── Setup ─────────────────────────────────────────────────────────── -->
-  <div id="setup-panel">
-    <div class="setup-card">
-      <span class="setup-icon">🏈</span>
-      <h2>Game Day<br/>Command Center</h2>
-      <p>Enter your Sleeper username to load<br/>your leagues and classify every player.</p>
-      <div class="input-group">
-        <input type="text" id="username-input" placeholder="sleeper username" autocomplete="off" />
-        <button class="btn btn-primary" onclick="handleStart()">Load</button>
-      </div>
-      <p id="setup-error" style="color:var(--enemy);margin-top:12px;display:none;font-family:var(--font-mono);font-size:0.75rem;"></p>
-      <div class="setup-divider">or</div>
-      <button class="btn btn-demo" style="width:100%;margin-top:12px" onclick="handleDemo()">🎭 Try Demo Mode</button>
-    </div>
-  </div>
-
-  <!-- ─── Loading ───────────────────────────────────────────────────────── -->
-  <div id="loading-panel">
-    <div class="spinner"></div>
-    <div class="loading-msg" id="loading-msg">Connecting to Sleeper...</div>
-  </div>
-
-  <!-- ─── Hard Error (username not found, network failure, etc.) ────────── -->
-  <div id="error-panel">
-    <div class="error-msg" id="error-msg"></div>
-    <button class="btn btn-ghost" onclick="showSetup()">← Try Again</button>
-  </div>
-
-  <!-- ─── Board ─────────────────────────────────────────────────────────── -->
-  <div id="board">
-
-    <div class="board-header">
-      <div class="board-user">Loaded for <strong id="display-username"></strong></div>
-      <span class="refresh-time" id="board-refresh-time"></span>
-    </div>
-
-    <!-- Nav Controls -->
-    <div class="nav-controls">
-      <span class="nav-label">Week</span>
-      <button class="btn-icon" id="week-prev" onclick="changeWeek(-1)" title="Previous week">‹</button>
-      <span class="nav-value" id="nav-week-display">—</span>
-      <button class="btn-icon" id="week-next" onclick="changeWeek(+1)" title="Next week">›</button>
-      <div class="nav-divider"></div>
-      <span class="nav-label">Season</span>
-      <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
-      <div class="nav-divider"></div>
-      <button class="btn btn-live btn-sm" id="live-btn" onclick="snapToLive()">
-        <span class="dot-live"></span> Live
-      </button>
-      <div class="nav-spacer"></div>
-      <span class="refresh-time" id="nav-context-label"></span>
-    </div>
-
-    <!-- League Filter Toggles -->
-    <div class="league-filters" id="league-filters">
-      <span class="filter-label">Filter by league</span>
-      <div id="filter-pills"></div>
-      <div class="filter-divider"></div>
-      <span class="filter-count" id="filter-count"></span>
-    </div>
-
-    <!-- Banners -->
-    <div class="banner banner-demo" id="banner-demo">
-      <span class="banner-icon">🎭</span>
-      <div><strong>Demo Mode</strong> — Simulated data across two fake leagues. Enter your Sleeper username to load real data.</div>
-    </div>
-    <div class="banner banner-offseason" id="banner-offseason">
-      <span class="banner-icon">📋</span>
-      <div><strong>Roster Mode — No Matchups</strong> — No matchup data for this week yet. Showing full rosters; everyone defaults to Cheer For.</div>
-    </div>
-    <div class="banner banner-history" id="banner-history">
-      <span class="banner-icon">📅</span>
-      <div id="history-label"></div>
-    </div>
-
-    <!-- Debug Panel -->
-    <div class="debug-panel" id="debug-panel" style="display:none">
-      <button class="debug-toggle" id="debug-toggle" onclick="toggleDebug()">
-        <span>🔬</span><span>API Debug — what was loaded</span>
-        <span class="arrow">▶</span>
-      </button>
-      <div class="debug-body" id="debug-body">
-        <div class="debug-meta"    id="debug-meta"></div>
-        <div class="debug-leagues" id="debug-leagues"></div>
-      </div>
-    </div>
-
-    <!-- No-Data Inline State (shown instead of columns when year has no leagues) -->
-    <div id="no-data-state">
-      <div class="no-data-icon">📭</div>
-      <div class="no-data-title">No League Data</div>
-      <div class="no-data-msg" id="no-data-msg"></div>
-      <div class="no-data-hint">Use the season dropdown or week arrows above to try a different period.</div>
-    </div>
-
-    <!-- Summary Pills -->
-    <div class="summary-bar" id="summary-bar">
-      <div class="summary-pill cheer">
-        <div class="pill-count" id="count-cheer">0</div>
-        <div class="pill-label"><strong>🟢 Cheer For</strong><span>Root for them</span></div>
-      </div>
-      <div class="summary-pill conflicted">
-        <div class="pill-count" id="count-conflicted">0</div>
-        <div class="pill-label"><strong>🟡 Conflicted</strong><span>It's complicated</span></div>
-      </div>
-      <div class="summary-pill enemy">
-        <div class="pill-count" id="count-enemy">0</div>
-        <div class="pill-label"><strong>🔴 Enemies</strong><span>Root against</span></div>
-      </div>
-    </div>
-
-    <!-- Columns -->
-    <div class="columns" id="columns">
-      <div class="column cheer">
-        <div class="column-header">
-          <span class="col-icon">🟢</span>
-          <span class="col-title">Cheer For</span>
-          <span class="col-subtitle">Only on your rosters</span>
-        </div>
-        <div id="cheer-list"></div>
-      </div>
-      <div class="column conflicted">
-        <div class="column-header">
-          <span class="col-icon">🟡</span>
-          <span class="col-title">Conflicted</span>
-          <span class="col-subtitle">Both sides</span>
-        </div>
-        <div id="conflicted-list"></div>
-      </div>
-      <div class="column enemy">
-        <div class="column-header">
-          <span class="col-icon">🔴</span>
-          <span class="col-title">Enemies</span>
-          <span class="col-subtitle">Only against you</span>
-        </div>
-        <div id="enemy-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── Script ────────────────────────────────────────────────────────── -->
-  <script>
-    /* ══════════════════════════════════════════════════════════════════════
-       Constants & State
-    ══════════════════════════════════════════════════════════════════════ */
-    const BASE           = 'https://api.sleeper.app/v1';
-    const CACHE_KEY      = 'gd_players_db';
-    const CACHE_TIME_KEY = 'gd_players_db_time';
-    const CACHE_TTL_MS   = 12 * 60 * 60 * 1000;
-    const USER_KEY       = 'gd_username';
-    const POSITION_ORDER = ['QB','RB','WR','TE','K','DEF'];
-    const FIRST_SEASON   = 2019;
-    const CURRENT_YEAR   = new Date().getFullYear();
-    const MAX_WEEK       = 18;
-
-    // League color palette — cycles for up to 8 leagues
-    const LEAGUE_COLORS = [
-      '#06b6d4', // cyan
-      '#a855f7', // purple
-      '#f97316', // orange
-      '#ec4899', // pink
-      '#6366f1', // indigo
-      '#84cc16', // lime
-      '#14b8a6', // teal
-      '#f43f5e', // rose
-    ];
-
-    let isDemoMode    = false;
-    let liveWeek      = 1;
-    let liveSeason    = String(CURRENT_YEAR);
-    let activeWeek    = 1;
-    let activeSeason  = String(CURRENT_YEAR);
-    let currentUser   = null;
-    let leagueColorMap = {}; // leagueName → color hex
-    let activeFilters  = new Set(); // empty = all leagues shown
-    let lastData       = null; // cached for re-filtering without re-fetch
-
-    /* ══════════════════════════════════════════════════════════════════════
-       League color assignment
-    ══════════════════════════════════════════════════════════════════════ */
-    function assignLeagueColor(name) {
-      if (!leagueColorMap[name]) {
-        const idx = Object.keys(leagueColorMap).length % LEAGUE_COLORS.length;
-        leagueColorMap[name] = LEAGUE_COLORS[idx];
-      }
-      return leagueColorMap[name];
-    }
-    function leagueColor(name) { return leagueColorMap[name] || '#5a6a8a'; }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       API Helpers
-    ══════════════════════════════════════════════════════════════════════ */
-    async function apiFetch(url) {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status} — ${url}`);
-      return res.json();
-    }
-    const getUser     = u        => apiFetch(`${BASE}/user/${u}`);
-    const getNFLState = ()       => apiFetch(`${BASE}/state/nfl`);
-    const getLeagues  = (uid, s) => apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
-    const getRosters  = lid      => apiFetch(`${BASE}/league/${lid}/rosters`);
-    const getMatchups = (lid, w) => apiFetch(`${BASE}/league/${lid}/matchups/${w}`);
-
-    async function getPlayerDB() {
-      const cached   = localStorage.getItem(CACHE_KEY);
-      const cachedAt = localStorage.getItem(CACHE_TIME_KEY);
-      if (cached && cachedAt && (Date.now() - parseInt(cachedAt)) < CACHE_TTL_MS) {
-        setLoading('Using cached player database...');
-        return JSON.parse(cached);
-      }
-      setLoading('Downloading player database (one-time ~5 MB)...');
-      const db = await apiFetch(`${BASE}/players/nfl`);
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(db));
-        localStorage.setItem(CACHE_TIME_KEY, Date.now().toString());
-      } catch(e) { console.warn('Player DB cache failed:', e); }
-      return db;
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       Panel Helpers
-    ══════════════════════════════════════════════════════════════════════ */
-    function hideAll() {
-      ['setup-panel','loading-panel','error-panel','board'].forEach(id =>
-        document.getElementById(id).style.display = 'none');
-      ['demo-btn','change-user-btn','refresh-btn'].forEach(id =>
-        document.getElementById(id).style.display = 'none');
-    }
-    function showSetup() {
-      hideAll();
-      isDemoMode = false; currentUser = null;
-      document.getElementById('setup-panel').style.display = 'flex';
-      document.getElementById('setup-error').style.display = 'none';
-    }
-    function showLoading(msg) {
-      hideAll();
-      document.getElementById('loading-panel').style.display = 'flex';
-      document.getElementById('loading-msg').textContent = msg || 'Loading...';
-    }
-    function setLoading(msg) { document.getElementById('loading-msg').textContent = msg; }
-    function showError(msg) {
-      hideAll();
-      document.getElementById('error-panel').style.display = 'flex';
-      document.getElementById('error-msg').textContent = msg;
-    }
-    function showBoard() {
-      hideAll();
-      document.getElementById('board').style.display = 'block';
-      ['demo-btn','change-user-btn','refresh-btn'].forEach(id =>
-        document.getElementById(id).style.display = 'inline-block');
-      document.getElementById('demo-btn').classList.toggle('active', isDemoMode);
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       Season Dropdown
-    ══════════════════════════════════════════════════════════════════════ */
-    function buildSeasonSelect(selectedSeason) {
-      const sel = document.getElementById('season-select');
-      sel.innerHTML = '';
-      for (let y = CURRENT_YEAR; y >= FIRST_SEASON; y--) {
-        const opt = document.createElement('option');
-        opt.value = String(y);
-        opt.textContent = String(y);
-        if (String(y) === String(selectedSeason)) opt.selected = true;
-        sel.appendChild(opt);
-      }
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       Nav UI Update
-    ══════════════════════════════════════════════════════════════════════ */
-    function updateNavUI() {
-      const isLive = (activeWeek === liveWeek && activeSeason === liveSeason);
-      document.getElementById('nav-week-display').textContent = `Week ${activeWeek}`;
-      document.getElementById('week-prev').disabled = activeWeek <= 1;
-      document.getElementById('week-next').disabled = activeWeek >= MAX_WEEK;
-      document.getElementById('season-select').value = activeSeason;
-      document.getElementById('live-btn').classList.toggle('current', isLive);
-      document.getElementById('nav-context-label').textContent = isLive
-        ? `Live · ${liveSeason} Season`
-        : `${activeSeason} · Week ${activeWeek}`;
-      document.getElementById('week-label').textContent = `Week ${activeWeek} · ${activeSeason}`;
-
-      const histBanner = document.getElementById('banner-history');
-      if (!isDemoMode && !isLive) {
-        histBanner.classList.add('visible');
-        document.getElementById('history-label').innerHTML =
-          `<strong>Historical View</strong> — ${activeSeason} Season, Week ${activeWeek}. Hit <strong>Live</strong> to return to the current week.`;
-      } else {
-        histBanner.classList.remove('visible');
-      }
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       League Filter Toggles
-    ══════════════════════════════════════════════════════════════════════ */
-    function buildFilterPills(leagueNames) {
-      const container = document.getElementById('filter-pills');
-      const filtersEl = document.getElementById('league-filters');
-      container.innerHTML = '';
-      activeFilters.clear();
-
-      if (leagueNames.length < 2) {
-        // Single league — no need for filters
-        filtersEl.classList.remove('visible');
-        return;
-      }
-      filtersEl.classList.add('visible');
-
-      // "All" pill
-      const allPill = document.createElement('span');
-      allPill.className = 'filter-pill all-pill active';
-      allPill.textContent = 'All Leagues';
-      allPill.dataset.league = '__all__';
-      allPill.onclick = () => toggleFilter('__all__', leagueNames);
-      container.appendChild(allPill);
-
-      // One pill per league
-      leagueNames.forEach(name => {
-        assignLeagueColor(name);
-        const color = leagueColor(name);
-        const pill = document.createElement('span');
-        pill.className = 'filter-pill';
-        pill.style.background = color + '1a'; // 10% opacity
-        pill.style.borderColor = color + '66'; // 40% opacity
-        pill.style.color = color;
-        pill.textContent = name;
-        pill.dataset.league = name;
-        pill.onclick = () => toggleFilter(name, leagueNames);
-        container.appendChild(pill);
-      });
-      updateFilterCount();
-    }
-
-    function toggleFilter(league, allLeagues) {
-      if (league === '__all__') {
-        activeFilters.clear();
-      } else {
-        if (activeFilters.has(league)) {
-          activeFilters.delete(league);
-        } else {
-          activeFilters.add(league);
-        }
-      }
-      updateFilterPillStates(allLeagues);
-      applyFilters();
-      updateFilterCount();
-    }
-
-    function updateFilterPillStates(allLeagues) {
-      const pills = document.querySelectorAll('.filter-pill');
-      pills.forEach(pill => {
-        const lg = pill.dataset.league;
-        if (lg === '__all__') {
-          pill.classList.toggle('active', activeFilters.size === 0);
-          pill.classList.toggle('inactive', activeFilters.size > 0);
-        } else {
-          const isActive = activeFilters.size === 0 || activeFilters.has(lg);
-          pill.classList.toggle('inactive', !isActive);
-        }
-      });
-    }
-
-    function updateFilterCount() {
-      const el = document.getElementById('filter-count');
-      if (activeFilters.size === 0) {
-        el.textContent = '';
-      } else {
-        const names = [...activeFilters].join(', ');
-        el.textContent = `Filtering: ${names}`;
-      }
-    }
-
-    // Apply filters to visible cards — no re-fetch needed
-    function applyFilters() {
-      ['cheer-list','conflicted-list','enemy-list'].forEach(listId => {
-        const list = document.getElementById(listId);
-        const cards = list.querySelectorAll('.player-card');
-        cards.forEach(card => {
-          if (activeFilters.size === 0) {
-            card.classList.remove('filtered-out');
-          } else {
-            // Show card if any of its league tags match an active filter
-            const matches = card.dataset.leagues.split('|').some(lg => activeFilters.has(lg));
-            card.classList.toggle('filtered-out', !matches);
-          }
-        });
-        // Update empty state
-        const visible = [...cards].filter(c => !c.classList.contains('filtered-out'));
-        let emptyEl = list.querySelector('.filter-empty');
-        if (visible.length === 0 && cards.length > 0) {
-          if (!emptyEl) {
-            emptyEl = document.createElement('div');
-            emptyEl.className = 'empty-state filter-empty';
-            list.appendChild(emptyEl);
-          }
-          emptyEl.textContent = 'No players match this filter';
-        } else if (emptyEl) {
-          emptyEl.remove();
-        }
-      });
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       Debug Panel
-    ══════════════════════════════════════════════════════════════════════ */
-    function toggleDebug() {
-      document.getElementById('debug-toggle').classList.toggle('open');
-      document.getElementById('debug-body').classList.toggle('open');
-    }
-    function renderDebug(info) {
-      if (!info) { document.getElementById('debug-panel').style.display = 'none'; return; }
-      document.getElementById('debug-panel').style.display = 'block';
-      document.getElementById('debug-meta').innerHTML = `
-        <span>Season: <strong>${info.season}</strong></span>
-        <span>Week: <strong>${info.week}</strong></span>
-        <span>Leagues: <strong>${info.leagues.length}</strong></span>
-        ${info.usedFallback  ? `<span class="warn">⚠ Season fallback used</span>` : ''}
-        ${info.isHistorical  ? `<span class="warn">📅 Historical data</span>` : ''}
-      `;
-      const container = document.getElementById('debug-leagues');
-      container.innerHTML = '';
-      info.leagues.forEach(lg => {
-        const color = leagueColor(lg.name);
-        const row = document.createElement('div');
-        row.className = 'debug-league';
-        row.innerHTML = `
-          <div class="lg-name">
-            <span class="lg-color-dot" style="background:${color}"></span>
-            ${lg.name}
-            <span class="lg-id">${lg.leagueId}</span>
-          </div>
-          <span class="dpill ${lg.rosterFound ? 'dp-ok':'dp-warn'}">
-            ${lg.rosterFound ? `Roster: ${lg.myCount} players` : 'Roster: NOT FOUND'}
-          </span>
-          <span class="dpill ${lg.matchupFound ? 'dp-ok':'dp-dim'}">
-            ${lg.matchupFound ? `Matchup ✓ · opp ${lg.oppCount}` : 'No matchup'}
-          </span>
-          <span class="dpill ${lg.isCoMgr ? 'dp-ok':'dp-dim'}">${lg.isCoMgr ? 'Co-mgr ✓':'Owner'}</span>
-          <span class="dpill dp-dim">${lg.type}</span>
-        `;
-        container.appendChild(row);
-      });
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       Card Builder
-    ══════════════════════════════════════════════════════════════════════ */
-    const posClass = pos =>
-      ({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF'}[pos] || 'pos-default');
-
-    function buildCard(player, delay) {
-      const div = document.createElement('div');
-      div.className = 'player-card';
-      div.style.animationDelay = `${delay}ms`;
-      // future: if (player.context?.clinched) div.classList.add('clinched');
-
-      // Store all league names on the card for client-side filtering
-      const allLeagues = [...player.myLeagues, ...player.againstLeagues];
-      div.dataset.leagues = allLeagues.join('|');
-
-      const myLines = player.myLeagues.map(n => {
-        const c = leagueColor(n);
-        return `<div class="league-line">
-          <span class="dot" style="background:${c}"></span>
-          <span style="color:${c};opacity:0.9">YOUR roster</span>
-          <span style="color:var(--text-muted)"> · ${n}</span>
-        </div>`;
-      }).join('');
-
-      const oppLines = player.againstLeagues.map(n => {
-        const c = leagueColor(n);
-        return `<div class="league-line">
-          <span class="dot" style="background:${c};opacity:0.5"></span>
-          <span style="color:var(--text-muted)">OPP roster · ${n}</span>
-        </div>`;
-      }).join('');
-
-      div.innerHTML = `
-        <div class="card-top">
-          <span class="pos-badge ${posClass(player.position)}">${player.position || '—'}</span>
-          <span class="player-name">${player.full_name || `Player ${player.id}`}</span>
-          <span class="player-team">${player.team || ''}</span>
-        </div>
-        <div class="league-context">${myLines}${oppLines}</div>
-      `;
-      return div;
-    }
-
-    function sortPlayers(arr) {
-      return [...arr].sort((a, b) => {
-        const ai = POSITION_ORDER.indexOf(a.position) === -1 ? 99 : POSITION_ORDER.indexOf(a.position);
-        const bi = POSITION_ORDER.indexOf(b.position) === -1 ? 99 : POSITION_ORDER.indexOf(b.position);
-        return ai !== bi ? ai - bi : (a.full_name || '').localeCompare(b.full_name || '');
-      });
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       Render Board
-    ══════════════════════════════════════════════════════════════════════ */
-    function renderBoard(data, username) {
-      const { cheerFor, conflicted, enemies, offseasonMode, debugInfo, noData, noDataReason } = data;
-      lastData = data;
-
-      showBoard();
-      updateNavUI();
-
-      document.getElementById('banner-demo').classList.toggle('visible', isDemoMode);
-      document.getElementById('banner-offseason').classList.toggle('visible', !isDemoMode && !!offseasonMode);
-      renderDebug(isDemoMode ? null : debugInfo);
-
-      document.getElementById('display-username').textContent = isDemoMode ? 'Demo Mode' : username;
-      const now = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-      ['refresh-time','board-refresh-time'].forEach(id =>
-        document.getElementById(id).textContent = `Updated ${now}`);
-
-      const noDataEl  = document.getElementById('no-data-state');
-      const summaryEl = document.getElementById('summary-bar');
-      const columnsEl = document.getElementById('columns');
-
-      // ── No data for this season ─────────────────────────────────────────
-      if (noData) {
-        noDataEl.classList.add('visible');
-        summaryEl.style.display = 'none';
-        columnsEl.style.display = 'none';
-        document.getElementById('league-filters').classList.remove('visible');
-        document.getElementById('no-data-msg').innerHTML = noDataReason;
-        renderDebug(null);
-        return;
-      }
-
-      // ── Normal render ───────────────────────────────────────────────────
-      noDataEl.classList.remove('visible');
-      summaryEl.style.display = '';
-      columnsEl.style.display = '';
-
-      document.getElementById('count-cheer').textContent     = cheerFor.length;
-      document.getElementById('count-conflicted').textContent = conflicted.length;
-      document.getElementById('count-enemy').textContent     = enemies.length;
-
-      // Collect all unique league names across all players
-      const leagueNames = [];
-      [...cheerFor, ...conflicted, ...enemies].forEach(p => {
-        [...p.myLeagues, ...p.againstLeagues].forEach(n => {
-          if (!leagueNames.includes(n)) leagueNames.push(n);
-        });
-      });
-
-      // Assign colors before building cards
-      leagueNames.forEach(n => assignLeagueColor(n));
-
-      // Build filter pills
-      buildFilterPills(leagueNames);
-
-      function renderList(id, players) {
-        const el = document.getElementById(id);
-        el.innerHTML = '';
-        if (!players.length) {
-          el.innerHTML = '<div class="empty-state">No players in this bucket</div>';
-          return;
-        }
-        sortPlayers(players).forEach((p, i) => el.appendChild(buildCard(p, i * 24)));
-      }
-      renderList('cheer-list',     cheerFor);
-      renderList('conflicted-list', conflicted);
-      renderList('enemy-list',     enemies);
-
-      // Re-apply any active filters after re-render
-      applyFilters();
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       Core Data Load
-    ══════════════════════════════════════════════════════════════════════ */
-    async function loadData(username) {
-      showLoading('Looking up Sleeper user...');
-
-      const user = await getUser(username);
-      if (!user?.user_id) throw new Error(`Username "${username}" not found on Sleeper.`);
-
-      setLoading('Fetching NFL state...');
-      const state = await getNFLState();
-      liveWeek   = (state.week >= 1 && state.week <= MAX_WEEK) ? state.week : 1;
-      liveSeason = state.season;
-
-      if (!currentUser) {
-        activeWeek   = liveWeek;
-        activeSeason = liveSeason;
-      }
-      currentUser = username;
-      buildSeasonSelect(activeSeason);
-
-      // Season lookup with fallback
-      setLoading(`Loading ${activeSeason} leagues...`);
-      let leagues = await getLeagues(user.user_id, activeSeason);
-      let usedFallback = false;
-
-      if (!leagues?.length && activeSeason === liveSeason) {
-        const prev = String(parseInt(activeSeason) - 1);
-        setLoading(`No ${activeSeason} leagues — trying ${prev}...`);
-        leagues = await getLeagues(user.user_id, prev);
-        if (leagues?.length) {
-          liveSeason = prev; activeSeason = prev;
-          usedFallback = true;
-          buildSeasonSelect(activeSeason);
-        }
-      }
-
-      // ── No leagues for this season — return no-data payload ─────────────
-      if (!leagues?.length) {
-        return {
-          noData: true,
-          noDataReason: `No Sleeper leagues were found for <strong>${username}</strong> in the <strong>${activeSeason}</strong> season. You may not have been in a league that year, or the league hasn't been created yet. Try a different season using the dropdown above.`,
-          cheerFor: [], conflicted: [], enemies: [],
-          offseasonMode: false, debugInfo: null,
-        };
-      }
-
-      setLoading(`Found ${leagues.length} league(s) — loading week ${activeWeek}...`);
-      const isHistorical = activeSeason !== liveSeason || activeWeek !== liveWeek;
-      const debugLeagues = [];
-
-      const results = await Promise.all(leagues.map(async lg => {
-        const rosters = await getRosters(lg.league_id);
-
-        // Co-manager fix: check both owner_id and co_owners
-        const myRoster = rosters.find(r =>
-          r.owner_id === user.user_id ||
-          (Array.isArray(r.co_owners) && r.co_owners.includes(user.user_id))
-        );
-        const isCoMgr = myRoster ? myRoster.owner_id !== user.user_id : false;
-
-        if (!myRoster) {
-          debugLeagues.push({ name:lg.name, leagueId:lg.league_id, rosterFound:false, matchupFound:false, myCount:0, oppCount:0, isCoMgr:false, type:lg.settings?.type===2?'dynasty':'redraft' });
-          return null;
-        }
-
-        let matchups = [];
-        try {
-          const raw = await getMatchups(lg.league_id, activeWeek);
-          matchups = Array.isArray(raw) ? raw : [];
-        } catch(e) { matchups = []; }
-
-        const myMatchup  = matchups.find(m => m.roster_id === myRoster.roster_id);
-        const oppMatchup = myMatchup
-          ? matchups.find(m => m.matchup_id === myMatchup.matchup_id && m.roster_id !== myRoster.roster_id)
-          : null;
-
-        let myPlayers, oppPlayers, hasMatchup;
-        if (myMatchup) {
-          hasMatchup = true;
-          myPlayers  = myMatchup.starters?.length ? myMatchup.starters : (myMatchup.players || myRoster.players || []);
-          const oppRoster = rosters.find(r => r.roster_id === oppMatchup?.roster_id);
-          oppPlayers = oppMatchup
-            ? (oppMatchup.starters?.length ? oppMatchup.starters : (oppMatchup.players || oppRoster?.players || []))
-            : [];
-        } else {
-          hasMatchup = false;
-          myPlayers  = myRoster.players || [];
-          oppPlayers = [];
-        }
-
-        myPlayers  = myPlayers.filter(id => id && id !== '0');
-        oppPlayers = oppPlayers.filter(id => id && id !== '0');
-
-        // ── Future scoring context slot ────────────────────────────────────
-        // const scoringContext = {
-        //   myPoints: myMatchup?.points || 0,
-        //   oppPoints: oppMatchup?.points || 0,
-        //   myProjectedRemaining: ...,
-        //   oppProjectedRemaining: ...,
-        // };
-
-        debugLeagues.push({ name:lg.name, leagueId:lg.league_id, rosterFound:true, matchupFound:hasMatchup, myCount:myPlayers.length, oppCount:oppPlayers.length, isCoMgr, type:lg.settings?.type===2?'dynasty':'redraft' });
-        return { leagueName:lg.name, myPlayers, oppPlayers, hasMatchup };
-      }));
-
-      const valid = results.filter(Boolean);
-      if (!valid.length) throw new Error('Found leagues but could not read roster data. Try again.');
-
-      const offseasonMode = valid.every(l => !l.hasMatchup);
-      const playerDB = await getPlayerDB();
-      setLoading('Classifying players...');
-
-      const map = new Map();
-      function ensure(id) {
-        if (!map.has(id)) {
-          const info = playerDB[id] || {};
-          map.set(id, {
-            id,
-            full_name:     info.full_name || info.last_name || `Player ${id}`,
-            position:      info.position  || (id.length <= 4 ? 'DEF' : '—'),
-            team:          info.team || '',
-            myLeagues: [], againstLeagues: [],
-            context: null,
-          });
-        }
-        return map.get(id);
-      }
-
-      valid.forEach(lg => {
-        lg.myPlayers.forEach(id  => ensure(id).myLeagues.push(lg.leagueName));
-        lg.oppPlayers.forEach(id => ensure(id).againstLeagues.push(lg.leagueName));
-      });
-
-      const cheerFor = [], conflicted = [], enemies = [];
-      map.forEach(p => {
-        const mine   = p.myLeagues.length > 0;
-        const theirs = p.againstLeagues.length > 0;
-        if (mine && !theirs)   cheerFor.push(p);
-        else if (mine && theirs) conflicted.push(p);
-        else if (theirs)         enemies.push(p);
-      });
-
-      return {
-        cheerFor, conflicted, enemies,
-        noData: false, offseasonMode,
-        debugInfo: { season:activeSeason, week:activeWeek, usedFallback, isHistorical, leagues:debugLeagues },
-      };
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       Demo Data
-    ══════════════════════════════════════════════════════════════════════ */
-    function getDemoData() {
-      const L1 = 'Dynasty Royale', L2 = 'Redraft Chaos';
-      const p = (id, name, pos, team, mine, against) =>
-        ({ id, full_name:name, position:pos, team, myLeagues:mine, againstLeagues:against, context:null });
-      return {
-        noData: false, offseasonMode: false, debugInfo: null,
-        cheerFor: [
-          p('d1','Patrick Mahomes',    'QB', 'KC', [L1],[]),
-          p('d2','Davante Adams',      'WR', 'NO', [L1],[]),
-          p('d3','Derrick Henry',      'RB','BAL', [L1],[]),
-          p('d4','Tyreek Hill',        'WR','MIA', [L2],[]),
-          p('d5','Christian McCaffrey','RB', 'SF', [L2],[]),
-          p('d6','Mark Andrews',       'TE','BAL', [L2],[]),
-          p('d7','Buffalo Bills',     'DEF','BUF', [L1],[]),
-          p('d8','49ers',             'DEF', 'SF', [L2],[]),
-        ],
-        conflicted: [
-          p('d9', 'Justin Jefferson', 'WR','MIN',[L1],[L2]),
-          p('d10','Travis Kelce',     'TE', 'KC',[L1],[L2]),
-          p('d11','Josh Allen',       'QB','BUF',[L2],[L1]),
-          p('d12','CeeDee Lamb',      'WR','DAL',[L2],[L1]),
-        ],
-        enemies: [
-          p('d13',"Ja'Marr Chase",   'WR','CIN',[],[L1]),
-          p('d14','Saquon Barkley',  'RB','PHI',[],[L1]),
-          p('d15','Sam LaPorta',     'TE','DET',[],[L1]),
-          p('d16','Jalen Hurts',     'QB','PHI',[],[L2]),
-          p('d17','Stefon Diggs',    'WR','HOU',[],[L2]),
-          p('d18','Tony Pollard',    'RB','TEN',[],[L2]),
-          p('d19','Chiefs D',       'DEF', 'KC',[],[L1]),
-          p('d20','Cowboys D',      'DEF','DAL',[],[L2]),
-        ],
-      };
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       Navigation Handlers
-    ══════════════════════════════════════════════════════════════════════ */
-    async function changeWeek(delta) {
-      const next = activeWeek + delta;
-      if (next < 1 || next > MAX_WEEK) return;
-      activeWeek = next;
-      updateNavUI();
-      if (!isDemoMode && currentUser) await run(currentUser);
-    }
-
-    async function changeSeason(val) {
-      activeSeason = val;
-      activeWeek   = (activeSeason === liveSeason) ? liveWeek : 1;
-      // Reset color map so new season gets fresh assignments
-      leagueColorMap = {};
-      activeFilters.clear();
-      updateNavUI();
-      if (!isDemoMode && currentUser) await run(currentUser);
-    }
-
-    async function snapToLive() {
-      activeWeek   = liveWeek;
-      activeSeason = liveSeason;
-      updateNavUI();
-      if (isDemoMode) return;
-      if (currentUser) await run(currentUser);
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       Event Handlers
-    ══════════════════════════════════════════════════════════════════════ */
-    async function handleStart() {
-      const input = document.getElementById('username-input').value.trim();
-      if (!input) return;
-      isDemoMode = false; currentUser = null;
-      leagueColorMap = {}; activeFilters.clear();
-      localStorage.setItem(USER_KEY, input);
-      await run(input);
-    }
-
-    function handleDemo() {
-      isDemoMode = true;
-      activeWeek = 7; activeSeason = '2025';
-      leagueColorMap = {}; activeFilters.clear();
-      buildSeasonSelect(activeSeason);
-      updateNavUI();
-      renderBoard(getDemoData(), 'demo');
-    }
-
-    async function handleRefresh() {
-      if (isDemoMode) { handleDemo(); return; }
-      const u = localStorage.getItem(USER_KEY);
-      if (u) await run(u);
-    }
-
-    function handleChangeUser() {
-      localStorage.removeItem(USER_KEY);
-      currentUser = null; isDemoMode = false;
-      leagueColorMap = {}; activeFilters.clear();
-      showSetup();
-    }
-
-    async function run(username) {
-      try {
-        const data = await loadData(username);
-        renderBoard(data, username);
-      } catch(err) {
-        console.error(err);
-        // Username not found or network failure → hard error screen
-        showError(err.message || 'Something went wrong. Check your username and try again.');
-      }
-    }
-
-    /* ══════════════════════════════════════════════════════════════════════
-       Init
-    ══════════════════════════════════════════════════════════════════════ */
-    document.getElementById('username-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') handleStart();
-    });
-    buildSeasonSelect(CURRENT_YEAR);
-
-    (async () => {
-      const saved = localStorage.getItem(USER_KEY);
-      if (saved) {
-        document.getElementById('username-input').value = saved;
-        await run(saved);
-      } else {
-        showSetup();
-      }
-    })();
-  </script>
-</body>
-</html>
