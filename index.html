@@ -61,6 +61,23 @@
     .header-right { display: flex; align-items: center; gap: 10px; }
     .header-time { font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); }
 
+    /* Bench toggle */
+    .bench-toggle-wrap { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
+    .bench-toggle-label { font-family: var(--fm); font-size: 0.58rem; color: var(--text-hint); letter-spacing: 0.06em; text-transform: uppercase; }
+    .toggle-track { width: 30px; height: 16px; border-radius: 8px; background: var(--border); position: relative; transition: background 0.2s; flex-shrink: 0; }
+    .toggle-track.on { background: var(--gold); }
+    .toggle-thumb { width: 12px; height: 12px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: left 0.2s; }
+    .toggle-track.on .toggle-thumb { left: 16px; }
+
+    /* Bench player card treatment */
+    .player-card.bench-player { opacity: 0.52; }
+    .bench-badge { font-family: var(--fm); font-size: 0.52rem; padding: 1px 6px; border-radius: 3px; background: var(--neutral-dim); color: var(--neutral); border: 1px solid rgba(75,90,120,0.25); letter-spacing: 0.05em; text-transform: uppercase; flex-shrink: 0; margin-left: auto; }
+
+    /* Last refreshed timestamp */
+    .last-refreshed { display: none; font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); white-space: nowrap; }
+    .last-refreshed.visible { display: block; }
+    @media (max-width: 640px) { .last-refreshed { display: none !important; } }
+
     /* ── Buttons ──────────────────────────────────────────────── */
     .btn { font-family: var(--fd); font-weight: 700; font-size: 1rem; letter-spacing: 0.06em; text-transform: uppercase; border: none; border-radius: var(--radius); padding: 10px 20px; cursor: pointer; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; }
     .btn:active { transform: scale(0.97); }
@@ -399,6 +416,108 @@
     .league-line .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 
     .empty-state { font-family: var(--fm); font-size: 0.65rem; color: var(--text-hint); text-align: center; padding: 28px 16px; border: 1px dashed var(--border); border-radius: var(--radius); }
+
+    /* ═══════════════════════════════════════════════════════════
+       MOBILE — max-width 640px
+    ═══════════════════════════════════════════════════════════ */
+    @media (max-width: 640px) {
+
+      /* Adjust padding variable for mobile */
+      :root { --pad: 18px; }
+
+      /* ── Header ── */
+      .site-tagline { display: none !important; }
+      .site-title { font-size: 1.25rem; }
+      .header-time { display: none; }
+      /* Hide "Change User" text label, keep icon-like refresh */
+      #change-user-btn { display: none !important; }
+
+      /* ── Landing: Hero ── */
+      .lp-hero { padding: 40px var(--pad) 32px; text-align: center; }
+      .lp-hero h1 { font-size: 2.4rem; }
+      .lp-hero-sub { font-size: 0.75rem; }
+
+      /* ── Landing: Scenario ── */
+      .lp-scenario-outer { padding: 0 var(--pad) 36px; }
+      .lp-scenario { padding: 22px 20px; }
+      .sc-headline { font-size: 1.55rem; }
+      .sc-closing-main { font-size: 1.05rem; }
+
+      /* ── Landing: How it works — stack vertically on mobile ── */
+      .how-grid { grid-template-columns: 1fr; gap: 20px; }
+      .how-step { padding: 0; }
+      .how-step:not(:last-child)::after { display: none; }
+      .how-num { font-size: 0.65rem; }
+      .lp-how { padding: 0 var(--pad) 36px; }
+
+      /* ── Landing: Sign-in ── */
+      .lp-signin { padding: 32px var(--pad) 48px; }
+      .signin-card { width: 100%; padding: 24px 20px; }
+
+      /* ── Board ── */
+      .board-inner { padding: 16px var(--pad) 40px; }
+      .board-header { flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 12px; }
+
+      /* Nav controls — wrap and tighten */
+      .nav-controls { padding: 8px 12px; gap: 6px; }
+      .nav-divider { display: none; }
+      .nav-ctx { display: none; }
+      select.nav-select { font-size: 0.9rem; }
+      select.week-select { min-width: 76px; }
+
+      /* Scores strip — already scrollable, just reduce card size */
+      .score-card { min-width: 150px; padding: 8px 12px; }
+      .scard-pts { font-size: 1.25rem; }
+
+      /* Summary pills — stack */
+      .summary-bar { flex-direction: column; gap: 8px; }
+      .summary-pill { padding: 12px 16px; }
+      .pill-count { font-size: 2rem; }
+      .pill-label strong { font-size: 1rem; }
+
+      /* Columns — single column stack */
+      .columns { grid-template-columns: 1fr; gap: 28px; }
+
+      /* Column headers — slightly smaller */
+      .col-title { font-size: 1.3rem; }
+
+      /* Filter pills — constrain and wrap */
+      .league-filters {
+        padding: 8px 12px;
+        width: 100%;
+        overflow: hidden;
+        flex-wrap: wrap;
+      }
+      .league-filters #filter-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-width: 0;
+        flex: 1;
+      }
+      .filter-pill { font-size: 0.58rem; padding: 4px 10px; }
+      .filter-count { display: none; }
+      .filter-divider { display: none; }
+
+      /* Debug panel */
+      .debug-league { flex-direction: column; align-items: flex-start; }
+
+      /* No-data state */
+      .no-data-title { font-size: 1.4rem; }
+    }
+
+    /* ── Slightly wider phones / small tablets — 641–768px ── */
+    @media (min-width: 641px) and (max-width: 768px) {
+      :root { --pad: 24px; }
+      .lp-hero h1 { font-size: 2.8rem; }
+      .how-grid { grid-template-columns: 1fr 1fr; gap: 20px 0; }
+      .how-step:nth-child(2)::after { display: none; }
+      .how-step:nth-child(odd) { padding-left: 0; }
+      .how-step:nth-child(even) { padding-right: 0; }
+      .columns { grid-template-columns: 1fr; gap: 24px; }
+      .summary-bar { flex-direction: column; gap: 8px; }
+      .signin-card { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -412,6 +531,7 @@
       <span class="week-badge"   id="week-label"     style="display:none"></span>
     </div>
     <div class="header-right">
+      <span class="last-refreshed" id="last-refreshed"></span>
       <span class="header-time" id="refresh-time"></span>
       <button class="btn btn-demo btn-sm"  id="demo-btn"        onclick="handleDemo()"       style="display:none">🎭 Demo</button>
       <button class="btn btn-ghost btn-sm" id="change-user-btn" onclick="handleChangeUser()" style="display:none">Change User</button>
@@ -540,7 +660,7 @@
 <div id="board">
   <div class="board-inner">
     <div class="board-header">
-      <div class="board-user">Loaded for <strong id="display-username"></strong></div>
+      <div class="board-user">Loaded for <strong id="display-username"></strong> · <span onclick="handleChangeUser()" style="color:var(--text-hint);cursor:pointer;font-size:0.65rem;text-decoration:underline;text-underline-offset:3px;" id="mobile-change-user">change</span></div>
       <span class="header-time" id="board-refresh-time"></span>
     </div>
     <div class="nav-controls">
@@ -553,6 +673,11 @@
       <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
       <div class="nav-divider"></div>
       <button class="btn btn-live btn-sm" id="live-btn" onclick="snapToLive()"><span class="dot-live"></span> Live</button>
+      <div class="nav-divider"></div>
+      <div class="bench-toggle-wrap" onclick="toggleBench()" title="Show or hide bench players">
+        <span class="bench-toggle-label">Bench</span>
+        <div class="toggle-track" id="bench-track"><div class="toggle-thumb"></div></div>
+      </div>
       <div class="nav-spacer"></div>
       <span class="nav-ctx" id="nav-context-label"></span>
     </div>
@@ -615,10 +740,23 @@
 <script>
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#06b6d4','#a855f7','#f97316','#ec4899','#6366f1','#84cc16','#14b8a6','#f43f5e'];
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),currentUser=null,colorMap={},activeFilters=new Set();
+let showBench=localStorage.getItem('gd_show_bench')==='true';
 
 function assignColor(n){if(!colorMap[n])colorMap[n]=LC_COLORS[Object.keys(colorMap).length%LC_COLORS.length];return colorMap[n];}
 const lc=n=>colorMap[n]||'#5a6a82';
 function isHistoricalWeek(){const as=parseInt(activeSeason),ls=parseInt(liveSeason);if(as<ls)return true;if(as===ls&&activeWeek<liveWeek)return true;return false;}
+
+function syncBenchToggleUI(){
+  const track=document.getElementById('bench-track');
+  if(track)track.classList.toggle('on',showBench);
+}
+function toggleBench(){
+  showBench=!showBench;
+  localStorage.setItem('gd_show_bench',showBench);
+  syncBenchToggleUI();
+  // Re-render from last data without re-fetching
+  if(currentUser&&!isDemoMode)applyBenchFilter();
+}
 
 async function apiFetch(url){const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
 const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
@@ -701,6 +839,7 @@ function showBoard(){
   document.getElementById('demo-btn').classList.toggle('active',isDemoMode);
   document.getElementById('header-tagline').style.display='none';
   document.getElementById('week-label').style.display='block';
+  syncBenchToggleUI();
 }
 
 function buildWeekSelect(sel){const el=document.getElementById('week-select');el.innerHTML='';for(let w=1;w<=MAX_WEEK;w++){const o=document.createElement('option');o.value=w;o.textContent=`Week ${w}`;if(w===sel)o.selected=true;el.appendChild(o);}}
@@ -771,11 +910,23 @@ function renderDebug(info){
 
 const posClass=pos=>({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF'}[pos]||'pos-default');
 
+// Re-apply bench visibility without re-fetching
+function applyBenchFilter(){
+  ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
+    document.getElementById(id).querySelectorAll('.player-card').forEach(card=>{
+      if(card.dataset.bench==='true') card.style.display=showBench?'':'none';
+    });
+  });
+}
+
 function buildCard(player,delay,isHist){
   const div=document.createElement('div');
-  div.className=`player-card${player.clinched?' clinched':''}`;
+  const isBench=player.isBench||false;
+  div.className=`player-card${player.clinched?' clinched':''}${isBench?' bench-player':''}`;
   div.style.animationDelay=`${delay}ms`;
-  div.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
+  div.dataset.leagues=[...player.myLeagues,...(player.myBenchLeagues||[]),...player.againstLeagues].join('|');
+  div.dataset.bench=isBench?'true':'false';
+  if(isBench)div.style.display=showBench?'':'none';
   const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
   let ptsHTML='';
   if(hasAnyPts){
@@ -784,8 +935,14 @@ function buildCard(player,delay,isHist){
     ptsHTML=`<div style="display:flex;flex-direction:column;gap:3px">${rows}${badge}</div>`;
   }
   let rosterHTML='';
-  if(!hasAnyPts){const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)};opacity:0.85">YOUR roster</span><span> · ${n}</span></div>`).join('');const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span>OPP roster · ${n}</span></div>`).join('');rosterHTML=`<div class="league-context">${myL}${opL}</div>`;}
-  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="player-team">${player.team||''}</span></div>${ptsHTML}${rosterHTML}`;
+  if(!hasAnyPts){
+    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)};opacity:0.85">YOUR roster</span><span> · ${n}</span></div>`).join('');
+    const benchL=(player.myBenchLeagues||[]).map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.4"></span><span style="opacity:0.6">Bench · ${n}</span></div>`).join('');
+    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span>OPP roster · ${n}</span></div>`).join('');
+    rosterHTML=`<div class="league-context">${myL}${benchL}${opL}</div>`;
+  }
+  const benchBadge=isBench?'<span class="bench-badge">Bench</span>':'';
+  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="player-team">${player.team||''}</span>${benchBadge}</div>${ptsHTML}${rosterHTML}`;
   return div;
 }
 
@@ -842,30 +999,67 @@ async function loadData(username){
     let matchups=[];try{const raw=await getMatchups(lg.league_id,activeWeek);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
     const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
     const oppMatchup=myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
-    let myPlayers=[],oppPlayers=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP';
+    let myPlayers=[],oppPlayers=[],myBench=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP';
     if(myMatchup){
-      hasMatchup=true;myPlayers=myMatchup.starters?.length?myMatchup.starters:(myMatchup.players||myRoster.players||[]);myPoints=myMatchup.points||0;myPP=myMatchup.players_points||{};
+      hasMatchup=true;
+      // Starters are the active lineup; bench = full roster minus starters
+      const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
+      const allMine=(myMatchup.players||myRoster.players||[]).filter(id=>id&&id!=='0');
+      myPlayers=starters.length?starters:allMine; // fall back if starters empty
+      myBench=starters.length?allMine.filter(id=>!starters.includes(id)):[];
+      myPoints=myMatchup.points||0;myPP=myMatchup.players_points||{};
       const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
-      oppPlayers=oppMatchup?(oppMatchup.starters?.length?oppMatchup.starters:(oppMatchup.players||oppRoster?.players||[])):[];oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
+      // For opponents we show all their players (we don't know their bench intent)
+      const oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0');
+      const oppAll=(oppMatchup?(oppMatchup.players||oppRoster?.players||[]):[]).filter(id=>id&&id!=='0');
+      oppPlayers=oppStarters.length?oppStarters:oppAll;
+      oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
       leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,hasProj?projSum(myPlayers):0,hasProj?projSum(oppPlayers):0);
-    }else{myPlayers=myRoster.players||[];}
-    myPlayers=myPlayers.filter(id=>id&&id!=='0');oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
+    }else{
+      // Offseason roster mode — no starters available, show all as starters
+      myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');
+      myBench=[];
+    }
+    oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
     leagueContexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
     debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr});
-    return{leagueName:lg.name,myPlayers,oppPlayers,hasMatchup,fmt};
+    return{leagueName:lg.name,myPlayers,myBench,oppPlayers,hasMatchup,fmt};
   }));
   const valid=results.filter(Boolean);if(!valid.length)throw new Error('Found leagues but could not read roster data.');
   const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
   const playerDB=await getPlayerDB();setLoading('Classifying players...');
   const map=new Map();
-  function ensure(id){if(!map.has(id)){const info=playerDB[id]||{};map.set(id,{id,full_name:info.full_name||info.last_name||`Player ${id}`,position:info.position||(id.length<=4?'DEF':'—'),team:info.team||'',myLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});}return map.get(id);}
+  function ensure(id){if(!map.has(id)){const info=playerDB[id]||{};map.set(id,{id,full_name:info.full_name||info.last_name||`Player ${id}`,position:info.position||(id.length<=4?'DEF':'—'),team:info.team||'',myLeagues:[],myBenchLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});}return map.get(id);}
   valid.forEach(lg=>{
     const ctx=leagueContexts.find(c=>c.leagueName===lg.leagueName);
+    // Starters
     lg.myPlayers.forEach(id=>{const p=ensure(id);p.myLeagues.push(lg.leagueName);const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
+    // Bench players — tracked separately
+    lg.myBench.forEach(id=>{const p=ensure(id);p.myBenchLeagues.push(lg.leagueName);const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
     lg.oppPlayers.forEach(id=>{const p=ensure(id);p.againstLeagues.push(lg.leagueName);const pts=ctx?.oppPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
   });
+  // Classify: bench-only players (not starting anywhere, not against you) stay hidden unless showBench is on
   const cheerFor=[],conflicted=[],enemies=[];
-  map.forEach(p=>{const sig=calcSignal(p,leagueContexts);const cls=classifyPlayer(p,sig);if(!cls)return;p.bucket=cls.bucket;p.clinched=cls.clinched;p.contextBadge=hasScoring?ctxBadge(sig,isHist):null;if(cls.bucket==='cheer')cheerFor.push(p);else if(cls.bucket==='conflicted')conflicted.push(p);else enemies.push(p);});
+  map.forEach(p=>{
+    // A player is a "starter" in the context of this app if they appear in at least one starting lineup or opponent lineup
+    const isStarter=p.myLeagues.length>0||p.againstLeagues.length>0;
+    const isBenchOnly=!isStarter&&p.myBenchLeagues.length>0;
+    // For classification, bench leagues count as "mine" for bucket logic but marked as bench
+    const allMyLeagues=[...p.myLeagues,...p.myBenchLeagues];
+    p.isBench=isBenchOnly;
+    p.isMixedBench=!isBenchOnly&&p.myBenchLeagues.length>0; // starting in some leagues, bench in others
+    if(isBenchOnly&&!showBench)return; // skip bench-only players when toggle is off
+    // Use starter leagues for signal (bench doesn't affect score)
+    const sigPlayer={myLeagues:p.myLeagues,againstLeagues:p.againstLeagues};
+    const sig=calcSignal(sigPlayer,leagueContexts);
+    // For bucket classification, bench-only → cheer (they're yours, just not starting)
+    const clsPlayer=isBenchOnly?{myLeagues:allMyLeagues,againstLeagues:[]}:{myLeagues:p.myLeagues,againstLeagues:p.againstLeagues};
+    const cls=classifyPlayer(clsPlayer,isBenchOnly?null:sig);
+    if(!cls)return;
+    p.bucket=cls.bucket;p.clinched=cls.clinched;
+    p.contextBadge=hasScoring&&!isBenchOnly?ctxBadge(sig,isHist):null;
+    if(cls.bucket==='cheer')cheerFor.push(p);else if(cls.bucket==='conflicted')conflicted.push(p);else enemies.push(p);
+  });
   return{cheerFor,conflicted,enemies,noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,debugInfo:{season:activeSeason,week:activeWeek,usedFallback,isHist,hasProj,leagues:debugLeagues}};
 }
 
@@ -880,16 +1074,76 @@ function getDemoData(){
     enemies:[p('d13',"Ja'Marr Chase",'WR','CIN',[],[L1,L2],[{lg:L1,pts:20.20,proj:24.0,fmt:'PPR'},{lg:L2,pts:20.20,proj:24.0,fmt:'Half'}],-2,false),p('d14','Jalen Hurts','QB','PHI',[],[L2,L3],[{lg:L2,pts:21.40,proj:28.0,fmt:'Half'},{lg:L3,pts:21.40,proj:28.0,fmt:'Std'}],-2,false),p('d15','Sam LaPorta','TE','DET',[],[L1],[{lg:L1,pts:6.80,proj:10.0,fmt:'PPR'}],-1,false),p('d16','Tony Pollard','RB','TEN',[],[L1],[{lg:L1,pts:8.40,proj:12.0,fmt:'PPR'}],-1,false),p('d17','Cooper Kupp','WR','LAR',[],[L1,L2],[{lg:L1,pts:13.60,proj:16.0,fmt:'PPR'},{lg:L2,pts:13.60,proj:16.0,fmt:'Half'}],-2,false),p('d18','Stefon Diggs','WR','HOU',[],[L4],[{lg:L4,pts:11.20,proj:null,fmt:'PPR'}],0,true)]};
 }
 
-async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();if(!isDemoMode&&currentUser)await run(currentUser);}
-async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek);updateNavUI();if(!isDemoMode&&currentUser)await run(currentUser);}
-async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};activeFilters.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(!isDemoMode&&currentUser)await run(currentUser);}
+async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&currentUser)await run(currentUser);}
+async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek);updateNavUI();stopAutoRefresh();if(!isDemoMode&&currentUser)await run(currentUser);}
+async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};activeFilters.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&currentUser)await run(currentUser);}
 async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(currentUser)await run(currentUser);}
 
-async function handleStart(){const input=document.getElementById('username-input').value.trim();if(!input)return;isDemoMode=false;currentUser=null;colorMap={};activeFilters.clear();localStorage.setItem(USER_KEY,input);await run(input);}
-function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');}
+async function handleStart(){const input=document.getElementById('username-input').value.trim();if(!input)return;isDemoMode=false;currentUser=null;colorMap={};activeFilters.clear();stopAutoRefresh();localStorage.setItem(USER_KEY,input);await run(input);}
+function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');hideLastRefreshed();}
 async function handleRefresh(){if(isDemoMode){handleDemo();return;}const u=localStorage.getItem(USER_KEY);if(u)await run(u);}
-function handleChangeUser(){localStorage.removeItem(USER_KEY);currentUser=null;isDemoMode=false;colorMap={};activeFilters.clear();showSetup();}
-async function run(username){try{renderBoard(await loadData(username),username);}catch(err){console.error(err);showError(err.message||'Something went wrong. Check your username and try again.');}}
+function handleChangeUser(){localStorage.removeItem(USER_KEY);currentUser=null;isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();showSetup();}
+async function run(username){
+  try{
+    renderBoard(await loadData(username),username);
+    lastFetchTime=Date.now();
+    setLastRefreshed();
+    startAutoRefresh(username);
+  }catch(err){console.error(err);showError(err.message||'Something went wrong. Check your username and try again.');}
+}
+
+/* ── Auto-refresh ─────────────────────────────────────────────── */
+const REFRESH_MS  = 60 * 1000; // 60 seconds
+let refreshTimer  = null;
+let lastFetchTime = 0;
+
+function shouldAutoRefresh(){
+  return !isDemoMode && currentUser && !isHistoricalWeek();
+}
+
+function startAutoRefresh(username){
+  stopAutoRefresh();
+  if(!shouldAutoRefresh())return;
+  // Check every 10s whether it's time to refresh — keeps logic simple
+  refreshTimer = setInterval(async()=>{
+    if(document.hidden)return; // tab not visible — skip
+    if(Date.now()-lastFetchTime >= REFRESH_MS){
+      try{renderBoard(await loadData(username),username);lastFetchTime=Date.now();setLastRefreshed();}
+      catch(e){console.warn('Auto-refresh failed silently:',e.message);}
+    }
+  }, 10000);
+}
+
+function stopAutoRefresh(){
+  if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}
+}
+
+// On tab return — if data is stale (>60s), fetch immediately
+document.addEventListener('visibilitychange',async()=>{
+  if(document.hidden)return;
+  if(!shouldAutoRefresh()||!currentUser)return;
+  if(Date.now()-lastFetchTime >= REFRESH_MS){
+    try{renderBoard(await loadData(currentUser),currentUser);lastFetchTime=Date.now();setLastRefreshed();}
+    catch(e){console.warn('Tab-return refresh failed:',e.message);}
+  }
+});
+
+// Last refreshed timestamp — HH:MM:SS format
+function setLastRefreshed(){
+  if(isDemoMode)return;
+  const el=document.getElementById('last-refreshed');
+  if(!el)return;
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,'0');
+  const mm=String(now.getMinutes()).padStart(2,'0');
+  const ss=String(now.getSeconds()).padStart(2,'0');
+  el.textContent=`Last refreshed ${hh}:${mm}:${ss}`;
+  el.classList.add('visible');
+}
+function hideLastRefreshed(){
+  const el=document.getElementById('last-refreshed');
+  if(el){el.textContent='';el.classList.remove('visible');}
+}
 
 document.getElementById('username-input').addEventListener('keydown',e=>{if(e.key==='Enter')handleStart();});
 buildWeekSelect(1);buildSeasonSelect(THIS_YR);
