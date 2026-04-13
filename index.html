@@ -678,6 +678,10 @@
         <span class="bench-toggle-label">Bench</span>
         <div class="toggle-track" id="bench-track"><div class="toggle-thumb"></div></div>
       </div>
+      <div class="bench-toggle-wrap" onclick="toggleTaxi()" title="Show or hide taxi squad players">
+        <span class="bench-toggle-label">Taxi</span>
+        <div class="toggle-track" id="taxi-track"><div class="toggle-thumb"></div></div>
+      </div>
       <div class="nav-spacer"></div>
       <span class="nav-ctx" id="nav-context-label"></span>
     </div>
@@ -741,6 +745,7 @@
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#06b6d4','#a855f7','#f97316','#ec4899','#6366f1','#84cc16','#14b8a6','#f43f5e'];
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),currentUser=null,colorMap={},activeFilters=new Set();
 let showBench=localStorage.getItem('gd_show_bench')==='true';
+let showTaxi=localStorage.getItem('gd_show_taxi')==='true';
 
 function assignColor(n){if(!colorMap[n])colorMap[n]=LC_COLORS[Object.keys(colorMap).length%LC_COLORS.length];return colorMap[n];}
 const lc=n=>colorMap[n]||'#5a6a82';
@@ -749,13 +754,20 @@ function isHistoricalWeek(){const as=parseInt(activeSeason),ls=parseInt(liveSeas
 function syncBenchToggleUI(){
   const track=document.getElementById('bench-track');
   if(track)track.classList.toggle('on',showBench);
+  const taxiTrack=document.getElementById('taxi-track');
+  if(taxiTrack)taxiTrack.classList.toggle('on',showTaxi);
 }
 function toggleBench(){
   showBench=!showBench;
   localStorage.setItem('gd_show_bench',showBench);
   syncBenchToggleUI();
-  // Re-render from last data without re-fetching
   if(currentUser&&!isDemoMode)applyBenchFilter();
+}
+function toggleTaxi(){
+  showTaxi=!showTaxi;
+  localStorage.setItem('gd_show_taxi',showTaxi);
+  syncBenchToggleUI();
+  if(currentUser&&!isDemoMode)applyTaxiFilter();
 }
 
 async function apiFetch(url){const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
@@ -919,14 +931,26 @@ function applyBenchFilter(){
   });
 }
 
+// Re-apply taxi visibility without re-fetching
+function applyTaxiFilter(){
+  ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
+    document.getElementById(id).querySelectorAll('.player-card').forEach(card=>{
+      if(card.dataset.taxi==='true') card.style.display=showTaxi?'':'none';
+    });
+  });
+}
+
 function buildCard(player,delay,isHist){
   const div=document.createElement('div');
   const isBench=player.isBench||false;
-  div.className=`player-card${player.clinched?' clinched':''}${isBench?' bench-player':''}`;
+  const isTaxi=player.isTaxi||false;
+  div.className=`player-card${player.clinched?' clinched':''}${(isBench||isTaxi)?' bench-player':''}`;
   div.style.animationDelay=`${delay}ms`;
   div.dataset.leagues=[...player.myLeagues,...(player.myBenchLeagues||[]),...player.againstLeagues].join('|');
   div.dataset.bench=isBench?'true':'false';
+  div.dataset.taxi=isTaxi?'true':'false';
   if(isBench)div.style.display=showBench?'':'none';
+  if(isTaxi)div.style.display=showTaxi?'':'none';
   const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
   let ptsHTML='';
   if(hasAnyPts){
@@ -938,11 +962,12 @@ function buildCard(player,delay,isHist){
   if(!hasAnyPts){
     const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)};opacity:0.85">YOUR roster</span><span> · ${n}</span></div>`).join('');
     const benchL=(player.myBenchLeagues||[]).map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.4"></span><span style="opacity:0.6">Bench · ${n}</span></div>`).join('');
+    const taxiL=(player.taxiLeagues||[]).map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.4"></span><span style="opacity:0.6">Taxi · ${n}</span></div>`).join('');
     const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span>OPP roster · ${n}</span></div>`).join('');
-    rosterHTML=`<div class="league-context">${myL}${benchL}${opL}</div>`;
+    rosterHTML=`<div class="league-context">${myL}${benchL}${taxiL}${opL}</div>`;
   }
-  const benchBadge=isBench?'<span class="bench-badge">Bench</span>':'';
-  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="player-team">${player.team||''}</span>${benchBadge}</div>${ptsHTML}${rosterHTML}`;
+  const badge=isTaxi?'<span class="bench-badge">Taxi</span>':isBench?'<span class="bench-badge">Bench</span>':'';
+  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="player-team">${player.team||''}</span>${badge}</div>${ptsHTML}${rosterHTML}`;
   return div;
 }
 
@@ -996,6 +1021,8 @@ async function loadData(username){
     const myRoster=rosters.find(r=>r.owner_id===user.user_id||(Array.isArray(r.co_owners)&&r.co_owners.includes(user.user_id)));
     const isCoMgr=myRoster?myRoster.owner_id!==user.user_id:false;const fmt=scoringLabel(lg);
     if(!myRoster){debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:false,matchupFound:false,myCount:0,oppCount:0,state:'—',scoringFmt:fmt,isCoMgr:false});return null;}
+    // Taxi squad — always available from roster object, regardless of season state
+    const taxiIds=new Set((myRoster.taxi||[]).filter(Boolean));
     let matchups=[];try{const raw=await getMatchups(lg.league_id,activeWeek);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
     const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
     const oppMatchup=myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
@@ -1023,36 +1050,34 @@ async function loadData(username){
     oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
     leagueContexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
     debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr});
-    return{leagueName:lg.name,myPlayers,myBench,oppPlayers,hasMatchup,fmt};
+    return{leagueName:lg.name,myPlayers,myBench,oppPlayers,hasMatchup,fmt,taxiIds};
   }));
   const valid=results.filter(Boolean);if(!valid.length)throw new Error('Found leagues but could not read roster data.');
   const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
   const playerDB=await getPlayerDB();setLoading('Classifying players...');
   const map=new Map();
-  function ensure(id){if(!map.has(id)){const info=playerDB[id]||{};map.set(id,{id,full_name:info.full_name||info.last_name||`Player ${id}`,position:info.position||(id.length<=4?'DEF':'—'),team:info.team||'',myLeagues:[],myBenchLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});}return map.get(id);}
+  function ensure(id){if(!map.has(id)){const info=playerDB[id]||{};map.set(id,{id,full_name:info.full_name||info.last_name||`Player ${id}`,position:info.position||(id.length<=4?'DEF':'—'),team:info.team||'',myLeagues:[],myBenchLeagues:[],taxiLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false,isTaxi:false});}return map.get(id);}
   valid.forEach(lg=>{
     const ctx=leagueContexts.find(c=>c.leagueName===lg.leagueName);
+    const taxi=lg.taxiIds||new Set();
     // Starters
     lg.myPlayers.forEach(id=>{const p=ensure(id);p.myLeagues.push(lg.leagueName);const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
-    // Bench players — tracked separately
-    lg.myBench.forEach(id=>{const p=ensure(id);p.myBenchLeagues.push(lg.leagueName);const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
+    // Bench
+    lg.myBench.forEach(id=>{const p=ensure(id);if(taxi.has(id)){p.taxiLeagues.push(lg.leagueName);p.isTaxi=true;}else{p.myBenchLeagues.push(lg.leagueName);}const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
     lg.oppPlayers.forEach(id=>{const p=ensure(id);p.againstLeagues.push(lg.leagueName);const pts=ctx?.oppPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
   });
   // Classify: bench-only players (not starting anywhere, not against you) stay hidden unless showBench is on
   const cheerFor=[],conflicted=[],enemies=[];
   map.forEach(p=>{
-    // A player is a "starter" in the context of this app if they appear in at least one starting lineup or opponent lineup
+    if(p.isTaxi&&!showTaxi)return; // skip taxi unless toggle on
     const isStarter=p.myLeagues.length>0||p.againstLeagues.length>0;
     const isBenchOnly=!isStarter&&p.myBenchLeagues.length>0;
-    // For classification, bench leagues count as "mine" for bucket logic but marked as bench
     const allMyLeagues=[...p.myLeagues,...p.myBenchLeagues];
     p.isBench=isBenchOnly;
-    p.isMixedBench=!isBenchOnly&&p.myBenchLeagues.length>0; // starting in some leagues, bench in others
-    if(isBenchOnly&&!showBench)return; // skip bench-only players when toggle is off
-    // Use starter leagues for signal (bench doesn't affect score)
+    p.isMixedBench=!isBenchOnly&&p.myBenchLeagues.length>0;
+    if(isBenchOnly&&!showBench)return;
     const sigPlayer={myLeagues:p.myLeagues,againstLeagues:p.againstLeagues};
     const sig=calcSignal(sigPlayer,leagueContexts);
-    // For bucket classification, bench-only → cheer (they're yours, just not starting)
     const clsPlayer=isBenchOnly?{myLeagues:allMyLeagues,againstLeagues:[]}:{myLeagues:p.myLeagues,againstLeagues:p.againstLeagues};
     const cls=classifyPlayer(clsPlayer,isBenchOnly?null:sig);
     if(!cls)return;
