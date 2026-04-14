@@ -1112,9 +1112,10 @@ async function loadData(username){
       myBench=starters.length?allMine.filter(id=>!starters.includes(id)&&!taxiIds.has(id)):[];
       myPoints=myMatchup.points||0;myPP=myMatchup.players_points||{};
       const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
-      // For opponents we show all their players (we don't know their bench intent)
-      const oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0');
-      const oppAll=(oppMatchup?(oppMatchup.players||oppRoster?.players||[]):[]).filter(id=>id&&id!=='0');
+      // Strip opponent taxi squad — they can't start so they're irrelevant to any matchup
+      const oppTaxiIds=new Set((oppRoster?.taxi||[]).filter(Boolean));
+      const oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
+      const oppAll=(oppMatchup?(oppMatchup.players||oppRoster?.players||[]):[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
       oppPlayers=oppStarters.length?oppStarters:oppAll;
       oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
       leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,hasProj?projSum(myPlayers):0,hasProj?projSum(oppPlayers):0);
@@ -1157,33 +1158,34 @@ async function loadData(username){
     (lg.taxiArr||[]).forEach(id=>{const p=ensure(id);p.taxiLeagues.push(lg.leagueName);p.isTaxi=true;const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
     lg.oppPlayers.forEach(id=>{const p=ensure(id);p.againstLeagues.push(lg.leagueName);const pts=ctx?.oppPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
   });
-  // Classify: bench-only players (not starting anywhere, not against you) stay hidden unless showBench is on
   const cheerFor=[],conflicted=[],enemies=[];
   map.forEach(p=>{
-    const isTaxiPlayer=p.isTaxi&&p.taxiLeagues.length>0;
-    if(isTaxiPlayer&&!showTaxi)return;
+    // ── TAXI: our taxi players are always Cheer For, unconditionally ──
+    // They can't start, can't affect scores, and opponent taxi data is already stripped.
+    // Nothing in other leagues can make a taxi player conflicted or enemy.
+    if(p.isTaxi){
+      if(!showTaxi)return;
+      p.bucket='cheer'; p.clinched=false; p.isBench=false; p.contextBadge=null;
+      cheerFor.push(p); return;
+    }
 
+    // ── BENCH ──
     const isStarter=p.myLeagues.length>0||p.againstLeagues.length>0;
     const isBenchOnly=!isStarter&&p.myBenchLeagues.length>0;
-    // Taxi-only: on taxi squad, not starting anywhere, not against anyone
-    const isTaxiOnly=isTaxiPlayer&&!isStarter&&!isBenchOnly;
-
     if(isBenchOnly&&!showBench)return;
 
-    // Build the effective "my leagues" for classification
-    const allMyLeagues=[...p.myLeagues,...p.myBenchLeagues,...p.taxiLeagues];
+    // ── STANDARD CLASSIFICATION ──
     const sigPlayer={myLeagues:p.myLeagues,againstLeagues:p.againstLeagues};
     const sig=calcSignal(sigPlayer,leagueContexts);
-
-    // Taxi-only and bench-only both classify as cheer (your players, not starting)
-    const clsPlayer=(isBenchOnly||isTaxiOnly)
+    const allMyLeagues=[...p.myLeagues,...p.myBenchLeagues];
+    const clsPlayer=isBenchOnly
       ?{myLeagues:allMyLeagues,againstLeagues:[]}
       :{myLeagues:p.myLeagues,againstLeagues:p.againstLeagues};
-    const cls=classifyPlayer(clsPlayer,(isBenchOnly||isTaxiOnly)?null:sig);
+    const cls=classifyPlayer(clsPlayer,isBenchOnly?null:sig);
     if(!cls)return;
 
-    p.bucket=cls.bucket;p.clinched=cls.clinched;
-    p.contextBadge=hasScoring&&!isBenchOnly&&!isTaxiOnly?ctxBadge(sig,isHist):null;
+    p.bucket=cls.bucket; p.clinched=cls.clinched;
+    p.contextBadge=hasScoring&&!isBenchOnly?ctxBadge(sig,isHist):null;
     if(cls.bucket==='cheer')cheerFor.push(p);
     else if(cls.bucket==='conflicted')conflicted.push(p);
     else enemies.push(p);
