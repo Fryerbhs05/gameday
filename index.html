@@ -918,6 +918,8 @@ function renderDebug(info){
   info.leagues.forEach(lg=>{const row=document.createElement('div');row.className='debug-league';row.innerHTML=`<div class="lg-name"><span class="lg-dot" style="background:${lc(lg.name)}"></span>${lg.name}<span class="lg-id">${lg.leagueId}</span></div><span class="dpill ${lg.rosterFound?'dp-ok':'dp-warn'}">${lg.rosterFound?`${lg.myCount}p`:'NOT FOUND'}</span><span class="dpill ${lg.matchupFound?'dp-ok':'dp-dim'}">${lg.matchupFound?`✓ opp ${lg.oppCount}`:'no matchup'}</span><span class="dpill dp-dim">${lg.state||'—'}</span><span class="dpill dp-dim">${lg.scoringFmt}</span><span class="dpill ${lg.isCoMgr?'dp-ok':'dp-dim'}">${lg.isCoMgr?'Co-mgr':'Owner'}</span>`;c.appendChild(row);});
 }
 
+const posClass=pos=>({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF'}[pos]||'pos-default');
+
 // Update summary pill counts to reflect currently visible cards
 function updatePillCounts(){
   const pairs=[['cheer-list','count-cheer'],['conflicted-list','count-conflicted'],['enemy-list','count-enemy']];
