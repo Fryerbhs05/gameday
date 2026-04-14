@@ -1032,8 +1032,8 @@ async function loadData(username){
       // Starters are the active lineup; bench = full roster minus starters
       const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
       const allMine=(myMatchup.players||myRoster.players||[]).filter(id=>id&&id!=='0');
-      myPlayers=starters.length?starters:allMine; // fall back if starters empty
-      myBench=starters.length?allMine.filter(id=>!starters.includes(id)):[];
+      myPlayers=starters.length?starters.filter(id=>!taxiIds.has(id)):allMine.filter(id=>!taxiIds.has(id));
+      myBench=starters.length?allMine.filter(id=>!starters.includes(id)&&!taxiIds.has(id)):[];
       myPoints=myMatchup.points||0;myPP=myMatchup.players_points||{};
       const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
       // For opponents we show all their players (we don't know their bench intent)
@@ -1043,11 +1043,16 @@ async function loadData(username){
       oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
       leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,hasProj?projSum(myPlayers):0,hasProj?projSum(oppPlayers):0);
     }else{
-      // Offseason roster mode — no starters available, show all as starters
-      myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');
+      // Offseason roster mode — no starters available
+      // Still separate taxi from the rest using roster.taxi
+      const allPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');
+      myPlayers=allPlayers.filter(id=>!taxiIds.has(id));
       myBench=[];
     }
     oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
+
+    // In matchup mode, also remove taxi from bench (they were caught in allMine)
+    // Taxi players are handled separately in aggregation via taxiIds
     leagueContexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
     debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr});
     return{leagueName:lg.name,myPlayers,myBench,oppPlayers,hasMatchup,fmt,taxiIds};
@@ -1062,8 +1067,10 @@ async function loadData(username){
     const taxi=lg.taxiIds||new Set();
     // Starters
     lg.myPlayers.forEach(id=>{const p=ensure(id);p.myLeagues.push(lg.leagueName);const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
-    // Bench
-    lg.myBench.forEach(id=>{const p=ensure(id);if(taxi.has(id)){p.taxiLeagues.push(lg.leagueName);p.isTaxi=true;}else{p.myBenchLeagues.push(lg.leagueName);}const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
+    // Bench (non-taxi)
+    lg.myBench.forEach(id=>{const p=ensure(id);p.myBenchLeagues.push(lg.leagueName);const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
+    // Taxi — always from taxiIds, regardless of matchup state
+    taxi.forEach(id=>{const p=ensure(id);p.taxiLeagues.push(lg.leagueName);p.isTaxi=true;const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
     lg.oppPlayers.forEach(id=>{const p=ensure(id);p.againstLeagues.push(lg.leagueName);const pts=ctx?.oppPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
   });
   // Classify: bench-only players (not starting anywhere, not against you) stay hidden unless showBench is on
