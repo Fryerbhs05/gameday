@@ -1160,21 +1160,33 @@ async function loadData(username){
   // Classify: bench-only players (not starting anywhere, not against you) stay hidden unless showBench is on
   const cheerFor=[],conflicted=[],enemies=[];
   map.forEach(p=>{
-    if(p.isTaxi&&!showTaxi)return; // skip taxi unless toggle on
+    const isTaxiPlayer=p.isTaxi&&p.taxiLeagues.length>0;
+    if(isTaxiPlayer&&!showTaxi)return;
+
     const isStarter=p.myLeagues.length>0||p.againstLeagues.length>0;
     const isBenchOnly=!isStarter&&p.myBenchLeagues.length>0;
-    const allMyLeagues=[...p.myLeagues,...p.myBenchLeagues];
-    p.isBench=isBenchOnly;
-    p.isMixedBench=!isBenchOnly&&p.myBenchLeagues.length>0;
+    // Taxi-only: on taxi squad, not starting anywhere, not against anyone
+    const isTaxiOnly=isTaxiPlayer&&!isStarter&&!isBenchOnly;
+
     if(isBenchOnly&&!showBench)return;
+
+    // Build the effective "my leagues" for classification
+    const allMyLeagues=[...p.myLeagues,...p.myBenchLeagues,...p.taxiLeagues];
     const sigPlayer={myLeagues:p.myLeagues,againstLeagues:p.againstLeagues};
     const sig=calcSignal(sigPlayer,leagueContexts);
-    const clsPlayer=isBenchOnly?{myLeagues:allMyLeagues,againstLeagues:[]}:{myLeagues:p.myLeagues,againstLeagues:p.againstLeagues};
-    const cls=classifyPlayer(clsPlayer,isBenchOnly?null:sig);
+
+    // Taxi-only and bench-only both classify as cheer (your players, not starting)
+    const clsPlayer=(isBenchOnly||isTaxiOnly)
+      ?{myLeagues:allMyLeagues,againstLeagues:[]}
+      :{myLeagues:p.myLeagues,againstLeagues:p.againstLeagues};
+    const cls=classifyPlayer(clsPlayer,(isBenchOnly||isTaxiOnly)?null:sig);
     if(!cls)return;
+
     p.bucket=cls.bucket;p.clinched=cls.clinched;
-    p.contextBadge=hasScoring&&!isBenchOnly?ctxBadge(sig,isHist):null;
-    if(cls.bucket==='cheer')cheerFor.push(p);else if(cls.bucket==='conflicted')conflicted.push(p);else enemies.push(p);
+    p.contextBadge=hasScoring&&!isBenchOnly&&!isTaxiOnly?ctxBadge(sig,isHist):null;
+    if(cls.bucket==='cheer')cheerFor.push(p);
+    else if(cls.bucket==='conflicted')conflicted.push(p);
+    else enemies.push(p);
   });
   return{cheerFor,conflicted,enemies,noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,debugInfo:{season:activeSeason,week:activeWeek,usedFallback,isHist,hasProj,leagues:debugLeagues}};
 }
