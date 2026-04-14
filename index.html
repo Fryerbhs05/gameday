@@ -906,9 +906,10 @@ function applyFilters(){
   ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
     const list=document.getElementById(id);const cards=list.querySelectorAll('.player-card');
     cards.forEach(c=>{const m=!activeFilters.size||c.dataset.leagues.split('|').some(lg=>activeFilters.has(lg));c.classList.toggle('filtered-out',!m);});
-    let e=list.querySelector('.filter-empty');const vis=[...cards].filter(c=>!c.classList.contains('filtered-out'));
+    let e=list.querySelector('.filter-empty');const vis=[...cards].filter(c=>!c.classList.contains('filtered-out')&&c.style.display!=='none');
     if(!vis.length&&cards.length){if(!e){e=document.createElement('div');e.className='empty-state filter-empty';list.appendChild(e);}e.textContent='No players match this filter';}else if(e)e.remove();
   });
+  updatePillCounts();
 }
 
 function toggleDebug(){document.getElementById('debug-toggle').classList.toggle('open');document.getElementById('debug-body').classList.toggle('open');}
@@ -929,6 +930,7 @@ function applyBenchFilter(){
       if(card.dataset.bench==='true') card.style.display=showBench?'':'none';
     });
   });
+  updatePillCounts();
 }
 
 // Re-apply taxi visibility without re-fetching
@@ -937,6 +939,17 @@ function applyTaxiFilter(){
     document.getElementById(id).querySelectorAll('.player-card').forEach(card=>{
       if(card.dataset.taxi==='true') card.style.display=showTaxi?'':'none';
     });
+  });
+  updatePillCounts();
+}
+
+// Update summary pill counts to reflect currently visible cards
+function updatePillCounts(){
+  const pairs=[['cheer-list','count-cheer'],['conflicted-list','count-conflicted'],['enemy-list','count-enemy']];
+  pairs.forEach(([listId,countId])=>{
+    const cards=document.getElementById(listId).querySelectorAll('.player-card');
+    const visible=[...cards].filter(c=>c.style.display!=='none'&&!c.classList.contains('filtered-out')).length;
+    document.getElementById(countId).textContent=visible;
   });
 }
 
