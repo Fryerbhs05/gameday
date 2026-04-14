@@ -73,6 +73,19 @@
     .player-card.bench-player { opacity: 0.52; }
     .bench-badge { font-family: var(--fm); font-size: 0.52rem; padding: 1px 6px; border-radius: 3px; background: var(--neutral-dim); color: var(--neutral); border: 1px solid rgba(75,90,120,0.25); letter-spacing: 0.05em; text-transform: uppercase; flex-shrink: 0; margin-left: auto; }
 
+    /* Injury status badge */
+    .inj-badge { font-family: var(--fm); font-size: 0.56rem; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500; border: 1px solid; flex-shrink: 0; }
+    .inj-Q  { background: rgba(197,168,75,0.15); color: var(--gold);   border-color: rgba(197,168,75,0.35); }
+    .inj-D  { background: rgba(245,130,11,0.15); color: #f97316;       border-color: rgba(245,130,11,0.35); }
+    .inj-O  { background: rgba(176,82,82,0.18);  color: var(--enemy);  border-color: var(--enemy-border);   }
+    .inj-IR { background: rgba(176,82,82,0.12);  color: var(--enemy);  border-color: var(--enemy-border);   }
+    .inj-SUS{ background: rgba(75,90,120,0.15);  color: var(--neutral); border-color: rgba(75,90,120,0.3);  }
+
+    /* Bench toggle disabled state */
+    .bench-toggle-wrap.disabled { opacity: 0.35; cursor: not-allowed; }
+    .bench-toggle-wrap.disabled .toggle-track { background: var(--border) !important; }
+    .bench-toggle-wrap.disabled .bench-toggle-label::after { content: ' (in-season)'; font-size: 0.5rem; opacity: 0.7; }
+
     /* Last refreshed timestamp */
     .last-refreshed { display: none; font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); white-space: nowrap; }
     .last-refreshed.visible { display: block; }
@@ -753,7 +766,16 @@ function isHistoricalWeek(){const as=parseInt(activeSeason),ls=parseInt(liveSeas
 
 function syncBenchToggleUI(){
   const track=document.getElementById('bench-track');
-  if(track)track.classList.toggle('on',showBench);
+  const benchWrap=track?.closest('.bench-toggle-wrap');
+  // Bench toggle only meaningful when we have matchup/starter data
+  const hasMatchupData=!isDemoMode&&currentUser&&document.getElementById('board').style.display!=='none';
+  const offseason=hasMatchupData&&document.getElementById('banner-offseason').classList.contains('visible');
+  if(benchWrap){
+    benchWrap.classList.toggle('disabled', offseason);
+    if(!offseason)benchWrap.onclick=()=>toggleBench();
+    else benchWrap.onclick=null;
+  }
+  if(track)track.classList.toggle('on',showBench&&!offseason);
   const taxiTrack=document.getElementById('taxi-track');
   if(taxiTrack)taxiTrack.classList.toggle('on',showTaxi);
 }
@@ -980,7 +1002,17 @@ function buildCard(player,delay,isHist){
     rosterHTML=`<div class="league-context">${myL}${benchL}${taxiL}${opL}</div>`;
   }
   const badge=isTaxi?'<span class="bench-badge">Taxi</span>':isBench?'<span class="bench-badge">Bench</span>':'';
-  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="player-team">${player.team||''}</span>${badge}</div>${ptsHTML}${rosterHTML}`;
+
+  // Injury badge — only shown when player is not healthy
+  let injBadge='';
+  if(player.injuryStatus){
+    const inj=player.injuryStatus;
+    const cls=inj==='Questionable'?'inj-Q':inj==='Doubtful'?'inj-D':(inj==='Out'||inj==='IR'||inj==='Injured Reserve')?'inj-O':'inj-SUS';
+    const lbl=inj==='Injured Reserve'?'IR':inj==='Questionable'?'Q':inj==='Doubtful'?'D':inj==='Out'?'Out':inj;
+    injBadge=`<span class="inj-badge ${cls}">${lbl}</span>`;
+  }
+
+  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="player-team">${player.team||''}</span>${badge}${injBadge}</div>${ptsHTML}${rosterHTML}`;
   return div;
 }
 
@@ -1056,34 +1088,42 @@ async function loadData(username){
       oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
       leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,hasProj?projSum(myPlayers):0,hasProj?projSum(oppPlayers):0);
     }else{
-      // Offseason roster mode — no starters available
-      // Still separate taxi from the rest using roster.taxi
-      const allPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');
-      myPlayers=allPlayers.filter(id=>!taxiIds.has(id));
+      // Offseason roster mode — no starters array available.
+      // roster.players = main roster (no taxi). roster.taxi = taxi separately.
+      // Bench toggle has no meaning without lineup data — all non-taxi show as roster.
+      myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0'&&!taxiIds.has(id));
       myBench=[];
     }
     oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
-
-    // In matchup mode, also remove taxi from bench (they were caught in allMine)
-    // Taxi players are handled separately in aggregation via taxiIds
     leagueContexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
     debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr});
-    return{leagueName:lg.name,myPlayers,myBench,oppPlayers,hasMatchup,fmt,taxiIds};
+    // Pass taxi as array (not just a Set filter) so aggregation can iterate them directly
+    const taxiArr=(myRoster.taxi||[]).filter(Boolean);
+    return{leagueName:lg.name,myPlayers,myBench,oppPlayers,hasMatchup,fmt,taxiIds,taxiArr};
   }));
   const valid=results.filter(Boolean);if(!valid.length)throw new Error('Found leagues but could not read roster data.');
   const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
   const playerDB=await getPlayerDB();setLoading('Classifying players...');
   const map=new Map();
-  function ensure(id){if(!map.has(id)){const info=playerDB[id]||{};map.set(id,{id,full_name:info.full_name||info.last_name||`Player ${id}`,position:info.position||(id.length<=4?'DEF':'—'),team:info.team||'',myLeagues:[],myBenchLeagues:[],taxiLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false,isTaxi:false});}return map.get(id);}
+  function ensure(id){
+    if(!map.has(id)){
+      const info=playerDB[id]||{};
+      const inj=info.injury_status||info.status||null;
+      // Only store if not healthy — null/active/empty means healthy
+      const unhealthy=['Questionable','Doubtful','Out','Injured Reserve','IR','PUP','Suspended','NFI','DNR','NA'];
+      const injuryStatus=unhealthy.includes(inj)?inj:null;
+      map.set(id,{id,full_name:info.full_name||info.last_name||`Player ${id}`,position:info.position||(id.length<=4?'DEF':'—'),team:info.team||'',injuryStatus,myLeagues:[],myBenchLeagues:[],taxiLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false,isTaxi:false});
+    }
+    return map.get(id);
+  }
   valid.forEach(lg=>{
     const ctx=leagueContexts.find(c=>c.leagueName===lg.leagueName);
-    const taxi=lg.taxiIds||new Set();
     // Starters
     lg.myPlayers.forEach(id=>{const p=ensure(id);p.myLeagues.push(lg.leagueName);const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
     // Bench (non-taxi)
     lg.myBench.forEach(id=>{const p=ensure(id);p.myBenchLeagues.push(lg.leagueName);const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
-    // Taxi — always from taxiIds, regardless of matchup state
-    taxi.forEach(id=>{const p=ensure(id);p.taxiLeagues.push(lg.leagueName);p.isTaxi=true;const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
+    // Taxi — use taxiArr (the actual array from roster.taxi) so we get all players even if not in matchup data
+    (lg.taxiArr||[]).forEach(id=>{const p=ensure(id);p.taxiLeagues.push(lg.leagueName);p.isTaxi=true;const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
     lg.oppPlayers.forEach(id=>{const p=ensure(id);p.againstLeagues.push(lg.leagueName);const pts=ctx?.oppPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
   });
   // Classify: bench-only players (not starting anywhere, not against you) stay hidden unless showBench is on
