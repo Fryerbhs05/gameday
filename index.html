@@ -203,6 +203,29 @@
     }
     .sc-closing-main em { font-style: normal; color: var(--gold); }
 
+    /* Scenario interstitial blurb */
+    .sc-interstitial {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .sc-int-icon {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--gold-dim);
+      border: 1px solid var(--gold-border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 2px;
+      font-size: 14px;
+    }
+    .sc-int-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); margin-bottom: 5px; }
+    .sc-int-text { font-family: var(--fm); font-size: 0.68rem; color: var(--text-muted); line-height: 1.7; }
+    .sc-int-text strong { color: var(--text-dim); }
+
     /* ── How it works — horizontal grid ──────────────────────── */
     .lp-how {
       display: flex; flex-direction: column; align-items: center;
@@ -556,68 +579,31 @@
 <!-- ══ LANDING ═════════════════════════════════════════════════ -->
 <div id="setup-panel">
 
-  <!-- Hero — centered, two-line headline -->
+  <!-- 1. Hero -->
   <div class="lp-hero">
     <div class="lp-eyebrow">Multi-league fantasy football manager</div>
     <h1>Stop doing mental math<br/>on <em>every play</em></h1>
     <p class="lp-hero-sub">Game Day reads your rosters, watches the scores, and tells you exactly who to root for — across all your leagues, in real time.</p>
   </div>
 
-  <!-- Scenario block — centered -->
-  <div class="lp-scenario-outer">
-    <div class="lp-scenario">
-
-      <!-- Headline — centered -->
-      <div class="sc-top">
-        <div class="sc-flag">
-          <span class="sc-flag-dot"></span>
-          <span class="sc-flag-txt">The moment</span>
-        </div>
-        <div class="sc-headline">Trey McBride<br/>just scored.<br/><em>Now what?</em></div>
+  <!-- 2. Sign-in — near top, right under hero -->
+  <div class="lp-signin">
+    <div class="signin-card">
+      <h3>Get started</h3>
+      <p class="signin-card-sub">Enter your Sleeper username</p>
+      <div class="signin-input-row">
+        <input type="text" class="signin-input" id="username-input" placeholder="sleeper username" autocomplete="off" />
+        <button class="btn btn-gold btn-sm" onclick="handleStart()">Load</button>
       </div>
-
-      <!-- League cards -->
-      <div class="sc-cards">
-        <div class="sc-card">
-          <div class="sc-bar sc-bar-cheer"></div>
-          <div class="sc-body">
-            <div class="sc-league sc-league-cheer">Dynasty Royale</div>
-            <div class="sc-role">He's <strong>your starting TE</strong> · cheer</div>
-          </div>
-          <div class="sc-pts-wrap">
-            <div class="sc-pts sc-pts-cheer">+14.2</div>
-            <div class="sc-pts-lbl">for you</div>
-          </div>
-        </div>
-        <div class="sc-card">
-          <div class="sc-bar sc-bar-enemy"></div>
-          <div class="sc-body">
-            <div class="sc-league sc-league-enemy">Redraft Chaos</div>
-            <div class="sc-role">He's <strong>your opponent's TE</strong> · don't cheer</div>
-          </div>
-          <div class="sc-pts-wrap">
-            <div class="sc-pts sc-pts-enemy">−14.2</div>
-            <div class="sc-pts-lbl">against you</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Closing block — centered and prominent -->
-      <div class="sc-closing">
-        <div class="sc-closing-pre">Why Game Day exists</div>
-        <div class="sc-closing-main">
-          He's on your roster in two leagues —<br/>
-          and the answer is different in each one.<br/>
-          <em>Game Day tracks it automatically,</em><br/>
-          so you can watch the game<br/>
-          instead of running the math.
-        </div>
-      </div>
-
+      <p id="setup-error" style="color:var(--enemy);margin-top:8px;display:none;font-family:var(--fm);font-size:0.72rem;"></p>
+      <div class="or-row"><div class="or-line"></div><div class="or-txt">or try it first</div><div class="or-line"></div></div>
+      <button class="btn-demo-full" onclick="handleDemo()">Try demo mode — 4 leagues, live scoring</button>
     </div>
   </div>
 
-  <!-- How it works — horizontal -->
+  <div class="lp-divider"></div>
+
+  <!-- 3. How it works -->
   <div class="lp-how">
     <div class="lp-how-inner">
       <div class="lp-section-label">How it works</div>
@@ -648,20 +634,66 @@
 
   <div class="lp-divider"></div>
 
-  <!-- Sign-in — centered with gold border -->
-  <div class="lp-signin">
-    <div class="signin-card">
-      <h3>Get started</h3>
-      <p class="signin-card-sub">Enter your Sleeper username</p>
-      <div class="signin-input-row">
-        <input type="text" class="signin-input" id="username-input" placeholder="sleeper username" autocomplete="off" />
-        <button class="btn btn-gold btn-sm" onclick="handleStart()">Load</button>
+  <!-- 4. Scenario — now last, with interstitial blurb between cards and closing -->
+  <div class="lp-scenario-outer" style="padding-top:44px">
+    <div class="lp-scenario">
+
+      <div class="sc-top">
+        <div class="sc-flag">
+          <span class="sc-flag-dot"></span>
+          <span class="sc-flag-txt">The moment</span>
+        </div>
+        <div class="sc-headline">Trey McBride<br/>just scored.<br/><em>Now what?</em></div>
       </div>
-      <p id="setup-error" style="color:var(--enemy);margin-top:8px;display:none;font-family:var(--fm);font-size:0.72rem;"></p>
-      <div class="or-row"><div class="or-line"></div><div class="or-txt">or try it first</div><div class="or-line"></div></div>
-      <button class="btn-demo-full" onclick="handleDemo()">Try demo mode — 4 leagues, live scoring</button>
+
+      <div class="sc-cards">
+        <div class="sc-card">
+          <div class="sc-bar sc-bar-cheer"></div>
+          <div class="sc-body">
+            <div class="sc-league sc-league-cheer">Dynasty Royale</div>
+            <div class="sc-role">He's <strong>your starting TE</strong> · cheer</div>
+          </div>
+          <div class="sc-pts-wrap">
+            <div class="sc-pts sc-pts-cheer">+14.2</div>
+            <div class="sc-pts-lbl">for you</div>
+          </div>
+        </div>
+        <div class="sc-card">
+          <div class="sc-bar sc-bar-enemy"></div>
+          <div class="sc-body">
+            <div class="sc-league sc-league-enemy">Redraft Chaos</div>
+            <div class="sc-role">He's <strong>your opponent's TE</strong> · don't cheer</div>
+          </div>
+          <div class="sc-pts-wrap">
+            <div class="sc-pts sc-pts-enemy">−14.2</div>
+            <div class="sc-pts-lbl">against you</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interstitial blurb — between cards and closing statement -->
+      <div class="sc-interstitial">
+        <div class="sc-int-icon">⚡</div>
+        <div>
+          <div class="sc-int-title">He's on your roster in two leagues</div>
+          <div class="sc-int-text">And the answer is <strong>different in each one.</strong> This happens on every big play, across every league, all Sunday long. Most managers don't realize it until the damage is done.</div>
+        </div>
+      </div>
+
+      <div class="sc-closing">
+        <div class="sc-closing-pre">Why Game Day exists</div>
+        <div class="sc-closing-main">
+          <em>Game Day tracks it automatically,</em><br/>
+          so you can watch the game<br/>
+          instead of running the math.
+        </div>
+      </div>
+
     </div>
   </div>
+
+  <!-- Bottom padding -->
+  <div style="height:56px"></div>
 
 </div>
 
@@ -989,16 +1021,15 @@ function buildCard(player,delay,isHist){
   const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
   let ptsHTML='';
   if(hasAnyPts){
-    const rows=Object.entries(lpd).map(([n,d])=>{const color=lc(n);const side=player.myLeagues.includes(n)?'YOUR':'OPP';const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:${color};opacity:0.85">${side} · ${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
-    const badge=player.contextBadge?`<div style="margin-top:2px"><span class="ctx-badge ${player.contextBadge.cls}">${player.contextBadge.text}</span></div>`:'';
-    ptsHTML=`<div style="display:flex;flex-direction:column;gap:3px">${rows}${badge}</div>`;
+    const rows=Object.entries(lpd).map(([n,d])=>{const color=lc(n);const side=player.myLeagues.includes(n)?'YOUR':'OPP';const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:${color};opacity:0.85">${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
+    ptsHTML=`<div style="display:flex;flex-direction:column;gap:3px">${rows}</div>`;
   }
   let rosterHTML='';
   if(!hasAnyPts){
-    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)};opacity:0.85">YOUR roster</span><span> · ${n}</span></div>`).join('');
-    const benchL=(player.myBenchLeagues||[]).map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.4"></span><span style="opacity:0.6">Bench · ${n}</span></div>`).join('');
-    const taxiL=(player.taxiLeagues||[]).map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.4"></span><span style="opacity:0.6">Taxi · ${n}</span></div>`).join('');
-    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span>OPP roster · ${n}</span></div>`).join('');
+    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)};opacity:0.9">${n}</span></div>`).join('');
+    const benchL=(player.myBenchLeagues||[]).map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.4"></span><span style="opacity:0.55">${n} · Bench</span></div>`).join('');
+    const taxiL=(player.taxiLeagues||[]).map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.4"></span><span style="opacity:0.55">${n} · Taxi</span></div>`).join('');
+    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span style="color:${lc(n)};opacity:0.7">${n}</span></div>`).join('');
     rosterHTML=`<div class="league-context">${myL}${benchL}${taxiL}${opL}</div>`;
   }
   const badge=isTaxi?'<span class="bench-badge">Taxi</span>':isBench?'<span class="bench-badge">Bench</span>':'';
@@ -1008,7 +1039,7 @@ function buildCard(player,delay,isHist){
   if(player.injuryStatus){
     const inj=player.injuryStatus;
     const cls=inj==='Questionable'?'inj-Q':inj==='Doubtful'?'inj-D':(inj==='Out'||inj==='IR'||inj==='Injured Reserve')?'inj-O':'inj-SUS';
-    const lbl=inj==='Injured Reserve'?'IR':inj==='Questionable'?'Q':inj==='Doubtful'?'D':inj==='Out'?'Out':inj;
+    const lbl=inj==='Injured Reserve'?'Injured Reserve':inj;
     injBadge=`<span class="inj-badge ${cls}">${lbl}</span>`;
   }
 
@@ -1152,11 +1183,30 @@ function getDemoData(){
   const L1='Dynasty Royale',L2='Redraft Chaos',L3='The Gridiron',L4='Devy Masters';
   [L1,L2,L3,L4].forEach((n,i)=>{colorMap[n]=LC_COLORS[i];});
   const contexts=[{leagueName:L1,leagueState:'LIVE',myPoints:95.64,oppPoints:72.82,myPP:{},oppPP:{},fmt:'PPR'},{leagueName:L2,leagueState:'LIVE',myPoints:68.40,oppPoints:82.14,myPP:{},oppPP:{},fmt:'Half'},{leagueName:L3,leagueState:'LOCKED_WIN',myPoints:134.20,oppPoints:45.82,myPP:{},oppPP:{},fmt:'Std'},{leagueName:L4,leagueState:'LOCKED_LOSS',myPoints:52.10,oppPoints:118.40,myPP:{},oppPP:{},fmt:'PPR'}];
-  function p(id,name,pos,team,mine,against,lpts,sig,allDecided){const sigResult={signal:sig,allDecided};const cls=classifyPlayer({myLeagues:mine,againstLeagues:against},sigResult);const badge=ctxBadge(sigResult,false);const leaguePoints={};(lpts||[]).forEach(d=>{leaguePoints[d.lg]={pts:d.pts,proj:d.proj??null,fmt:d.fmt};});return{id,full_name:name,position:pos,team,myLeagues:mine,againstLeagues:against,leaguePoints,contextBadge:badge,bucket:cls?.bucket,clinched:cls?.clinched||false};}
+  function p(id,name,pos,team,mine,against,lpts,sig,allDecided,injuryStatus=null){const sigResult={signal:sig,allDecided};const cls=classifyPlayer({myLeagues:mine,againstLeagues:against},sigResult);const badge=ctxBadge(sigResult,false);const leaguePoints={};(lpts||[]).forEach(d=>{leaguePoints[d.lg]={pts:d.pts,proj:d.proj??null,fmt:d.fmt};});return{id,full_name:name,position:pos,team,myLeagues:mine,againstLeagues:against,leaguePoints,contextBadge:badge,bucket:cls?.bucket,clinched:cls?.clinched||false,isTaxi:false,isBench:false,myBenchLeagues:[],taxiLeagues:[],injuryStatus};}
   return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,debugInfo:null,
-    cheerFor:[p('d1','Patrick Mahomes','QB','KC',[L1,L3],[],[{lg:L1,pts:22.44,proj:28.0,fmt:'PPR'},{lg:L3,pts:22.44,proj:28.0,fmt:'Std'}],2,false),p('d2','Davante Adams','WR','NO',[L1],[],[{lg:L1,pts:11.80,proj:16.0,fmt:'PPR'}],1,false),p('d3','Derrick Henry','RB','BAL',[L1],[],[{lg:L1,pts:14.20,proj:18.0,fmt:'PPR'}],1,false),p('d4','Tyreek Hill','WR','MIA',[L2,L3],[],[{lg:L2,pts:18.60,proj:22.0,fmt:'Half'},{lg:L3,pts:18.60,proj:22.0,fmt:'Std'}],2,false),p('d7','Travis Kelce','TE','KC',[L1],[L4],[{lg:L1,pts:8.60,proj:14.0,fmt:'PPR'},{lg:L4,pts:8.60,proj:null,fmt:'PPR'}],1,false),p('d8','Christian McCaffrey','RB','SF',[L3],[],[{lg:L3,pts:24.60,proj:null,fmt:'Std'}],0,true)],
-    conflicted:[p('d9','Justin Jefferson','WR','MIN',[L1],[L2],[{lg:L1,pts:16.40,proj:20.0,fmt:'PPR'},{lg:L2,pts:16.40,proj:20.0,fmt:'Half'}],0,false),p('d10','Josh Allen','QB','BUF',[L2],[L1],[{lg:L2,pts:19.80,proj:26.0,fmt:'Half'},{lg:L1,pts:19.80,proj:26.0,fmt:'PPR'}],0,false),p('d11','CeeDee Lamb','WR','DAL',[L1],[L2],[{lg:L1,pts:14.20,proj:22.0,fmt:'PPR'},{lg:L2,pts:14.20,proj:22.0,fmt:'Half'}],0,false),p('d12','Saquon Barkley','RB','PHI',[L2],[L1],[{lg:L2,pts:11.60,proj:16.0,fmt:'Half'},{lg:L1,pts:11.60,proj:16.0,fmt:'PPR'}],0,false)],
-    enemies:[p('d13',"Ja'Marr Chase",'WR','CIN',[],[L1,L2],[{lg:L1,pts:20.20,proj:24.0,fmt:'PPR'},{lg:L2,pts:20.20,proj:24.0,fmt:'Half'}],-2,false),p('d14','Jalen Hurts','QB','PHI',[],[L2,L3],[{lg:L2,pts:21.40,proj:28.0,fmt:'Half'},{lg:L3,pts:21.40,proj:28.0,fmt:'Std'}],-2,false),p('d15','Sam LaPorta','TE','DET',[],[L1],[{lg:L1,pts:6.80,proj:10.0,fmt:'PPR'}],-1,false),p('d16','Tony Pollard','RB','TEN',[],[L1],[{lg:L1,pts:8.40,proj:12.0,fmt:'PPR'}],-1,false),p('d17','Cooper Kupp','WR','LAR',[],[L1,L2],[{lg:L1,pts:13.60,proj:16.0,fmt:'PPR'},{lg:L2,pts:13.60,proj:16.0,fmt:'Half'}],-2,false),p('d18','Stefon Diggs','WR','HOU',[],[L4],[{lg:L4,pts:11.20,proj:null,fmt:'PPR'}],0,true)]};
+    cheerFor:[
+      p('d1','Patrick Mahomes',    'QB','KC', [L1,L3],[],[{lg:L1,pts:22.44,proj:28.0,fmt:'PPR'},{lg:L3,pts:22.44,proj:28.0,fmt:'Std'}],2,false),
+      p('d2','Davante Adams',      'WR','NO', [L1],  [],[{lg:L1,pts:11.80,proj:16.0,fmt:'PPR'}],1,false,'Questionable'),
+      p('d3','Derrick Henry',      'RB','BAL',[L1],  [],[{lg:L1,pts:14.20,proj:18.0,fmt:'PPR'}],1,false),
+      p('d4','Tyreek Hill',        'WR','MIA',[L2,L3],[],[{lg:L2,pts:18.60,proj:22.0,fmt:'Half'},{lg:L3,pts:18.60,proj:22.0,fmt:'Std'}],2,false),
+      p('d7','Travis Kelce',       'TE','KC', [L1],  [L4],[{lg:L1,pts:8.60,proj:14.0,fmt:'PPR'},{lg:L4,pts:8.60,proj:null,fmt:'PPR'}],1,false),
+      p('d8','Christian McCaffrey','RB','SF', [L3],  [],[{lg:L3,pts:24.60,proj:null,fmt:'Std'}],0,true,'Out'),
+    ],
+    conflicted:[
+      p('d9', 'Justin Jefferson',  'WR','MIN',[L1],[L2],[{lg:L1,pts:16.40,proj:20.0,fmt:'PPR'},{lg:L2,pts:16.40,proj:20.0,fmt:'Half'}],0,false),
+      p('d10','Josh Allen',        'QB','BUF',[L2],[L1],[{lg:L2,pts:19.80,proj:26.0,fmt:'Half'},{lg:L1,pts:19.80,proj:26.0,fmt:'PPR'}],0,false,'Doubtful'),
+      p('d11','CeeDee Lamb',       'WR','DAL',[L1],[L2],[{lg:L1,pts:14.20,proj:22.0,fmt:'PPR'},{lg:L2,pts:14.20,proj:22.0,fmt:'Half'}],0,false),
+      p('d12','Saquon Barkley',    'RB','PHI',[L2],[L1],[{lg:L2,pts:11.60,proj:16.0,fmt:'Half'},{lg:L1,pts:11.60,proj:16.0,fmt:'PPR'}],0,false),
+    ],
+    enemies:[
+      p('d13',"Ja'Marr Chase",    'WR','CIN',[],[L1,L2],[{lg:L1,pts:20.20,proj:24.0,fmt:'PPR'},{lg:L2,pts:20.20,proj:24.0,fmt:'Half'}],-2,false),
+      p('d14','Jalen Hurts',       'QB','PHI',[],[L2,L3],[{lg:L2,pts:21.40,proj:28.0,fmt:'Half'},{lg:L3,pts:21.40,proj:28.0,fmt:'Std'}],-2,false,'Injured Reserve'),
+      p('d15','Sam LaPorta',       'TE','DET',[],[L1],   [{lg:L1,pts:6.80, proj:10.0,fmt:'PPR'}],-1,false,'Questionable'),
+      p('d16','Tony Pollard',      'RB','TEN',[],[L1],   [{lg:L1,pts:8.40, proj:12.0,fmt:'PPR'}],-1,false),
+      p('d17','Cooper Kupp',       'WR','LAR',[],[L1,L2],[{lg:L1,pts:13.60,proj:16.0,fmt:'PPR'},{lg:L2,pts:13.60,proj:16.0,fmt:'Half'}],-2,false),
+      p('d18','Stefon Diggs',      'WR','HOU',[],[L4],   [{lg:L4,pts:11.20,proj:null,fmt:'PPR'}],0,true),
+    ]};
 }
 
 async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&currentUser)await run(currentUser);}
