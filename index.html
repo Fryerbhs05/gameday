@@ -61,18 +61,6 @@
     .header-right { display: flex; align-items: center; gap: 10px; }
     .header-time { font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); }
 
-    /* Bench toggle */
-    .bench-toggle-wrap { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
-    .bench-toggle-label { font-family: var(--fm); font-size: 0.58rem; color: var(--text-hint); letter-spacing: 0.06em; text-transform: uppercase; }
-    .toggle-track { width: 30px; height: 16px; border-radius: 8px; background: var(--border); position: relative; transition: background 0.2s; flex-shrink: 0; }
-    .toggle-track.on { background: var(--gold); }
-    .toggle-thumb { width: 12px; height: 12px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: left 0.2s; }
-    .toggle-track.on .toggle-thumb { left: 16px; }
-
-    /* Bench player card treatment */
-    .player-card.bench-player { opacity: 0.52; }
-    .bench-badge { font-family: var(--fm); font-size: 0.52rem; padding: 1px 6px; border-radius: 3px; background: var(--neutral-dim); color: var(--neutral); border: 1px solid rgba(75,90,120,0.25); letter-spacing: 0.05em; text-transform: uppercase; flex-shrink: 0; margin-left: auto; }
-
     /* Injury status badge */
     .inj-badge { font-family: var(--fm); font-size: 0.56rem; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500; border: 1px solid; flex-shrink: 0; }
     .inj-Q  { background: rgba(197,168,75,0.15); color: var(--gold);   border-color: rgba(197,168,75,0.35); }
@@ -80,11 +68,6 @@
     .inj-O  { background: rgba(176,82,82,0.18);  color: var(--enemy);  border-color: var(--enemy-border);   }
     .inj-IR { background: rgba(176,82,82,0.12);  color: var(--enemy);  border-color: var(--enemy-border);   }
     .inj-SUS{ background: rgba(75,90,120,0.15);  color: var(--neutral); border-color: rgba(75,90,120,0.3);  }
-
-    /* Bench toggle disabled state */
-    .bench-toggle-wrap.disabled { opacity: 0.35; cursor: not-allowed; }
-    .bench-toggle-wrap.disabled .toggle-track { background: var(--border) !important; }
-    .bench-toggle-wrap.disabled .bench-toggle-label::after { content: ' (in-season)'; font-size: 0.5rem; opacity: 0.7; }
 
     /* Last refreshed timestamp */
     .last-refreshed { display: none; font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); white-space: nowrap; }
@@ -718,15 +701,6 @@
       <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
       <div class="nav-divider"></div>
       <button class="btn btn-live btn-sm" id="live-btn" onclick="snapToLive()"><span class="dot-live"></span> Live</button>
-      <div class="nav-divider"></div>
-      <div class="bench-toggle-wrap" onclick="toggleBench()" title="Show or hide bench players">
-        <span class="bench-toggle-label">Bench</span>
-        <div class="toggle-track" id="bench-track"><div class="toggle-thumb"></div></div>
-      </div>
-      <div class="bench-toggle-wrap" onclick="toggleTaxi()" title="Show or hide taxi squad players">
-        <span class="bench-toggle-label">Taxi</span>
-        <div class="toggle-track" id="taxi-track"><div class="toggle-thumb"></div></div>
-      </div>
       <div class="nav-spacer"></div>
       <span class="nav-ctx" id="nav-context-label"></span>
     </div>
@@ -789,40 +763,10 @@
 <script>
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#06b6d4','#a855f7','#f97316','#ec4899','#6366f1','#84cc16','#14b8a6','#f43f5e'];
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),currentUser=null,colorMap={},activeFilters=new Set();
-let showBench=localStorage.getItem('gd_show_bench')==='true';
-let showTaxi=localStorage.getItem('gd_show_taxi')==='true';
 
 function assignColor(n){if(!colorMap[n])colorMap[n]=LC_COLORS[Object.keys(colorMap).length%LC_COLORS.length];return colorMap[n];}
 const lc=n=>colorMap[n]||'#5a6a82';
 function isHistoricalWeek(){const as=parseInt(activeSeason),ls=parseInt(liveSeason);if(as<ls)return true;if(as===ls&&activeWeek<liveWeek)return true;return false;}
-
-function syncBenchToggleUI(){
-  const track=document.getElementById('bench-track');
-  const benchWrap=track?.closest('.bench-toggle-wrap');
-  // Bench toggle only meaningful when we have matchup/starter data
-  const hasMatchupData=!isDemoMode&&currentUser&&document.getElementById('board').style.display!=='none';
-  const offseason=hasMatchupData&&document.getElementById('banner-offseason').classList.contains('visible');
-  if(benchWrap){
-    benchWrap.classList.toggle('disabled', offseason);
-    if(!offseason)benchWrap.onclick=()=>toggleBench();
-    else benchWrap.onclick=null;
-  }
-  if(track)track.classList.toggle('on',showBench&&!offseason);
-  const taxiTrack=document.getElementById('taxi-track');
-  if(taxiTrack)taxiTrack.classList.toggle('on',showTaxi);
-}
-function toggleBench(){
-  showBench=!showBench;
-  localStorage.setItem('gd_show_bench',showBench);
-  syncBenchToggleUI();
-  if(currentUser&&!isDemoMode)applyBenchFilter();
-}
-function toggleTaxi(){
-  showTaxi=!showTaxi;
-  localStorage.setItem('gd_show_taxi',showTaxi);
-  syncBenchToggleUI();
-  if(currentUser&&!isDemoMode)applyTaxiFilter();
-}
 
 async function apiFetch(url){const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
 const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
@@ -905,7 +849,6 @@ function showBoard(){
   document.getElementById('demo-btn').classList.toggle('active',isDemoMode);
   document.getElementById('header-tagline').style.display='none';
   document.getElementById('week-label').style.display='block';
-  syncBenchToggleUI();
 }
 
 function buildWeekSelect(sel){const el=document.getElementById('week-select');el.innerHTML='';for(let w=1;w<=MAX_WEEK;w++){const o=document.createElement('option');o.value=w;o.textContent=`Week ${w}`;if(w===sel)o.selected=true;el.appendChild(o);}}
@@ -975,28 +918,6 @@ function renderDebug(info){
   info.leagues.forEach(lg=>{const row=document.createElement('div');row.className='debug-league';row.innerHTML=`<div class="lg-name"><span class="lg-dot" style="background:${lc(lg.name)}"></span>${lg.name}<span class="lg-id">${lg.leagueId}</span></div><span class="dpill ${lg.rosterFound?'dp-ok':'dp-warn'}">${lg.rosterFound?`${lg.myCount}p`:'NOT FOUND'}</span><span class="dpill ${lg.matchupFound?'dp-ok':'dp-dim'}">${lg.matchupFound?`✓ opp ${lg.oppCount}`:'no matchup'}</span><span class="dpill dp-dim">${lg.state||'—'}</span><span class="dpill dp-dim">${lg.scoringFmt}</span><span class="dpill ${lg.isCoMgr?'dp-ok':'dp-dim'}">${lg.isCoMgr?'Co-mgr':'Owner'}</span>`;c.appendChild(row);});
 }
 
-const posClass=pos=>({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF'}[pos]||'pos-default');
-
-// Re-apply bench visibility without re-fetching
-function applyBenchFilter(){
-  ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
-    document.getElementById(id).querySelectorAll('.player-card').forEach(card=>{
-      if(card.dataset.bench==='true') card.style.display=showBench?'':'none';
-    });
-  });
-  updatePillCounts();
-}
-
-// Re-apply taxi visibility without re-fetching
-function applyTaxiFilter(){
-  ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
-    document.getElementById(id).querySelectorAll('.player-card').forEach(card=>{
-      if(card.dataset.taxi==='true') card.style.display=showTaxi?'':'none';
-    });
-  });
-  updatePillCounts();
-}
-
 // Update summary pill counts to reflect currently visible cards
 function updatePillCounts(){
   const pairs=[['cheer-list','count-cheer'],['conflicted-list','count-conflicted'],['enemy-list','count-enemy']];
@@ -1009,30 +930,21 @@ function updatePillCounts(){
 
 function buildCard(player,delay,isHist){
   const div=document.createElement('div');
-  const isBench=player.isBench||false;
-  const isTaxi=player.isTaxi||false;
-  div.className=`player-card${player.clinched?' clinched':''}${(isBench||isTaxi)?' bench-player':''}`;
+  div.className=`player-card${player.clinched?' clinched':''}`;
   div.style.animationDelay=`${delay}ms`;
-  div.dataset.leagues=[...player.myLeagues,...(player.myBenchLeagues||[]),...player.againstLeagues].join('|');
-  div.dataset.bench=isBench?'true':'false';
-  div.dataset.taxi=isTaxi?'true':'false';
-  if(isBench)div.style.display=showBench?'':'none';
-  if(isTaxi)div.style.display=showTaxi?'':'none';
+  div.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
   const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
   let ptsHTML='';
   if(hasAnyPts){
-    const rows=Object.entries(lpd).map(([n,d])=>{const color=lc(n);const side=player.myLeagues.includes(n)?'YOUR':'OPP';const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:${color};opacity:0.85">${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
+    const rows=Object.entries(lpd).map(([n,d])=>{const color=lc(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:${color};opacity:0.85">${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
     ptsHTML=`<div style="display:flex;flex-direction:column;gap:3px">${rows}</div>`;
   }
   let rosterHTML='';
   if(!hasAnyPts){
     const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)};opacity:0.9">${n}</span></div>`).join('');
-    const benchL=(player.myBenchLeagues||[]).map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.4"></span><span style="opacity:0.55">${n} · Bench</span></div>`).join('');
-    const taxiL=(player.taxiLeagues||[]).map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.4"></span><span style="opacity:0.55">${n} · Taxi</span></div>`).join('');
     const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span style="color:${lc(n)};opacity:0.7">${n}</span></div>`).join('');
-    rosterHTML=`<div class="league-context">${myL}${benchL}${taxiL}${opL}</div>`;
+    rosterHTML=`<div class="league-context">${myL}${opL}</div>`;
   }
-  const badge=isTaxi?'<span class="bench-badge">Taxi</span>':isBench?'<span class="bench-badge">Bench</span>':'';
 
   // Injury badge — only shown when player is not healthy
   let injBadge='';
@@ -1043,7 +955,7 @@ function buildCard(player,delay,isHist){
     injBadge=`<span class="inj-badge ${cls}">${lbl}</span>`;
   }
 
-  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="player-team">${player.team||''}</span>${badge}${injBadge}</div>${ptsHTML}${rosterHTML}`;
+  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="player-team">${player.team||''}</span>${injBadge}</div>${ptsHTML}${rosterHTML}`;
   return div;
 }
 
@@ -1097,22 +1009,19 @@ async function loadData(username){
     const myRoster=rosters.find(r=>r.owner_id===user.user_id||(Array.isArray(r.co_owners)&&r.co_owners.includes(user.user_id)));
     const isCoMgr=myRoster?myRoster.owner_id!==user.user_id:false;const fmt=scoringLabel(lg);
     if(!myRoster){debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:false,matchupFound:false,myCount:0,oppCount:0,state:'—',scoringFmt:fmt,isCoMgr:false});return null;}
-    // Taxi squad — always available from roster object, regardless of season state
-    const taxiIds=new Set((myRoster.taxi||[]).filter(Boolean));
     let matchups=[];try{const raw=await getMatchups(lg.league_id,activeWeek);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
     const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
     const oppMatchup=myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
-    let myPlayers=[],oppPlayers=[],myBench=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP';
+    let myPlayers=[],oppPlayers=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP';
     if(myMatchup){
       hasMatchup=true;
-      // Starters are the active lineup; bench = full roster minus starters
+      // Use starters array as the active lineup — fall back to full players if starters empty
       const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
       const allMine=(myMatchup.players||myRoster.players||[]).filter(id=>id&&id!=='0');
-      myPlayers=starters.length?starters.filter(id=>!taxiIds.has(id)):allMine.filter(id=>!taxiIds.has(id));
-      myBench=starters.length?allMine.filter(id=>!starters.includes(id)&&!taxiIds.has(id)):[];
+      myPlayers=starters.length?starters:allMine;
       myPoints=myMatchup.points||0;myPP=myMatchup.players_points||{};
       const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
-      // Strip opponent taxi squad — they can't start so they're irrelevant to any matchup
+      // Opponent: prefer starters, fall back to their active players; strip their taxi
       const oppTaxiIds=new Set((oppRoster?.taxi||[]).filter(Boolean));
       const oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
       const oppAll=(oppMatchup?(oppMatchup.players||oppRoster?.players||[]):[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
@@ -1120,18 +1029,14 @@ async function loadData(username){
       oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
       leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,hasProj?projSum(myPlayers):0,hasProj?projSum(oppPlayers):0);
     }else{
-      // Offseason roster mode — no starters array available.
-      // roster.players = main roster (no taxi). roster.taxi = taxi separately.
-      // Bench toggle has no meaning without lineup data — all non-taxi show as roster.
-      myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0'&&!taxiIds.has(id));
-      myBench=[];
+      // Offseason — no matchup data, show full roster (Sleeper keeps taxi separate from players)
+      myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');
     }
+    myPlayers=myPlayers.filter(id=>id&&id!=='0');
     oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
     leagueContexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
     debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr});
-    // Pass taxi as array (not just a Set filter) so aggregation can iterate them directly
-    const taxiArr=(myRoster.taxi||[]).filter(Boolean);
-    return{leagueName:lg.name,myPlayers,myBench,oppPlayers,hasMatchup,fmt,taxiIds,taxiArr};
+    return{leagueName:lg.name,myPlayers,oppPlayers,hasMatchup,fmt};
   }));
   const valid=results.filter(Boolean);if(!valid.length)throw new Error('Found leagues but could not read roster data.');
   const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
@@ -1141,51 +1046,24 @@ async function loadData(username){
     if(!map.has(id)){
       const info=playerDB[id]||{};
       const inj=info.injury_status||info.status||null;
-      // Only store if not healthy — null/active/empty means healthy
       const unhealthy=['Questionable','Doubtful','Out','Injured Reserve','IR','PUP','Suspended','NFI','DNR','NA'];
       const injuryStatus=unhealthy.includes(inj)?inj:null;
-      map.set(id,{id,full_name:info.full_name||info.last_name||`Player ${id}`,position:info.position||(id.length<=4?'DEF':'—'),team:info.team||'',injuryStatus,myLeagues:[],myBenchLeagues:[],taxiLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false,isTaxi:false});
+      map.set(id,{id,full_name:info.full_name||info.last_name||`Player ${id}`,position:info.position||(id.length<=4?'DEF':'—'),team:info.team||'',injuryStatus,myLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
     }
     return map.get(id);
   }
   valid.forEach(lg=>{
     const ctx=leagueContexts.find(c=>c.leagueName===lg.leagueName);
-    // Starters
     lg.myPlayers.forEach(id=>{const p=ensure(id);p.myLeagues.push(lg.leagueName);const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
-    // Bench (non-taxi)
-    lg.myBench.forEach(id=>{const p=ensure(id);p.myBenchLeagues.push(lg.leagueName);const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
-    // Taxi — use taxiArr (the actual array from roster.taxi) so we get all players even if not in matchup data
-    (lg.taxiArr||[]).forEach(id=>{const p=ensure(id);p.taxiLeagues.push(lg.leagueName);p.isTaxi=true;const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
     lg.oppPlayers.forEach(id=>{const p=ensure(id);p.againstLeagues.push(lg.leagueName);const pts=ctx?.oppPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
   });
   const cheerFor=[],conflicted=[],enemies=[];
   map.forEach(p=>{
-    // ── TAXI: our taxi players are always Cheer For, unconditionally ──
-    // They can't start, can't affect scores, and opponent taxi data is already stripped.
-    // Nothing in other leagues can make a taxi player conflicted or enemy.
-    if(p.isTaxi){
-      if(!showTaxi)return;
-      p.bucket='cheer'; p.clinched=false; p.isBench=false; p.contextBadge=null;
-      cheerFor.push(p); return;
-    }
-
-    // ── BENCH ──
-    const isStarter=p.myLeagues.length>0||p.againstLeagues.length>0;
-    const isBenchOnly=!isStarter&&p.myBenchLeagues.length>0;
-    if(isBenchOnly&&!showBench)return;
-
-    // ── STANDARD CLASSIFICATION ──
-    const sigPlayer={myLeagues:p.myLeagues,againstLeagues:p.againstLeagues};
-    const sig=calcSignal(sigPlayer,leagueContexts);
-    const allMyLeagues=[...p.myLeagues,...p.myBenchLeagues];
-    const clsPlayer=isBenchOnly
-      ?{myLeagues:allMyLeagues,againstLeagues:[]}
-      :{myLeagues:p.myLeagues,againstLeagues:p.againstLeagues};
-    const cls=classifyPlayer(clsPlayer,isBenchOnly?null:sig);
+    const sig=calcSignal(p,leagueContexts);
+    const cls=classifyPlayer(p,sig);
     if(!cls)return;
-
-    p.bucket=cls.bucket; p.clinched=cls.clinched;
-    p.contextBadge=hasScoring&&!isBenchOnly?ctxBadge(sig,isHist):null;
+    p.bucket=cls.bucket;p.clinched=cls.clinched;
+    p.contextBadge=hasScoring?ctxBadge(sig,isHist):null;
     if(cls.bucket==='cheer')cheerFor.push(p);
     else if(cls.bucket==='conflicted')conflicted.push(p);
     else enemies.push(p);
