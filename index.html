@@ -256,6 +256,22 @@
     .btn-demo-full { width: 100%; background: transparent; border: 1px solid var(--border); color: var(--text-hint); font-family: var(--fm); font-size: 0.65rem; padding: 10px; border-radius: 6px; cursor: pointer; letter-spacing: 0.04em; transition: background 0.15s, color 0.15s; }
     .btn-demo-full:hover { background: var(--border); color: var(--text); }
 
+    /* Yahoo connect block — sits inside .signin-card between Sleeper input and OR row */
+    .yahoo-row { margin: 4px 0 6px; }
+    .yahoo-row-label { font-family: var(--fm); font-size: 0.58rem; color: var(--text-ghost); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+    .btn-yahoo { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--bg-deep); border: 1px solid var(--gold); color: var(--text); font-family: var(--fm); font-size: 0.7rem; font-weight: 700; padding: 10px; border-radius: 6px; cursor: pointer; letter-spacing: 0.04em; text-transform: uppercase; transition: background 0.15s, color 0.15s; }
+    .btn-yahoo:hover { background: var(--gold); color: var(--bg-card); }
+    .btn-yahoo-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 3px; background: #6001d2; color: #fff; font-weight: 900; font-family: var(--fm); font-size: 0.65rem; flex-shrink: 0; }
+    .yahoo-status { display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(90,172,130,0.08); border: 1px solid var(--cheer); border-radius: 6px; padding: 8px 12px; font-family: var(--fm); font-size: 0.7rem; color: var(--text); letter-spacing: 0.03em; }
+    .yahoo-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cheer); flex-shrink: 0; }
+    .yahoo-disconnect { background: transparent; border: none; color: var(--text-hint); font-family: var(--fm); font-size: 0.6rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; letter-spacing: 0.04em; padding: 0; margin-left: 6px; }
+    .yahoo-disconnect:hover { color: var(--text); }
+
+    /* Toast for OAuth round-trip confirmations */
+    .yahoo-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--cheer); color: var(--bg-card); font-family: var(--fm); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 10px 18px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); z-index: 9999; opacity: 1; transition: opacity 0.3s; animation: yahoo-toast-in 0.3s ease-out; }
+    .yahoo-toast.toast-error { background: var(--enemy); }
+    @keyframes yahoo-toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
     /* ═══════════════════════════════════════════════════════════
        LOADING / ERROR
     ═══════════════════════════════════════════════════════════ */
@@ -579,6 +595,21 @@
         <button class="btn btn-gold btn-sm" onclick="handleStart()">Load</button>
       </div>
       <p id="setup-error" style="color:var(--enemy);margin-top:8px;display:none;font-family:var(--fm);font-size:0.72rem;"></p>
+
+      <!-- Yahoo connect — parallel to Sleeper. Either button or status shows, never both. -->
+      <div class="or-row"><div class="or-line"></div><div class="or-txt">also connect</div><div class="or-line"></div></div>
+      <div class="yahoo-row">
+        <button class="btn-yahoo" id="yahoo-connect-btn" onclick="handleConnectYahoo()" style="display:none">
+          <span class="btn-yahoo-icon">Y!</span>
+          <span>Connect Yahoo</span>
+        </button>
+        <div class="yahoo-status" id="yahoo-status" style="display:none">
+          <span class="yahoo-status-dot"></span>
+          <span>Yahoo connected</span>
+          <button class="yahoo-disconnect" onclick="handleDisconnectYahoo()">disconnect</button>
+        </div>
+      </div>
+
       <div class="or-row"><div class="or-line"></div><div class="or-txt">or try it first</div><div class="or-line"></div></div>
       <button class="btn-demo-full" onclick="handleDemo()">Try demo mode — 4 leagues, live scoring</button>
     </div>
@@ -1176,7 +1207,80 @@ function hideLastRefreshed(){
 
 document.getElementById('username-input').addEventListener('keydown',e=>{if(e.key==='Enter')handleStart();});
 buildWeekSelect(1);buildSeasonSelect(THIS_YR);
-(async()=>{const saved=localStorage.getItem(USER_KEY);if(saved){document.getElementById('username-input').value=saved;await run(saved);}else showSetup();})();
+
+/* ═══════════════════════════════════════════════════════════
+   YAHOO CONNECTION — login state + connect/disconnect handlers
+═══════════════════════════════════════════════════════════ */
+let yahooConnected = false;
+
+// Ping the authenticated proxy to see if our session cookie is still valid.
+// games is the cheapest endpoint — just lists NFL game years for this user.
+async function checkYahooStatus(){
+  const btn = document.getElementById('yahoo-connect-btn');
+  const status = document.getElementById('yahoo-status');
+  try{
+    const r = await fetch('/api/yahoo/data?endpoint=games',{credentials:'include'});
+    if(r.ok){
+      yahooConnected = true;
+      btn.style.display = 'none';
+      status.style.display = 'flex';
+    }else{
+      yahooConnected = false;
+      btn.style.display = 'flex';
+      status.style.display = 'none';
+    }
+  }catch(e){
+    // Network failure — show button so user can still try.
+    yahooConnected = false;
+    btn.style.display = 'flex';
+    status.style.display = 'none';
+  }
+}
+
+function handleConnectYahoo(){
+  // Full-page redirect to our OAuth init endpoint. Yahoo will eventually
+  // bounce back to /?yahoo=connected once tokens are stored.
+  window.location.href = '/api/auth/yahoo';
+}
+
+function handleDisconnectYahoo(){
+  // logout.js clears the cookie server-side and redirects to /?yahoo=disconnected.
+  window.location.href = '/api/auth/logout';
+}
+
+function showYahooToast(msg, isError){
+  const t = document.createElement('div');
+  t.className = 'yahoo-toast' + (isError ? ' toast-error' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.style.opacity = '0'; }, 2800);
+  setTimeout(()=>{ t.remove(); }, 3200);
+}
+
+// Surface ?yahoo=connected / ?yahoo=disconnected from the server-side redirect,
+// then strip the param so reloads don't re-fire the toast.
+function consumeYahooReturnParam(){
+  const params = new URLSearchParams(window.location.search);
+  const flag = params.get('yahoo');
+  if(flag === 'connected') showYahooToast('✓ Yahoo connected');
+  else if(flag === 'disconnected') showYahooToast('Yahoo disconnected');
+  if(flag){
+    params.delete('yahoo');
+    const qs = params.toString();
+    const newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+    window.history.replaceState({}, '', newUrl);
+  }
+}
+
+(async()=>{
+  consumeYahooReturnParam();
+  // Run Yahoo status check in parallel with normal Sleeper bootstrap.
+  // It only updates the setup-panel UI, so it's safe to run while loading.
+  checkYahooStatus();
+  const saved=localStorage.getItem(USER_KEY);
+  if(saved){document.getElementById('username-input').value=saved;await run(saved);}
+  else showSetup();
+})();
 </script>
 </body>
 </html>
