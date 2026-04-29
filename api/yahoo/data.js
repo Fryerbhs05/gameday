@@ -4,10 +4,12 @@
 // and calls the requested Yahoo endpoint on the user's behalf.
 //
 // Usage from the frontend:
-//   fetch('/api/yahoo/data?endpoint=leagues')
+//   fetch('/api/yahoo/data?endpoint=games')               // list every NFL season the user has leagues for
+//   fetch('/api/yahoo/data?endpoint=leagues')             // current NFL season's leagues
+//   fetch('/api/yahoo/data?endpoint=leagues&season=2025') // 2025 NFL season's leagues
 //   fetch('/api/yahoo/data?endpoint=standings&league_key=nfl.l.12345')
-//   fetch('/api/yahoo/data?endpoint=scoreboard&league_key=nfl.l.12345')
-//   fetch('/api/yahoo/data?endpoint=roster&team_key=nfl.l.12345.t.6')
+//   fetch('/api/yahoo/data?endpoint=scoreboard&league_key=nfl.l.12345&week=10')
+//   fetch('/api/yahoo/data?endpoint=roster&team_key=nfl.l.12345.t.6&week=10')
 
 const crypto = require('crypto');
 
@@ -115,22 +117,35 @@ module.exports = async (req, res) => {
 
     // Pick the Yahoo endpoint to hit
     const endpoint = (req.query.endpoint || 'leagues').toString();
+    const season = req.query.season ? String(req.query.season).replace(/[^0-9]/g, '') : null;
+    const week = req.query.week ? String(req.query.week).replace(/[^0-9]/g, '') : null;
     let url;
-    if (endpoint === 'leagues') {
+
+    if (endpoint === 'games') {
+      // Lists every NFL game (season) the user has been part of — useful to
+      // discover what years are available before drilling into leagues.
       url =
-        'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_keys=nfl/leagues?format=json';
+        'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games;game_codes=nfl?format=json';
+    } else if (endpoint === 'leagues') {
+      // Current season by default. With ?season=YYYY, filter to that NFL season.
+      // Yahoo accepts both `seasons=YYYY` (filter) and `game_keys=<id>` (specific game).
+      const base = 'https://fantasysports.yahooapis.com/fantasy/v2/users;use_login=1/games';
+      const filter = season ? `;game_codes=nfl;seasons=${season}` : ';game_keys=nfl';
+      url = `${base}${filter}/leagues?format=json`;
     } else if (endpoint === 'standings' && req.query.league_key) {
       url = `https://fantasysports.yahooapis.com/fantasy/v2/league/${encodeURIComponent(
         req.query.league_key
       )}/standings?format=json`;
     } else if (endpoint === 'scoreboard' && req.query.league_key) {
+      const weekParam = week ? `;week=${week}` : '';
       url = `https://fantasysports.yahooapis.com/fantasy/v2/league/${encodeURIComponent(
         req.query.league_key
-      )}/scoreboard?format=json`;
+      )}/scoreboard${weekParam}?format=json`;
     } else if (endpoint === 'roster' && req.query.team_key) {
+      const weekParam = week ? `;week=${week}` : '';
       url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${encodeURIComponent(
         req.query.team_key
-      )}/roster?format=json`;
+      )}/roster${weekParam}?format=json`;
     } else {
       res.status(400).json({ error: 'Unknown endpoint or missing parameters' });
       return;
