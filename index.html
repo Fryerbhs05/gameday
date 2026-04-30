@@ -1018,6 +1018,281 @@ function renderBoard(data,username){
   applyFilters();
 }
 
+/* ═══════════════════════════════════════════════════════════
+   YAHOO DATA LAYER — parsers + league orchestration
+   Yahoo's API responses use numeric-keyed objects with a `count` field
+   plus arrays of single-key metadata objects. These helpers normalize
+   that into clean shapes our pipeline can ingest alongside Sleeper.
+═══════════════════════════════════════════════════════════ */
+
+// Iterate Yahoo's numeric-keyed objects, skipping `count` and other non-numeric keys.
+function yhEach(obj, fn) {
+  if (!obj || typeof obj !== 'object') return;
+  Object.keys(obj).forEach(k => { if (/^\d+$/.test(k)) fn(obj[k], k); });
+}
+
+// Collapse arrays of single-key objects [{a:1},{b:2}] into one object {a:1,b:2}.
+function yhFlatten(arr) {
+  const out = {};
+  if (!Array.isArray(arr)) return out;
+  arr.forEach(item => {
+    if (Array.isArray(item)) Object.assign(out, yhFlatten(item));
+    else if (item && typeof item === 'object') Object.assign(out, item);
+  });
+  return out;
+}
+
+async function yhFetch(query) {
+  const r = await fetch('/api/yahoo/data?' + query, { credentials: 'include' });
+  if (!r.ok) throw new Error('Yahoo ' + query + ' → ' + r.status);
+  return await r.json();
+}
+
+function parseYahooLeagues(json, season) {
+  const out = [];
+  const users = json?.fantasy_content?.users;
+  if (!users) return out;
+  yhEach(users, (u) => {
+    const games = u?.user?.[1]?.games;
+    if (!games) return;
+    yhEach(games, (g) => {
+      const game = g?.game;
+      const meta = Array.isArray(game) ? yhFlatten(game[0]) : {};
+      const leaguesNode = Array.isArray(game) ? game[1]?.leagues : null;
+      if (!leaguesNode) return;
+      const gameSeason = String(meta.season || '');
+      yhEach(leaguesNode, (lw) => {
+        const lArr = lw?.league;
+        if (!lArr) return;
+        const lm = Array.isArray(lArr) ? yhFlatten(lArr[0]) : (typeof lArr === 'object' ? lArr : {});
+        if (lm.game_code && lm.game_code !== 'nfl') return;
+        const lgSeason = String(lm.season || gameSeason);
+        if (season && lgSeason !== String(season)) return;
+        out.push({
+          league_key: lm.league_key,
+          name: lm.name,
+          season: lgSeason,
+          scoring_type: lm.scoring_type || '',
+          current_week: parseInt(lm.current_week) || null,
+          start_week: parseInt(lm.start_week) || 1,
+          end_week: parseInt(lm.end_week) || 17,
+          is_finished: lm.is_finished === 1 || lm.is_finished === '1'
+        });
+      });
+    });
+  });
+  return out;
+}
+
+function parseYahooStandings(json) {
+  const teams = [];
+  const leagueArr = json?.fantasy_content?.league;
+  const standings = Array.isArray(leagueArr) ? (leagueArr[1]?.standings?.[0]?.teams || leagueArr[1]?.standings?.teams) : null;
+  if (!standings) return { teams, myTeamKey: null };
+  yhEach(standings, (tw) => {
+    const tArr = tw?.team;
+    if (!Array.isArray(tArr)) return;
+    const meta = yhFlatten(tArr[0]);
+    let isMine = meta.is_owned_by_current_login === 1 || meta.is_owned_by_current_login === '1';
+    let isComanager = false;
+    const managers = meta.managers;
+    if (Array.isArray(managers)) {
+      managers.forEach(mwrap => {
+        const m = mwrap?.manager;
+        if (m && (m.is_current_login === '1' || m.is_current_login === 1)) {
+          isMine = true;
+          if (m.is_comanager === '1' || m.is_comanager === 1) isComanager = true;
+        }
+      });
+    }
+    teams.push({ team_key: meta.team_key, name: meta.name, isMine, isComanager });
+  });
+  return { teams, myTeamKey: teams.find(t => t.isMine)?.team_key || null };
+}
+
+function parseYahooScoreboard(json) {
+  const out = [];
+  const leagueArr = json?.fantasy_content?.league;
+  const scoreboard = Array.isArray(leagueArr) ? leagueArr[1]?.scoreboard : null;
+  const matchups = scoreboard?.['0']?.matchups || scoreboard?.matchups;
+  if (!matchups) return out;
+  yhEach(matchups, (mw) => {
+    const m = mw?.matchup;
+    if (!m) return;
+    const status = m.status || '';
+    const isPlayoffs = m.is_playoffs === '1' || m.is_playoffs === 1;
+    const isConsolation = m.is_consolation === '1' || m.is_consolation === 1;
+    const winnerTeamKey = m.winner_team_key || null;
+    const teamsNode = m['0']?.teams || m.teams;
+    const teamsArr = [];
+    yhEach(teamsNode, (tw) => {
+      const tArr = tw?.team;
+      if (!Array.isArray(tArr)) return;
+      const meta = yhFlatten(tArr[0]);
+      const extras = Array.isArray(tArr[1]) ? yhFlatten(tArr[1]) : (tArr[1] || {});
+      const ptsObj = extras.team_points || {};
+      const projObj = extras.team_projected_points || {};
+      teamsArr.push({
+        team_key: meta.team_key,
+        name: meta.name,
+        points: parseFloat(ptsObj.total) || 0,
+        projPoints: parseFloat(projObj.total) || 0
+      });
+    });
+    out.push({ status, isPlayoffs, isConsolation, winnerTeamKey, teams: teamsArr });
+  });
+  return out;
+}
+
+function parseYahooRoster(json) {
+  const out = [];
+  const teamArr = json?.fantasy_content?.team;
+  const rosterNode = Array.isArray(teamArr) ? teamArr[1]?.roster : null;
+  const players = rosterNode?.['0']?.players || rosterNode?.players;
+  if (!players) return out;
+  yhEach(players, (pw) => {
+    const pArr = pw?.player;
+    if (!Array.isArray(pArr)) return;
+    const meta = yhFlatten(pArr[0]);
+    const extras = Array.isArray(pArr[1]) ? pArr[1] : {};
+    const sp = yhFlatten(extras.selected_position || []);
+    const slot = sp.position || '';
+    const isStarter = !!slot && slot !== 'BN' && slot !== 'IR';
+    const status = meta.status || meta.injury_status || '';
+    const unhealthy = ['Questionable','Doubtful','Out','Injured Reserve','IR','PUP','Suspended','NFI','DNR','NA','Q','D','O','SUSP'];
+    const shortMap = { Q:'Questionable', D:'Doubtful', O:'Out', SUSP:'Suspended', IR:'Injured Reserve' };
+    let injuryStatus = null;
+    if (unhealthy.includes(status)) injuryStatus = shortMap[status] || status;
+    const name = meta.name?.full || '';
+    out.push({
+      source: 'yahoo',
+      player_key: meta.player_key,
+      name,
+      position: (meta.display_position || meta.primary_position || '').toUpperCase(),
+      team: (meta.editorial_team_abbr || '').toUpperCase(),
+      slot, isStarter, injuryStatus
+    });
+  });
+  return out;
+}
+
+function parseYahooRosterStats(json) {
+  const pp = {};
+  const teamArr = json?.fantasy_content?.team;
+  const rosterNode = Array.isArray(teamArr) ? teamArr[1]?.roster : null;
+  const players = rosterNode?.['0']?.players || rosterNode?.players;
+  if (!players) return pp;
+  yhEach(players, (pw) => {
+    const pArr = pw?.player;
+    if (!Array.isArray(pArr)) return;
+    const meta = yhFlatten(pArr[0]);
+    const extras = Array.isArray(pArr[1]) ? pArr[1] : {};
+    const ptsObj = extras.player_points || {};
+    pp[meta.player_key] = parseFloat(ptsObj.total) || 0;
+  });
+  return pp;
+}
+
+function yahooScoringLabel(scoring_type) {
+  const t = (scoring_type || '').toLowerCase();
+  if (t === 'head' || t === 'h2h') return 'H2H';
+  if (t === 'roto') return 'Roto';
+  if (t === 'points') return 'Points';
+  return scoring_type || '';
+}
+
+async function loadYahooLeague(yLeague, week, isHist) {
+  const fmt = yahooScoringLabel(yLeague.scoring_type);
+  const standingsJson = await yhFetch('endpoint=standings&league_key=' + encodeURIComponent(yLeague.league_key));
+  const { teams, myTeamKey } = parseYahooStandings(standingsJson);
+  if (!myTeamKey) {
+    return { result: null, ctx: null, debug: { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: false, matchupFound: false, myCount: 0, oppCount: 0, state: '—', scoringFmt: fmt, isCoMgr: false }};
+  }
+  const isCoMgr = teams.find(t => t.team_key === myTeamKey)?.isComanager || false;
+
+  let opponentTeamKey = null, myPoints = 0, oppPoints = 0, myProjPts = 0, oppProjPts = 0;
+  let hasMatchup = false, leagueState = 'NO_MATCHUP';
+  try {
+    const sbJson = await yhFetch('endpoint=scoreboard&league_key=' + encodeURIComponent(yLeague.league_key) + '&week=' + week);
+    const matchups = parseYahooScoreboard(sbJson);
+    const myMatchup = matchups.find(m => m.teams.some(t => t.team_key === myTeamKey));
+    if (myMatchup) {
+      hasMatchup = true;
+      const me = myMatchup.teams.find(t => t.team_key === myTeamKey);
+      const opp = myMatchup.teams.find(t => t.team_key !== myTeamKey);
+      myPoints = me?.points || 0; myProjPts = me?.projPoints || 0;
+      oppPoints = opp?.points || 0; oppProjPts = opp?.projPoints || 0;
+      opponentTeamKey = opp?.team_key || null;
+      if (myMatchup.status === 'postevent' || isHist) leagueState = calcHistoricalState(myPoints, oppPoints);
+      else leagueState = calcLiveState(myPoints, oppPoints, myProjPts, oppProjPts);
+    }
+  } catch (e) {
+    console.warn('Yahoo scoreboard failed for', yLeague.name, e.message);
+  }
+
+  let myPlayers = [], oppPlayers = [], myPP = {}, oppPP = {};
+  try {
+    const myRosterJson = await yhFetch('endpoint=roster_stats&team_key=' + encodeURIComponent(myTeamKey) + '&week=' + week);
+    const myRoster = parseYahooRoster(myRosterJson);
+    myPP = parseYahooRosterStats(myRosterJson);
+    const starters = myRoster.filter(p => p.isStarter);
+    myPlayers = starters.length ? starters : myRoster;
+  } catch (e) {
+    console.warn('Yahoo my roster failed for', yLeague.name, e.message);
+  }
+  if (opponentTeamKey) {
+    try {
+      const oppRosterJson = await yhFetch('endpoint=roster_stats&team_key=' + encodeURIComponent(opponentTeamKey) + '&week=' + week);
+      const oppRoster = parseYahooRoster(oppRosterJson);
+      oppPP = parseYahooRosterStats(oppRosterJson);
+      const starters = oppRoster.filter(p => p.isStarter);
+      oppPlayers = starters.length ? starters : oppRoster;
+    } catch (e) {
+      console.warn('Yahoo opp roster failed for', yLeague.name, e.message);
+    }
+  }
+
+  return {
+    result: { leagueName: yLeague.name, myPlayers, oppPlayers, hasMatchup, fmt, source: 'yahoo' },
+    ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myPP, oppPP, fmt, source: 'yahoo' },
+    debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: hasMatchup, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
+  };
+}
+
+async function loadYahooLeagueData(season, week, isHist) {
+  if (!yahooConnected) return { results: [], contexts: [], debugLeagues: [] };
+  let leaguesJson;
+  try {
+    leaguesJson = await yhFetch('endpoint=leagues&season=' + encodeURIComponent(season));
+  } catch (e) {
+    console.warn('Yahoo leagues fetch failed:', e.message);
+    return { results: [], contexts: [], debugLeagues: [] };
+  }
+  const yLeagues = parseYahooLeagues(leaguesJson, season);
+  if (!yLeagues.length) return { results: [], contexts: [], debugLeagues: [] };
+  const out = await Promise.all(yLeagues.map(yl => loadYahooLeague(yl, week, isHist).catch(e => {
+    console.warn('Yahoo league failed:', yl.name, e.message);
+    return null;
+  })));
+  const results = [], contexts = [], debugLeagues = [];
+  out.forEach(o => { if (!o) return; if (o.result) results.push(o.result); if (o.ctx) contexts.push(o.ctx); if (o.debug) debugLeagues.push(o.debug); });
+  return { results, contexts, debugLeagues };
+}
+
+// Unified key — collapses Sleeper + Yahoo entries for the same player into one card.
+function unifiedPlayerKey(name, team, pos) {
+  const P = (pos || '').toUpperCase();
+  const T = (team || '').toUpperCase();
+  if (P === 'DEF' || P === 'DST') return T ? 'DST|' + T : null;
+  if (!name) return null;
+  let N = String(name).toLowerCase();
+  N = N.replace(/[.'`,]/g, '');
+  N = N.replace(/-/g, ' ');
+  N = N.replace(/\s+(jr|sr|ii|iii|iv|v)\.?\b/g, '');
+  N = N.replace(/\s+/g, ' ').trim();
+  return N + '|' + T + '|' + P;
+}
+
 async function loadData(username){
   showLoading('Looking up Sleeper user...');
   const user=await getUser(username);
@@ -1072,23 +1347,64 @@ async function loadData(username){
     return{leagueName:lg.name,myPlayers,oppPlayers,hasMatchup,fmt};
   }));
   const valid=results.filter(Boolean);if(!valid.length)throw new Error('Found leagues but could not read roster data.');
+  // Yahoo merge — fold in Yahoo leagues if user has connected. Yahoo entries
+  // run through the same downstream pipeline (signal/classify/render) by
+  // matching their result/ctx/debug shape to Sleeper's.
+  if(yahooConnected){
+    setLoading('Loading Yahoo leagues...');
+    try{
+      const yh=await loadYahooLeagueData(activeSeason,activeWeek,isHist);
+      yh.results.forEach(r=>valid.push(r));
+      yh.contexts.forEach(c=>leagueContexts.push(c));
+      yh.debugLeagues.forEach(d=>debugLeagues.push(d));
+    }catch(e){console.warn('Yahoo merge failed:',e.message);}
+  }
   const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
   const playerDB=await getPlayerDB();setLoading('Classifying players...');
   const map=new Map();
-  function ensure(id){
-    if(!map.has(id)){
-      const info=playerDB[id]||{};
+  // ensure() accepts either a Sleeper id (string) or a Yahoo player object.
+  // Both resolve to a unified key so the same player across providers collapses
+  // into one card with merged myLeagues/againstLeagues arrays.
+  function ensure(p){
+    let key,full_name,position,team,injuryStatus;
+    if(typeof p==='string'){
+      const info=playerDB[p]||{};
+      full_name=info.full_name||info.last_name||`Player ${p}`;
+      position=info.position||(p.length<=4?'DEF':'—');
+      team=info.team||'';
       const inj=info.injury_status||info.status||null;
       const unhealthy=['Questionable','Doubtful','Out','Injured Reserve','IR','PUP','Suspended','NFI','DNR','NA'];
-      const injuryStatus=unhealthy.includes(inj)?inj:null;
-      map.set(id,{id,full_name:info.full_name||info.last_name||`Player ${id}`,position:info.position||(id.length<=4?'DEF':'—'),team:info.team||'',injuryStatus,myLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
+      injuryStatus=unhealthy.includes(inj)?inj:null;
+      key=unifiedPlayerKey(full_name,team,position)||('sl:'+p);
+    }else{
+      full_name=p.name;position=p.position;team=p.team;injuryStatus=p.injuryStatus||null;
+      key=unifiedPlayerKey(full_name,team,position)||('yh:'+p.player_key);
     }
-    return map.get(id);
+    if(!map.has(key)){
+      map.set(key,{id:key,full_name,position,team,injuryStatus,myLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
+    }
+    const e=map.get(key);
+    if(injuryStatus&&!e.injuryStatus)e.injuryStatus=injuryStatus;
+    return e;
   }
+  // Points key — Sleeper uses string id directly, Yahoo uses player_key on the obj.
+  const ptsKey=p=>typeof p==='string'?p:p.player_key;
+  // Projections — Sleeper-only (Yahoo's projection lives at the team level via scoreboard, not per-player here).
+  const projForPlayer=p=>(typeof p==='string'&&!isHist&&hasProj)?projPts(p):null;
   valid.forEach(lg=>{
     const ctx=leagueContexts.find(c=>c.leagueName===lg.leagueName);
-    lg.myPlayers.forEach(id=>{const p=ensure(id);p.myLeagues.push(lg.leagueName);const pts=ctx?.myPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
-    lg.oppPlayers.forEach(id=>{const p=ensure(id);p.againstLeagues.push(lg.leagueName);const pts=ctx?.oppPP[id]??null,proj=(!isHist&&hasProj)?projPts(id):null;if(pts!==null||proj!==null)p.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};});
+    lg.myPlayers.forEach(p=>{
+      const e=ensure(p);
+      if(!e.myLeagues.includes(lg.leagueName))e.myLeagues.push(lg.leagueName);
+      const k=ptsKey(p);const pts=ctx?.myPP[k]??null,proj=projForPlayer(p);
+      if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
+    });
+    lg.oppPlayers.forEach(p=>{
+      const e=ensure(p);
+      if(!e.againstLeagues.includes(lg.leagueName))e.againstLeagues.push(lg.leagueName);
+      const k=ptsKey(p);const pts=ctx?.oppPP[k]??null,proj=projForPlayer(p);
+      if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
+    });
   });
   const cheerFor=[],conflicted=[],enemies=[];
   map.forEach(p=>{
@@ -1274,9 +1590,8 @@ function consumeYahooReturnParam(){
 
 (async()=>{
   consumeYahooReturnParam();
-  // Run Yahoo status check in parallel with normal Sleeper bootstrap.
-  // It only updates the setup-panel UI, so it's safe to run while loading.
-  checkYahooStatus();
+  // Yahoo status must resolve before loadData() — its merge step gates on yahooConnected.
+  await checkYahooStatus();
   const saved=localStorage.getItem(USER_KEY);
   if(saved){document.getElementById('username-input').value=saved;await run(saved);}
   else showSetup();
