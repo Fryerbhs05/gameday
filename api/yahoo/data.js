@@ -146,6 +146,13 @@ module.exports = async (req, res) => {
       url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${encodeURIComponent(
         req.query.team_key
       )}/roster${weekParam}?format=json`;
+    } else if (endpoint === 'roster_stats' && req.query.team_key) {
+      // Roster + per-player stats (points) for a given week.
+      // Yahoo composite resource: team/{key}/roster;week=N/players/stats
+      const weekParam = week ? `;week=${week}` : '';
+      url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${encodeURIComponent(
+        req.query.team_key
+      )}/roster${weekParam}/players/stats?format=json`;
     } else {
       res.status(400).json({ error: 'Unknown endpoint or missing parameters' });
       return;
