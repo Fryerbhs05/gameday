@@ -1260,22 +1260,26 @@ async function loadYahooLeague(yLeague, week, isHist) {
 }
 
 async function loadYahooLeagueData(season, week, isHist) {
-  if (!yahooConnected) return { results: [], contexts: [], debugLeagues: [] };
+  console.log('[yahoo] loadYahooLeagueData start', { season, week, yahooConnected });
+  if (!yahooConnected) { console.log('[yahoo] not connected — skipping'); return { results: [], contexts: [], debugLeagues: [] }; }
   let leaguesJson;
   try {
     leaguesJson = await yhFetch('endpoint=leagues&season=' + encodeURIComponent(season));
+    console.log('[yahoo] leagues raw response:', leaguesJson);
   } catch (e) {
-    console.warn('Yahoo leagues fetch failed:', e.message);
+    console.warn('[yahoo] leagues fetch failed:', e.message);
     return { results: [], contexts: [], debugLeagues: [] };
   }
   const yLeagues = parseYahooLeagues(leaguesJson, season);
-  if (!yLeagues.length) return { results: [], contexts: [], debugLeagues: [] };
+  console.log('[yahoo] parsed leagues:', yLeagues);
+  if (!yLeagues.length) { console.warn('[yahoo] zero leagues parsed for season', season); return { results: [], contexts: [], debugLeagues: [] }; }
   const out = await Promise.all(yLeagues.map(yl => loadYahooLeague(yl, week, isHist).catch(e => {
-    console.warn('Yahoo league failed:', yl.name, e.message);
+    console.warn('[yahoo] league failed:', yl.name, e.message);
     return null;
   })));
   const results = [], contexts = [], debugLeagues = [];
   out.forEach(o => { if (!o) return; if (o.result) results.push(o.result); if (o.ctx) contexts.push(o.ctx); if (o.debug) debugLeagues.push(o.debug); });
+  console.log('[yahoo] final merge:', { results: results.length, contexts: contexts.length });
   return { results, contexts, debugLeagues };
 }
 
