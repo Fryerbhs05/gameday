@@ -1031,10 +1031,17 @@ function yhEach(obj, fn) {
   Object.keys(obj).forEach(k => { if (/^\d+$/.test(k)) fn(obj[k], k); });
 }
 
-// Collapse arrays of single-key objects [{a:1},{b:2}] into one object {a:1,b:2}.
+// Collapse Yahoo metadata into a single flat object, regardless of which
+// of three shapes Yahoo decided to use today:
+//   1) array of single-key objects: [{a:1},{b:2}] → {a:1,b:2}
+//   2) array containing one flat object: [{a:1,b:2}] → {a:1,b:2}
+//   3) a plain flat object: {a:1,b:2} → {a:1,b:2}
 function yhFlatten(arr) {
+  if (!arr) return {};
+  if (!Array.isArray(arr)) {
+    return (typeof arr === 'object') ? { ...arr } : {};
+  }
   const out = {};
-  if (!Array.isArray(arr)) return out;
   arr.forEach(item => {
     if (Array.isArray(item)) Object.assign(out, yhFlatten(item));
     else if (item && typeof item === 'object') Object.assign(out, item);
