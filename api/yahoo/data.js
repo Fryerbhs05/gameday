@@ -148,11 +148,16 @@ module.exports = async (req, res) => {
       )}/roster${weekParam}?format=json`;
     } else if (endpoint === 'roster_stats' && req.query.team_key) {
       // Roster + per-player stats (points) for a given week.
-      // Yahoo composite resource: team/{key}/roster;week=N/players/stats
+      // Yahoo composite resource: team/{key}/roster;week=N/players/stats;type=week;week=N
+      // The roster's ;week=N selects which players were rostered that week.
+      // The stats sub-resource needs its OWN ;type=week;week=N filter, otherwise
+      // Yahoo defaults to the current period — which during off-season or for
+      // historical seasons returns zero points across the board.
       const weekParam = week ? `;week=${week}` : '';
+      const statsParam = week ? `;type=week;week=${week}` : '';
       url = `https://fantasysports.yahooapis.com/fantasy/v2/team/${encodeURIComponent(
         req.query.team_key
-      )}/roster${weekParam}/players/stats?format=json`;
+      )}/roster${weekParam}/players/stats${statsParam}?format=json`;
     } else {
       res.status(400).json({ error: 'Unknown endpoint or missing parameters' });
       return;
