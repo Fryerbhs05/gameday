@@ -1193,9 +1193,21 @@ function parseYahooRosterStats(json) {
     const pArr = pw?.player;
     if (!Array.isArray(pArr)) return;
     const meta = yhFlatten(pArr[0]);
-    const extras = Array.isArray(pArr[1]) ? pArr[1] : {};
-    const ptsObj = extras.player_points || {};
-    pp[meta.player_key] = parseFloat(ptsObj.total) || 0;
+    // player_points may live at pArr[1], pArr[2], or wrapped inside an array
+    // sibling depending on whether Yahoo also returned player_stats. Scan all
+    // siblings instead of trusting a fixed index — historical responses in
+    // particular vary in shape.
+    let ptsObj = null;
+    for (let i = 1; i < pArr.length && !ptsObj; i++) {
+      const sib = pArr[i];
+      if (!sib) continue;
+      if (sib.player_points) { ptsObj = sib.player_points; break; }
+      if (Array.isArray(sib)) {
+        const hit = sib.find(s => s && s.player_points);
+        if (hit) { ptsObj = hit.player_points; break; }
+      }
+    }
+    pp[meta.player_key] = ptsObj ? (parseFloat(ptsObj.total) || 0) : 0;
   });
   return pp;
 }
