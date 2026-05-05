@@ -267,6 +267,25 @@
     .yahoo-disconnect { background: transparent; border: none; color: var(--text-hint); font-family: var(--fm); font-size: 0.6rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; letter-spacing: 0.04em; padding: 0; margin-left: 6px; }
     .yahoo-disconnect:hover { color: var(--text); }
 
+    /* Provider-card grid — multi-platform setup screen */
+    .provider-card-grid { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 14px; }
+    .provider-card { background: var(--bg-deep); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; transition: border-color 0.2s; }
+    .provider-card.connected { border-color: var(--cheer); background: rgba(90,172,130,0.04); }
+    .provider-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .provider-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; color: #fff; font-family: var(--fm); font-size: 0.72rem; font-weight: 900; flex-shrink: 0; }
+    .provider-card-title { font-family: var(--fm); font-size: 0.72rem; font-weight: 700; color: var(--text); letter-spacing: 0.04em; text-transform: uppercase; }
+    .provider-card-body { display: flex; flex-direction: column; gap: 8px; }
+    .provider-card-body .signin-input-row { margin: 0; }
+    .provider-input { flex: 1; }
+    .provider-connect-btn { white-space: nowrap; }
+    .provider-status { display: flex; align-items: center; gap: 8px; font-family: var(--fm); font-size: 0.7rem; color: var(--text); letter-spacing: 0.02em; }
+    .provider-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cheer); flex-shrink: 0; }
+    .btn-provider-disconnect { align-self: flex-start; background: transparent; border: none; color: var(--text-hint); font-family: var(--fm); font-size: 0.6rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; letter-spacing: 0.04em; padding: 0; }
+    .btn-provider-disconnect:hover { color: var(--text); }
+    .provider-error { color: var(--enemy); font-family: var(--fm); font-size: 0.65rem; margin: 0; }
+    #continue-btn { width: 100%; padding: 11px; font-family: var(--fm); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; border: none; border-radius: 6px; cursor: pointer; transition: background 0.15s, color 0.15s, opacity 0.15s; background: var(--gold); color: var(--bg-card); }
+    #continue-btn:disabled { background: var(--border); color: var(--text-ghost); cursor: not-allowed; opacity: 0.7; }
+
     /* Toast for OAuth round-trip confirmations */
     .yahoo-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--cheer); color: var(--bg-card); font-family: var(--fm); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 10px 18px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); z-index: 9999; opacity: 1; transition: opacity 0.3s; animation: yahoo-toast-in 0.3s ease-out; }
     .yahoo-toast.toast-error { background: var(--enemy); }
@@ -589,26 +608,12 @@
   <div class="lp-signin">
     <div class="signin-card">
       <h3>Get started</h3>
-      <p class="signin-card-sub">Enter your Sleeper username</p>
-      <div class="signin-input-row">
-        <input type="text" class="signin-input" id="username-input" placeholder="sleeper username" autocomplete="off" />
-        <button class="btn btn-gold btn-sm" onclick="handleStart()">Load</button>
-      </div>
-      <p id="setup-error" style="color:var(--enemy);margin-top:8px;display:none;font-family:var(--fm);font-size:0.72rem;"></p>
+      <p class="signin-card-sub">Connect at least one fantasy platform</p>
 
-      <!-- Yahoo connect — parallel to Sleeper. Either button or status shows, never both. -->
-      <div class="or-row"><div class="or-line"></div><div class="or-txt">also connect</div><div class="or-line"></div></div>
-      <div class="yahoo-row">
-        <button class="btn-yahoo" id="yahoo-connect-btn" onclick="handleConnectYahoo()" style="display:none">
-          <span class="btn-yahoo-icon">Y!</span>
-          <span>Connect Yahoo</span>
-        </button>
-        <div class="yahoo-status" id="yahoo-status" style="display:none">
-          <span class="yahoo-status-dot"></span>
-          <span>Yahoo connected</span>
-          <button class="yahoo-disconnect" onclick="handleDisconnectYahoo()">disconnect</button>
-        </div>
-      </div>
+      <!-- Provider cards (Sleeper, Yahoo) populated by renderSetupProviders() -->
+      <div id="provider-card-grid" class="provider-card-grid"></div>
+
+      <button id="continue-btn" onclick="handleContinue()" disabled>Continue</button>
 
       <div class="or-row"><div class="or-line"></div><div class="or-txt">or try it first</div><div class="or-line"></div></div>
       <button class="btn-demo-full" onclick="handleDemo()">Try demo mode — 4 leagues, live scoring</button>
@@ -891,7 +896,7 @@ function hideAll(){
   document.getElementById('week-label').style.display='none';
   document.getElementById('header-tagline').style.display='block';
 }
-function showSetup(){hideAll();isDemoMode=false;currentUser=null;document.getElementById('setup-panel').style.display='flex';}
+function showSetup(){hideAll();isDemoMode=false;currentUser=null;document.getElementById('setup-panel').style.display='flex';try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}}
 function showLoading(msg){hideAll();document.getElementById('loading-panel').style.display='flex';document.getElementById('loading-msg').textContent=msg||'Loading...';}
 function setLoading(msg){document.getElementById('loading-msg').textContent=msg;}
 function showError(msg){hideAll();document.getElementById('error-panel').style.display='flex';document.getElementById('error-msg').textContent=msg;}
@@ -1463,16 +1468,10 @@ async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWee
 function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');hideLastRefreshed();}
 async function handleRefresh(){if(isDemoMode){handleDemo();return;}if(isAnyProviderConnected())await run();}
 async function handleChangeUser(){
-  // Disconnect all providers cleanly. Yahoo's disconnect redirects (server-side cookie clear);
-  // if Yahoo isn't connected, we can do a local cleanup and show setup directly.
+  // Navigate back to the setup screen WITHOUT disconnecting. Users can selectively
+  // disconnect individual providers from inside their respective cards, or add a
+  // second provider alongside what they already have connected.
   isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();
-  if(connectionState.yahoo.connected){
-    // Sleeper teardown happens locally before the redirect; bootstrap will see nothing connected on return.
-    await PROVIDERS.sleeper.disconnect();
-    await PROVIDERS.yahoo.disconnect();
-    return;
-  }
-  await PROVIDERS.sleeper.disconnect();
   showSetup();
 }
 async function run(){
@@ -1537,7 +1536,6 @@ function hideLastRefreshed(){
   if(el){el.textContent='';el.classList.remove('visible');}
 }
 
-document.getElementById('username-input').addEventListener('keydown',e=>{if(e.key==='Enter')handleStart();});
 buildWeekSelect(1);buildSeasonSelect(THIS_YR);
 
 /* ═══════════════════════════════════════════════════════════
@@ -1767,30 +1765,9 @@ async function handleContinue(){
 // These bridge to the new PROVIDERS registry until the setup screen
 // is migrated fully to renderSetupProviders().
 // ─────────────────────────────────────────────────────────────────
-// Sleeper Load button + Enter-key handler — bridges to PROVIDERS.sleeper.connect
-// then runs the board. Replaces the legacy inline handleStart().
-async function handleStart(){
-  const inp=document.getElementById('username-input');
-  const err=document.getElementById('setup-error');
-  if(err){err.style.display='none';err.textContent='';}
-  const val=inp?.value?.trim()||'';
-  if(!val){if(err){err.textContent='Enter a Sleeper username.';err.style.display='block';}return;}
-  const res=await PROVIDERS.sleeper.connect(val);
-  if(!res.success){if(err){err.textContent=res.error||'Connect failed.';err.style.display='block';}return;}
-  await run();
-}
-
 async function checkYahooStatus(){
   try{await PROVIDERS.yahoo.checkStatus();}catch(e){console.warn('yahoo status check failed:',e.message);}
-  // Toggle the hard-coded yahoo button/status row in the signin card.
-  const btn=document.getElementById('yahoo-connect-btn');
-  const status=document.getElementById('yahoo-status');
-  const connected=!!connectionState.yahoo?.connected;
-  if(btn)btn.style.display=connected?'none':'inline-flex';
-  if(status)status.style.display=connected?'flex':'none';
 }
-async function handleConnectYahoo(){await PROVIDERS.yahoo.connect();}
-async function handleDisconnectYahoo(){await PROVIDERS.yahoo.disconnect();}
 
 function showYahooToast(msg, isError){
   const t = document.createElement('div');
@@ -1817,18 +1794,17 @@ function consumeYahooReturnParam(){
 }
 
 (async()=>{
+  // Detect whether this load is a Yahoo OAuth callback BEFORE the param is stripped.
+  const cameFromYahooOAuth=new URLSearchParams(window.location.search).get('yahoo')==='connected';
   consumeYahooReturnParam();
   // Rehydrate each provider's connection state from local persistence.
   Object.values(PROVIDERS).forEach(p=>{try{p.rehydrate&&p.rehydrate();}catch(e){console.warn(p.id+' rehydrate failed:',e.message);}});
   // Yahoo status must resolve before loadData() — its merge step gates on yahooConnected.
-  // This also toggles the signin-card Yahoo button/status row visibility.
   await checkYahooStatus();
-  // Reflect Sleeper rehydration into the legacy username input on the setup screen.
-  const slUser=connectionState.sleeper?.identity;
-  const inp=document.getElementById('username-input');
-  if(slUser&&inp)inp.value=slUser;
-  // Auto-run if any provider is already connected (Sleeper username saved or Yahoo cookie valid).
-  if(isAnyProviderConnected())await run();
+  // OAuth callback: stay on setup so user can also connect Sleeper before continuing.
+  // Otherwise: auto-run if any provider is already connected, else show setup.
+  if(cameFromYahooOAuth)showSetup();
+  else if(isAnyProviderConnected())await run();
   else showSetup();
 })();
 </script>
