@@ -1767,6 +1767,19 @@ async function handleContinue(){
 // These bridge to the new PROVIDERS registry until the setup screen
 // is migrated fully to renderSetupProviders().
 // ─────────────────────────────────────────────────────────────────
+// Sleeper Load button + Enter-key handler — bridges to PROVIDERS.sleeper.connect
+// then runs the board. Replaces the legacy inline handleStart().
+async function handleStart(){
+  const inp=document.getElementById('username-input');
+  const err=document.getElementById('setup-error');
+  if(err){err.style.display='none';err.textContent='';}
+  const val=inp?.value?.trim()||'';
+  if(!val){if(err){err.textContent='Enter a Sleeper username.';err.style.display='block';}return;}
+  const res=await PROVIDERS.sleeper.connect(val);
+  if(!res.success){if(err){err.textContent=res.error||'Connect failed.';err.style.display='block';}return;}
+  await run();
+}
+
 async function checkYahooStatus(){
   try{await PROVIDERS.yahoo.checkStatus();}catch(e){console.warn('yahoo status check failed:',e.message);}
   // Toggle the hard-coded yahoo button/status row in the signin card.
