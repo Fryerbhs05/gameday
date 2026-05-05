@@ -793,7 +793,28 @@
 <!-- ══ SCRIPT ══════════════════════════════════════════════════ -->
 <script>
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#06b6d4','#a855f7','#f97316','#ec4899','#6366f1','#84cc16','#14b8a6','#f43f5e'];
-let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),currentUser=null,colorMap={},activeFilters=new Set();
+let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},activeFilters=new Set(),isAnyProviderLoaded=false;
+
+// ─────────────────────────────────────────────────────────────────
+// Provider registry — single source of truth for connection state.
+// Adding a provider (ESPN, etc.) means adding an entry to PROVIDERS
+// further down. Core flows (loadData, setup screen, bootstrap) loop
+// over the registry; nothing else special-cases a specific provider.
+// ─────────────────────────────────────────────────────────────────
+const SLEEPER_LS_KEY='gd_sleeper_username';
+const connectionState={
+  sleeper:{connected:false,identity:null,displayName:null},
+  yahoo:  {connected:false,identity:null,displayName:null},
+};
+function getConnectedProviders(){return Object.keys(PROVIDERS).filter(id=>connectionState[id]?.connected);}
+function isAnyProviderConnected(){return getConnectedProviders().length>0;}
+function getPrimaryDisplayName(){
+  for(const id of Object.keys(PROVIDERS)){
+    const s=connectionState[id];
+    if(s?.connected){const dn=s.displayName||s.identity;if(dn)return dn;}
+  }
+  return 'Conflicted';
+}
 
 function assignColor(n){if(!colorMap[n])colorMap[n]=LC_COLORS[Object.keys(colorMap).length%LC_COLORS.length];return colorMap[n];}
 const lc=n=>colorMap[n]||'#5a6a82';
@@ -1278,26 +1299,6 @@ async function loadYahooLeague(yLeague, week, isHist) {
   };
 }
 
-async function loadYahooLeagueData(season, week, isHist) {
-  if (!yahooConnected) return { results: [], contexts: [], debugLeagues: [] };
-  let leaguesJson;
-  try {
-    leaguesJson = await yhFetch('endpoint=leagues&season=' + encodeURIComponent(season));
-  } catch (e) {
-    console.warn('Yahoo leagues fetch failed:', e.message);
-    return { results: [], contexts: [], debugLeagues: [] };
-  }
-  const yLeagues = parseYahooLeagues(leaguesJson, season);
-  if (!yLeagues.length) return { results: [], contexts: [], debugLeagues: [] };
-  const out = await Promise.all(yLeagues.map(yl => loadYahooLeague(yl, week, isHist).catch(e => {
-    console.warn('Yahoo league failed:', yl.name, e.message);
-    return null;
-  })));
-  const results = [], contexts = [], debugLeagues = [];
-  out.forEach(o => { if (!o) return; if (o.result) results.push(o.result); if (o.ctx) contexts.push(o.ctx); if (o.debug) debugLeagues.push(o.debug); });
-  return { results, contexts, debugLeagues };
-}
-
 // Unified key — collapses Sleeper + Yahoo entries for the same player into one card.
 function unifiedPlayerKey(name, team, pos) {
   const P = (pos || '').toUpperCase();
@@ -1312,72 +1313,57 @@ function unifiedPlayerKey(name, team, pos) {
   return N + '|' + T + '|' + P;
 }
 
-async function loadData(username){
-  showLoading('Looking up Sleeper user...');
-  const user=await getUser(username);
-  if(!user?.user_id)throw new Error(`Username "${username}" not found on Sleeper.`);
-  setLoading('Fetching NFL state...');
+async function loadData(){
+  if(!isAnyProviderConnected()){
+    return{noData:true,noDataReason:'No providers connected.',cheerFor:[],conflicted:[],enemies:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
+  }
+  showLoading('Fetching NFL state...');
   const state=await getNFLState();
   liveWeek=(state.week>=1&&state.week<=MAX_WEEK)?state.week:1;liveSeason=state.season;
-  if(!currentUser){activeWeek=liveWeek;activeSeason=liveSeason;}
-  currentUser=username;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);
-  setLoading(`Loading ${activeSeason} leagues...`);
-  let leagues=await getLeagues(user.user_id,activeSeason);let usedFallback=false;
-  if(!leagues?.length&&activeSeason===liveSeason){const prev=String(parseInt(activeSeason)-1);setLoading(`No ${activeSeason} leagues — trying ${prev}...`);leagues=await getLeagues(user.user_id,prev);if(leagues?.length){liveSeason=prev;activeSeason=prev;usedFallback=true;buildSeasonSelect(activeSeason);buildWeekSelect(activeWeek);}}
-  if(!leagues?.length)return{noData:true,noDataReason:`No leagues found for <strong>${username}</strong> in <strong>${activeSeason}</strong>. You may not have been in a league that year, or the season hasn't started yet.`,cheerFor:[],conflicted:[],enemies:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
-  setLoading(`Found ${leagues.length} league(s) — loading week ${activeWeek}...`);
+  // First-load default — if no active week/season has been chosen, use live.
+  if(!isAnyProviderLoaded){activeWeek=liveWeek;activeSeason=liveSeason;}
+  isAnyProviderLoaded=true;
+  buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);
+  const connected=getConnectedProviders();
   const isHist=isHistoricalWeek();
-  const projections=await getProjections(activeSeason,activeWeek);const hasProj=Object.keys(projections).length>0;
-  const projPts=id=>{const p=projections[id];return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null;};
-  const projSum=ids=>ids.reduce((s,id)=>s+(projPts(id)??0),0);
-  const debugLeagues=[],leagueContexts=[];
-  const results=await Promise.all(leagues.map(async lg=>{
-    const rosters=await getRosters(lg.league_id);
-    const myRoster=rosters.find(r=>r.owner_id===user.user_id||(Array.isArray(r.co_owners)&&r.co_owners.includes(user.user_id)));
-    const isCoMgr=myRoster?myRoster.owner_id!==user.user_id:false;const fmt=scoringLabel(lg);
-    if(!myRoster){debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:false,matchupFound:false,myCount:0,oppCount:0,state:'—',scoringFmt:fmt,isCoMgr:false});return null;}
-    let matchups=[];try{const raw=await getMatchups(lg.league_id,activeWeek);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
-    const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
-    const oppMatchup=myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
-    let myPlayers=[],oppPlayers=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP';
-    if(myMatchup){
-      hasMatchup=true;
-      // Use starters array as the active lineup — fall back to full players if starters empty
-      const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
-      const allMine=(myMatchup.players||myRoster.players||[]).filter(id=>id&&id!=='0');
-      myPlayers=starters.length?starters:allMine;
-      myPoints=myMatchup.points||0;myPP=myMatchup.players_points||{};
-      const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
-      // Opponent: prefer starters, fall back to their active players; strip their taxi
-      const oppTaxiIds=new Set((oppRoster?.taxi||[]).filter(Boolean));
-      const oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
-      const oppAll=(oppMatchup?(oppMatchup.players||oppRoster?.players||[]):[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
-      oppPlayers=oppStarters.length?oppStarters:oppAll;
-      oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
-      leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,hasProj?projSum(myPlayers):0,hasProj?projSum(oppPlayers):0);
-    }else{
-      // Offseason — no matchup data, show full roster (Sleeper keeps taxi separate from players)
-      myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');
-    }
-    myPlayers=myPlayers.filter(id=>id&&id!=='0');
-    oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
-    leagueContexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
-    debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr});
-    return{leagueName:lg.name,myPlayers,oppPlayers,hasMatchup,fmt};
-  }));
-  const valid=results.filter(Boolean);if(!valid.length)throw new Error('Found leagues but could not read roster data.');
-  // Yahoo merge — fold in Yahoo leagues if user has connected. Yahoo entries
-  // run through the same downstream pipeline (signal/classify/render) by
-  // matching their result/ctx/debug shape to Sleeper's.
-  if(yahooConnected){
-    setLoading('Loading Yahoo leagues...');
-    try{
-      const yh=await loadYahooLeagueData(activeSeason,activeWeek,isHist);
-      yh.results.forEach(r=>valid.push(r));
-      yh.contexts.forEach(c=>leagueContexts.push(c));
-      yh.debugLeagues.forEach(d=>debugLeagues.push(d));
-    }catch(e){console.warn('Yahoo merge failed:',e.message);}
+  // Provider-agnostic loader: runs each connected provider in parallel, concatenates results.
+  // Returns {valid, leagueContexts, debugLeagues, sleeperProjections, hasProj}.
+  async function fetchAllProviders(season,week,isHist){
+    setLoading(`Loading ${season} leagues from ${connected.map(id=>PROVIDERS[id].displayName).join(' + ')}...`);
+    const providerResults=await Promise.all(connected.map(id=>
+      PROVIDERS[id].loadLeagues(season,week,isHist).catch(e=>{
+        console.warn(`${id} loadLeagues failed:`,e.message);
+        return{results:[],contexts:[],debugLeagues:[]};
+      })
+    ));
+    const valid=[],leagueContexts=[],debugLeagues=[];
+    let sleeperProjections={},hasProj=false;
+    providerResults.forEach((pr,i)=>{
+      pr.results.forEach(r=>valid.push(r));
+      pr.contexts.forEach(c=>leagueContexts.push(c));
+      pr.debugLeagues.forEach(d=>debugLeagues.push(d));
+      if(connected[i]==='sleeper'&&pr.projections){sleeperProjections=pr.projections;hasProj=pr.hasProj||false;}
+    });
+    return{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj};
   }
+  let{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj}=await fetchAllProviders(activeSeason,activeWeek,isHist);
+  // Provider-agnostic previous-year fallback: if NO provider returned any leagues
+  // for the live season (e.g. preseason / off-season), retry once with prev year.
+  // Applies uniformly whether the user has Sleeper, Yahoo, both, or future ESPN.
+  if(!valid.length&&activeSeason===liveSeason){
+    const prev=String(parseInt(activeSeason)-1);
+    setLoading(`No ${activeSeason} leagues yet — trying ${prev}...`);
+    liveSeason=prev;activeSeason=prev;
+    buildSeasonSelect(activeSeason);buildWeekSelect(activeWeek);
+    ({valid,leagueContexts,debugLeagues,sleeperProjections,hasProj}=await fetchAllProviders(activeSeason,activeWeek,isHist));
+  }
+  // Post-load safety net: if no provider produced any leagues, show no-data.
+  if(!valid.length){
+    const dn=getPrimaryDisplayName();
+    const checked=connected.map(id=>PROVIDERS[id].displayName).join(' or ');
+    return{noData:true,noDataReason:`No leagues found for <strong>${dn}</strong> in <strong>${activeSeason}</strong> on ${checked}. You may not have been in a league that year, or the season hasn't started yet.`,cheerFor:[],conflicted:[],enemies:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
+  }
+  const projPts=id=>{const p=sleeperProjections[id];return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null;};
   const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
   const playerDB=await getPlayerDB();setLoading('Classifying players...');
   const map=new Map();
@@ -1436,7 +1422,7 @@ async function loadData(username){
     else if(cls.bucket==='conflicted')conflicted.push(p);
     else enemies.push(p);
   });
-  return{cheerFor,conflicted,enemies,noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,debugInfo:{season:activeSeason,week:activeWeek,usedFallback,isHist,hasProj,leagues:debugLeagues}};
+  return{cheerFor,conflicted,enemies,noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
 }
 
 function getDemoData(){
@@ -1469,22 +1455,33 @@ function getDemoData(){
     ]};
 }
 
-async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&currentUser)await run(currentUser);}
-async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek);updateNavUI();stopAutoRefresh();if(!isDemoMode&&currentUser)await run(currentUser);}
-async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};activeFilters.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&currentUser)await run(currentUser);}
-async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(currentUser)await run(currentUser);}
+async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
+async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
+async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};activeFilters.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
+async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(isAnyProviderConnected())await run();}
 
-async function handleStart(){const input=document.getElementById('username-input').value.trim();if(!input)return;isDemoMode=false;currentUser=null;colorMap={};activeFilters.clear();stopAutoRefresh();localStorage.setItem(USER_KEY,input);await run(input);}
 function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');hideLastRefreshed();}
-async function handleRefresh(){if(isDemoMode){handleDemo();return;}const u=localStorage.getItem(USER_KEY);if(u)await run(u);}
-function handleChangeUser(){localStorage.removeItem(USER_KEY);currentUser=null;isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();showSetup();}
-async function run(username){
+async function handleRefresh(){if(isDemoMode){handleDemo();return;}if(isAnyProviderConnected())await run();}
+async function handleChangeUser(){
+  // Disconnect all providers cleanly. Yahoo's disconnect redirects (server-side cookie clear);
+  // if Yahoo isn't connected, we can do a local cleanup and show setup directly.
+  isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();
+  if(connectionState.yahoo.connected){
+    // Sleeper teardown happens locally before the redirect; bootstrap will see nothing connected on return.
+    await PROVIDERS.sleeper.disconnect();
+    await PROVIDERS.yahoo.disconnect();
+    return;
+  }
+  await PROVIDERS.sleeper.disconnect();
+  showSetup();
+}
+async function run(){
   try{
-    renderBoard(await loadData(username),username);
+    renderBoard(await loadData(),getPrimaryDisplayName());
     lastFetchTime=Date.now();
     setLastRefreshed();
-    startAutoRefresh(username);
-  }catch(err){console.error(err);showError(err.message||'Something went wrong. Check your username and try again.');}
+    startAutoRefresh();
+  }catch(err){console.error(err);showError(err.message||'Something went wrong. Try reconnecting your providers.');}
 }
 
 /* ── Auto-refresh ─────────────────────────────────────────────── */
@@ -1493,17 +1490,17 @@ let refreshTimer  = null;
 let lastFetchTime = 0;
 
 function shouldAutoRefresh(){
-  return !isDemoMode && currentUser && !isHistoricalWeek();
+  return !isDemoMode && isAnyProviderConnected() && !isHistoricalWeek();
 }
 
-function startAutoRefresh(username){
+function startAutoRefresh(){
   stopAutoRefresh();
   if(!shouldAutoRefresh())return;
   // Check every 10s whether it's time to refresh — keeps logic simple
   refreshTimer = setInterval(async()=>{
     if(document.hidden)return; // tab not visible — skip
     if(Date.now()-lastFetchTime >= REFRESH_MS){
-      try{renderBoard(await loadData(username),username);lastFetchTime=Date.now();setLastRefreshed();}
+      try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();setLastRefreshed();}
       catch(e){console.warn('Auto-refresh failed silently:',e.message);}
     }
   }, 10000);
@@ -1516,9 +1513,9 @@ function stopAutoRefresh(){
 // On tab return — if data is stale (>60s), fetch immediately
 document.addEventListener('visibilitychange',async()=>{
   if(document.hidden)return;
-  if(!shouldAutoRefresh()||!currentUser)return;
+  if(!shouldAutoRefresh())return;
   if(Date.now()-lastFetchTime >= REFRESH_MS){
-    try{renderBoard(await loadData(currentUser),currentUser);lastFetchTime=Date.now();setLastRefreshed();}
+    try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();setLastRefreshed();}
     catch(e){console.warn('Tab-return refresh failed:',e.message);}
   }
 });
@@ -1546,41 +1543,222 @@ buildWeekSelect(1);buildSeasonSelect(THIS_YR);
 /* ═══════════════════════════════════════════════════════════
    YAHOO CONNECTION — login state + connect/disconnect handlers
 ═══════════════════════════════════════════════════════════ */
-let yahooConnected = false;
+// ─────────────────────────────────────────────────────────────────
+// PROVIDERS — each entry implements a fixed interface so the core
+// flow stays provider-agnostic. To add ESPN later, add an entry.
+// ─────────────────────────────────────────────────────────────────
+const PROVIDERS={
+  sleeper:{
+    id:'sleeper',
+    displayName:'Sleeper',
+    accentColor:'#06b6d4',
+    connectionType:'username',
 
-// Ping the authenticated proxy to see if our session cookie is still valid.
-// games is the cheapest endpoint — just lists NFL game years for this user.
-async function checkYahooStatus(){
-  const btn = document.getElementById('yahoo-connect-btn');
-  const status = document.getElementById('yahoo-status');
-  try{
-    const r = await fetch('/api/yahoo/data?endpoint=games',{credentials:'include'});
-    if(r.ok){
-      yahooConnected = true;
-      btn.style.display = 'none';
-      status.style.display = 'flex';
-    }else{
-      yahooConnected = false;
-      btn.style.display = 'flex';
-      status.style.display = 'none';
-    }
-  }catch(e){
-    // Network failure — show button so user can still try.
-    yahooConnected = false;
-    btn.style.display = 'flex';
-    status.style.display = 'none';
+    async checkStatus(){
+      // No server-side session for Sleeper — "connected" just means we have a stored username.
+      // rehydrate() set the identity if a saved username exists; we don't re-validate here
+      // because that would trigger a network call on every page load.
+      const u=connectionState.sleeper.identity;
+      const s={connected:!!u,identity:u,displayName:u};
+      connectionState.sleeper={...connectionState.sleeper,connected:s.connected,displayName:s.displayName};
+      return s;
+    },
+
+    async connect(input){
+      const username=String(input||'').trim();
+      if(!username)return{success:false,error:'Username is required.'};
+      try{
+        const user=await getUser(username);
+        if(!user?.user_id)return{success:false,error:`Username "${username}" not found on Sleeper.`};
+        connectionState.sleeper={connected:true,identity:username,displayName:username};
+        this.persist();
+        return{success:true};
+      }catch(e){
+        return{success:false,error:e.message||'Could not reach Sleeper.'};
+      }
+    },
+
+    async disconnect(){
+      connectionState.sleeper={connected:false,identity:null,displayName:null};
+      try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+    },
+
+    async loadLeagues(season,week,isHist){
+      const username=connectionState.sleeper.identity;
+      if(!username)return{results:[],contexts:[],debugLeagues:[]};
+      const user=await getUser(username);
+      if(!user?.user_id)return{results:[],contexts:[],debugLeagues:[]};
+      const leagues=await getLeagues(user.user_id,season);
+      // Note: previous-year fallback now lives in loadData() so it applies
+      // uniformly across all connected providers (Yahoo, Sleeper, future ESPN).
+      if(!leagues?.length)return{results:[],contexts:[],debugLeagues:[]};
+      const projections=await getProjections(season,week);const hasProj=Object.keys(projections).length>0;
+      const projPts=id=>{const p=projections[id];return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null;};
+      const projSum=ids=>ids.reduce((s,id)=>s+(projPts(id)??0),0);
+      const debugLeagues=[],contexts=[];
+      const results=await Promise.all(leagues.map(async lg=>{
+        const rosters=await getRosters(lg.league_id);
+        const myRoster=rosters.find(r=>r.owner_id===user.user_id||(Array.isArray(r.co_owners)&&r.co_owners.includes(user.user_id)));
+        const isCoMgr=myRoster?myRoster.owner_id!==user.user_id:false;const fmt=scoringLabel(lg);
+        if(!myRoster){debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:false,matchupFound:false,myCount:0,oppCount:0,state:'—',scoringFmt:fmt,isCoMgr:false,provider:'sleeper'});return null;}
+        let matchups=[];try{const raw=await getMatchups(lg.league_id,week);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
+        const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
+        const oppMatchup=myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
+        let myPlayers=[],oppPlayers=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP';
+        if(myMatchup){
+          hasMatchup=true;
+          const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
+          const allMine=(myMatchup.players||myRoster.players||[]).filter(id=>id&&id!=='0');
+          myPlayers=starters.length?starters:allMine;
+          myPoints=myMatchup.points||0;myPP=myMatchup.players_points||{};
+          const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
+          const oppTaxiIds=new Set((oppRoster?.taxi||[]).filter(Boolean));
+          const oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
+          const oppAll=(oppMatchup?(oppMatchup.players||oppRoster?.players||[]):[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
+          oppPlayers=oppStarters.length?oppStarters:oppAll;
+          oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
+          leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,hasProj?projSum(myPlayers):0,hasProj?projSum(oppPlayers):0);
+        }else{
+          myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');
+        }
+        myPlayers=myPlayers.filter(id=>id&&id!=='0');
+        oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
+        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
+        debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
+        return{leagueName:lg.name,myPlayers,oppPlayers,hasMatchup,fmt,provider:'sleeper'};
+      }));
+      const valid=results.filter(Boolean);
+      if(leagues?.length&&!valid.length)throw new Error('Found Sleeper leagues but could not read roster data.');
+      return{results:valid,contexts,debugLeagues,projections,hasProj};
+    },
+
+    persist(){try{localStorage.setItem(SLEEPER_LS_KEY,connectionState.sleeper.identity||'');}catch(e){}},
+
+    rehydrate(){
+      try{
+        // Migrate from legacy key if present.
+        const legacy=localStorage.getItem(USER_KEY);
+        const u=localStorage.getItem(SLEEPER_LS_KEY)||legacy;
+        if(u){
+          connectionState.sleeper={connected:true,identity:u,displayName:u};
+          if(legacy&&!localStorage.getItem(SLEEPER_LS_KEY))localStorage.setItem(SLEEPER_LS_KEY,u);
+        }
+      }catch(e){}
+    },
+
+    renderConnectCard(rootEl){
+      if(connectionState.sleeper.connected){
+        rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>Connected as <strong>${connectionState.sleeper.identity}</strong></span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('sleeper')">Disconnect</button>`;
+      }else{
+        rootEl.innerHTML=`<input type="text" class="signin-input provider-input" id="sleeper-input" placeholder="sleeper username" autocomplete="off" /><button class="btn btn-gold btn-sm provider-connect-btn" onclick="handleProviderConnect('sleeper')">Connect</button><p class="provider-error" id="sleeper-error" style="display:none"></p>`;
+        setTimeout(()=>{const inp=document.getElementById('sleeper-input');if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter')handleProviderConnect('sleeper');});},0);
+      }
+    },
+  },
+
+  yahoo:{
+    id:'yahoo',
+    displayName:'Yahoo',
+    accentColor:'#7B0099',
+    connectionType:'oauth',
+
+    async checkStatus(){
+      // Ping the authenticated proxy to see if our session cookie is still valid.
+      // games is the cheapest endpoint — just lists NFL game years for this user.
+      try{
+        const r=await fetch('/api/yahoo/data?endpoint=games',{credentials:'include'});
+        if(r.ok){
+          connectionState.yahoo={connected:true,identity:'yahoo-session',displayName:'Yahoo User'};
+          return connectionState.yahoo;
+        }
+      }catch(e){/* Network failure — fall through to disconnected */}
+      connectionState.yahoo={connected:false,identity:null,displayName:null};
+      return connectionState.yahoo;
+    },
+
+    async connect(){
+      // Full-page redirect to our OAuth init endpoint. Yahoo will eventually
+      // bounce back to /?yahoo=connected once tokens are stored.
+      window.location.href='/api/auth/yahoo';
+    },
+
+    async disconnect(){
+      // logout.js clears the cookie server-side and redirects to /?yahoo=disconnected.
+      window.location.href='/api/auth/logout';
+    },
+
+    async loadLeagues(season,week,isHist){
+      let leaguesJson;
+      try{leaguesJson=await yhFetch('endpoint=leagues&season='+encodeURIComponent(season));}
+      catch(e){console.warn('Yahoo leagues fetch failed:',e.message);return{results:[],contexts:[],debugLeagues:[]};}
+      const yLeagues=parseYahooLeagues(leaguesJson,season);
+      if(!yLeagues.length)return{results:[],contexts:[],debugLeagues:[]};
+      const out=await Promise.all(yLeagues.map(yl=>loadYahooLeague(yl,week,isHist).catch(e=>{console.warn('Yahoo league failed:',yl.name,e.message);return null;})));
+      const results=[],contexts=[],debugLeagues=[];
+      out.forEach(o=>{if(!o)return;if(o.result){o.result.provider='yahoo';results.push(o.result);}if(o.ctx)contexts.push(o.ctx);if(o.debug){o.debug.provider='yahoo';debugLeagues.push(o.debug);}});
+      return{results,contexts,debugLeagues};
+    },
+
+    persist(){/* server-managed cookie — no client persistence */},
+    rehydrate(){/* server-managed cookie — no client persistence */},
+
+    renderConnectCard(rootEl){
+      if(connectionState.yahoo.connected){
+        rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>Yahoo connected</span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('yahoo')">Disconnect</button>`;
+      }else{
+        rootEl.innerHTML=`<button class="btn-yahoo provider-connect-btn" onclick="handleProviderConnect('yahoo')"><span class="btn-yahoo-icon">Y!</span><span>Connect Yahoo</span></button>`;
+      }
+    },
+  },
+};
+
+// Render the setup screen's provider cards by mapping over the registry.
+function renderSetupProviders(){
+  const grid=document.getElementById('provider-card-grid');
+  if(!grid)return;
+  grid.innerHTML='';
+  Object.values(PROVIDERS).forEach(p=>{
+    const card=document.createElement('div');
+    card.className='provider-card'+(connectionState[p.id]?.connected?' connected':'');
+    card.style.setProperty('--accent',p.accentColor);
+    const head=document.createElement('div');head.className='provider-card-header';
+    head.innerHTML=`<span class="provider-icon" style="background:${p.accentColor}">${p.displayName.charAt(0)}</span><span class="provider-card-title">${p.displayName}</span>`;
+    const body=document.createElement('div');body.className='provider-card-body';
+    p.renderConnectCard(body);
+    card.appendChild(head);card.appendChild(body);
+    grid.appendChild(card);
+  });
+  const cont=document.getElementById('continue-btn');
+  if(cont)cont.disabled=!isAnyProviderConnected();
+}
+
+async function handleProviderConnect(id){
+  const p=PROVIDERS[id];if(!p)return;
+  if(p.connectionType==='username'){
+    const inp=document.getElementById(id+'-input');
+    const err=document.getElementById(id+'-error');
+    if(err){err.style.display='none';err.textContent='';}
+    const val=inp?.value?.trim()||'';
+    const res=await p.connect(val);
+    if(res.success)renderSetupProviders();
+    else if(err){err.textContent=res.error||'Connect failed.';err.style.display='block';}
+  }else{
+    // oauth / cookies — provider handles its own flow (typically a redirect).
+    await p.connect();
   }
 }
 
-function handleConnectYahoo(){
-  // Full-page redirect to our OAuth init endpoint. Yahoo will eventually
-  // bounce back to /?yahoo=connected once tokens are stored.
-  window.location.href = '/api/auth/yahoo';
+async function handleProviderDisconnect(id){
+  const p=PROVIDERS[id];if(!p)return;
+  await p.disconnect();
+  // Yahoo redirects, so this only matters for non-redirect providers.
+  renderSetupProviders();
 }
 
-function handleDisconnectYahoo(){
-  // logout.js clears the cookie server-side and redirects to /?yahoo=disconnected.
-  window.location.href = '/api/auth/logout';
+async function handleContinue(){
+  if(!isAnyProviderConnected())return;
+  isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();
+  await run();
 }
 
 function showYahooToast(msg, isError){
