@@ -1761,6 +1761,24 @@ async function handleContinue(){
   await run();
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Compatibility shims — older inline HTML in the signin card calls
+// checkYahooStatus / handleConnectYahoo / handleDisconnectYahoo by name.
+// These bridge to the new PROVIDERS registry until the setup screen
+// is migrated fully to renderSetupProviders().
+// ─────────────────────────────────────────────────────────────────
+async function checkYahooStatus(){
+  try{await PROVIDERS.yahoo.checkStatus();}catch(e){console.warn('yahoo status check failed:',e.message);}
+  // Toggle the hard-coded yahoo button/status row in the signin card.
+  const btn=document.getElementById('yahoo-connect-btn');
+  const status=document.getElementById('yahoo-status');
+  const connected=!!connectionState.yahoo?.connected;
+  if(btn)btn.style.display=connected?'none':'inline-flex';
+  if(status)status.style.display=connected?'flex':'none';
+}
+async function handleConnectYahoo(){await PROVIDERS.yahoo.connect();}
+async function handleDisconnectYahoo(){await PROVIDERS.yahoo.disconnect();}
+
 function showYahooToast(msg, isError){
   const t = document.createElement('div');
   t.className = 'yahoo-toast' + (isError ? ' toast-error' : '');
@@ -1787,10 +1805,17 @@ function consumeYahooReturnParam(){
 
 (async()=>{
   consumeYahooReturnParam();
+  // Rehydrate each provider's connection state from local persistence.
+  Object.values(PROVIDERS).forEach(p=>{try{p.rehydrate&&p.rehydrate();}catch(e){console.warn(p.id+' rehydrate failed:',e.message);}});
   // Yahoo status must resolve before loadData() — its merge step gates on yahooConnected.
+  // This also toggles the signin-card Yahoo button/status row visibility.
   await checkYahooStatus();
-  const saved=localStorage.getItem(USER_KEY);
-  if(saved){document.getElementById('username-input').value=saved;await run(saved);}
+  // Reflect Sleeper rehydration into the legacy username input on the setup screen.
+  const slUser=connectionState.sleeper?.identity;
+  const inp=document.getElementById('username-input');
+  if(slUser&&inp)inp.value=slUser;
+  // Auto-run if any provider is already connected (Sleeper username saved or Yahoo cookie valid).
+  if(isAnyProviderConnected())await run();
   else showSetup();
 })();
 </script>
