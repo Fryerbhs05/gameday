@@ -89,7 +89,8 @@
       height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px;
     }
     .site-header__brand { display: flex; align-items: center; }
-    .site-header__brand img { display: block; height: 42px; width: auto; }
+    .site-header__brand img,
+    .site-header__brand svg { display: block; height: 42px; width: auto; aspect-ratio: 480 / 130; }
     .site-header__nav { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
     .site-header__week {
       font: 500 11px/1 var(--font-mono); color: var(--ink-500);
@@ -738,8 +739,24 @@
 <!-- ── Header ─────────────────────────────────────────────────── -->
 <header class="site-header">
   <div class="site-header__inner">
-    <a class="site-header__brand" href="/">
-      <img src="brand-kit/logo/conflicted-wordmark-color.svg" alt="Conflicted" />
+    <a class="site-header__brand" href="/" aria-label="Conflicted — home">
+      <svg xmlns="http://www.w3.org/2000/svg" width="480" height="130" viewBox="0 0 480 130" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="brandTitle brandDesc">
+        <title id="brandTitle">Conflicted</title>
+        <desc id="brandDesc">The Conflicted wordmark, bisected vertically with the left half in navy and the right half in coral, with the tagline "All your leagues, one place" below.</desc>
+        <defs>
+          <clipPath id="leftHalf"><rect x="0" y="0" width="240" height="130"/></clipPath>
+          <clipPath id="rightHalf"><rect x="240" y="0" width="240" height="130"/></clipPath>
+        </defs>
+        <text x="240" y="70" text-anchor="middle"
+              style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;fill:var(--navy-700,#1A3A52);"
+              clip-path="url(#leftHalf)">CONFLICTED</text>
+        <text x="240" y="70" text-anchor="middle"
+              style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;fill:var(--coral-500,#D85A30);"
+              clip-path="url(#rightHalf)">CONFLICTED</text>
+        <line x1="240" y1="22" x2="240" y2="82" style="stroke:var(--ink-900,#15181C);stroke-width:1.2;"/>
+        <text x="240" y="110" text-anchor="middle"
+              style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:500;font-size:11px;letter-spacing:0.25em;fill:var(--ink-500,#5F5E5A);">ALL YOUR LEAGUES, ONE PLACE</text>
+      </svg>
     </a>
     <nav class="site-header__nav">
       <span class="last-refreshed" id="last-refreshed"></span>
