@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Conflicted — Know who to root for</title>
+  <meta name="description" content="Conflicted tracks every player across every fantasy league you run, so you know who to cheer for in real time." />
+  <link rel="icon" type="image/svg+xml" href="brand-kit/logo/conflicted-favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================
+       Conflicted — design tokens (drop-in from brand-kit)
+       Light mode default. Dark via [data-theme="dark"] or OS pref.
+       ============================================================ */
+    :root {
+      --navy-900:#0F2235;  --navy-700:#1A3A52;  --navy-500:#2B6FA8;  --navy-300:#7AA8D1;
+      --coral-700:#B0451F; --coral-500:#D85A30; --coral-400:#E26538; --coral-200:#F4C4B0;
+      --paper:#F5EFE4;     --paper-soft:#FAF6EC; --paper-deep:#EDE5D4;
+      --ink-900:#15181C;   --ink-700:#2C2C2A;    --ink-500:#5F5E5A;   --ink-300:#A8A6A0;
+      --line:#D8D2C4;      --line-soft:#E5DFD0;
+      --cheer:#3D8B5C;     --cheer-soft:#D9E8DD;
+      --enemy:#A33D2E;     --enemy-soft:#EFD5CE;
+      --split:#B27F1A;     --split-soft:#F0E2BF;
+      --neutral:#7A7770;   --neutral-soft:#E8E3D5;
+      --success:var(--cheer); --warning:var(--split); --danger:var(--enemy); --info:var(--navy-500);
+      --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
+      --radius-sm:4px; --radius-md:8px; --radius-lg:12px; --radius-pill:999px;
+      --max-width:980px; --gutter:24px;
+      --ease-out:cubic-bezier(0.2,0.8,0.2,1); --duration-fast:120ms; --duration-base:200ms;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --navy-700:#7AA8D1; --navy-500:#5790C0; --navy-300:#2B6FA8;
+        --coral-500:#E88761; --coral-400:#F0997B; --coral-700:#D85A30;
+        --paper:#0F1B26; --paper-soft:#162635; --paper-deep:#0A1019;
+        --ink-900:#F5EFE4; --ink-700:#E0DACA; --ink-500:#9E988A; --ink-300:#5F5E5A;
+        --line:#2A3949; --line-soft:#1F2C3A;
+        --cheer:#6BBF8C; --cheer-soft:#1F3329;
+        --enemy:#D86A5C; --enemy-soft:#3A1F1A;
+        --split:#D9A445; --split-soft:#3A2D14;
+        --neutral:#9E988A; --neutral-soft:#1F2530;
+      }
+    }
+    :root[data-theme="dark"] {
+      --navy-700:#7AA8D1; --navy-500:#5790C0; --navy-300:#2B6FA8;
+      --coral-500:#E88761; --coral-400:#F0997B; --coral-700:#D85A30;
+      --paper:#0F1B26; --paper-soft:#162635; --paper-deep:#0A1019;
+      --ink-900:#F5EFE4; --ink-700:#E0DACA; --ink-500:#9E988A; --ink-300:#5F5E5A;
+      --line:#2A3949; --line-soft:#1F2C3A;
+      --cheer:#6BBF8C; --cheer-soft:#1F3329;
+      --enemy:#D86A5C; --enemy-soft:#3A1F1A;
+      --split:#D9A445; --split-soft:#3A2D14;
+      --neutral:#9E988A; --neutral-soft:#1F2530;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+    body {
+      background: var(--paper);
+      color: var(--ink-700);
+      font: 400 15px/1.55 var(--font-sans);
+      -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh; overflow-x: hidden;
+    }
+    a { color: var(--navy-500); text-decoration: none; transition: color var(--duration-fast) var(--ease-out); }
+    a:hover { color: var(--coral-500); }
+    ::selection { background: var(--coral-200); color: var(--ink-900); }
+
+    /* Type utilities */
+    .t-h1{font:800 36px/1.1 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);}
+    .t-h2{font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);}
+    .t-h3{font:700 18px/1.3 var(--font-sans);color:var(--ink-900);}
+    .t-body{font:400 15px/1.55 var(--font-sans);color:var(--ink-700);}
+    .t-small{font:400 13px/1.5 var(--font-sans);color:var(--ink-500);}
+    .t-micro{font:500 11px/1.4 var(--font-sans);letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-500);}
+    .t-stat{font:500 18px/1.1 var(--font-mono);color:var(--ink-900);}
+    .t-stat-sm{font:400 13px/1.2 var(--font-mono);color:var(--ink-500);}
+
+    /* ── Header ───────────────────────────────────────────────── */
+    .site-header {
+      background: var(--paper); border-bottom: 1px solid var(--line);
+      height: 76px; position: sticky; top: 0; z-index: 100;
+    }
+    .site-header__inner {
+      max-width: var(--max-width); margin: 0 auto; padding: 0 var(--gutter);
+      height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .site-header__brand { display: flex; align-items: center; }
+    .site-header__brand img,
+    .site-header__brand svg { display: block; height: 42px; width: auto; aspect-ratio: 480 / 130; }
+    .site-header__nav { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .site-header__week {
+      font: 500 11px/1 var(--font-mono); color: var(--ink-500);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      background: var(--paper-deep); padding: 6px 10px; border-radius: var(--radius-pill);
+    }
+    .last-refreshed {
+      display: none; font: 400 11px/1 var(--font-mono); color: var(--ink-500);
+      letter-spacing: 0.04em; white-space: nowrap;
+    }
+    .last-refreshed.visible { display: block; }
+    @media (max-width: 640px) { .last-refreshed { display: none !important; } }
+
+    /* ── Buttons ──────────────────────────────────────────────── */
+    .btn-primary {
+      background: var(--coral-500); color: var(--paper);
+      font: 500 15px/1 var(--font-sans); letter-spacing: -0.01em;
+      border: none; border-radius: var(--radius-md); padding: 12px 20px;
+      cursor: pointer; transition: background var(--duration-fast) var(--ease-out), transform 80ms var(--ease-out);
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--coral-400); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:disabled { background: var(--ink-300); cursor: not-allowed; }
+    .btn-secondary {
+      background: transparent; color: var(--navy-700);
+      font: 500 15px/1 var(--font-sans);
+      border: 1px solid var(--navy-700); border-radius: var(--radius-md);
+      padding: 11px 20px; cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), transform 80ms var(--ease-out);
+    }
+    .btn-secondary:hover { background: var(--navy-700); color: var(--paper); }
+    .btn-secondary:active { transform: scale(0.98); }
+    .btn-ghost {
+      background: transparent; color: var(--ink-500);
+      font: 500 14px/1 var(--font-sans);
+      border: none; border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+    }
+    .btn-ghost:hover { background: var(--paper-deep); color: var(--ink-700); }
+    .btn-sm { padding: 8px 14px; font-size: 13px; }
+
+    .btn-icon {
+      font: 500 14px/1 var(--font-mono); padding: 6px 10px;
+      background: var(--paper-soft); color: var(--ink-500);
+      border: 1px solid var(--line); border-radius: var(--radius-sm);
+      cursor: pointer; transition: background var(--duration-fast) var(--ease-out);
+    }
+    .btn-icon:hover:not(:disabled) { background: var(--paper-deep); color: var(--ink-700); }
+    .btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .btn-live {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--cheer-soft); color: var(--cheer);
+      font: 500 13px/1 var(--font-sans);
+      border: 1px solid var(--cheer); border-radius: var(--radius-md);
+      padding: 7px 12px; cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-out);
+    }
+    .btn-live:hover { background: color-mix(in oklab, var(--cheer-soft) 70%, var(--paper)); }
+    .btn-live.current { background: var(--cheer); color: var(--paper); }
+    .btn-live .dot-live { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* Injury status badges */
+    .inj-badge {
+      font: 500 10px/1 var(--font-mono); padding: 3px 7px;
+      border-radius: var(--radius-sm); letter-spacing: 0.05em;
+      text-transform: uppercase; border: 1px solid; flex-shrink: 0;
+    }
+    .inj-Q  { background: var(--split-soft);   color: var(--split);  border-color: var(--split); }
+    .inj-D  { background: var(--coral-200);    color: var(--coral-700); border-color: var(--coral-500); }
+    .inj-O  { background: var(--enemy-soft);   color: var(--enemy);  border-color: var(--enemy); }
+    .inj-IR { background: var(--enemy-soft);   color: var(--enemy);  border-color: var(--enemy); }
+    .inj-SUS{ background: var(--neutral-soft); color: var(--ink-500); border-color: var(--ink-300); }
+
+    /* ═══════════════════════════════════════════════════════════
+       LANDING
+    ═══════════════════════════════════════════════════════════ */
+    #setup-panel { display: flex; flex-direction: column; }
+
+    .lp-hero {
+      padding: 80px var(--gutter) 56px;
+      max-width: var(--max-width); margin: 0 auto; width: 100%;
+      text-align: center;
+    }
+    .lp-eyebrow {
+      font: 500 11px/1.4 var(--font-sans); letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--ink-500); margin-bottom: 24px;
+      display: inline-flex; align-items: center; gap: 14px;
+    }
+    .lp-eyebrow::before, .lp-eyebrow::after {
+      content: ''; display: block; width: 32px; height: 1px; background: var(--coral-500); opacity: 0.6;
+    }
+    .lp-hero h1 {
+      font: 900 58px/1.02 var(--font-sans); letter-spacing: -0.025em;
+      color: var(--ink-900); margin-bottom: 22px; text-wrap: balance;
+    }
+    .lp-hero h1 em { font-style: normal; color: var(--coral-500); }
+    .lp-hero-sub {
+      font: 400 17px/1.6 var(--font-sans); color: var(--ink-500);
+      max-width: 520px; margin: 0 auto;
+    }
+
+    /* Sign-in card */
+    .lp-signin { padding: 32px var(--gutter) 56px; display: flex; justify-content: center; }
+    .signin-card {
+      background: var(--paper-soft);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 32px 32px;
+      width: 760px;
+      max-width: 100%;
+    }
+    .signin-card h3 {
+      font: 700 22px/1.2 var(--font-sans); letter-spacing: -0.01em;
+      color: var(--ink-900); margin-bottom: 4px;
+    }
+    .signin-card-sub {
+      font: 400 13px/1.5 var(--font-sans); color: var(--ink-500); margin-bottom: 20px;
+    }
+    .or-row { display: flex; align-items: center; gap: 10px; margin: 18px 0 14px; }
+    .or-line { flex: 1; height: 1px; background: var(--line); }
+    .or-txt {
+      font: 500 11px/1 var(--font-sans); color: var(--ink-500);
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .btn-demo-full {
+      width: 100%; background: transparent;
+      border: 1px solid var(--line); color: var(--ink-700);
+      font: 500 13px/1.3 var(--font-sans);
+      padding: 12px; border-radius: var(--radius-md); cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+    }
+    .btn-demo-full:hover { background: var(--paper-deep); border-color: var(--ink-300); }
+
+    .signin-input-row { display: flex; gap: 8px; }
+    .signin-input {
+      flex: 1; background: var(--paper);
+      border: 1px solid var(--line); border-radius: var(--radius-md);
+      padding: 11px 13px; font: 400 14px/1 var(--font-sans);
+      color: var(--ink-900); outline: none;
+      transition: border-color var(--duration-fast) var(--ease-out);
+    }
+    .signin-input:focus { border-color: var(--navy-500); }
+    .signin-input::placeholder { color: var(--ink-300); }
+
+    /* Provider cards on the signin */
+    .provider-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+    .provider-card {
+      background: var(--paper); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 16px 16px;
+      transition: border-color var(--duration-base) var(--ease-out);
+      display: flex; flex-direction: column;
+    }
+    .provider-card.connected { border-color: var(--cheer); background: var(--cheer-soft); }
+    .provider-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .provider-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: var(--radius-sm);
+      color: #fff; font: 700 11px/1 var(--font-sans); flex-shrink: 0;
+    }
+    .provider-card-title {
+      font: 700 13px/1 var(--font-sans); color: var(--ink-900); letter-spacing: 0;
+    }
+    .provider-card-body { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+    .provider-card-body .signin-input-row { margin: 0; flex-direction: column; gap: 8px; }
+    .provider-card-body .provider-connect-btn { width: 100%; }
+    .provider-input { flex: 1; width: 100%; }
+    .provider-connect-btn { white-space: nowrap; padding: 10px 16px; font-size: 13px; }
+    .provider-soon-msg { font: 400 12px/1.5 var(--font-sans); color: var(--ink-500); margin-bottom: 4px; }
+    .btn-soon-disabled {
+      width: 100%; background: var(--paper-deep); color: var(--ink-500);
+      border: 1px dashed var(--line); border-radius: var(--radius-md);
+      font: 500 13px/1 var(--font-sans); padding: 10px;
+      cursor: not-allowed; margin-top: auto;
+    }
+    .provider-status {
+      display: flex; align-items: center; gap: 8px;
+      font: 500 13px/1.4 var(--font-sans); color: var(--ink-700);
+    }
+    .provider-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cheer); flex-shrink: 0; }
+    .btn-provider-disconnect {
+      align-self: flex-start; background: transparent; border: none;
+      color: var(--ink-500); font: 400 12px/1 var(--font-sans);
+      cursor: pointer; text-decoration: underline; text-underline-offset: 3px; padding: 0;
+    }
+    .btn-provider-disconnect:hover { color: var(--coral-500); }
+    .provider-error { color: var(--enemy); font: 400 12px/1.4 var(--font-sans); margin: 0; }
+
+    .btn-yahoo {
+      width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      background: var(--navy-700); color: var(--paper);
+      border: none; border-radius: var(--radius-md); padding: 11px;
+      font: 500 14px/1 var(--font-sans); cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-out);
+    }
+    .btn-yahoo:hover { background: var(--navy-900); }
+    .btn-yahoo-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px; border-radius: var(--radius-sm);
+      background: #6001d2; color: #fff;
+      font: 700 11px/1 var(--font-mono); flex-shrink: 0;
+    }
+
+    #continue-btn {
+      width: 100%; padding: 12px;
+      font: 500 14px/1 var(--font-sans); letter-spacing: -0.01em;
+      border: none; border-radius: var(--radius-md); cursor: pointer;
+      background: var(--coral-500); color: var(--paper);
+      transition: background var(--duration-fast) var(--ease-out);
+    }
+    #continue-btn:hover:not(:disabled) { background: var(--coral-400); }
+    #continue-btn:disabled { background: var(--ink-300); cursor: not-allowed; }
+
+    /* ── Scenario block ───────────────────────────────────────── */
+    .lp-scenario-outer { display: flex; justify-content: center; padding: 0 var(--gutter) 64px; }
+    .lp-scenario {
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: var(--radius-lg); padding: 36px 40px;
+      width: 100%; max-width: 680px; position: relative; overflow: hidden;
+    }
+    /* Split motif: vertical bisector behind the scenario card */
+    .lp-scenario::before {
+      content: ''; position: absolute; top: 24px; bottom: 24px; left: 50%;
+      width: 1px; background: var(--line-soft); transform: translateX(-0.5px);
+      pointer-events: none; z-index: 0;
+    }
+    .lp-scenario > * { position: relative; z-index: 1; }
+
+    .sc-top { text-align: center; margin-bottom: 28px; }
+    .sc-flag { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .sc-flag-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--coral-500); }
+    .sc-flag-txt {
+      font: 500 11px/1 var(--font-sans); color: var(--ink-500);
+      letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    .sc-headline {
+      font: 800 32px/1.15 var(--font-sans); letter-spacing: -0.02em;
+      color: var(--ink-900); text-wrap: balance;
+    }
+    .sc-headline em { font-style: normal; color: var(--coral-500); }
+
+    .sc-cards { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .sc-card {
+      background: var(--paper); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 14px 18px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .sc-card.cheer { border-left: 3px solid var(--cheer); }
+    .sc-card.enemy { border-left: 3px solid var(--enemy); }
+    .sc-body { flex: 1; }
+    .sc-league {
+      font: 700 14px/1.2 var(--font-sans); margin-bottom: 3px; letter-spacing: -0.01em;
+    }
+    .sc-card.cheer .sc-league { color: var(--cheer); }
+    .sc-card.enemy .sc-league { color: var(--enemy); }
+    .sc-role { font: 400 13px/1.4 var(--font-sans); color: var(--ink-500); }
+    .sc-role strong { color: var(--ink-700); font-weight: 500; }
+    .sc-pts-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+    .sc-pts { font: 500 22px/1 var(--font-mono); }
+    .sc-card.cheer .sc-pts { color: var(--cheer); }
+    .sc-card.enemy .sc-pts { color: var(--enemy); }
+    .sc-pts-lbl {
+      font: 500 10px/1 var(--font-sans); color: var(--ink-500);
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+
+    .sc-interstitial {
+      background: var(--paper); border: 1px solid var(--line);
+      border-left: 3px solid var(--split);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      padding: 16px 20px; margin-bottom: 16px;
+    }
+    .sc-int-title {
+      font: 700 14px/1.3 var(--font-sans); color: var(--ink-900); margin-bottom: 4px; letter-spacing: -0.01em;
+    }
+    .sc-int-text { font: 400 13px/1.55 var(--font-sans); color: var(--ink-500); }
+    .sc-int-text strong { color: var(--ink-700); font-weight: 500; }
+
+    .sc-closing {
+      background: var(--paper); border: 1px solid var(--line);
+      border-left: 3px solid var(--coral-500);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      padding: 22px 24px; text-align: left;
+    }
+    .sc-closing-pre {
+      font: 500 11px/1 var(--font-sans); color: var(--ink-500);
+      letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px;
+    }
+    .sc-closing-main {
+      font: 700 18px/1.4 var(--font-sans); letter-spacing: -0.01em;
+      color: var(--ink-900);
+    }
+    .sc-closing-main em { font-style: normal; color: var(--coral-500); }
+
+    /* ── How it works ─────────────────────────────────────────── */
+    .lp-how { display: flex; flex-direction: column; align-items: center; padding: 0 var(--gutter) 64px; }
+    .lp-how-inner { width: 100%; max-width: var(--max-width); }
+    .lp-section-label {
+      font: 500 11px/1.4 var(--font-sans); letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--coral-500); margin-bottom: 28px; text-align: center;
+    }
+    .how-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+    .how-step { padding: 0 4px; position: relative; }
+    .how-step:not(:last-child)::after {
+      content: ''; position: absolute; top: 6px; right: -12px;
+      width: 1px; height: 28px; background: var(--line);
+    }
+    .how-num {
+      font: 500 12px/1 var(--font-mono); color: var(--coral-500);
+      margin-bottom: 12px; display: flex; align-items: center; gap: 10px;
+    }
+    .how-num::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+    .how-title {
+      font: 700 15px/1.3 var(--font-sans); color: var(--ink-900); margin-bottom: 6px; letter-spacing: -0.01em;
+    }
+    .how-desc { font: 400 13px/1.55 var(--font-sans); color: var(--ink-500); }
+
+    .lp-divider { height: 1px; background: var(--line); max-width: var(--max-width); margin: 0 auto; width: calc(100% - var(--gutter) * 2); }
+
+    /* ═══════════════════════════════════════════════════════════
+       LOADING / ERROR
+    ═══════════════════════════════════════════════════════════ */
+    #loading-panel { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 64px); gap: 20px; }
+    .spinner { width: 40px; height: 40px; border: 3px solid var(--line); border-top-color: var(--coral-500); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-msg { font: 400 14px/1.4 var(--font-sans); color: var(--ink-500); }
+    #error-panel { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 64px); gap: 16px; padding: 40px; text-align: center; }
+    .error-msg {
+      font: 400 14px/1.55 var(--font-sans); color: var(--enemy);
+      max-width: 480px; background: var(--enemy-soft);
+      border: 1px solid var(--enemy); border-radius: var(--radius-md); padding: 20px 24px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       BOARD
+    ═══════════════════════════════════════════════════════════ */
+    #board { display: none; }
+    .board-inner { max-width: var(--max-width); margin: 0 auto; padding: 24px var(--gutter) 64px; }
+    .board-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+    .board-user { font: 400 13px/1.5 var(--font-sans); color: var(--ink-500); }
+    .board-user strong { color: var(--ink-900); font-weight: 700; }
+    .board-user .change-link { color: var(--navy-500); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; font-size: 12px; margin-left: 4px; }
+    .board-user .change-link:hover { color: var(--coral-500); }
+
+    /* Nav controls */
+    .nav-controls {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 8px 14px; margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .nav-label {
+      font: 500 11px/1 var(--font-sans); color: var(--ink-500);
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .nav-divider { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+    select.nav-select {
+      font: 500 14px/1 var(--font-sans); color: var(--ink-900);
+      background: transparent; border: none; outline: none; cursor: pointer;
+      appearance: none; -webkit-appearance: none; padding-right: 18px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235F5E5A'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 2px center;
+    }
+    select.nav-select option { background: var(--paper); color: var(--ink-900); }
+    select.week-select { min-width: 92px; }
+    .nav-spacer { flex: 1; }
+    .nav-ctx { font: 400 12px/1 var(--font-mono); color: var(--ink-500); }
+
+    /* Score strip — the signature module with split motif */
+    .scores-strip {
+      display: none;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px; margin-bottom: 14px;
+    }
+    .scores-strip.visible { display: grid; }
+    .score-cell {
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 14px 16px;
+      position: relative; overflow: hidden;
+    }
+    .score-cell[data-status="winning"]  { border-top: 3px solid var(--cheer); }
+    .score-cell[data-status="losing"]   { border-top: 3px solid var(--enemy); }
+    .score-cell[data-status="split"]    { border-top: 3px solid var(--split); }
+    .score-cell[data-status="final"]    { border-top: 3px solid var(--neutral); }
+    .score-cell[data-status="live"]     { border-top: 3px solid var(--coral-500); }
+    .score-cell__league {
+      font: 500 11px/1 var(--font-sans); color: var(--ink-500);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .score-cell__league-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .score-cell__row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font: 500 18px/1.2 var(--font-mono); margin-bottom: 4px;
+    }
+    .score-cell__label { font: 400 12px/1 var(--font-sans); color: var(--ink-500); }
+    .score-cell__points { color: var(--navy-700); }
+    .score-cell__points--opp { color: var(--ink-700); }
+    .score-cell[data-status="winning"] .score-cell__points { color: var(--cheer); }
+    .score-cell[data-status="losing"]  .score-cell__points { color: var(--enemy); }
+    .score-cell[data-status="split"]   .score-cell__points { color: var(--split); }
+    /* Split motif — thin vertical divider bisecting the score cell (your side / their side) */
+    .score-cell__divider {
+      position: absolute; top: 38px; bottom: 28px; left: 50%;
+      width: 1px; background: var(--line); transform: translateX(-0.5px);
+      pointer-events: none;
+    }
+    .score-cell__state {
+      font: 500 10px/1 var(--font-mono); margin-top: 8px;
+      letter-spacing: 0.08em; text-transform: uppercase; text-align: center;
+    }
+    .score-cell__state.live   { color: var(--coral-500); }
+    .score-cell__state.win    { color: var(--cheer); }
+    .score-cell__state.loss   { color: var(--enemy); }
+    .score-cell__state.final  { color: var(--neutral); }
+    .score-cell__state.none   { color: var(--ink-500); }
+
+    /* League filters */
+    .league-filters {
+      display: none; align-items: center; gap: 8px; flex-wrap: wrap;
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px;
+    }
+    .league-filters.visible { display: flex; }
+    .filter-label {
+      font: 500 11px/1 var(--font-sans); color: var(--ink-500);
+      letter-spacing: 0.08em; text-transform: uppercase; flex-shrink: 0; margin-right: 4px;
+    }
+    .filter-pill {
+      font: 500 12px/1 var(--font-sans); padding: 5px 12px;
+      border-radius: var(--radius-pill); cursor: pointer; border: 1px solid;
+      transition: opacity var(--duration-fast) var(--ease-out), transform 80ms var(--ease-out);
+      letter-spacing: 0.02em; white-space: nowrap;
+    }
+    .filter-pill:hover { transform: translateY(-1px); }
+    .filter-pill.all-pill { background: var(--paper); color: var(--ink-700); border-color: var(--line); }
+    .filter-pill.all-pill.active { background: var(--ink-700); color: var(--paper); border-color: var(--ink-700); }
+    .filter-pill.inactive { opacity: 0.32; }
+    .filter-divider { width: 1px; height: 16px; background: var(--line); }
+    .filter-count { font: 400 11px/1.3 var(--font-mono); color: var(--ink-500); margin-left: auto; }
+
+    /* Banners */
+    .banner {
+      display: none; align-items: flex-start; gap: 12px;
+      border-radius: var(--radius-md); padding: 12px 18px; margin-bottom: 12px;
+      font: 400 13px/1.55 var(--font-sans);
+    }
+    .banner.visible { display: flex; }
+    .banner strong { color: var(--ink-900); font-weight: 700; }
+    .banner-demo      { background: var(--split-soft);   border: 1px solid var(--split);   color: var(--ink-700); }
+    .banner-offseason { background: var(--neutral-soft); border: 1px solid var(--ink-300); color: var(--ink-700); }
+    .banner-history   { background: var(--paper-deep);   border: 1px solid var(--navy-300); color: var(--ink-700); }
+    .banner-scoring   { background: var(--cheer-soft);   border: 1px solid var(--cheer);   color: var(--ink-700); }
+
+    /* No-data */
+    #no-data-state { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 60px 20px; text-align: center; }
+    #no-data-state.visible { display: flex; }
+    .no-data-title { font: 700 24px/1.2 var(--font-sans); letter-spacing: -0.01em; color: var(--ink-900); }
+    .no-data-msg { font: 400 14px/1.6 var(--font-sans); color: var(--ink-500); max-width: 460px; }
+    .no-data-msg strong { color: var(--ink-900); font-weight: 500; }
+    .no-data-hint { font: 400 12px/1.4 var(--font-sans); color: var(--ink-500); }
+
+    /* Debug */
+    .debug-panel {
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: var(--radius-md); margin-bottom: 14px; overflow: hidden;
+    }
+    .debug-toggle {
+      width: 100%; background: none; border: none; padding: 10px 15px;
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      color: var(--ink-500); font: 500 11px/1 var(--font-sans);
+      letter-spacing: 0.08em; text-transform: uppercase; text-align: left;
+    }
+    .debug-toggle:hover { background: var(--paper-deep); }
+    .debug-toggle .arrow { transition: transform var(--duration-base); margin-left: auto; }
+    .debug-toggle.open .arrow { transform: rotate(90deg); }
+    .debug-body { display: none; padding: 0 15px 12px; border-top: 1px solid var(--line); }
+    .debug-body.open { display: block; }
+    .debug-meta {
+      font: 400 11px/1.4 var(--font-mono); color: var(--ink-500);
+      padding: 10px 0; border-bottom: 1px solid var(--line);
+      margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 16px;
+    }
+    .debug-meta strong { color: var(--cheer); }
+    .debug-meta .warn  { color: var(--split); }
+    .debug-leagues { display: flex; flex-direction: column; gap: 5px; }
+    .debug-league {
+      font: 400 11px/1.4 var(--font-mono);
+      background: var(--paper); border: 1px solid var(--line);
+      border-radius: var(--radius-sm); padding: 7px 12px;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    }
+    .lg-name { color: var(--ink-900); font-weight: 500; flex: 1; min-width: 130px; display: flex; align-items: center; gap: 6px; }
+    .lg-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .lg-id { color: var(--ink-500); font-size: 10px; }
+    .dpill { padding: 2px 7px; border-radius: var(--radius-sm); font-size: 10px; letter-spacing: 0.04em; border: 1px solid; }
+    .dp-ok   { background: var(--cheer-soft);   color: var(--cheer);   border-color: var(--cheer);   }
+    .dp-warn { background: var(--enemy-soft);   color: var(--enemy);   border-color: var(--enemy);   }
+    .dp-dim  { background: var(--neutral-soft); color: var(--ink-500); border-color: var(--ink-300); }
+
+    /* Buckets — colored top borders, namesake "Conflicted" gets the split treatment */
+    .summary-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+    .bucket-summary {
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-top: 3px solid var(--neutral);
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      padding: 16px 20px; display: flex; align-items: center; gap: 14px;
+    }
+    .bucket-summary.cheer      { border-top-color: var(--cheer); }
+    .bucket-summary.conflicted { border-top-color: var(--split); }
+    .bucket-summary.enemy      { border-top-color: var(--enemy); }
+    .pill-count { font: 500 30px/1 var(--font-mono); color: var(--ink-900); }
+    .bucket-summary.cheer      .pill-count { color: var(--cheer); }
+    .bucket-summary.conflicted .pill-count { color: var(--split); }
+    .bucket-summary.enemy      .pill-count { color: var(--enemy); }
+    .pill-label { display: flex; flex-direction: column; gap: 2px; }
+    .pill-label strong {
+      font: 700 14px/1.2 var(--font-sans); color: var(--ink-900); letter-spacing: -0.01em;
+    }
+    .pill-label span { font: 400 12px/1.3 var(--font-sans); color: var(--ink-500); }
+
+    /* Columns */
+    .columns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: start; }
+    .column-header {
+      display: flex; align-items: baseline; gap: 10px;
+      padding: 0 4px 12px; border-bottom: 2px solid;
+      margin-bottom: 12px;
+    }
+    .column.cheer      .column-header { border-color: var(--cheer); }
+    .column.conflicted .column-header { border-color: var(--split); }
+    .column.enemy      .column-header { border-color: var(--enemy); }
+    .col-title {
+      font: 700 18px/1.2 var(--font-sans); letter-spacing: -0.01em;
+    }
+    .column.cheer      .col-title { color: var(--cheer); }
+    .column.conflicted .col-title { color: var(--split); }
+    .column.enemy      .col-title { color: var(--enemy); }
+    .col-subtitle {
+      font: 500 11px/1 var(--font-sans); color: var(--ink-500);
+      letter-spacing: 0.08em; text-transform: uppercase; margin-left: auto;
+    }
+
+    /* Player cards */
+    .player-card {
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 13px 15px;
+      margin-bottom: 8px;
+      display: flex; flex-direction: column; gap: 7px;
+      transition: transform var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+      animation: fadeUp var(--duration-base) var(--ease-out) both;
+    }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .player-card:hover { transform: translateY(-1px); border-color: var(--ink-300); }
+    .column.cheer      .player-card { border-left: 3px solid var(--cheer); }
+    .column.conflicted .player-card { border-left: 3px solid var(--split); }
+    .column.enemy      .player-card { border-left: 3px solid var(--enemy); }
+    .player-card.filtered-out { display: none; }
+    .player-card.clinched { opacity: 0.5; border-left-color: var(--neutral) !important; }
+
+    .card-top { display: flex; align-items: center; gap: 9px; }
+    .pos-badge {
+      font: 500 10px/1 var(--font-mono); padding: 3px 6px;
+      border-radius: var(--radius-sm); letter-spacing: 0.06em;
+      flex-shrink: 0; background: var(--paper-deep); color: var(--ink-500);
+    }
+    .pos-QB  { background: color-mix(in oklab, var(--navy-300) 30%, var(--paper-soft)); color: var(--navy-700); }
+    .pos-RB  { background: var(--cheer-soft); color: var(--cheer); }
+    .pos-WR  { background: color-mix(in oklab, var(--navy-300) 30%, var(--paper-soft)); color: var(--navy-700); }
+    .pos-TE  { background: var(--split-soft); color: var(--split); }
+    .pos-K   { background: var(--neutral-soft); color: var(--ink-500); }
+    .pos-DEF { background: var(--enemy-soft); color: var(--enemy); }
+    .player-name {
+      font: 700 14px/1.2 var(--font-sans); color: var(--ink-900);
+      letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .player-team { font: 400 11px/1 var(--font-mono); color: var(--ink-500); margin-left: auto; flex-shrink: 0; }
+
+    .league-pts-row { font: 400 12px/1.4 var(--font-mono); display: flex; align-items: center; gap: 6px; color: var(--ink-500); }
+    .league-pts-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .league-pts-name { flex: 1; font-family: var(--font-sans); font-size: 12px; }
+    .league-pts-val  { color: var(--ink-900); font-weight: 500; }
+    .league-pts-fmt  { opacity: 0.6; font-size: 10px; }
+    .league-pts-proj { color: var(--ink-500); font-size: 11px; }
+
+    .league-context { display: flex; flex-direction: column; gap: 3px; }
+    .league-line { font: 400 12px/1.3 var(--font-sans); display: flex; align-items: center; gap: 6px; color: var(--ink-500); }
+    .league-line .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+    .empty-state {
+      font: 400 13px/1.5 var(--font-sans); color: var(--ink-500);
+      text-align: center; padding: 28px 16px;
+      border: 1px dashed var(--line); border-radius: var(--radius-md);
+    }
+
+    /* Toast */
+    .yahoo-toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--cheer); color: var(--paper);
+      font: 500 13px/1 var(--font-sans);
+      padding: 11px 18px; border-radius: var(--radius-md);
+      z-index: 9999; opacity: 1; transition: opacity 0.3s;
+      animation: yahoo-toast-in 0.3s var(--ease-out);
+    }
+    .yahoo-toast.toast-error { background: var(--enemy); }
+    @keyframes yahoo-toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+    /* ═══════════════════════════════════════════════════════════
+       MOBILE
+    ═══════════════════════════════════════════════════════════ */
+    @media (max-width: 640px) {
+      :root { --gutter: 18px; }
+      .lp-hero { padding: 56px var(--gutter) 40px; }
+      .lp-hero h1 { font-size: 38px; }
+      .lp-hero-sub { font-size: 15px; }
+      .lp-scenario { padding: 24px 22px; }
+      .sc-headline { font-size: 24px; }
+      .sc-closing-main { font-size: 16px; }
+      .how-grid { grid-template-columns: 1fr; gap: 22px; }
+      .how-step { padding: 0; }
+      .how-step:not(:last-child)::after { display: none; }
+      .lp-signin { padding: 24px var(--gutter) 40px; }
+      .signin-card { padding: 24px 20px; }
+      .provider-card-grid { grid-template-columns: 1fr; }
+      .board-inner { padding: 16px var(--gutter) 40px; }
+      .nav-controls { padding: 8px 12px; gap: 6px; }
+      .nav-divider { display: none; }
+      .nav-ctx { display: none; }
+      .summary-bar { grid-template-columns: 1fr; gap: 8px; }
+      .columns { grid-template-columns: 1fr; gap: 28px; }
+      .filter-pill { font-size: 11px; padding: 4px 10px; }
+      .filter-count { display: none; }
+      .filter-divider { display: none; }
+    }
+    @media (min-width: 641px) and (max-width: 768px) {
+      :root { --gutter: 22px; }
+      .lp-hero h1 { font-size: 44px; }
+      .how-grid { grid-template-columns: 1fr 1fr; gap: 22px; }
+      .how-step:nth-child(2)::after { display: none; }
+      .columns { grid-template-columns: 1fr; gap: 24px; }
+      .summary-bar { grid-template-columns: 1fr; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────── -->
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="site-header__brand" href="/" aria-label="Conflicted — home">
+      <svg xmlns="http://www.w3.org/2000/svg" width="480" height="130" viewBox="0 0 480 130" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="brandTitle brandDesc">
+        <title id="brandTitle">Conflicted</title>
+        <desc id="brandDesc">The Conflicted wordmark, bisected vertically with the left half in navy and the right half in coral, with the tagline "All your leagues, one place" below.</desc>
+        <defs>
+          <clipPath id="leftHalf"><rect x="0" y="0" width="240" height="130"/></clipPath>
+          <clipPath id="rightHalf"><rect x="240" y="0" width="240" height="130"/></clipPath>
+        </defs>
+        <text x="240" y="70" text-anchor="middle"
+              style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;fill:var(--navy-700,#1A3A52);"
+              clip-path="url(#leftHalf)">CONFLICTED</text>
+        <text x="240" y="70" text-anchor="middle"
+              style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;fill:var(--coral-500,#D85A30);"
+              clip-path="url(#rightHalf)">CONFLICTED</text>
+        <line x1="240" y1="22" x2="240" y2="82" style="stroke:var(--ink-900,#15181C);stroke-width:1.2;"/>
+        <text x="240" y="110" text-anchor="middle"
+              style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:500;font-size:11px;letter-spacing:0.25em;fill:var(--ink-500,#5F5E5A);">ALL YOUR LEAGUES, ONE PLACE</text>
+      </svg>
+    </a>
+    <nav class="site-header__nav">
+      <span class="last-refreshed" id="last-refreshed"></span>
+      <span class="site-header__week" id="week-label" style="display:none"></span>
+      <button class="btn-ghost" id="change-user-btn" onclick="handleChangeUser()" style="display:none">Change user</button>
+      <button class="btn-primary btn-sm" id="refresh-btn" onclick="handleRefresh()" style="display:none">Sync</button>
+    </nav>
+  </div>
+</header>
+
+<!-- ══ LANDING ═════════════════════════════════════════════════ -->
+<div id="setup-panel">
+
+  <!-- Hero -->
+  <div class="lp-hero">
+    <div class="lp-eyebrow">Multi-league fantasy football</div>
+    <h1>Stop doing mental math<br/><em>on every play.</em></h1>
+    <p class="lp-hero-sub">Conflicted reads your rosters across every league you play, watches the scores, and tells you exactly who to cheer for in real time.</p>
+  </div>
+
+  <!-- How it works -->
+  <div class="lp-how">
+    <div class="lp-how-inner">
+      <div class="lp-section-label">How it works</div>
+      <div class="how-grid">
+        <div class="how-step">
+          <div class="how-num">01</div>
+          <div class="how-title">Connect Sleeper or Yahoo</div>
+          <div class="how-desc">Sleeper is a username. Yahoo is a single OAuth click. We don't store credentials.</div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">02</div>
+          <div class="how-title">Rosters and matchups load</div>
+          <div class="how-desc">Every league, every opponent lineup, pulled automatically for the current week.</div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">03</div>
+          <div class="how-title">Players get classified</div>
+          <div class="how-desc">Cheer for, conflicted, or enemy — based on where each one shows up across your leagues.</div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">04</div>
+          <div class="how-title">Allegiances shift live</div>
+          <div class="how-desc">Already clinched a league? Players there go neutral. Still in it? Every point matters.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lp-divider"></div>
+
+  <!-- Sign-in -->
+  <div class="lp-signin" style="padding-top:56px">
+    <div class="signin-card">
+      <h3>Get started</h3>
+      <p class="signin-card-sub">Connect at least one fantasy platform to load your leagues.</p>
+
+      <div id="provider-card-grid" class="provider-card-grid"></div>
+
+      <button id="continue-btn" onclick="handleContinue()" disabled>Continue</button>
+
+      <div class="or-row"><div class="or-line"></div><div class="or-txt">or try it first</div><div class="or-line"></div></div>
+      <button class="btn-demo-full" onclick="handleDemo()">Try demo mode — 4 leagues, live scoring</button>
+    </div>
+  </div>
+
+  <div style="height:56px"></div>
+</div>
+
+<!-- Loading / Error -->
+<div id="loading-panel"><div class="spinner"></div><div class="loading-msg" id="loading-msg">Pulling your leagues.</div></div>
+<div id="error-panel"><div class="error-msg" id="error-msg"></div><button class="btn-secondary" onclick="showSetup()">← Try again</button></div>
+
+<!-- ══ BOARD ════════════════════════════════════════════════════ -->
+<div id="board">
+  <div class="board-inner">
+    <div class="board-header">
+      <div class="board-user">Loaded for <strong id="display-username"></strong><span class="change-link" onclick="handleChangeUser()" id="mobile-change-user">change</span></div>
+      <span class="t-stat-sm" id="board-refresh-time"></span>
+    </div>
+    <div class="nav-controls">
+      <span class="nav-label">Week</span>
+      <button class="btn-icon" id="week-prev" onclick="changeWeek(-1)">‹</button>
+      <select class="nav-select week-select" id="week-select" onchange="changeWeekTo(+this.value)"></select>
+      <button class="btn-icon" id="week-next" onclick="changeWeek(+1)">›</button>
+      <div class="nav-divider"></div>
+      <span class="nav-label">Season</span>
+      <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
+      <div class="nav-divider"></div>
+      <button class="btn-live" id="live-btn" onclick="snapToLive()"><span class="dot-live"></span> Live</button>
+      <div class="nav-spacer"></div>
+      <span class="nav-ctx" id="nav-context-label"></span>
+    </div>
+    <div class="scores-strip" id="scores-strip"></div>
+    <div class="league-filters" id="league-filters">
+      <span class="filter-label">Filter</span>
+      <div id="filter-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      <div class="filter-divider"></div>
+      <span class="filter-count" id="filter-count"></span>
+    </div>
+    <div class="banner banner-demo"      id="banner-demo"><div><strong>Demo mode</strong> — 4 fake leagues with live scoring context. Connect a platform to load real data.</div></div>
+    <div class="banner banner-offseason" id="banner-offseason"><div><strong>Roster mode</strong> — no matchup data yet. Everyone defaults to your guys until lineups are set.</div></div>
+    <div class="banner banner-history"   id="banner-history"><div id="history-label"></div></div>
+    <div class="banner banner-scoring"   id="banner-scoring"><div><strong>Live scoring active</strong> — allegiances are adjusted based on current scores and lead safety.</div></div>
+    <div id="no-data-state">
+      <div class="no-data-title">No league data</div>
+      <div class="no-data-msg" id="no-data-msg"></div>
+      <div class="no-data-hint">Use the season dropdown or week selector to try a different period.</div>
+    </div>
+    <div class="summary-bar" id="summary-bar">
+      <div class="bucket-summary cheer">
+        <div class="pill-count" id="count-cheer">0</div>
+        <div class="pill-label"><strong>Cheer for</strong><span>Your guys</span></div>
+      </div>
+      <div class="bucket-summary conflicted">
+        <div class="pill-count" id="count-conflicted">0</div>
+        <div class="pill-label"><strong>Conflicted</strong><span>On both sides</span></div>
+      </div>
+      <div class="bucket-summary enemy">
+        <div class="pill-count" id="count-enemy">0</div>
+        <div class="pill-label"><strong>Enemies</strong><span>The enemy's guys</span></div>
+      </div>
+    </div>
+    <div class="columns" id="columns">
+      <div class="column cheer">
+        <div class="column-header"><span class="col-title">Cheer for</span><span class="col-subtitle">Only on your rosters</span></div>
+        <div id="cheer-list"></div>
+      </div>
+      <div class="column conflicted">
+        <div class="column-header"><span class="col-title">Conflicted</span><span class="col-subtitle">Both sides</span></div>
+        <div id="conflicted-list"></div>
+      </div>
+      <div class="column enemy">
+        <div class="column-header"><span class="col-title">Enemies</span><span class="col-subtitle">Only against you</span></div>
+        <div id="enemy-list"></div>
+      </div>
+    </div>
+    <div class="debug-panel" id="debug-panel" style="display:none;margin-top:48px;margin-bottom:0">
+      <button class="debug-toggle" id="debug-toggle" onclick="toggleDebug()"><span>API debug</span><span class="arrow">▶</span></button>
+      <div class="debug-body" id="debug-body">
+        <div class="debug-meta" id="debug-meta"></div>
+        <div class="debug-leagues" id="debug-leagues"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCRIPT ══════════════════════════════════════════════════ -->
+<script>
+const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#2B6FA8','#D85A30','#3D8B5C','#B27F1A','#7AA8D1','#A33D2E','#5F5E5A','#0F2235'];
+let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},activeFilters=new Set(),isAnyProviderLoaded=false;
+
+const SLEEPER_LS_KEY='gd_sleeper_username';
+const connectionState={
+  sleeper:{connected:false,identity:null,displayName:null},
+  yahoo:  {connected:false,identity:null,displayName:null},
+  espn:   {connected:false,identity:null,displayName:null},
+};
+function getConnectedProviders(){return Object.keys(PROVIDERS).filter(id=>connectionState[id]?.connected);}
+function isAnyProviderConnected(){return getConnectedProviders().length>0;}
+function getPrimaryDisplayName(){
+  for(const id of Object.keys(PROVIDERS)){
+    const s=connectionState[id];
+    if(s?.connected){const dn=s.displayName||s.identity;if(dn)return dn;}
+  }
+  return 'Conflicted';
+}
+
+function assignColor(n){if(!colorMap[n])colorMap[n]=LC_COLORS[Object.keys(colorMap).length%LC_COLORS.length];return colorMap[n];}
+const lc=n=>colorMap[n]||'#5F5E5A';
+function isHistoricalWeek(){const as=parseInt(activeSeason),ls=parseInt(liveSeason);if(as<ls)return true;if(as===ls&&activeWeek<liveWeek)return true;return false;}
+
+async function apiFetch(url){const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
+const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
+const getNFLState=()=>apiFetch(`${BASE}/state/nfl`);
+const getLeagues=(uid,s)=>apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
+const getRosters=lid=>apiFetch(`${BASE}/league/${lid}/rosters`);
+const getMatchups=(lid,w)=>apiFetch(`${BASE}/league/${lid}/matchups/${w}`);
+
+async function getPlayerDB(){
+  const c=localStorage.getItem(CACHE_KEY),t=localStorage.getItem(CACHE_T_KEY);
+  if(c&&t&&Date.now()-parseInt(t)<CACHE_TTL){setLoading('Using cached player data.');return JSON.parse(c);}
+  setLoading('Downloading player database (~5 MB, one-time).');
+  const db=await apiFetch(`${BASE}/players/nfl`);
+  try{localStorage.setItem(CACHE_KEY,JSON.stringify(db));localStorage.setItem(CACHE_T_KEY,Date.now());}catch(e){}
+  return db;
+}
+
+async function getProjections(season,week){
+  if(isHistoricalWeek())return{};
+  const ck=`gd_proj_${season}_${week}`,tk=`${ck}_t`;
+  const c=localStorage.getItem(ck),t=localStorage.getItem(tk);
+  if(c&&t&&Date.now()-parseInt(t)<PROJ_TTL)return JSON.parse(c);
+  try{setLoading('Fetching projections.');const p=await apiFetch(`${BASE}/projections/nfl/regular/${season}/${week}`);try{localStorage.setItem(ck,JSON.stringify(p));localStorage.setItem(tk,Date.now());}catch(e){}return p;}catch(e){return{};}
+}
+
+function scoringLabel(lg){const s=lg.scoring_settings;if(!s)return'';const r=s.rec??0;if(r===1)return'PPR';if(r===0.5)return'Half';return'Std';}
+
+function calcLiveState(myPts,oppPts,myProj,oppProj){
+  if(!myProj&&!oppProj)return'LIVE';
+  const lead=myPts-oppPts,oppRem=Math.max(0,oppProj-oppPts),myRem=Math.max(0,myProj-myPts);
+  if(lead>oppRem)return'LOCKED_WIN';if(-lead>myRem)return'LOCKED_LOSS';return'LIVE';
+}
+function calcHistoricalState(m,o){return m>o?'FINAL_WIN':m<o?'FINAL_LOSS':'FINAL_TIE';}
+
+function calcSignal(player,contexts){
+  if(!contexts?.length)return null;
+  const rel=contexts.filter(c=>c.leagueState!=='NO_MATCHUP');if(!rel.length)return null;
+  let signal=0,allDecided=true;
+  rel.forEach(ctx=>{
+    const onMine=player.myLeagues.includes(ctx.leagueName),onOpp=player.againstLeagues.includes(ctx.leagueName);
+    if(!onMine&&!onOpp)return;
+    const decided=['LOCKED_WIN','LOCKED_LOSS','FINAL_WIN','FINAL_LOSS','FINAL_TIE'].includes(ctx.leagueState);
+    if(!decided)allDecided=false;
+    if(onMine)signal+=decided?0:1;if(onOpp)signal+=decided?0:-1;
+  });
+  return{signal,allDecided};
+}
+
+function classifyPlayer(player,sig){
+  const mine=player.myLeagues.length>0,theirs=player.againstLeagues.length>0;
+  if(!sig){if(mine&&!theirs)return{bucket:'cheer',clinched:false};if(mine&&theirs)return{bucket:'conflicted',clinched:false};if(theirs)return{bucket:'enemy',clinched:false};return null;}
+  const{signal,allDecided}=sig;
+  if(signal>0)return{bucket:'cheer',clinched:allDecided};if(signal<0)return{bucket:'enemy',clinched:allDecided};
+  if(mine&&!theirs)return{bucket:'cheer',clinched:allDecided};if(!mine&&theirs)return{bucket:'enemy',clinched:allDecided};
+  return{bucket:'conflicted',clinched:allDecided};
+}
+
+function ctxBadge(sig,isHist){
+  if(!sig)return null;if(isHist)return{text:'Final',cls:'ctx-final'};
+  const{signal,allDecided}=sig;
+  if(allDecided)return{text:'Settled',cls:'ctx-settled'};
+  if(signal>1)return{text:'Need them',cls:'ctx-need'};if(signal===1)return{text:'Want points',cls:'ctx-need'};
+  if(signal<-1)return{text:'Danger',cls:'ctx-avoid'};if(signal===-1)return{text:'Avoid points',cls:'ctx-avoid'};
+  return{text:'Mixed',cls:'ctx-mixed'};
+}
+
+function hideAll(){
+  ['setup-panel','loading-panel','error-panel','board'].forEach(id=>document.getElementById(id).style.display='none');
+  ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('week-label').style.display='none';
+}
+function showSetup(){hideAll();isDemoMode=false;document.getElementById('setup-panel').style.display='flex';try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}}
+function showLoading(msg){hideAll();document.getElementById('loading-panel').style.display='flex';document.getElementById('loading-msg').textContent=msg||'Pulling your leagues.';}
+function setLoading(msg){document.getElementById('loading-msg').textContent=msg;}
+function showError(msg){hideAll();document.getElementById('error-panel').style.display='flex';document.getElementById('error-msg').textContent=msg;}
+function showBoard(){
+  hideAll();document.getElementById('board').style.display='block';
+  ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='inline-block');
+  document.getElementById('week-label').style.display='block';
+}
+
+function buildWeekSelect(sel){const el=document.getElementById('week-select');el.innerHTML='';for(let w=1;w<=MAX_WEEK;w++){const o=document.createElement('option');o.value=w;o.textContent=`Week ${w}`;if(w===sel)o.selected=true;el.appendChild(o);}}
+function buildSeasonSelect(sel){const el=document.getElementById('season-select');el.innerHTML='';for(let y=THIS_YR;y>=FIRST_YR;y--){const o=document.createElement('option');o.value=String(y);o.textContent=String(y);if(String(y)===String(sel))o.selected=true;el.appendChild(o);}}
+
+function updateNavUI(){
+  const isLive=activeWeek===liveWeek&&activeSeason===liveSeason;
+  document.getElementById('week-prev').disabled=activeWeek<=1;
+  document.getElementById('week-next').disabled=activeWeek>=MAX_WEEK;
+  document.getElementById('week-select').value=activeWeek;
+  document.getElementById('season-select').value=activeSeason;
+  document.getElementById('live-btn').classList.toggle('current',isLive);
+  document.getElementById('nav-context-label').textContent=isLive?`Live · ${liveSeason}`:`${activeSeason} · Wk ${activeWeek}`;
+  document.getElementById('week-label').textContent=`Week ${activeWeek} · ${activeSeason}`;
+  const hb=document.getElementById('banner-history');
+  if(!isDemoMode&&!isLive){hb.classList.add('visible');document.getElementById('history-label').innerHTML=isHistoricalWeek()?`<strong>Historical view</strong> — ${activeSeason}, Week ${activeWeek}. Scores are final. Hit <strong>Live</strong> to return.`:`<strong>Future week</strong> — no matchup data yet for Week ${activeWeek}, ${activeSeason}.`;}
+  else hb.classList.remove('visible');
+}
+
+function renderScoresStrip(contexts){
+  const strip=document.getElementById('scores-strip');strip.innerHTML='';
+  if(!contexts.some(c=>c.leagueState!=='NO_MATCHUP')){strip.classList.remove('visible');return;}
+  strip.classList.add('visible');
+  contexts.forEach(ctx=>{
+    const color=lc(ctx.leagueName),st=ctx.leagueState;
+    const dataStatus={LIVE:'live',LOCKED_WIN:'winning',LOCKED_LOSS:'losing',FINAL_WIN:'winning',FINAL_LOSS:'losing',FINAL_TIE:'final',NO_MATCHUP:''}[st]||'';
+    const stTxt={LIVE:'● Live',LOCKED_WIN:'Clinched',LOCKED_LOSS:'Eliminated',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie',NO_MATCHUP:'No matchup'}[st]||'';
+    const stCls={LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final',NO_MATCHUP:'none'}[st]||'none';
+    const cell=document.createElement('div');cell.className='score-cell';cell.dataset.status=dataStatus;
+    cell.innerHTML=`
+      <div class="score-cell__league"><span class="score-cell__league-dot" style="background:${color}"></span>${ctx.leagueName}</div>
+      <div class="score-cell__row"><span class="score-cell__label">You</span><span class="score-cell__points">${ctx.myPoints.toFixed(2)}</span></div>
+      <div class="score-cell__row"><span class="score-cell__label">Opp</span><span class="score-cell__points score-cell__points--opp">${ctx.oppPoints.toFixed(2)}</span></div>
+      <div class="score-cell__divider"></div>
+      <div class="score-cell__state ${stCls}">${stTxt}</div>
+    `;
+    strip.appendChild(cell);
+  });
+}
+
+function buildFilterPills(names){
+  const fe=document.getElementById('league-filters'),ce=document.getElementById('filter-pills');
+  ce.innerHTML='';activeFilters.clear();
+  if(names.length<2){fe.classList.remove('visible');return;}fe.classList.add('visible');
+  const all=Object.assign(document.createElement('span'),{className:'filter-pill all-pill active',textContent:'All'});
+  all.dataset.league='__all__';all.onclick=()=>toggleFilter('__all__',names);ce.appendChild(all);
+  names.forEach(name=>{const color=lc(name);const pill=document.createElement('span');pill.className='filter-pill';pill.textContent=name;pill.dataset.league=name;pill.style.cssText=`background:${color}1a;border-color:${color}55;color:${color}`;pill.onclick=()=>toggleFilter(name,names);ce.appendChild(pill);});
+  updateFilterCount();
+}
+function toggleFilter(lg,all){
+  if(lg==='__all__')activeFilters.clear();else activeFilters.has(lg)?activeFilters.delete(lg):activeFilters.add(lg);
+  document.querySelectorAll('.filter-pill').forEach(p=>{const l=p.dataset.league;if(l==='__all__'){p.classList.toggle('active',activeFilters.size===0);p.classList.toggle('inactive',activeFilters.size>0);}else p.classList.toggle('inactive',activeFilters.size>0&&!activeFilters.has(l));});
+  applyFilters();updateFilterCount();
+}
+function updateFilterCount(){document.getElementById('filter-count').textContent=activeFilters.size?`Filtering: ${[...activeFilters].join(', ')}`:''; }
+function applyFilters(){
+  ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
+    const list=document.getElementById(id);const cards=list.querySelectorAll('.player-card');
+    cards.forEach(c=>{const m=!activeFilters.size||c.dataset.leagues.split('|').some(lg=>activeFilters.has(lg));c.classList.toggle('filtered-out',!m);});
+    let e=list.querySelector('.filter-empty');const vis=[...cards].filter(c=>!c.classList.contains('filtered-out')&&c.style.display!=='none');
+    if(!vis.length&&cards.length){if(!e){e=document.createElement('div');e.className='empty-state filter-empty';list.appendChild(e);}e.textContent='No players match this filter.';}else if(e)e.remove();
+  });
+  updatePillCounts();
+}
+
+function toggleDebug(){document.getElementById('debug-toggle').classList.toggle('open');document.getElementById('debug-body').classList.toggle('open');}
+function renderDebug(info){
+  if(!info){document.getElementById('debug-panel').style.display='none';return;}
+  document.getElementById('debug-panel').style.display='block';
+  document.getElementById('debug-meta').innerHTML=`<span>Season: <strong>${info.season}</strong></span><span>Week: <strong>${info.week}</strong></span><span>Leagues: <strong>${info.leagues.length}</strong></span><span>Historical: <strong>${info.isHist?'yes':'no'}</strong></span><span>Projections: <strong>${info.hasProj?'loaded':'n/a'}</strong></span>${info.usedFallback?`<span class="warn">⚠ Season fallback</span>`:''}`;
+  const c=document.getElementById('debug-leagues');c.innerHTML='';
+  info.leagues.forEach(lg=>{const row=document.createElement('div');row.className='debug-league';row.innerHTML=`<div class="lg-name"><span class="lg-dot" style="background:${lc(lg.name)}"></span>${lg.name}<span class="lg-id">${lg.leagueId}</span></div><span class="dpill ${lg.rosterFound?'dp-ok':'dp-warn'}">${lg.rosterFound?`${lg.myCount}p`:'NOT FOUND'}</span><span class="dpill ${lg.matchupFound?'dp-ok':'dp-dim'}">${lg.matchupFound?`✓ opp ${lg.oppCount}`:'no matchup'}</span><span class="dpill dp-dim">${lg.state||'—'}</span><span class="dpill dp-dim">${lg.scoringFmt}</span><span class="dpill ${lg.isCoMgr?'dp-ok':'dp-dim'}">${lg.isCoMgr?'Co-mgr':'Owner'}</span>`;c.appendChild(row);});
+}
+
+const posClass=pos=>({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF'}[pos]||'pos-default');
+
+function updatePillCounts(){
+  const pairs=[['cheer-list','count-cheer'],['conflicted-list','count-conflicted'],['enemy-list','count-enemy']];
+  pairs.forEach(([listId,countId])=>{
+    const cards=document.getElementById(listId).querySelectorAll('.player-card');
+    const visible=[...cards].filter(c=>c.style.display!=='none'&&!c.classList.contains('filtered-out')).length;
+    document.getElementById(countId).textContent=visible;
+  });
+}
+
+function buildCard(player,delay,isHist){
+  const div=document.createElement('div');
+  div.className=`player-card${player.clinched?' clinched':''}`;
+  div.style.animationDelay=`${delay}ms`;
+  div.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
+  const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
+  let ptsHTML='';
+  if(hasAnyPts){
+    const rows=Object.entries(lpd).map(([n,d])=>{const color=lc(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:${color}">${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
+    ptsHTML=`<div style="display:flex;flex-direction:column;gap:4px">${rows}</div>`;
+  }
+  let rosterHTML='';
+  if(!hasAnyPts){
+    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)}">${n}</span></div>`).join('');
+    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span style="color:${lc(n)};opacity:0.7">${n}</span></div>`).join('');
+    rosterHTML=`<div class="league-context">${myL}${opL}</div>`;
+  }
+
+  let injBadge='';
+  if(player.injuryStatus){
+    const inj=player.injuryStatus;
+    const cls=inj==='Questionable'?'inj-Q':inj==='Doubtful'?'inj-D':(inj==='Out'||inj==='IR'||inj==='Injured Reserve')?'inj-O':'inj-SUS';
+    const lbl=inj==='Injured Reserve'?'IR':inj;
+    injBadge=`<span class="inj-badge ${cls}">${lbl}</span>`;
+  }
+
+  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="player-team">${player.team||''}</span>${injBadge}</div>${ptsHTML}${rosterHTML}`;
+  return div;
+}
+
+function sortPlayers(arr){return[...arr].sort((a,b)=>{const ai=POS_ORDER.indexOf(a.position)===-1?99:POS_ORDER.indexOf(a.position);const bi=POS_ORDER.indexOf(b.position)===-1?99:POS_ORDER.indexOf(b.position);return ai!==bi?ai-bi:(a.full_name||'').localeCompare(b.full_name||'');});}
+
+function renderBoard(data,username){
+  const{cheerFor,conflicted,enemies,offseasonMode,debugInfo,noData,noDataReason,contexts,hasScoring,isHist}=data;
+  showBoard();updateNavUI();
+  document.getElementById('banner-demo').classList.toggle('visible',isDemoMode);
+  document.getElementById('banner-offseason').classList.toggle('visible',!isDemoMode&&!!offseasonMode);
+  document.getElementById('banner-scoring').classList.toggle('visible',!isDemoMode&&!!hasScoring&&!isHist);
+  renderDebug(isDemoMode?null:debugInfo);
+  document.getElementById('display-username').textContent=isDemoMode?'Demo mode':username;
+  const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('board-refresh-time').textContent=`Synced ${now}`;
+  const nde=document.getElementById('no-data-state'),sb=document.getElementById('summary-bar'),cols=document.getElementById('columns');
+  if(noData){nde.classList.add('visible');sb.style.display='none';cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);return;}
+  nde.classList.remove('visible');sb.style.display='';cols.style.display='';
+  if(contexts?.length)renderScoresStrip(contexts);
+  document.getElementById('count-cheer').textContent=cheerFor.length;
+  document.getElementById('count-conflicted').textContent=conflicted.length;
+  document.getElementById('count-enemy').textContent=enemies.length;
+  const lgNames=[];[...cheerFor,...conflicted,...enemies].forEach(p=>[...p.myLeagues,...p.againstLeagues].forEach(n=>{if(!lgNames.includes(n))lgNames.push(n);}));
+  lgNames.forEach(n=>assignColor(n));buildFilterPills(lgNames);
+  function renderList(id,players){const el=document.getElementById(id);el.innerHTML='';if(!players.length){el.innerHTML='<div class="empty-state">No players in this bucket.</div>';return;}sortPlayers(players).forEach((p,i)=>el.appendChild(buildCard(p,i*24,isHist)));}
+  renderList('cheer-list',cheerFor);renderList('conflicted-list',conflicted);renderList('enemy-list',enemies);
+  applyFilters();
+}
+
+/* ── Yahoo data layer (unchanged from prior implementation) ── */
+function yhEach(obj, fn) {
+  if (!obj || typeof obj !== 'object') return;
+  Object.keys(obj).forEach(k => { if (/^\d+$/.test(k)) fn(obj[k], k); });
+}
+function yhFlatten(arr) {
+  if (!arr) return {};
+  if (!Array.isArray(arr)) return (typeof arr === 'object') ? { ...arr } : {};
+  const out = {};
+  arr.forEach(item => {
+    if (Array.isArray(item)) Object.assign(out, yhFlatten(item));
+    else if (item && typeof item === 'object') Object.assign(out, item);
+  });
+  return out;
+}
+async function yhFetch(query) {
+  const r = await fetch('/api/yahoo/data?' + query, { credentials: 'include' });
+  if (!r.ok) throw new Error('Yahoo ' + query + ' → ' + r.status);
+  return await r.json();
+}
+function parseYahooLeagues(json, season) {
+  const out = []; const users = json?.fantasy_content?.users; if (!users) return out;
+  yhEach(users, (u) => {
+    const games = u?.user?.[1]?.games; if (!games) return;
+    yhEach(games, (g) => {
+      const game = g?.game; const meta = Array.isArray(game) ? yhFlatten(game[0]) : {};
+      const leaguesNode = Array.isArray(game) ? game[1]?.leagues : null; if (!leaguesNode) return;
+      const gameSeason = String(meta.season || '');
+      yhEach(leaguesNode, (lw) => {
+        const lArr = lw?.league; if (!lArr) return;
+        const lm = Array.isArray(lArr) ? yhFlatten(lArr[0]) : (typeof lArr === 'object' ? lArr : {});
+        if (lm.game_code && lm.game_code !== 'nfl') return;
+        const lgSeason = String(lm.season || gameSeason);
+        if (season && lgSeason !== String(season)) return;
+        out.push({ league_key: lm.league_key, name: lm.name, season: lgSeason, scoring_type: lm.scoring_type || '', current_week: parseInt(lm.current_week) || null, start_week: parseInt(lm.start_week) || 1, end_week: parseInt(lm.end_week) || 17, is_finished: lm.is_finished === 1 || lm.is_finished === '1' });
+      });
+    });
+  });
+  return out;
+}
+function parseYahooStandings(json) {
+  const teams = []; const leagueArr = json?.fantasy_content?.league;
+  const standings = Array.isArray(leagueArr) ? (leagueArr[1]?.standings?.[0]?.teams || leagueArr[1]?.standings?.teams) : null;
+  if (!standings) return { teams, myTeamKey: null };
+  yhEach(standings, (tw) => {
+    const tArr = tw?.team; if (!Array.isArray(tArr)) return;
+    const meta = yhFlatten(tArr[0]);
+    let isMine = meta.is_owned_by_current_login === 1 || meta.is_owned_by_current_login === '1';
+    let isComanager = false;
+    const managers = meta.managers;
+    if (Array.isArray(managers)) managers.forEach(mwrap => { const m = mwrap?.manager; if (m && (m.is_current_login === '1' || m.is_current_login === 1)) { isMine = true; if (m.is_comanager === '1' || m.is_comanager === 1) isComanager = true; } });
+    teams.push({ team_key: meta.team_key, name: meta.name, isMine, isComanager });
+  });
+  return { teams, myTeamKey: teams.find(t => t.isMine)?.team_key || null };
+}
+function parseYahooScoreboard(json) {
+  const out = []; const leagueArr = json?.fantasy_content?.league;
+  const scoreboard = Array.isArray(leagueArr) ? leagueArr[1]?.scoreboard : null;
+  const matchups = scoreboard?.['0']?.matchups || scoreboard?.matchups; if (!matchups) return out;
+  yhEach(matchups, (mw) => {
+    const m = mw?.matchup; if (!m) return;
+    const status = m.status || '';
+    const teamsNode = m['0']?.teams || m.teams;
+    const teamsArr = [];
+    yhEach(teamsNode, (tw) => {
+      const tArr = tw?.team; if (!Array.isArray(tArr)) return;
+      const meta = yhFlatten(tArr[0]);
+      const extras = Array.isArray(tArr[1]) ? yhFlatten(tArr[1]) : (tArr[1] || {});
+      const ptsObj = extras.team_points || {}; const projObj = extras.team_projected_points || {};
+      teamsArr.push({ team_key: meta.team_key, name: meta.name, points: parseFloat(ptsObj.total) || 0, projPoints: parseFloat(projObj.total) || 0 });
+    });
+    out.push({ status, teams: teamsArr });
+  });
+  return out;
+}
+function parseYahooRoster(json) {
+  const out = []; const teamArr = json?.fantasy_content?.team;
+  const rosterNode = Array.isArray(teamArr) ? teamArr[1]?.roster : null;
+  const players = rosterNode?.['0']?.players || rosterNode?.players; if (!players) return out;
+  yhEach(players, (pw) => {
+    const pArr = pw?.player; if (!Array.isArray(pArr)) return;
+    const meta = yhFlatten(pArr[0]);
+    const extras = Array.isArray(pArr[1]) ? pArr[1] : {};
+    const sp = yhFlatten(extras.selected_position || []);
+    const slot = sp.position || ''; const isStarter = !!slot && slot !== 'BN' && slot !== 'IR';
+    const status = meta.status || meta.injury_status || '';
+    const unhealthy = ['Questionable','Doubtful','Out','Injured Reserve','IR','PUP','Suspended','NFI','DNR','NA','Q','D','O','SUSP'];
+    const shortMap = { Q:'Questionable', D:'Doubtful', O:'Out', SUSP:'Suspended', IR:'Injured Reserve' };
+    let injuryStatus = null;
+    if (unhealthy.includes(status)) injuryStatus = shortMap[status] || status;
+    const name = meta.name?.full || '';
+    out.push({ source: 'yahoo', player_key: meta.player_key, name, position: (meta.display_position || meta.primary_position || '').toUpperCase(), team: (meta.editorial_team_abbr || '').toUpperCase(), slot, isStarter, injuryStatus });
+  });
+  return out;
+}
+function parseYahooRosterStats(json) {
+  const pp = {}; const teamArr = json?.fantasy_content?.team;
+  const rosterNode = Array.isArray(teamArr) ? teamArr[1]?.roster : null;
+  const players = rosterNode?.['0']?.players || rosterNode?.players; if (!players) return pp;
+  yhEach(players, (pw) => {
+    const pArr = pw?.player; if (!Array.isArray(pArr)) return;
+    const meta = yhFlatten(pArr[0]);
+    let ptsObj = null;
+    for (let i = 1; i < pArr.length && !ptsObj; i++) {
+      const sib = pArr[i]; if (!sib) continue;
+      if (sib.player_points) { ptsObj = sib.player_points; break; }
+      if (Array.isArray(sib)) { const hit = sib.find(s => s && s.player_points); if (hit) { ptsObj = hit.player_points; break; } }
+    }
+    pp[meta.player_key] = ptsObj ? (parseFloat(ptsObj.total) || 0) : 0;
+  });
+  return pp;
+}
+function yahooScoringLabel(scoring_type) {
+  const t = (scoring_type || '').toLowerCase();
+  if (t === 'head' || t === 'h2h') return 'H2H';
+  if (t === 'roto') return 'Roto';
+  if (t === 'points') return 'Points';
+  return scoring_type || '';
+}
+async function loadYahooLeague(yLeague, week, isHist) {
+  const fmt = yahooScoringLabel(yLeague.scoring_type);
+  const standingsJson = await yhFetch('endpoint=standings&league_key=' + encodeURIComponent(yLeague.league_key));
+  const { teams, myTeamKey } = parseYahooStandings(standingsJson);
+  if (!myTeamKey) return { result: null, ctx: null, debug: { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: false, matchupFound: false, myCount: 0, oppCount: 0, state: '—', scoringFmt: fmt, isCoMgr: false }};
+  const isCoMgr = teams.find(t => t.team_key === myTeamKey)?.isComanager || false;
+  let opponentTeamKey = null, myPoints = 0, oppPoints = 0, myProjPts = 0, oppProjPts = 0;
+  let hasMatchup = false, leagueState = 'NO_MATCHUP';
+  try {
+    const sbJson = await yhFetch('endpoint=scoreboard&league_key=' + encodeURIComponent(yLeague.league_key) + '&week=' + week);
+    const matchups = parseYahooScoreboard(sbJson);
+    const myMatchup = matchups.find(m => m.teams.some(t => t.team_key === myTeamKey));
+    if (myMatchup) {
+      hasMatchup = true;
+      const me = myMatchup.teams.find(t => t.team_key === myTeamKey);
+      const opp = myMatchup.teams.find(t => t.team_key !== myTeamKey);
+      myPoints = me?.points || 0; myProjPts = me?.projPoints || 0;
+      oppPoints = opp?.points || 0; oppProjPts = opp?.projPoints || 0;
+      opponentTeamKey = opp?.team_key || null;
+      if (myMatchup.status === 'postevent' || isHist) leagueState = calcHistoricalState(myPoints, oppPoints);
+      else leagueState = calcLiveState(myPoints, oppPoints, myProjPts, oppProjPts);
+    }
+  } catch (e) { console.warn('Yahoo scoreboard failed for', yLeague.name, e.message); }
+  let myPlayers = [], oppPlayers = [], myPP = {}, oppPP = {};
+  try {
+    const myRosterJson = await yhFetch('endpoint=roster_stats&team_key=' + encodeURIComponent(myTeamKey) + '&week=' + week);
+    const myRoster = parseYahooRoster(myRosterJson); myPP = parseYahooRosterStats(myRosterJson);
+    const starters = myRoster.filter(p => p.isStarter); myPlayers = starters.length ? starters : myRoster;
+  } catch (e) { console.warn('Yahoo my roster failed for', yLeague.name, e.message); }
+  if (opponentTeamKey) {
+    try {
+      const oppRosterJson = await yhFetch('endpoint=roster_stats&team_key=' + encodeURIComponent(opponentTeamKey) + '&week=' + week);
+      const oppRoster = parseYahooRoster(oppRosterJson); oppPP = parseYahooRosterStats(oppRosterJson);
+      const starters = oppRoster.filter(p => p.isStarter); oppPlayers = starters.length ? starters : oppRoster;
+    } catch (e) { console.warn('Yahoo opp roster failed for', yLeague.name, e.message); }
+  }
+  return {
+    result: { leagueName: yLeague.name, myPlayers, oppPlayers, hasMatchup, fmt, source: 'yahoo' },
+    ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myPP, oppPP, fmt, source: 'yahoo' },
+    debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: hasMatchup, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
+  };
+}
+function unifiedPlayerKey(name, team, pos) {
+  const P = (pos || '').toUpperCase(); const T = (team || '').toUpperCase();
+  if (P === 'DEF' || P === 'DST') return T ? 'DST|' + T : null;
+  if (!name) return null;
+  let N = String(name).toLowerCase();
+  N = N.replace(/[.'`,]/g, '').replace(/-/g, ' ').replace(/\s+(jr|sr|ii|iii|iv|v)\.?\b/g, '').replace(/\s+/g, ' ').trim();
+  return N + '|' + T + '|' + P;
+}
+
+async function loadData(){
+  if(!isAnyProviderConnected()){
+    return{noData:true,noDataReason:'No providers connected.',cheerFor:[],conflicted:[],enemies:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
+  }
+  showLoading('Pulling your leagues.');
+  const state=await getNFLState();
+  liveWeek=(state.week>=1&&state.week<=MAX_WEEK)?state.week:1;liveSeason=state.season;
+  if(!isAnyProviderLoaded){activeWeek=liveWeek;activeSeason=liveSeason;}
+  isAnyProviderLoaded=true;
+  buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);
+  const connected=getConnectedProviders();
+  const isHist=isHistoricalWeek();
+  async function fetchAllProviders(season,week,isHist){
+    setLoading(`Loading ${season} leagues from ${connected.map(id=>PROVIDERS[id].displayName).join(' + ')}.`);
+    const providerResults=await Promise.all(connected.map(id=>
+      PROVIDERS[id].loadLeagues(season,week,isHist).catch(e=>{
+        console.warn(`${id} loadLeagues failed:`,e.message);
+        return{results:[],contexts:[],debugLeagues:[]};
+      })
+    ));
+    const valid=[],leagueContexts=[],debugLeagues=[];
+    let sleeperProjections={},hasProj=false;
+    providerResults.forEach((pr,i)=>{
+      pr.results.forEach(r=>valid.push(r));
+      pr.contexts.forEach(c=>leagueContexts.push(c));
+      pr.debugLeagues.forEach(d=>debugLeagues.push(d));
+      if(connected[i]==='sleeper'&&pr.projections){sleeperProjections=pr.projections;hasProj=pr.hasProj||false;}
+    });
+    return{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj};
+  }
+  let{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj}=await fetchAllProviders(activeSeason,activeWeek,isHist);
+  if(!valid.length&&activeSeason===liveSeason){
+    const prev=String(parseInt(activeSeason)-1);
+    setLoading(`No ${activeSeason} leagues yet — trying ${prev}.`);
+    liveSeason=prev;activeSeason=prev;
+    buildSeasonSelect(activeSeason);buildWeekSelect(activeWeek);
+    ({valid,leagueContexts,debugLeagues,sleeperProjections,hasProj}=await fetchAllProviders(activeSeason,activeWeek,isHist));
+  }
+  if(!valid.length){
+    const dn=getPrimaryDisplayName();
+    const checked=connected.map(id=>PROVIDERS[id].displayName).join(' or ');
+    return{noData:true,noDataReason:`No leagues found for <strong>${dn}</strong> in <strong>${activeSeason}</strong> on ${checked}. You may not have been in a league that year, or the season hasn't started yet.`,cheerFor:[],conflicted:[],enemies:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
+  }
+  const projPts=id=>{const p=sleeperProjections[id];return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null;};
+  const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
+  const playerDB=await getPlayerDB();setLoading('Classifying players.');
+  const map=new Map();
+  function ensure(p){
+    let key,full_name,position,team,injuryStatus;
+    if(typeof p==='string'){
+      const info=playerDB[p]||{};
+      full_name=info.full_name||info.last_name||`Player ${p}`;
+      position=info.position||(p.length<=4?'DEF':'—');
+      team=info.team||'';
+      const inj=info.injury_status||info.status||null;
+      const unhealthy=['Questionable','Doubtful','Out','Injured Reserve','IR','PUP','Suspended','NFI','DNR','NA'];
+      injuryStatus=unhealthy.includes(inj)?inj:null;
+      key=unifiedPlayerKey(full_name,team,position)||('sl:'+p);
+    }else{
+      full_name=p.name;position=p.position;team=p.team;injuryStatus=p.injuryStatus||null;
+      key=unifiedPlayerKey(full_name,team,position)||('yh:'+p.player_key);
+    }
+    if(!map.has(key)){
+      map.set(key,{id:key,full_name,position,team,injuryStatus,myLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
+    }
+    const e=map.get(key);
+    if(injuryStatus&&!e.injuryStatus)e.injuryStatus=injuryStatus;
+    return e;
+  }
+  const ptsKey=p=>typeof p==='string'?p:p.player_key;
+  const projForPlayer=p=>(typeof p==='string'&&!isHist&&hasProj)?projPts(p):null;
+  valid.forEach(lg=>{
+    const ctx=leagueContexts.find(c=>c.leagueName===lg.leagueName);
+    lg.myPlayers.forEach(p=>{
+      const e=ensure(p);
+      if(!e.myLeagues.includes(lg.leagueName))e.myLeagues.push(lg.leagueName);
+      const k=ptsKey(p);const pts=ctx?.myPP[k]??null,proj=projForPlayer(p);
+      if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
+    });
+    lg.oppPlayers.forEach(p=>{
+      const e=ensure(p);
+      if(!e.againstLeagues.includes(lg.leagueName))e.againstLeagues.push(lg.leagueName);
+      const k=ptsKey(p);const pts=ctx?.oppPP[k]??null,proj=projForPlayer(p);
+      if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
+    });
+  });
+  const cheerFor=[],conflicted=[],enemies=[];
+  map.forEach(p=>{
+    const sig=calcSignal(p,leagueContexts);
+    const cls=classifyPlayer(p,sig);
+    if(!cls)return;
+    p.bucket=cls.bucket;p.clinched=cls.clinched;
+    p.contextBadge=hasScoring?ctxBadge(sig,isHist):null;
+    if(cls.bucket==='cheer')cheerFor.push(p);
+    else if(cls.bucket==='conflicted')conflicted.push(p);
+    else enemies.push(p);
+  });
+  return{cheerFor,conflicted,enemies,noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
+}
+
+function getDemoData(){
+  const L1='Dynasty Royale',L2='Redraft Chaos',L3='The Gridiron',L4='Devy Masters';
+  [L1,L2,L3,L4].forEach((n,i)=>{colorMap[n]=LC_COLORS[i];});
+  const contexts=[
+    {leagueName:L1,leagueState:'LIVE',myPoints:95.64,oppPoints:72.82,myPP:{},oppPP:{},fmt:'PPR'},
+    {leagueName:L2,leagueState:'LIVE',myPoints:68.40,oppPoints:82.14,myPP:{},oppPP:{},fmt:'Half'},
+    {leagueName:L3,leagueState:'LOCKED_WIN',myPoints:134.20,oppPoints:45.82,myPP:{},oppPP:{},fmt:'Std'},
+    {leagueName:L4,leagueState:'LOCKED_LOSS',myPoints:52.10,oppPoints:118.40,myPP:{},oppPP:{},fmt:'PPR'}
+  ];
+  function p(id,name,pos,team,mine,against,lpts,sig,allDecided,injuryStatus=null){const sigResult={signal:sig,allDecided};const cls=classifyPlayer({myLeagues:mine,againstLeagues:against},sigResult);const badge=ctxBadge(sigResult,false);const leaguePoints={};(lpts||[]).forEach(d=>{leaguePoints[d.lg]={pts:d.pts,proj:d.proj??null,fmt:d.fmt};});return{id,full_name:name,position:pos,team,myLeagues:mine,againstLeagues:against,leaguePoints,contextBadge:badge,bucket:cls?.bucket,clinched:cls?.clinched||false,injuryStatus};}
+  return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,debugInfo:null,
+    cheerFor:[
+      p('d1','Patrick Mahomes','QB','KC',[L1,L3],[],[{lg:L1,pts:22.44,proj:28.0,fmt:'PPR'},{lg:L3,pts:22.44,proj:28.0,fmt:'Std'}],2,false),
+      p('d2','Davante Adams','WR','NO',[L1],[],[{lg:L1,pts:11.80,proj:16.0,fmt:'PPR'}],1,false,'Questionable'),
+      p('d3','Derrick Henry','RB','BAL',[L1],[],[{lg:L1,pts:14.20,proj:18.0,fmt:'PPR'}],1,false),
+      p('d4','Tyreek Hill','WR','MIA',[L2,L3],[],[{lg:L2,pts:18.60,proj:22.0,fmt:'Half'},{lg:L3,pts:18.60,proj:22.0,fmt:'Std'}],2,false),
+      p('d7','Travis Kelce','TE','KC',[L1],[L4],[{lg:L1,pts:8.60,proj:14.0,fmt:'PPR'},{lg:L4,pts:8.60,proj:null,fmt:'PPR'}],1,false),
+      p('d8','Christian McCaffrey','RB','SF',[L3],[],[{lg:L3,pts:24.60,proj:null,fmt:'Std'}],0,true,'Out'),
+    ],
+    conflicted:[
+      p('d9','Justin Jefferson','WR','MIN',[L1],[L2],[{lg:L1,pts:16.40,proj:20.0,fmt:'PPR'},{lg:L2,pts:16.40,proj:20.0,fmt:'Half'}],0,false),
+      p('d10','Josh Allen','QB','BUF',[L2],[L1],[{lg:L2,pts:19.80,proj:26.0,fmt:'Half'},{lg:L1,pts:19.80,proj:26.0,fmt:'PPR'}],0,false,'Doubtful'),
+      p('d11','CeeDee Lamb','WR','DAL',[L1],[L2],[{lg:L1,pts:14.20,proj:22.0,fmt:'PPR'},{lg:L2,pts:14.20,proj:22.0,fmt:'Half'}],0,false),
+      p('d12','Saquon Barkley','RB','PHI',[L2],[L1],[{lg:L2,pts:11.60,proj:16.0,fmt:'Half'},{lg:L1,pts:11.60,proj:16.0,fmt:'PPR'}],0,false),
+    ],
+    enemies:[
+      p('d13',"Ja'Marr Chase",'WR','CIN',[],[L1,L2],[{lg:L1,pts:20.20,proj:24.0,fmt:'PPR'},{lg:L2,pts:20.20,proj:24.0,fmt:'Half'}],-2,false),
+      p('d14','Jalen Hurts','QB','PHI',[],[L2,L3],[{lg:L2,pts:21.40,proj:28.0,fmt:'Half'},{lg:L3,pts:21.40,proj:28.0,fmt:'Std'}],-2,false,'Injured Reserve'),
+      p('d15','Sam LaPorta','TE','DET',[],[L1],[{lg:L1,pts:6.80,proj:10.0,fmt:'PPR'}],-1,false,'Questionable'),
+      p('d16','Tony Pollard','RB','TEN',[],[L1],[{lg:L1,pts:8.40,proj:12.0,fmt:'PPR'}],-1,false),
+      p('d17','Cooper Kupp','WR','LAR',[],[L1,L2],[{lg:L1,pts:13.60,proj:16.0,fmt:'PPR'},{lg:L2,pts:13.60,proj:16.0,fmt:'Half'}],-2,false),
+      p('d18','Stefon Diggs','WR','HOU',[],[L4],[{lg:L4,pts:11.20,proj:null,fmt:'PPR'}],0,true),
+    ]};
+}
+
+async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
+async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
+async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};activeFilters.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
+async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(isAnyProviderConnected())await run();}
+
+function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');hideLastRefreshed();}
+async function handleRefresh(){if(isDemoMode){handleDemo();return;}if(isAnyProviderConnected())await run();}
+async function handleChangeUser(){isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();showSetup();}
+async function run(){
+  try{
+    renderBoard(await loadData(),getPrimaryDisplayName());
+    lastFetchTime=Date.now();
+    setLastRefreshed();
+    startAutoRefresh();
+  }catch(err){console.error(err);showError(err.message||'Something went wrong on our end. Refreshing usually fixes it.');}
+}
+
+const REFRESH_MS=60*1000;let refreshTimer=null;let lastFetchTime=0;
+function shouldAutoRefresh(){return !isDemoMode && isAnyProviderConnected() && !isHistoricalWeek();}
+function startAutoRefresh(){
+  stopAutoRefresh(); if(!shouldAutoRefresh())return;
+  refreshTimer=setInterval(async()=>{
+    if(document.hidden)return;
+    if(Date.now()-lastFetchTime>=REFRESH_MS){
+      try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();setLastRefreshed();}
+      catch(e){console.warn('Auto-refresh failed silently:',e.message);}
+    }
+  },10000);
+}
+function stopAutoRefresh(){if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}}
+document.addEventListener('visibilitychange',async()=>{
+  if(document.hidden)return; if(!shouldAutoRefresh())return;
+  if(Date.now()-lastFetchTime>=REFRESH_MS){
+    try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();setLastRefreshed();}
+    catch(e){console.warn('Tab-return refresh failed:',e.message);}
+  }
+});
+function setLastRefreshed(){
+  if(isDemoMode)return;
+  const el=document.getElementById('last-refreshed'); if(!el)return;
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,'0'),mm=String(now.getMinutes()).padStart(2,'0'),ss=String(now.getSeconds()).padStart(2,'0');
+  el.textContent=`Synced ${hh}:${mm}:${ss}`;
+  el.classList.add('visible');
+}
+function hideLastRefreshed(){const el=document.getElementById('last-refreshed');if(el){el.textContent='';el.classList.remove('visible');}}
+
+buildWeekSelect(1);buildSeasonSelect(THIS_YR);
+
+const PROVIDERS={
+  sleeper:{
+    id:'sleeper', displayName:'Sleeper', accentColor:'#1A3A52', connectionType:'username',
+    async checkStatus(){
+      const u=connectionState.sleeper.identity;
+      const s={connected:!!u,identity:u,displayName:u};
+      connectionState.sleeper={...connectionState.sleeper,connected:s.connected,displayName:s.displayName};
+      return s;
+    },
+    async connect(input){
+      const username=String(input||'').trim();
+      if(!username)return{success:false,error:'Username is required.'};
+      try{
+        const user=await getUser(username);
+        if(!user?.user_id)return{success:false,error:`Username "${username}" not found on Sleeper.`};
+        connectionState.sleeper={connected:true,identity:username,displayName:username};
+        this.persist(); return{success:true};
+      }catch(e){return{success:false,error:e.message||'Could not reach Sleeper.'};}
+    },
+    async disconnect(){
+      connectionState.sleeper={connected:false,identity:null,displayName:null};
+      try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+    },
+    async loadLeagues(season,week,isHist){
+      const username=connectionState.sleeper.identity;
+      if(!username)return{results:[],contexts:[],debugLeagues:[]};
+      const user=await getUser(username);
+      if(!user?.user_id)return{results:[],contexts:[],debugLeagues:[]};
+      const leagues=await getLeagues(user.user_id,season);
+      if(!leagues?.length)return{results:[],contexts:[],debugLeagues:[]};
+      const projections=await getProjections(season,week);const hasProj=Object.keys(projections).length>0;
+      const projPts=id=>{const p=projections[id];return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null;};
+      const projSum=ids=>ids.reduce((s,id)=>s+(projPts(id)??0),0);
+      const debugLeagues=[],contexts=[];
+      const results=await Promise.all(leagues.map(async lg=>{
+        const rosters=await getRosters(lg.league_id);
+        const myRoster=rosters.find(r=>r.owner_id===user.user_id||(Array.isArray(r.co_owners)&&r.co_owners.includes(user.user_id)));
+        const isCoMgr=myRoster?myRoster.owner_id!==user.user_id:false;const fmt=scoringLabel(lg);
+        if(!myRoster){debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:false,matchupFound:false,myCount:0,oppCount:0,state:'—',scoringFmt:fmt,isCoMgr:false,provider:'sleeper'});return null;}
+        let matchups=[];try{const raw=await getMatchups(lg.league_id,week);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
+        const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
+        const oppMatchup=myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
+        let myPlayers=[],oppPlayers=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP';
+        if(myMatchup){
+          hasMatchup=true;
+          const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
+          const allMine=(myMatchup.players||myRoster.players||[]).filter(id=>id&&id!=='0');
+          myPlayers=starters.length?starters:allMine;
+          myPoints=myMatchup.points||0;myPP=myMatchup.players_points||{};
+          const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
+          const oppTaxiIds=new Set((oppRoster?.taxi||[]).filter(Boolean));
+          const oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
+          const oppAll=(oppMatchup?(oppMatchup.players||oppRoster?.players||[]):[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
+          oppPlayers=oppStarters.length?oppStarters:oppAll;
+          oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
+          leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,hasProj?projSum(myPlayers):0,hasProj?projSum(oppPlayers):0);
+        }else{myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');}
+        myPlayers=myPlayers.filter(id=>id&&id!=='0');
+        oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
+        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
+        debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
+        return{leagueName:lg.name,myPlayers,oppPlayers,hasMatchup,fmt,provider:'sleeper'};
+      }));
+      const valid=results.filter(Boolean);
+      if(leagues?.length&&!valid.length)throw new Error('Found Sleeper leagues but could not read roster data.');
+      return{results:valid,contexts,debugLeagues,projections,hasProj};
+    },
+    persist(){try{localStorage.setItem(SLEEPER_LS_KEY,connectionState.sleeper.identity||'');}catch(e){}},
+    rehydrate(){
+      try{
+        const legacy=localStorage.getItem(USER_KEY);
+        const u=localStorage.getItem(SLEEPER_LS_KEY)||legacy;
+        if(u){
+          connectionState.sleeper={connected:true,identity:u,displayName:u};
+          if(legacy&&!localStorage.getItem(SLEEPER_LS_KEY))localStorage.setItem(SLEEPER_LS_KEY,u);
+        }
+      }catch(e){}
+    },
+    renderConnectCard(rootEl){
+      if(connectionState.sleeper.connected){
+        rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>Connected as <strong>${connectionState.sleeper.identity}</strong></span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('sleeper')">Disconnect</button>`;
+      }else{
+        rootEl.innerHTML=`<div class="signin-input-row"><input type="text" class="signin-input provider-input" id="sleeper-input" placeholder="sleeper username" autocomplete="off" /><button class="btn-primary provider-connect-btn" onclick="handleProviderConnect('sleeper')">Connect</button></div><p class="provider-error" id="sleeper-error" style="display:none"></p>`;
+        setTimeout(()=>{const inp=document.getElementById('sleeper-input');if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter')handleProviderConnect('sleeper');});},0);
+      }
+    },
+  },
+
+  yahoo:{
+    id:'yahoo', displayName:'Yahoo', accentColor:'#7B0099', connectionType:'oauth',
+    async checkStatus(){
+      try{
+        const r=await fetch('/api/yahoo/data?endpoint=games',{credentials:'include'});
+        if(r.ok){connectionState.yahoo={connected:true,identity:'yahoo-session',displayName:'Yahoo User'};return connectionState.yahoo;}
+      }catch(e){}
+      connectionState.yahoo={connected:false,identity:null,displayName:null};
+      return connectionState.yahoo;
+    },
+    async connect(){window.location.href='/api/auth/yahoo';},
+    async disconnect(){window.location.href='/api/auth/logout';},
+    async loadLeagues(season,week,isHist){
+      let leaguesJson;
+      try{leaguesJson=await yhFetch('endpoint=leagues&season='+encodeURIComponent(season));}
+      catch(e){console.warn('Yahoo leagues fetch failed:',e.message);return{results:[],contexts:[],debugLeagues:[]};}
+      const yLeagues=parseYahooLeagues(leaguesJson,season);
+      if(!yLeagues.length)return{results:[],contexts:[],debugLeagues:[]};
+      const out=await Promise.all(yLeagues.map(yl=>loadYahooLeague(yl,week,isHist).catch(e=>{console.warn('Yahoo league failed:',yl.name,e.message);return null;})));
+      const results=[],contexts=[],debugLeagues=[];
+      out.forEach(o=>{if(!o)return;if(o.result){o.result.provider='yahoo';results.push(o.result);}if(o.ctx)contexts.push(o.ctx);if(o.debug){o.debug.provider='yahoo';debugLeagues.push(o.debug);}});
+      return{results,contexts,debugLeagues};
+    },
+    persist(){}, rehydrate(){},
+    renderConnectCard(rootEl){
+      if(connectionState.yahoo.connected){
+        rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>Yahoo connected</span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('yahoo')">Disconnect</button>`;
+      }else{
+        rootEl.innerHTML=`<button class="btn-yahoo provider-connect-btn" onclick="handleProviderConnect('yahoo')"><span class="btn-yahoo-icon">Y!</span><span>Connect your Yahoo account</span></button>`;
+      }
+    },
+  },
+  espn:{
+    id:'espn', displayName:'ESPN', accentColor:'#D00018', connectionType:'placeholder',
+    async checkStatus(){return connectionState.espn;},
+    async connect(){},
+    async disconnect(){},
+    async loadLeagues(){return{results:[],contexts:[],debugLeagues:[]};},
+    persist(){}, rehydrate(){},
+    renderConnectCard(rootEl){
+      rootEl.innerHTML=`<p class="provider-soon-msg">ESPN integration is on the roadmap. Use Sleeper or Yahoo to get started today.</p><button class="btn-soon-disabled" disabled>Coming soon</button>`;
+    },
+  },
+};
+
+function renderSetupProviders(){
+  const grid=document.getElementById('provider-card-grid'); if(!grid)return;
+  grid.innerHTML='';
+  Object.values(PROVIDERS).forEach(p=>{
+    const card=document.createElement('div');
+    card.className='provider-card'+(connectionState[p.id]?.connected?' connected':'');
+    const head=document.createElement('div');head.className='provider-card-header';
+    head.innerHTML=`<span class="provider-icon" style="background:${p.accentColor}">${p.displayName.charAt(0)}</span><span class="provider-card-title">${p.displayName}</span>`;
+    const body=document.createElement('div');body.className='provider-card-body';
+    p.renderConnectCard(body);
+    card.appendChild(head);card.appendChild(body);
+    grid.appendChild(card);
+  });
+  const cont=document.getElementById('continue-btn');
+  if(cont)cont.disabled=!isAnyProviderConnected();
+}
+
+async function handleProviderConnect(id){
+  const p=PROVIDERS[id];if(!p)return;
+  if(p.connectionType==='username'){
+    const inp=document.getElementById(id+'-input');
+    const err=document.getElementById(id+'-error');
+    if(err){err.style.display='none';err.textContent='';}
+    const val=inp?.value?.trim()||'';
+    const res=await p.connect(val);
+    if(res.success)renderSetupProviders();
+    else if(err){err.textContent=res.error||'Could not connect.';err.style.display='block';}
+  }else{
+    await p.connect();
+  }
+}
+
+async function handleProviderDisconnect(id){
+  const p=PROVIDERS[id];if(!p)return;
+  await p.disconnect();
+  renderSetupProviders();
+}
+
+async function handleContinue(){
+  if(!isAnyProviderConnected())return;
+  isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();
+  await run();
+}
+
+async function checkYahooStatus(){
+  try{await PROVIDERS.yahoo.checkStatus();}catch(e){console.warn('yahoo status check failed:',e.message);}
+}
+
+function showYahooToast(msg, isError){
+  const t = document.createElement('div');
+  t.className = 'yahoo-toast' + (isError ? ' toast-error' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.style.opacity = '0'; }, 2800);
+  setTimeout(()=>{ t.remove(); }, 3200);
+}
+
+function consumeYahooReturnParam(){
+  const params = new URLSearchParams(window.location.search);
+  const flag = params.get('yahoo');
+  if(flag === 'connected') showYahooToast('Yahoo connected');
+  else if(flag === 'disconnected') showYahooToast('Yahoo disconnected');
+  if(flag){
+    params.delete('yahoo');
+    const qs = params.toString();
+    const newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+    window.history.replaceState({}, '', newUrl);
+  }
+}
+
+(async()=>{
+  const cameFromYahooOAuth=new URLSearchParams(window.location.search).get('yahoo')==='connected';
+  consumeYahooReturnParam();
+  Object.values(PROVIDERS).forEach(p=>{try{p.rehydrate&&p.rehydrate();}catch(e){console.warn(p.id+' rehydrate failed:',e.message);}});
+  await checkYahooStatus();
+  if(cameFromYahooOAuth)showSetup();
+  else if(isAnyProviderConnected())await run();
+  else showSetup();
+})();
+</script>
+</body>
+</html>
