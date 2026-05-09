@@ -57,7 +57,7 @@
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+    html { font-size: 16px; -webkit-text-size-adjust: 100%; overflow-x: hidden; }
     body {
       background: var(--paper);
       color: var(--ink-700);
@@ -592,7 +592,7 @@
     .dp-dim  { background: var(--neutral-soft); color: var(--ink-500); border-color: var(--ink-300); }
 
     /* Columns — colored bottom borders, namesake "Conflicted" gets the split treatment */
-    .columns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: start; margin-top: 8px; }
+    .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 8px; }
     .column-header {
       display: flex; align-items: baseline; gap: 10px;
       padding: 0 4px 12px; border-bottom: 2px solid;
@@ -638,7 +638,7 @@
     .player-card.filtered-out { display: none; }
     .player-card.clinched { opacity: 0.5; border-left-color: var(--neutral) !important; }
 
-    .card-top { display: flex; align-items: center; gap: 9px; }
+    .card-top { display: flex; align-items: center; gap: 9px; min-width: 0; }
     .pos-badge {
       font: 500 10px/1 var(--font-mono); padding: 3px 6px;
       border-radius: var(--radius-sm); letter-spacing: 0.06em;
@@ -653,6 +653,7 @@
     .player-name {
       font: 700 14px/1.2 var(--font-sans); color: var(--ink-900);
       letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      min-width: 0; flex: 1 1 auto;
     }
     .player-team { font: 400 11px/1 var(--font-mono); color: var(--ink-500); margin-left: auto; flex-shrink: 0; }
 
@@ -706,17 +707,20 @@
       .nav-controls { padding: 8px 12px; gap: 6px; }
       .nav-divider { display: none; }
       .nav-ctx { display: none; }
-      .columns { grid-template-columns: 1fr; gap: 28px; }
+      .columns { grid-template-columns: minmax(0, 1fr); gap: 28px; }
       .filter-pill { font-size: 11px; padding: 4px 10px; }
       .filter-count { display: none; }
       .filter-divider { display: none; }
+      /* Slim the header on mobile — Change user is duplicated by the in-page "change" link, and the WEEK pill is redundant with the dashboard week selector */
+      .site-header__week { display: none !important; }
+      #change-user-btn { display: none !important; }
     }
     @media (min-width: 641px) and (max-width: 768px) {
       :root { --gutter: 22px; }
       .lp-hero h1 { font-size: 44px; }
       .how-grid { grid-template-columns: 1fr 1fr; gap: 22px; }
       .how-step:nth-child(2)::after { display: none; }
-      .columns { grid-template-columns: 1fr; gap: 24px; }
+      .columns { grid-template-columns: minmax(0, 1fr); gap: 24px; }
     }
   </style>
 </head>
