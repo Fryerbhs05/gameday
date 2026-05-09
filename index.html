@@ -828,6 +828,8 @@
       <span class="t-stat-sm" id="board-refresh-time"></span>
     </div>
     <div class="nav-controls">
+      <button class="btn-live" id="live-btn" onclick="snapToLive()"><span class="dot-live"></span> Live</button>
+      <div class="nav-divider"></div>
       <span class="nav-label">Week</span>
       <button class="btn-icon" id="week-prev" onclick="changeWeek(-1)">‹</button>
       <select class="nav-select week-select" id="week-select" onchange="changeWeekTo(+this.value)"></select>
@@ -835,11 +837,10 @@
       <div class="nav-divider"></div>
       <span class="nav-label">Season</span>
       <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
-      <div class="nav-divider"></div>
-      <button class="btn-live" id="live-btn" onclick="snapToLive()"><span class="dot-live"></span> Live</button>
       <div class="nav-spacer"></div>
       <span class="nav-ctx" id="nav-context-label"></span>
     </div>
+    <div class="banner banner-scoring"   id="banner-scoring"><div><strong>Live scoring active</strong> — allegiances are adjusted based on current scores and lead safety.</div></div>
     <div class="scores-strip" id="scores-strip"></div>
     <div class="league-filters" id="league-filters">
       <span class="filter-label">Filter</span>
@@ -850,7 +851,6 @@
     <div class="banner banner-demo"      id="banner-demo"><div><strong>Demo mode</strong> — 4 fake leagues with live scoring context. Connect a platform to load real data.</div></div>
     <div class="banner banner-offseason" id="banner-offseason"><div><strong>Roster mode</strong> — no matchup data yet. Everyone defaults to your guys until lineups are set.</div></div>
     <div class="banner banner-history"   id="banner-history"><div id="history-label"></div></div>
-    <div class="banner banner-scoring"   id="banner-scoring"><div><strong>Live scoring active</strong> — allegiances are adjusted based on current scores and lead safety.</div></div>
     <div id="no-data-state">
       <div class="no-data-title">No league data</div>
       <div class="no-data-msg" id="no-data-msg"></div>
