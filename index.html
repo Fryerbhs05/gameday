@@ -752,7 +752,7 @@
       <span class="last-refreshed" id="last-refreshed"></span>
       <span class="site-header__week" id="week-label" style="display:none"></span>
       <button class="btn-ghost" id="change-user-btn" onclick="handleChangeUser()" style="display:none">Change user</button>
-      <button class="btn-primary btn-sm" id="refresh-btn" onclick="handleRefresh()" style="display:none">Sync</button>
+      <button class="btn-live" id="refresh-btn" onclick="handleRefresh()" style="display:none"><span class="dot-live"></span> LIVE</button>
     </nav>
   </div>
 </header>
@@ -979,7 +979,7 @@ function setLoading(msg){document.getElementById('loading-msg').textContent=msg;
 function showError(msg){hideAll();document.getElementById('error-panel').style.display='flex';document.getElementById('error-msg').textContent=msg;}
 function showBoard(){
   hideAll();document.getElementById('board').style.display='block';
-  ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='inline-block');
+  ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='inline-flex');
   document.getElementById('week-label').style.display='block';
 }
 
@@ -1432,7 +1432,7 @@ async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSea
 async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(isAnyProviderConnected())await run();}
 
 function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');hideLastRefreshed();}
-async function handleRefresh(){if(isDemoMode){handleDemo();return;}if(isAnyProviderConnected())await run();}
+async function handleRefresh(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode){handleDemo();return;}if(isAnyProviderConnected())await run();}
 async function handleChangeUser(){isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();showSetup();}
 async function run(){
   try{
