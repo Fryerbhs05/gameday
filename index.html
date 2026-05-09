@@ -722,6 +722,134 @@
       .how-step:nth-child(2)::after { display: none; }
       .columns { grid-template-columns: minmax(0, 1fr); gap: 24px; }
     }
+
+    /* ═══════════════════════════════════════════════════════════
+       PRIORITY ONBOARDING (matches landing/signin-card pattern)
+    ═══════════════════════════════════════════════════════════ */
+    #priority-panel { display: none; flex-direction: column; min-height: calc(100vh - 76px); padding: 56px var(--gutter) 80px; }
+    .priority-inner { max-width: 760px; margin: 0 auto; width: 100%; }
+    .priority-eyebrow {
+      font: 500 11px/1.4 var(--font-sans); letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--ink-500); margin-bottom: 16px;
+      display: inline-flex; align-items: center; gap: 14px;
+    }
+    .priority-eyebrow::before { content: ''; display: block; width: 32px; height: 1px; background: var(--coral-500); opacity: 0.6; }
+    .priority-card {
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: var(--radius-lg); padding: 32px;
+    }
+    .priority-card h2 {
+      font: 800 28px/1.15 var(--font-sans); letter-spacing: -0.02em;
+      color: var(--ink-900); margin-bottom: 8px;
+    }
+    .priority-card-sub {
+      font: 400 14px/1.6 var(--font-sans); color: var(--ink-500); margin-bottom: 18px;
+    }
+    .priority-banner {
+      font: 400 12px/1.5 var(--font-sans); color: var(--coral-700);
+      background: var(--coral-200); border: 1px solid var(--coral-500);
+      padding: 9px 13px; border-radius: var(--radius-md); margin-bottom: 16px;
+    }
+    .priority-equal-row {
+      display: flex; align-items: center; gap: 14px;
+      background: var(--paper); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 14px;
+    }
+    .priority-equal-label { flex: 1; }
+    .priority-equal-title { font: 500 14px/1.3 var(--font-sans); color: var(--ink-900); }
+    .priority-equal-sub   { font: 400 12px/1.4 var(--font-sans); color: var(--ink-500); margin-top: 3px; }
+    .priority-toggle {
+      position: relative; width: 36px; height: 20px;
+      background: var(--ink-300); border: none; border-radius: var(--radius-pill);
+      cursor: pointer; flex-shrink: 0; padding: 0;
+      transition: background var(--duration-fast) var(--ease-out);
+    }
+    .priority-toggle.on { background: var(--coral-500); }
+    .priority-toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; background: var(--paper);
+      border-radius: 50%; transition: left var(--duration-fast) var(--ease-out);
+    }
+    .priority-toggle.on::after { left: 18px; }
+    .priority-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+    .priority-list.disabled { opacity: 0.45; pointer-events: none; }
+    .priority-row {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--paper); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 12px 14px;
+      transition: border-color var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
+    }
+    .priority-row.top { border-color: var(--coral-500); }
+    .priority-row.dragging { opacity: 0.4; }
+    .priority-row[draggable="true"] { cursor: grab; }
+    .priority-row[draggable="true"]:active { cursor: grabbing; }
+    .priority-handle {
+      color: var(--ink-300); font: 500 16px/1 var(--font-mono);
+      user-select: none; padding: 0 2px; flex-shrink: 0;
+    }
+    .priority-rank {
+      font: 500 11px/1 var(--font-mono); padding: 4px 9px;
+      border-radius: var(--radius-pill); flex-shrink: 0;
+      background: var(--paper-deep); color: var(--ink-500);
+      letter-spacing: 0.04em; border: 1px solid var(--line);
+    }
+    .priority-rank.top { background: var(--coral-200); color: var(--coral-700); border-color: var(--coral-500); }
+    .priority-row-meta { flex: 1; min-width: 0; }
+    .priority-row-name { font: 700 14px/1.3 var(--font-sans); color: var(--ink-900); }
+    .priority-row-detail { font: 400 11px/1.4 var(--font-mono); color: var(--ink-500); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .priority-row-detail .lg-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .priority-arrows { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+    .priority-arrow-btn {
+      background: var(--paper-soft); color: var(--ink-500);
+      border: 1px solid var(--line); border-radius: var(--radius-sm);
+      width: 26px; height: 20px; padding: 0;
+      font: 500 9px/1 var(--font-mono); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background var(--duration-fast) var(--ease-out);
+    }
+    .priority-arrow-btn:hover:not(:disabled) { background: var(--paper-deep); color: var(--ink-700); }
+    .priority-arrow-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .priority-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; flex-wrap: wrap; }
+    .priority-actions .btn-primary { padding: 11px 22px; font-size: 14px; }
+    @media (max-width: 640px) {
+      .priority-card { padding: 22px 18px; }
+      .priority-card h2 { font-size: 24px; }
+      .priority-row { padding: 10px 12px; gap: 10px; }
+      .priority-row-detail { font-size: 10px; }
+    }
+
+    /* Settings panel — mirrors .debug-panel */
+    .settings-panel {
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: var(--radius-md); margin-bottom: 14px; overflow: hidden;
+    }
+    .settings-toggle {
+      width: 100%; background: none; border: none; padding: 10px 15px;
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      color: var(--ink-500); font: 500 11px/1 var(--font-sans);
+      letter-spacing: 0.08em; text-transform: uppercase; text-align: left;
+    }
+    .settings-toggle:hover { background: var(--paper-deep); }
+    .settings-toggle .arrow { transition: transform var(--duration-base); margin-left: auto; }
+    .settings-toggle.open .arrow { transform: rotate(90deg); }
+    .settings-body { display: none; padding: 4px 15px 12px; border-top: 1px solid var(--line); }
+    .settings-body.open { display: block; }
+    .settings-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0;
+    }
+    .settings-row:not(:last-child) { border-bottom: 1px solid var(--line); }
+    .settings-row-meta { flex: 1; min-width: 0; }
+    .settings-row-title { font: 500 13px/1.3 var(--font-sans); color: var(--ink-900); }
+    .settings-row-sub { font: 400 11px/1.4 var(--font-sans); color: var(--ink-500); margin-top: 3px; }
+    .settings-row .btn-secondary { padding: 7px 14px; font-size: 12px; flex-shrink: 0; }
+    .settings-status {
+      font: 400 11px/1.3 var(--font-mono); color: var(--ink-500);
+      background: var(--paper); border: 1px solid var(--line);
+      border-radius: var(--radius-sm); padding: 4px 8px;
+      letter-spacing: 0.02em;
+    }
+    .settings-status.equal { background: var(--neutral-soft); }
   </style>
 </head>
 <body>
@@ -820,6 +948,30 @@
 <div id="loading-panel"><div class="spinner"></div><div class="loading-msg" id="loading-msg">Pulling your leagues.</div></div>
 <div id="error-panel"><div class="error-msg" id="error-msg"></div><button class="btn-secondary" onclick="showSetup()">← Try again</button></div>
 
+<!-- ══ PRIORITY ONBOARDING ════════════════════════════════════════ -->
+<div id="priority-panel">
+  <div class="priority-inner">
+    <div class="priority-eyebrow" id="priority-eyebrow">Set your league priority</div>
+    <div class="priority-card">
+      <h2 id="priority-heading">Which league matters most?</h2>
+      <p class="priority-card-sub">When two of your leagues disagree about a player — say, your QB helps one league but hurts another — Conflicted will weight the cheer toward your top-ranked league.</p>
+      <div class="priority-banner">We seeded this with your current order. Drag the handle or use the arrows to adjust.</div>
+      <div class="priority-equal-row">
+        <div class="priority-equal-label">
+          <div class="priority-equal-title">Treat all leagues equally</div>
+          <div class="priority-equal-sub">Skip ranking — every league counts the same.</div>
+        </div>
+        <button class="priority-toggle" id="priority-equal-toggle" onclick="priorityToggleEqual()" aria-label="Toggle equal weighting" type="button"></button>
+      </div>
+      <ul class="priority-list" id="priority-list"></ul>
+      <div class="priority-actions">
+        <button class="btn-ghost" onclick="priorityCancel()" type="button">Skip for now</button>
+        <button class="btn-primary" onclick="priorityCommit()" type="button">Save priorities</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ BOARD ════════════════════════════════════════════════════ -->
 <div id="board">
   <div class="board-inner">
@@ -868,7 +1020,20 @@
         <div id="enemy-list"></div>
       </div>
     </div>
-    <div class="debug-panel" id="debug-panel" style="display:none;margin-top:48px;margin-bottom:0">
+    <div class="settings-panel" id="settings-panel" style="display:none;margin-top:48px;margin-bottom:0">
+      <button class="settings-toggle" id="settings-toggle" onclick="toggleSettings()" type="button"><span>Settings</span><span class="arrow">▶</span></button>
+      <div class="settings-body" id="settings-body">
+        <div class="settings-row">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">League priority</div>
+            <div class="settings-row-sub" id="settings-priority-sub">Set the order that decides who Conflicted cheers for when leagues conflict.</div>
+          </div>
+          <span class="settings-status" id="settings-priority-status" style="display:none"></span>
+          <button class="btn-secondary" onclick="reRankPriority()" type="button">Re-rank leagues</button>
+        </div>
+      </div>
+    </div>
+    <div class="debug-panel" id="debug-panel" style="display:none;margin-top:14px;margin-bottom:0">
       <button class="debug-toggle" id="debug-toggle" onclick="toggleDebug()"><span>API debug</span><span class="arrow">▶</span></button>
       <div class="debug-body" id="debug-body">
         <div class="debug-meta" id="debug-meta"></div>
@@ -969,7 +1134,7 @@ function ctxBadge(sig,isHist){
 }
 
 function hideAll(){
-  ['setup-panel','loading-panel','error-panel','board'].forEach(id=>document.getElementById(id).style.display='none');
+  ['setup-panel','loading-panel','error-panel','board','priority-panel'].forEach(id=>document.getElementById(id).style.display='none');
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('week-label').style.display='none';
 }
@@ -1108,7 +1273,7 @@ function renderBoard(data,username){
   const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   document.getElementById('board-refresh-time').textContent=`Synced ${now}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
   if(contexts?.length)renderScoresStrip(contexts);
   document.getElementById('count-cheer').textContent=cheerFor.length;
@@ -1119,6 +1284,10 @@ function renderBoard(data,username){
   function renderList(id,players){const el=document.getElementById(id);el.innerHTML='';if(!players.length){el.innerHTML='<div class="empty-state">No players in this bucket.</div>';return;}sortPlayers(players).forEach((p,i)=>el.appendChild(buildCard(p,i*24,isHist)));}
   renderList('cheer-list',cheerFor);renderList('conflicted-list',conflicted);renderList('enemy-list',enemies);
   applyFilters();
+  currentContexts=Array.isArray(contexts)?contexts.slice():[];
+  reconcilePriorityOrder(currentContexts);
+  updateSettingsPanel();
+  if(shouldAutoLaunchPriority(currentContexts))showPriorityOnboarding(currentContexts);
 }
 
 /* ── Yahoo data layer (unchanged from prior implementation) ── */
@@ -1681,6 +1850,185 @@ function consumeYahooReturnParam(){
     window.history.replaceState({}, '', newUrl);
   }
 }
+
+/* ── League priority + Settings ──────────────────────────────── */
+const PRIORITY_SET_KEY='gd_priority_set',PRIORITY_ORDER_KEY='gd_priority_order',PRIORITY_EQUAL_KEY='gd_priority_equal';
+let currentContexts=[];
+let priorityOrder=[];
+let priorityEqual=false;
+let priorityDraftOrder=[];
+let priorityDraftEqual=false;
+let priorityReturnTo='board';
+
+function loadPriorityState(){
+  try{
+    const raw=localStorage.getItem(PRIORITY_ORDER_KEY);
+    priorityOrder=raw?JSON.parse(raw):[];
+    if(!Array.isArray(priorityOrder))priorityOrder=[];
+  }catch(e){priorityOrder=[];}
+  priorityEqual=localStorage.getItem(PRIORITY_EQUAL_KEY)==='true';
+}
+function savePriorityState(){
+  try{
+    localStorage.setItem(PRIORITY_ORDER_KEY,JSON.stringify(priorityOrder));
+    localStorage.setItem(PRIORITY_EQUAL_KEY,priorityEqual?'true':'false');
+    localStorage.setItem(PRIORITY_SET_KEY,'true');
+  }catch(e){console.warn('priority persist failed:',e.message);}
+}
+function isPrioritySet(){return localStorage.getItem(PRIORITY_SET_KEY)==='true';}
+function reconcilePriorityOrder(contexts){
+  if(!Array.isArray(contexts))return;
+  const names=contexts.map(c=>c.leagueName).filter(Boolean);
+  if(!priorityOrder.length){priorityOrder=names.slice();return;}
+  priorityOrder=priorityOrder.filter(n=>names.includes(n));
+  names.forEach(n=>{if(!priorityOrder.includes(n))priorityOrder.push(n);});
+}
+function shouldAutoLaunchPriority(contexts){
+  if(!Array.isArray(contexts))return false;
+  if(contexts.length<2)return false;
+  if(isDemoMode)return false;
+  if(isPrioritySet())return false;
+  return true;
+}
+
+function showPriorityOnboarding(contexts,opts){
+  opts=opts||{};
+  priorityReturnTo=opts.returnTo||'board';
+  const isReRank=opts.fromSettings===true;
+  document.getElementById('priority-eyebrow').textContent=isReRank?'Update league priority':'Set your league priority';
+  document.getElementById('priority-heading').textContent=isReRank?'Re-rank your leagues':'Which league matters most?';
+  if(Array.isArray(contexts)&&contexts.length){currentContexts=contexts.slice();reconcilePriorityOrder(currentContexts);}
+  priorityDraftOrder=priorityOrder.slice();
+  priorityDraftEqual=priorityEqual;
+  hideAll();
+  document.getElementById('priority-panel').style.display='flex';
+  window.scrollTo(0,0);
+  document.getElementById('priority-equal-toggle').classList.toggle('on',priorityDraftEqual);
+  renderPriorityList();
+}
+
+function priorityRowDetail(ctx){
+  const color=lc(ctx.leagueName);
+  const bits=[];
+  const provider=ctx.source||ctx.provider;
+  if(provider)bits.push(provider);
+  if(ctx.fmt)bits.push(ctx.fmt);
+  const stMap={LIVE:'live',LOCKED_WIN:'clinched',LOCKED_LOSS:'eliminated',FINAL_WIN:'final · W',FINAL_LOSS:'final · L',FINAL_TIE:'final · tie',NO_MATCHUP:'no matchup'};
+  if(ctx.leagueState&&stMap[ctx.leagueState])bits.push(stMap[ctx.leagueState]);
+  return{color,text:bits.join(' · ')||'league'};
+}
+
+function renderPriorityList(){
+  const list=document.getElementById('priority-list');
+  list.innerHTML='';
+  list.classList.toggle('disabled',priorityDraftEqual);
+  const total=priorityDraftOrder.length;
+  priorityDraftOrder.forEach((name,idx)=>{
+    const ctx=currentContexts.find(c=>c.leagueName===name)||{leagueName:name};
+    const detail=priorityRowDetail(ctx);
+    const isTop=idx===0&&!priorityDraftEqual;
+    const li=document.createElement('li');
+    li.className=`priority-row${isTop?' top':''}`;
+    li.dataset.name=name;
+    li.draggable=!priorityDraftEqual;
+    li.innerHTML=`
+      <span class="priority-handle" aria-hidden="true">⋮⋮</span>
+      <span class="priority-rank${isTop?' top':''}">${priorityDraftEqual?'—':'#'+(idx+1)}</span>
+      <div class="priority-row-meta">
+        <div class="priority-row-name"></div>
+        <div class="priority-row-detail"><span class="lg-dot" style="background:${detail.color}"></span><span class="dt"></span></div>
+      </div>
+      <div class="priority-arrows">
+        <button class="priority-arrow-btn up" type="button" aria-label="Move up" ${idx===0||priorityDraftEqual?'disabled':''}>▲</button>
+        <button class="priority-arrow-btn dn" type="button" aria-label="Move down" ${idx===total-1||priorityDraftEqual?'disabled':''}>▼</button>
+      </div>
+    `;
+    li.querySelector('.priority-row-name').textContent=name;
+    li.querySelector('.dt').textContent=detail.text;
+    li.querySelector('.up').addEventListener('click',()=>priorityMove(name,-1));
+    li.querySelector('.dn').addEventListener('click',()=>priorityMove(name,1));
+    li.addEventListener('dragstart',e=>{if(priorityDraftEqual){e.preventDefault();return;}priorityDragId=name;li.classList.add('dragging');try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',name);}catch(err){}});
+    li.addEventListener('dragend',()=>{li.classList.remove('dragging');priorityDragId=null;});
+    li.addEventListener('dragover',e=>{if(priorityDraftEqual||!priorityDragId)return;e.preventDefault();try{e.dataTransfer.dropEffect='move';}catch(err){}});
+    li.addEventListener('drop',e=>{
+      if(priorityDraftEqual||!priorityDragId||priorityDragId===name)return;
+      e.preventDefault();
+      const from=priorityDraftOrder.indexOf(priorityDragId);
+      const to=priorityDraftOrder.indexOf(name);
+      if(from<0||to<0)return;
+      priorityDraftOrder.splice(from,1);
+      priorityDraftOrder.splice(to,0,priorityDragId);
+      renderPriorityList();
+    });
+    list.appendChild(li);
+  });
+}
+let priorityDragId=null;
+
+function priorityMove(name,delta){
+  if(priorityDraftEqual)return;
+  const i=priorityDraftOrder.indexOf(name);
+  const j=i+delta;
+  if(i<0||j<0||j>=priorityDraftOrder.length)return;
+  [priorityDraftOrder[i],priorityDraftOrder[j]]=[priorityDraftOrder[j],priorityDraftOrder[i]];
+  renderPriorityList();
+}
+function priorityToggleEqual(){
+  priorityDraftEqual=!priorityDraftEqual;
+  document.getElementById('priority-equal-toggle').classList.toggle('on',priorityDraftEqual);
+  renderPriorityList();
+}
+function priorityCommit(){
+  priorityOrder=priorityDraftOrder.slice();
+  priorityEqual=priorityDraftEqual;
+  savePriorityState();
+  closePriorityPanel();
+}
+function priorityCancel(){
+  /* "Skip for now" — record that the user has seen the screen so we don't
+     re-trigger on every render. Don't overwrite saved order/equal state. */
+  try{localStorage.setItem(PRIORITY_SET_KEY,'true');}catch(e){}
+  closePriorityPanel();
+}
+function closePriorityPanel(){
+  document.getElementById('priority-panel').style.display='none';
+  if(priorityReturnTo==='board'){showBoard();updateSettingsPanel();}
+  else showSetup();
+}
+
+function toggleSettings(){
+  document.getElementById('settings-toggle').classList.toggle('open');
+  document.getElementById('settings-body').classList.toggle('open');
+}
+function reRankPriority(){
+  showPriorityOnboarding(currentContexts,{fromSettings:true,returnTo:'board'});
+}
+function updateSettingsPanel(){
+  const panel=document.getElementById('settings-panel');
+  if(!panel)return;
+  if(isDemoMode||currentContexts.length<2){panel.style.display='none';return;}
+  panel.style.display='block';
+  const status=document.getElementById('settings-priority-status');
+  const sub=document.getElementById('settings-priority-sub');
+  if(priorityEqual){
+    status.style.display='inline-block';
+    status.textContent='All equal';
+    status.classList.add('equal');
+    sub.textContent='Currently weighting every league the same. Tap re-rank to change.';
+  }else if(isPrioritySet()&&priorityOrder.length){
+    status.style.display='inline-block';
+    status.classList.remove('equal');
+    const top=priorityOrder[0]||'';
+    const more=priorityOrder.length>1?` +${priorityOrder.length-1}`:'';
+    status.textContent=`#1 ${top}${more}`;
+    sub.textContent='Order: '+priorityOrder.join(' → ');
+  }else{
+    status.style.display='none';
+    sub.textContent='Set the order that decides who Conflicted cheers for when leagues conflict.';
+  }
+}
+
+loadPriorityState();
 
 (async()=>{
   const cameFromYahooOAuth=new URLSearchParams(window.location.search).get('yahoo')==='connected';
