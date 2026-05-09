@@ -543,10 +543,6 @@
       font: 500 11px/1.2 var(--font-sans); color: var(--ink-700);
       letter-spacing: 0.04em; flex-shrink: 0;
     }
-    .view-controls__sub {
-      font: 400 11px/1.2 var(--font-mono); color: var(--ink-500);
-      letter-spacing: 0.02em;
-    }
     .live-toggle {
       position: relative; width: 36px; height: 20px;
       background: var(--ink-300); border: none; border-radius: var(--radius-pill);
@@ -685,6 +681,21 @@
       min-width: 0; flex: 1 1 auto;
     }
     .player-team { font: 400 11px/1 var(--font-mono); color: var(--ink-500); margin-left: auto; flex-shrink: 0; }
+
+    /* Live-game indicator (pulsing pill in card top row) */
+    .live-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      font: 500 9px/1 var(--font-mono); padding: 3px 6px 3px 5px;
+      border-radius: var(--radius-sm); flex-shrink: 0;
+      background: color-mix(in oklab, var(--coral-500) 16%, transparent);
+      color: var(--coral-700, #993C1D); letter-spacing: 0.08em;
+    }
+    .live-pill .live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--coral-500); flex-shrink: 0;
+      animation: livePulse 1.4s ease-in-out infinite;
+    }
+    @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
     .league-pts-row { font: 400 12px/1.4 var(--font-mono); display: flex; align-items: center; gap: 6px; color: var(--ink-500); }
     .league-pts-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
@@ -1060,7 +1071,6 @@
     <div class="view-controls" id="view-controls">
       <span class="view-controls__label">Show only players currently in a live game</span>
       <button class="live-toggle" id="live-only-toggle" onclick="toggleLiveOnly()" type="button" aria-label="Toggle live-only view"></button>
-      <span class="view-controls__sub" id="view-controls-sub">Off — showing all players</span>
     </div>
     <div class="columns" id="columns">
       <div class="column cheer">
@@ -1146,8 +1156,7 @@ async function fetchNflGameStates(season,week){
 function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.team)==='in';}
 function loadLiveOnlyState(){try{liveOnly=localStorage.getItem(LIVE_ONLY_KEY)==='1';}catch(e){liveOnly=false;}}
 function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1':'0');}catch(e){}}
-function updateLiveOnlySub(){const s=document.getElementById('view-controls-sub');if(s)s.textContent=liveOnly?'On — only games in progress':'Off — showing all players';}
-function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();document.getElementById('live-only-toggle').classList.toggle('on',liveOnly);updateLiveOnlySub();applyFilters();}
+function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();document.getElementById('live-only-toggle').classList.toggle('on',liveOnly);applyFilters();}
 const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
 const getNFLState=()=>apiFetch(`${BASE}/state/nfl`);
 const getLeagues=(uid,s)=>apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
@@ -1347,8 +1356,9 @@ function buildCard(player,delay,isHist){
     const lbl=inj==='Injured Reserve'?'IR':inj;
     injBadge=`<span class="inj-badge ${cls}">${lbl}</span>`;
   }
+  const livePill=isPlayerLive(player)?`<span class="live-pill" aria-label="In a live game"><span class="live-dot"></span>LIVE</span>`:'';
 
-  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="player-team">${player.team||''}</span>${injBadge}</div>${ptsHTML}${rosterHTML}`;
+  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${livePill}<span class="player-team">${player.team||''}</span>${injBadge}</div>${ptsHTML}${rosterHTML}`;
   return div;
 }
 
@@ -1387,7 +1397,6 @@ function renderBoard(data,username){
   const showLiveToggle=!isDemoMode&&!isHist;
   document.getElementById('view-controls').classList.toggle('visible',showLiveToggle);
   document.getElementById('live-only-toggle').classList.toggle('on',liveOnly&&showLiveToggle);
-  updateLiveOnlySub();
   if(contexts?.length)renderScoresStrip(contexts);
   document.getElementById('count-cheer').textContent=cheerFor.length;
   document.getElementById('count-conflicted').textContent=conflicted.length;
@@ -2164,7 +2173,6 @@ function renderSettingsPriorityList(list,order,equal){
 loadPriorityState();
 loadLiveOnlyState();
 document.getElementById('live-only-toggle').classList.toggle('on',liveOnly);
-updateLiveOnlySub();
 
 (async()=>{
   const cameFromYahooOAuth=new URLSearchParams(window.location.search).get('yahoo')==='connected';
