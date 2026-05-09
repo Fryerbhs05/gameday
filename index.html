@@ -532,6 +532,35 @@
     .filter-divider { width: 1px; height: 16px; background: var(--line); }
     .filter-count { font: 400 11px/1.3 var(--font-mono); color: var(--ink-500); margin-left: auto; }
 
+    /* View controls (live-only toggle) */
+    .view-controls {
+      display: none; align-items: center; gap: 12px; flex-wrap: wrap;
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px;
+    }
+    .view-controls.visible { display: flex; }
+    .view-controls__label {
+      font: 500 11px/1.2 var(--font-sans); color: var(--ink-700);
+      letter-spacing: 0.04em; flex-shrink: 0;
+    }
+    .view-controls__sub {
+      font: 400 11px/1.2 var(--font-mono); color: var(--ink-500);
+      letter-spacing: 0.02em;
+    }
+    .live-toggle {
+      position: relative; width: 36px; height: 20px;
+      background: var(--ink-300); border: none; border-radius: var(--radius-pill);
+      cursor: pointer; flex-shrink: 0; padding: 0;
+      transition: background var(--duration-fast) var(--ease-out);
+    }
+    .live-toggle.on { background: var(--coral-500); }
+    .live-toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; background: var(--paper);
+      border-radius: 50%; transition: left var(--duration-fast) var(--ease-out);
+    }
+    .live-toggle.on::after { left: 18px; }
+
     /* Banners */
     .banner {
       display: none; align-items: flex-start; gap: 12px;
@@ -850,6 +879,28 @@
       letter-spacing: 0.02em;
     }
     .settings-status.equal { background: var(--neutral-soft); }
+    /* Inline ranked list shown inside the Settings panel */
+    .settings-priority-list {
+      list-style: none; padding: 0; margin: 10px 0 0;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .settings-priority-list .spl-row {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--paper); border: 1px solid var(--line);
+      border-radius: var(--radius-sm); padding: 7px 10px;
+    }
+    .settings-priority-list .spl-row.top { border-color: var(--coral-500); }
+    .settings-priority-list .spl-rank {
+      font: 500 10px/1 var(--font-mono); padding: 3px 7px;
+      border-radius: var(--radius-pill); flex-shrink: 0;
+      background: var(--paper-deep); color: var(--ink-500);
+      letter-spacing: 0.04em; border: 1px solid var(--line);
+    }
+    .settings-priority-list .spl-rank.top {
+      background: var(--coral-200); color: var(--coral-700); border-color: var(--coral-500);
+    }
+    .settings-priority-list .spl-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .settings-priority-list .spl-name { font: 600 12px/1.3 var(--font-sans); color: var(--ink-900); }
   </style>
 </head>
 <body>
@@ -1006,6 +1057,11 @@
       <div class="no-data-msg" id="no-data-msg"></div>
       <div class="no-data-hint">Use the season dropdown or week selector to try a different period.</div>
     </div>
+    <div class="view-controls" id="view-controls">
+      <span class="view-controls__label">Show only players currently in a live game</span>
+      <button class="live-toggle" id="live-only-toggle" onclick="toggleLiveOnly()" type="button" aria-label="Toggle live-only view"></button>
+      <span class="view-controls__sub" id="view-controls-sub">Off — showing all players</span>
+    </div>
     <div class="columns" id="columns">
       <div class="column cheer">
         <div class="column-header"><span class="col-count" id="count-cheer">0</span><span class="col-title">Cheer for</span><span class="col-subtitle">Only on your rosters</span></div>
@@ -1027,8 +1083,8 @@
           <div class="settings-row-meta">
             <div class="settings-row-title">League priority</div>
             <div class="settings-row-sub" id="settings-priority-sub">Set the order that decides who Conflicted cheers for when leagues conflict.</div>
+            <ol class="settings-priority-list" id="settings-priority-list" style="display:none"></ol>
           </div>
-          <span class="settings-status" id="settings-priority-status" style="display:none"></span>
           <button class="btn-secondary" onclick="reRankPriority()" type="button">Re-rank leagues</button>
         </div>
       </div>
@@ -1046,6 +1102,8 @@
 <!-- ══ SCRIPT ══════════════════════════════════════════════════ -->
 <script>
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#2B6FA8','#D85A30','#3D8B5C','#B27F1A','#7AA8D1','#A33D2E','#5F5E5A','#0F2235'];
+const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+let liveOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0;
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},activeFilters=new Set(),isAnyProviderLoaded=false;
 
 const SLEEPER_LS_KEY='gd_sleeper_username';
@@ -1069,6 +1127,27 @@ const lc=n=>colorMap[n]||'#5F5E5A';
 function isHistoricalWeek(){const as=parseInt(activeSeason),ls=parseInt(liveSeason);if(as<ls)return true;if(as===ls&&activeWeek<liveWeek)return true;return false;}
 
 async function apiFetch(url){const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
+async function fetchNflGameStates(season,week){
+  const key=`${season}-${week}`;
+  if(key===nflGameStatesKey&&nflGameStates.size&&Date.now()-nflGameStatesAt<NFL_STATE_TTL)return;
+  try{
+    const url=`${ESPN_SCOREBOARD}?dates=${season}&seasontype=2&week=${week}`;
+    const r=await fetch(url);if(!r.ok)throw new Error(`ESPN HTTP ${r.status}`);
+    const j=await r.json();
+    const m=new Map();
+    (j.events||[]).forEach(ev=>{
+      const comp=ev.competitions?.[0];if(!comp)return;
+      const state=comp.status?.type?.state||'pre';
+      (comp.competitors||[]).forEach(c=>{const abbr=c.team?.abbreviation;if(abbr)m.set(abbr,state);});
+    });
+    nflGameStates=m;nflGameStatesKey=key;nflGameStatesAt=Date.now();
+  }catch(e){console.warn('NFL game state fetch failed:',e.message);}
+}
+function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.team)==='in';}
+function loadLiveOnlyState(){try{liveOnly=localStorage.getItem(LIVE_ONLY_KEY)==='1';}catch(e){liveOnly=false;}}
+function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1':'0');}catch(e){}}
+function updateLiveOnlySub(){const s=document.getElementById('view-controls-sub');if(s)s.textContent=liveOnly?'On — only games in progress':'Off — showing all players';}
+function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();document.getElementById('live-only-toggle').classList.toggle('on',liveOnly);updateLiveOnlySub();applyFilters();}
 const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
 const getNFLState=()=>apiFetch(`${BASE}/state/nfl`);
 const getLeagues=(uid,s)=>apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
@@ -1201,11 +1280,22 @@ function toggleFilter(lg,all){
 }
 function updateFilterCount(){document.getElementById('filter-count').textContent=activeFilters.size?`Filtering: ${[...activeFilters].join(', ')}`:''; }
 function applyFilters(){
+  /* Only apply the live-only filter when the toggle is actually visible
+     (hidden in historic / demo / no-data states). */
+  const vc=document.getElementById('view-controls');
+  const liveActive=liveOnly&&vc&&vc.classList.contains('visible');
   ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
     const list=document.getElementById(id);const cards=list.querySelectorAll('.player-card');
-    cards.forEach(c=>{const m=!activeFilters.size||c.dataset.leagues.split('|').some(lg=>activeFilters.has(lg));c.classList.toggle('filtered-out',!m);});
+    cards.forEach(c=>{
+      const leagueOk=!activeFilters.size||c.dataset.leagues.split('|').some(lg=>activeFilters.has(lg));
+      const liveOk=!liveActive||c.dataset.live==='1';
+      c.classList.toggle('filtered-out',!leagueOk||!liveOk);
+    });
     let e=list.querySelector('.filter-empty');const vis=[...cards].filter(c=>!c.classList.contains('filtered-out')&&c.style.display!=='none');
-    if(!vis.length&&cards.length){if(!e){e=document.createElement('div');e.className='empty-state filter-empty';list.appendChild(e);}e.textContent='No players match this filter.';}else if(e)e.remove();
+    if(!vis.length&&cards.length){
+      if(!e){e=document.createElement('div');e.className='empty-state filter-empty';list.appendChild(e);}
+      e.textContent=liveActive&&activeFilters.size?'No matching players are in live games right now.':liveActive?'No players in this bucket are in live games right now.':'No players match this filter.';
+    }else if(e)e.remove();
   });
   updatePillCounts();
 }
@@ -1235,6 +1325,8 @@ function buildCard(player,delay,isHist){
   div.className=`player-card${player.clinched?' clinched':''}`;
   div.style.animationDelay=`${delay}ms`;
   div.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
+  div.dataset.team=player.team||'';
+  div.dataset.live=isPlayerLive(player)?'1':'0';
   const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
   let ptsHTML='';
   if(hasAnyPts){
@@ -1260,7 +1352,23 @@ function buildCard(player,delay,isHist){
   return div;
 }
 
-function sortPlayers(arr){return[...arr].sort((a,b)=>{const ai=POS_ORDER.indexOf(a.position)===-1?99:POS_ORDER.indexOf(a.position);const bi=POS_ORDER.indexOf(b.position)===-1?99:POS_ORDER.indexOf(b.position);return ai!==bi?ai-bi:(a.full_name||'').localeCompare(b.full_name||'');});}
+function playerMaxPts(p){
+  const lp=p.leaguePoints||{};let best=-Infinity,found=false;
+  for(const k in lp){const v=lp[k]?.pts;if(typeof v==='number'){if(v>best)best=v;found=true;}}
+  return found?best:0;
+}
+function sortPlayers(arr){
+  const posIdx=p=>POS_ORDER.indexOf(p.position)===-1?99:POS_ORDER.indexOf(p.position);
+  return[...arr].sort((a,b)=>{
+    const ap=playerMaxPts(a),bp=playerMaxPts(b);
+    const aHas=ap>0,bHas=bp>0;
+    if(aHas&&bHas)return bp-ap;
+    if(aHas)return-1;
+    if(bHas)return 1;
+    const ai=posIdx(a),bi=posIdx(b);
+    return ai!==bi?ai-bi:(a.full_name||'').localeCompare(b.full_name||'');
+  });
+}
 
 function renderBoard(data,username){
   const{cheerFor,conflicted,enemies,offseasonMode,debugInfo,noData,noDataReason,contexts,hasScoring,isHist}=data;
@@ -1273,8 +1381,13 @@ function renderBoard(data,username){
   const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   document.getElementById('board-refresh-time').textContent=`Synced ${now}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
+  /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
+  const showLiveToggle=!isDemoMode&&!isHist;
+  document.getElementById('view-controls').classList.toggle('visible',showLiveToggle);
+  document.getElementById('live-only-toggle').classList.toggle('on',liveOnly&&showLiveToggle);
+  updateLiveOnlySub();
   if(contexts?.length)renderScoresStrip(contexts);
   document.getElementById('count-cheer').textContent=cheerFor.length;
   document.getElementById('count-conflicted').textContent=conflicted.length;
@@ -1503,6 +1616,8 @@ async function loadData(){
     const checked=connected.map(id=>PROVIDERS[id].displayName).join(' or ');
     return{noData:true,noDataReason:`No leagues found for <strong>${dn}</strong> in <strong>${activeSeason}</strong> on ${checked}. You may not have been in a league that year, or the season hasn't started yet.`,cheerFor:[],conflicted:[],enemies:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
   }
+  /* Best-effort fetch of NFL game states for the live-only toggle. Doesn't block on failure. */
+  if(!isHist)await fetchNflGameStates(activeSeason,activeWeek);
   const projPts=id=>{const p=sleeperProjections[id];return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null;};
   const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
   const playerDB=await getPlayerDB();setLoading('Classifying players.');
@@ -2006,29 +2121,50 @@ function reRankPriority(){
 function updateSettingsPanel(){
   const panel=document.getElementById('settings-panel');
   if(!panel)return;
-  if(isDemoMode||currentContexts.length<2){panel.style.display='none';return;}
+  if(isDemoMode){panel.style.display='none';return;}
   panel.style.display='block';
-  const status=document.getElementById('settings-priority-status');
   const sub=document.getElementById('settings-priority-sub');
+  const list=document.getElementById('settings-priority-list');
+  list.innerHTML='';
+  list.style.display='none';
+  const multi=currentContexts.length>=2;
+  if(!multi){
+    /* Single-league (or zero) — keep the panel visible so the control is
+       always discoverable, but make clear there's nothing to rank yet. */
+    sub.textContent='League priority kicks in once you have two or more leagues connected.';
+    return;
+  }
   if(priorityEqual){
-    status.style.display='inline-block';
-    status.textContent='All equal';
-    status.classList.add('equal');
     sub.textContent='Currently weighting every league the same. Tap re-rank to change.';
+    renderSettingsPriorityList(list,priorityOrder,true);
   }else if(isPrioritySet()&&priorityOrder.length){
-    status.style.display='inline-block';
-    status.classList.remove('equal');
-    const top=priorityOrder[0]||'';
-    const more=priorityOrder.length>1?` +${priorityOrder.length-1}`:'';
-    status.textContent=`#1 ${top}${more}`;
-    sub.textContent='Order: '+priorityOrder.join(' → ');
+    sub.textContent='These leagues are weighted top-to-bottom when they conflict.';
+    renderSettingsPriorityList(list,priorityOrder,false);
   }else{
-    status.style.display='none';
     sub.textContent='Set the order that decides who Conflicted cheers for when leagues conflict.';
   }
 }
+function renderSettingsPriorityList(list,order,equal){
+  if(!Array.isArray(order)||!order.length)return;
+  list.style.display='flex';
+  order.forEach((name,idx)=>{
+    const isTop=idx===0&&!equal;
+    const li=document.createElement('li');
+    li.className='spl-row'+(isTop?' top':'');
+    li.innerHTML=`
+      <span class="spl-rank${isTop?' top':''}">${equal?'—':'#'+(idx+1)}</span>
+      <span class="spl-dot" style="background:${lc(name)}"></span>
+      <span class="spl-name"></span>
+    `;
+    li.querySelector('.spl-name').textContent=name;
+    list.appendChild(li);
+  });
+}
 
 loadPriorityState();
+loadLiveOnlyState();
+document.getElementById('live-only-toggle').classList.toggle('on',liveOnly);
+updateLiveOnlySub();
 
 (async()=>{
   const cameFromYahooOAuth=new URLSearchParams(window.location.search).get('yahoo')==='connected';
