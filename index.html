@@ -689,7 +689,7 @@
        MOBILE
     ═══════════════════════════════════════════════════════════ */
     @media (max-width: 640px) {
-      :root { --gutter: 10px; }
+      :root { --gutter: 6px; }
       .lp-hero { padding: 56px var(--gutter) 40px; }
       .lp-hero h1 { font-size: 38px; }
       .lp-hero-sub { font-size: 15px; }
@@ -703,20 +703,33 @@
       .signin-card { padding: 24px 20px; }
       .provider-card-grid { grid-template-columns: 1fr; }
       .board-inner { padding: 16px var(--gutter) 40px; }
-      .nav-controls { padding: 8px 12px; gap: 6px; }
+      .nav-controls { padding: 8px 10px; gap: 6px; }
       .nav-divider { display: none; }
       .nav-ctx { display: none; }
       .columns { grid-template-columns: 1fr; gap: 28px; }
       .filter-pill { font-size: 11px; padding: 4px 10px; }
       .filter-count { display: none; }
       .filter-divider { display: none; }
+      /* Tighten internal card padding on mobile so content reaches closer to screen edges */
+      .player-card  { padding: 13px 11px; }
+      .score-cell   { padding: 14px 12px; }
+      .banner       { padding: 12px 12px; }
+      .league-filters { padding: 10px 10px; }
+      /* Make column-header subtitle flush with column right edge (no extra right padding) */
+      .column-header { padding: 0 0 12px; }
+      /* Belt-and-suspenders: force every direct dashboard child to fill its container */
+      .board-inner > * { width: 100%; }
     }
     @media (min-width: 641px) and (max-width: 768px) {
-      :root { --gutter: 14px; }
+      :root { --gutter: 10px; }
       .lp-hero h1 { font-size: 44px; }
       .how-grid { grid-template-columns: 1fr 1fr; gap: 22px; }
       .how-step:nth-child(2)::after { display: none; }
       .columns { grid-template-columns: 1fr; gap: 24px; }
+      .player-card { padding: 13px 12px; }
+      .score-cell  { padding: 14px 13px; }
+      .banner      { padding: 12px 14px; }
+      .column-header { padding: 0 0 12px; }
     }
   </style>
 </head>
