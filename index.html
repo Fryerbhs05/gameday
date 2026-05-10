@@ -294,6 +294,102 @@
       font: 700 11px/1 var(--font-mono); flex-shrink: 0;
     }
 
+    /* ESPN connect button — mirrors btn-yahoo so the two providers feel symmetrical */
+    .btn-espn {
+      width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      background: var(--navy-700); color: var(--paper);
+      border: none; border-radius: var(--radius-md); padding: 11px;
+      font: 500 14px/1 var(--font-sans); cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-out);
+    }
+    .btn-espn:hover { background: var(--navy-900); }
+    .btn-espn-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px; border-radius: var(--radius-sm);
+      background: #D00018; color: #fff;
+      font: 700 11px/1 var(--font-mono); flex-shrink: 0;
+    }
+
+    /* ESPN credential modal — used because ESPN has no public OAuth.
+       User pastes league_id + espn_s2 + SWID extracted from their browser.
+       Eventually replaced by a Chromium extension that grabs them silently. */
+    .espn-modal-backdrop {
+      position: fixed; inset: 0; background: rgba(15, 27, 38, 0.55);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9998; padding: 20px;
+      animation: espn-fade-in 0.18s var(--ease-out);
+    }
+    @keyframes espn-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    .espn-modal {
+      background: var(--paper); color: var(--ink-700);
+      border-radius: var(--radius-lg); border: 1px solid var(--line);
+      width: 100%; max-width: 540px; max-height: 92vh; overflow-y: auto;
+      padding: 24px;
+      box-shadow: 0 20px 60px rgba(15, 27, 38, 0.35);
+    }
+    .espn-modal h2 {
+      font: 700 20px/1.2 var(--font-sans); color: var(--ink-900);
+      margin-bottom: 4px;
+    }
+    .espn-modal-sub {
+      font: 400 13px/1.5 var(--font-sans); color: var(--ink-500);
+      margin-bottom: 18px;
+    }
+    .espn-field { margin-bottom: 14px; }
+    .espn-field label {
+      display: block; font: 500 12px/1.3 var(--font-sans);
+      color: var(--ink-700); margin-bottom: 6px;
+    }
+    .espn-field input, .espn-field textarea {
+      width: 100%; padding: 10px 12px;
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: var(--radius-md); font: 400 13px/1.4 var(--font-mono);
+      color: var(--ink-900); resize: vertical;
+    }
+    .espn-field input:focus, .espn-field textarea:focus {
+      outline: none; border-color: var(--navy-500);
+    }
+    .espn-field-hint {
+      font: 400 11px/1.4 var(--font-sans); color: var(--ink-500); margin-top: 4px;
+    }
+    .espn-help-toggle {
+      background: none; border: none; color: var(--navy-500);
+      font: 500 13px/1 var(--font-sans); cursor: pointer; padding: 0;
+      margin: 4px 0 12px;
+    }
+    .espn-help-toggle:hover { color: var(--coral-500); }
+    .espn-help-body {
+      background: var(--paper-deep); border-radius: var(--radius-md);
+      padding: 14px 16px; margin-bottom: 16px;
+      font: 400 12px/1.55 var(--font-sans); color: var(--ink-700);
+    }
+    .espn-help-body ol { padding-left: 20px; margin: 6px 0; }
+    .espn-help-body li { margin-bottom: 4px; }
+    .espn-help-body code {
+      background: var(--paper); padding: 1px 5px; border-radius: 3px;
+      font: 400 11px/1 var(--font-mono); color: var(--coral-700);
+    }
+    .espn-modal-actions {
+      display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;
+    }
+    .espn-btn-cancel {
+      background: transparent; color: var(--ink-500);
+      border: 1px solid var(--line); border-radius: var(--radius-md);
+      padding: 10px 18px; font: 500 13px/1 var(--font-sans); cursor: pointer;
+    }
+    .espn-btn-cancel:hover { background: var(--paper-deep); }
+    .espn-btn-submit {
+      background: var(--navy-700); color: var(--paper);
+      border: none; border-radius: var(--radius-md);
+      padding: 10px 18px; font: 500 13px/1 var(--font-sans); cursor: pointer;
+    }
+    .espn-btn-submit:hover { background: var(--navy-900); }
+    .espn-btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .espn-modal-error {
+      color: var(--enemy); font: 400 12px/1.4 var(--font-sans);
+      margin-top: 10px; min-height: 16px;
+    }
+
     #continue-btn {
       width: 100%; padding: 12px;
       font: 500 14px/1 var(--font-sans); letter-spacing: -0.01em;
@@ -1772,6 +1868,139 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   h.addEventListener('click',()=>h.parentElement.classList.toggle('collapsed'));
 });
 
+/* ════════════════════════════════════════════════════════════════════════
+   ESPN — parser helpers (used by PROVIDERS.espn.loadLeagues below)
+
+   ESPN's Fantasy API uses internal numeric IDs for NFL teams, positions, and
+   lineup slots. The maps below decode them. Source: ESPN Fantasy v3 schema,
+   stable since the 2018 redesign of fantasy.espn.com.
+   ════════════════════════════════════════════════════════════════════════ */
+const ESPN_PRO_TEAMS={0:'FA',1:'ATL',2:'BUF',3:'CHI',4:'CIN',5:'CLE',6:'DAL',7:'DEN',8:'DET',9:'GB',10:'TEN',11:'IND',12:'KC',13:'LV',14:'LAR',15:'MIA',16:'MIN',17:'NE',18:'NO',19:'NYG',20:'NYJ',21:'PHI',22:'ARI',23:'PIT',24:'LAC',25:'SF',26:'SEA',27:'TB',28:'WSH',29:'CAR',30:'JAX',33:'BAL',34:'HOU'};
+const ESPN_POSITIONS={1:'QB',2:'RB',3:'WR',4:'TE',5:'K',7:'P',9:'DT',10:'DE',11:'LB',12:'CB',13:'S',14:'HC',16:'DEF'};
+/* Lineup slots: 20=BENCH, 21=IR. Anything else is in the starting lineup
+   (including FLEX/SUPERFLEX/individual position slots). */
+const ESPN_BENCH_SLOTS=new Set([20,21]);
+
+function espnScoringFmt(settings){
+  /* ESPN's `scoringType` field is unreliable (not all leagues set it). The
+     authoritative signal is the points-per-reception value in scoringItems[]
+     keyed by statId 53 (receptions). */
+  const items=settings?.scoringSettings?.scoringItems||[];
+  const rec=items.find(i=>i.statId===53);
+  if(rec){
+    const pts=Number(rec.points||0);
+    if(pts>=0.95)return'PPR';
+    if(pts>=0.45)return'Half';
+  }
+  return'Std';
+}
+
+function espnPlayerObj(entry){
+  const p=entry?.playerPoolEntry?.player;
+  if(!p)return null;
+  const name=p.fullName||`${p.firstName||''} ${p.lastName||''}`.trim()||`Player ${p.id}`;
+  const team=ESPN_PRO_TEAMS[p.proTeamId]||'';
+  const position=ESPN_POSITIONS[p.defaultPositionId]||'—';
+  const inj=p.injuryStatus;
+  const unhealthy=['QUESTIONABLE','DOUBTFUL','OUT','INJURY_RESERVE','SUSPENSION','OUT_FOR_SEASON'];
+  const injuryStatus=inj&&unhealthy.includes(inj)?inj.replace(/_/g,' '):null;
+  return{
+    name, team, position, injuryStatus,
+    /* `player_key` is the field that ensure() and ptsKey() look at for non-string
+       (object) players. Prefixing with 'espn:' guarantees no collisions with
+       Yahoo's `nfl.p.12345` keys when both providers feed the same player map. */
+    player_key:`espn:${p.id}`,
+    espn_id:p.id
+  };
+}
+
+function espnPlayerStat(entry,week,sourceId){
+  /* statSourceId: 0=actual, 1=projected. Walks the stats array because ESPN's
+     position-of-the-week-stat varies depending on which views were requested. */
+  const stats=entry?.playerPoolEntry?.player?.stats||[];
+  const s=stats.find(x=>x.scoringPeriodId===week&&x.statSourceId===sourceId);
+  return s?Number(s.appliedTotal||0):null;
+}
+
+function parseEspnLeague(data,season,week,isHist){
+  if(!data||!Array.isArray(data.teams))return null;
+  const fmt=espnScoringFmt(data.settings);
+  const leagueName=data.settings?.name||`ESPN League ${data.id}`;
+  const leagueId=data.id;
+
+  /* Identify "my" team. ESPN tags each team with owners[] which is an array
+     of SWID strings. Match against the SWID we cached during checkStatus().
+     SWID comparisons are case-insensitive — ESPN sometimes upper/lower-cases
+     the GUID inconsistently across endpoints. */
+  const mySwid=(connectionState.espn?.swid||'').toLowerCase();
+  const myTeam=data.teams.find(t=>(t.owners||[]).some(o=>String(o).toLowerCase()===mySwid));
+  if(!myTeam){
+    return{
+      lg:{leagueName,myPlayers:[],oppPlayers:[],hasMatchup:false,fmt},
+      ctx:{leagueName,leagueState:'NO_MATCHUP',myPoints:0,oppPoints:0,myPP:{},oppPP:{},fmt},
+      dbg:{name:leagueName,leagueId,rosterFound:false,matchupFound:false,myCount:0,oppCount:0,state:'NO_TEAM',scoringFmt:fmt,isCoMgr:false}
+    };
+  }
+
+  /* Pull this week's matchup from the schedule array. Each schedule entry has
+     `home` + `away` blocks, both of which carry the per-week roster snapshot
+     in `rosterForCurrentScoringPeriod`. */
+  const matchup=(data.schedule||[]).find(s=>
+    s.matchupPeriodId===week&&(s.home?.teamId===myTeam.id||s.away?.teamId===myTeam.id)
+  );
+
+  let myPlayers=[],oppPlayers=[],hasMatchup=false,myPoints=0,oppPoints=0;
+  let myPP={},oppPP={},leagueState='NO_MATCHUP';
+
+  if(matchup){
+    hasMatchup=true;
+    const isHome=matchup.home?.teamId===myTeam.id;
+    const myEntry=isHome?matchup.home:matchup.away;
+    const oppEntry=isHome?matchup.away:matchup.home;
+    myPoints=Number(myEntry?.totalPoints||0);
+    oppPoints=Number(oppEntry?.totalPoints||0);
+
+    const myRosterEntries=myEntry?.rosterForCurrentScoringPeriod?.entries||[];
+    const oppRosterEntries=oppEntry?.rosterForCurrentScoringPeriod?.entries||[];
+    const myStarters=myRosterEntries.filter(e=>!ESPN_BENCH_SLOTS.has(e.lineupSlotId));
+    const oppStarters=oppRosterEntries.filter(e=>!ESPN_BENCH_SLOTS.has(e.lineupSlotId));
+
+    myPlayers=myStarters.map(espnPlayerObj).filter(Boolean);
+    oppPlayers=oppStarters.map(espnPlayerObj).filter(Boolean);
+
+    myStarters.forEach(e=>{
+      const obj=espnPlayerObj(e);if(!obj)return;
+      const pts=espnPlayerStat(e,week,0);
+      if(pts!==null)myPP[obj.player_key]=pts;
+    });
+    oppStarters.forEach(e=>{
+      const obj=espnPlayerObj(e);if(!obj)return;
+      const pts=espnPlayerStat(e,week,0);
+      if(pts!==null)oppPP[obj.player_key]=pts;
+    });
+
+    /* Project totals derived per-player from ESPN's projection rows, then
+       fed into the same calcLiveState/calcHistoricalState helpers Sleeper
+       uses — keeps state-decision logic identical across providers. */
+    const myProj=myStarters.reduce((s,e)=>s+(espnPlayerStat(e,week,1)||0),0);
+    const oppProj=oppStarters.reduce((s,e)=>s+(espnPlayerStat(e,week,1)||0),0);
+    leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,myProj,oppProj);
+  }else{
+    /* No matchup for this week — common in off-season or pre-week-1.
+       Fall back to the team's roster snapshot so the user still sees their
+       roster in player buckets even without head-to-head context. */
+    const entries=myTeam.roster?.entries||[];
+    const starters=entries.filter(e=>!ESPN_BENCH_SLOTS.has(e.lineupSlotId));
+    myPlayers=(starters.length?starters:entries).map(espnPlayerObj).filter(Boolean);
+  }
+
+  return{
+    lg:{leagueName,myPlayers,oppPlayers,hasMatchup,fmt},
+    ctx:{leagueName,leagueState,myPoints,oppPoints,myPP,oppPP,fmt},
+    dbg:{name:leagueName,leagueId,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr:false}
+  };
+}
+
 const PROVIDERS={
   sleeper:{
     id:'sleeper', displayName:'Sleeper', accentColor:'#1A3A52', connectionType:'username',
@@ -1893,14 +2122,70 @@ const PROVIDERS={
     },
   },
   espn:{
-    id:'espn', displayName:'ESPN', accentColor:'#D00018', connectionType:'placeholder',
-    async checkStatus(){return connectionState.espn;},
-    async connect(){},
-    async disconnect(){},
-    async loadLeagues(){return{results:[],contexts:[],debugLeagues:[]};},
+    /* ESPN doesn't have public OAuth, so connectionType:'modal' opens a credential
+       paste modal that POSTs league_id + espn_s2 + SWID to /api/espn/save. The
+       backend AES-encrypts them into an HttpOnly cookie (same scheme as Yahoo's
+       session). Same backend will eventually accept the same payload from a
+       Chromium extension that grabs the cookies silently — no rework needed. */
+    id:'espn', displayName:'ESPN', accentColor:'#D00018', connectionType:'modal',
+    async checkStatus(){
+      try{
+        const r=await fetch('/api/espn/status',{credentials:'include'});
+        if(r.ok){
+          const j=await r.json();
+          if(j.connected){
+            connectionState.espn={
+              connected:true, identity:'espn-session', displayName:'ESPN User',
+              swid:(j.swid||'').toLowerCase(), league_id:j.league_id||null
+            };
+            return connectionState.espn;
+          }
+        }
+      }catch(e){}
+      connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null};
+      return connectionState.espn;
+    },
+    async connect(){
+      /* Opens the credential modal. Resolves with {success:true} after a
+         successful POST to /api/espn/save, {success:false} on cancel/error. */
+      return openEspnConnectModal();
+    },
+    async disconnect(){
+      try{await fetch('/api/espn/disconnect',{method:'POST',credentials:'include'});}catch(e){}
+      connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null};
+    },
+    async loadLeagues(season,week,isHist){
+      if(!connectionState.espn.connected)return{results:[],contexts:[],debugLeagues:[]};
+      try{
+        const url=`/api/espn/data?endpoint=boxscore&season=${encodeURIComponent(season)}&week=${encodeURIComponent(week)}`;
+        const r=await fetch(url,{credentials:'include'});
+        if(r.status===401){
+          /* Backend cleared session — surface re-connect state */
+          connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null};
+          return{results:[],contexts:[],debugLeagues:[]};
+        }
+        if(!r.ok){console.warn('ESPN data fetch failed:',r.status);return{results:[],contexts:[],debugLeagues:[]};}
+        const data=await r.json();
+        const parsed=parseEspnLeague(data,season,week,isHist);
+        if(!parsed)return{results:[],contexts:[],debugLeagues:[]};
+        return{
+          results:[{...parsed.lg,provider:'espn'}],
+          contexts:[parsed.ctx],
+          debugLeagues:[{...parsed.dbg,provider:'espn'}]
+        };
+      }catch(e){
+        console.warn('ESPN loadLeagues failed:',e.message);
+        return{results:[],contexts:[],debugLeagues:[]};
+      }
+    },
     persist(){}, rehydrate(){},
     renderConnectCard(rootEl){
-      rootEl.innerHTML=`<p class="provider-soon-msg">ESPN integration is on the roadmap. Use Sleeper or Yahoo to get started today.</p><button class="btn-soon-disabled" disabled>Coming soon</button>`;
+      if(connectionState.espn.connected){
+        const lid=connectionState.espn.league_id;
+        rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>ESPN connected${lid?` <span style="color:var(--ink-500)">· league ${lid}</span>`:''}</span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('espn')">Disconnect</button>`;
+      }else{
+        rootEl.innerHTML=`<button class="btn-espn provider-connect-btn" onclick="handleProviderConnect('espn')"><span class="btn-espn-icon">E</span><span>Connect your ESPN account</span></button>`;
+      }
     },
   },
 };
@@ -1933,7 +2218,11 @@ async function handleProviderConnect(id){
     if(res.success)renderSetupProviders();
     else if(err){err.textContent=res.error||'Could not connect.';err.style.display='block';}
   }else{
-    await p.connect();
+    /* Modal-based (ESPN) and OAuth-redirect (Yahoo) flows. Yahoo navigates
+       away so the renderSetupProviders() call is effectively a no-op there;
+       ESPN's modal resolves locally and we want the UI to update immediately. */
+    const res=await p.connect();
+    if(!res||res.success!==false)renderSetupProviders();
   }
 }
 
@@ -1973,6 +2262,151 @@ function consumeYahooReturnParam(){
     const newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
     window.history.replaceState({}, '', newUrl);
   }
+}
+
+/* ── ESPN-specific helpers ───────────────────────────────────────────────
+   ESPN's connection flow is unique (modal-based credential paste rather
+   than OAuth or username), so it gets its own status check, toast helper,
+   return-param consumer, and modal opener. */
+
+async function checkEspnStatus(){
+  try{await PROVIDERS.espn.checkStatus();}catch(e){console.warn('espn status check failed:',e.message);}
+}
+
+function consumeEspnReturnParam(){
+  /* Only the disconnect endpoint redirects with a query param;
+     the modal-based connect resolves in-place without navigation. */
+  const params=new URLSearchParams(window.location.search);
+  const flag=params.get('espn');
+  if(flag==='disconnected')showYahooToast('ESPN disconnected');
+  if(flag){
+    params.delete('espn');
+    const qs=params.toString();
+    const newUrl=window.location.pathname+(qs?'?'+qs:'')+window.location.hash;
+    window.history.replaceState({},'',newUrl);
+  }
+}
+
+/* Opens the credential-paste modal. Returns a Promise that resolves with
+   {success:true} after a successful POST to /api/espn/save, or {success:false}
+   on cancel/error. The modal is built inline (no React, matches the rest of
+   the single-file app) and removed from the DOM on close. */
+function openEspnConnectModal(){
+  return new Promise((resolve)=>{
+    /* Tear down any pre-existing modal so reopening doesn't stack DOM nodes */
+    const existing=document.getElementById('espn-modal-backdrop');
+    if(existing)existing.remove();
+
+    const backdrop=document.createElement('div');
+    backdrop.id='espn-modal-backdrop';
+    backdrop.className='espn-modal-backdrop';
+    backdrop.innerHTML=`
+      <div class="espn-modal" role="dialog" aria-modal="true" aria-labelledby="espn-modal-title">
+        <h2 id="espn-modal-title">Connect ESPN</h2>
+        <p class="espn-modal-sub">ESPN doesn't offer a public sign-in flow, so connecting takes a few extra steps. We never see your ESPN password — just two session cookies you copy from your own browser.</p>
+
+        <button type="button" class="espn-help-toggle" id="espn-help-toggle">How do I find these? &#9662;</button>
+        <div class="espn-help-body" id="espn-help-body" style="display:none">
+          <strong>1. League ID</strong>
+          <ol>
+            <li>Go to <code>fantasy.espn.com</code> and open your league</li>
+            <li>Look at the URL — the number after <code>leagueId=</code> is your League ID</li>
+          </ol>
+          <strong>2. espn_s2 and SWID cookies</strong>
+          <ol>
+            <li>Stay on your league page, right-click anywhere &rarr; <em>Inspect</em></li>
+            <li>In DevTools, click the <strong>Application</strong> tab (or <strong>Storage</strong> in Safari)</li>
+            <li>In the left sidebar: <strong>Cookies</strong> &rarr; <code>https://fantasy.espn.com</code></li>
+            <li>Find rows named <code>espn_s2</code> (long string) and <code>SWID</code> (in <code>{braces}</code>) — copy each value</li>
+          </ol>
+        </div>
+
+        <div class="espn-field">
+          <label for="espn-league-id">League ID</label>
+          <input type="text" id="espn-league-id" inputmode="numeric" placeholder="e.g. 224435" autocomplete="off" />
+          <div class="espn-field-hint">The number from the URL — usually 6&ndash;10 digits.</div>
+        </div>
+        <div class="espn-field">
+          <label for="espn-s2">espn_s2 cookie</label>
+          <textarea id="espn-s2" rows="3" placeholder="AECt8QAtN7m%2FK..." autocomplete="off"></textarea>
+          <div class="espn-field-hint">Long string, often 200+ characters with %-encoded chars.</div>
+        </div>
+        <div class="espn-field">
+          <label for="espn-swid">SWID cookie</label>
+          <input type="text" id="espn-swid" placeholder="{F4529D57-2118-...}" autocomplete="off" />
+          <div class="espn-field-hint">Including the curly braces.</div>
+        </div>
+
+        <div class="espn-modal-error" id="espn-modal-error"></div>
+
+        <div class="espn-modal-actions">
+          <button type="button" class="espn-btn-cancel" id="espn-cancel">Cancel</button>
+          <button type="button" class="espn-btn-submit" id="espn-submit">Connect</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+
+    const cleanup=(result)=>{
+      backdrop.remove();
+      document.removeEventListener('keydown',onKey);
+      resolve(result);
+    };
+    const onKey=(e)=>{if(e.key==='Escape')cleanup({success:false,cancelled:true});};
+    document.addEventListener('keydown',onKey);
+
+    /* Click the backdrop (outside the white card) to cancel */
+    backdrop.addEventListener('click',(e)=>{
+      if(e.target===backdrop)cleanup({success:false,cancelled:true});
+    });
+    document.getElementById('espn-cancel').addEventListener('click',()=>cleanup({success:false,cancelled:true}));
+
+    document.getElementById('espn-help-toggle').addEventListener('click',()=>{
+      const body=document.getElementById('espn-help-body');
+      const isOpen=body.style.display!=='none';
+      body.style.display=isOpen?'none':'block';
+    });
+
+    document.getElementById('espn-submit').addEventListener('click',async()=>{
+      const submitBtn=document.getElementById('espn-submit');
+      const errEl=document.getElementById('espn-modal-error');
+      errEl.textContent='';
+
+      const leagueId=(document.getElementById('espn-league-id').value||'').trim();
+      const espnS2=(document.getElementById('espn-s2').value||'').trim();
+      const swid=(document.getElementById('espn-swid').value||'').trim();
+
+      if(!/^[0-9]+$/.test(leagueId)){errEl.textContent='League ID must be all digits.';return;}
+      if(espnS2.length<50){errEl.textContent='espn_s2 looks too short — should be 100+ characters.';return;}
+      if(!swid){errEl.textContent='SWID is required.';return;}
+
+      submitBtn.disabled=true; submitBtn.textContent='Connecting…';
+      try{
+        const r=await fetch('/api/espn/save',{
+          method:'POST', credentials:'include',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({league_id:leagueId,espn_s2:espnS2,swid})
+        });
+        if(!r.ok){
+          const j=await r.json().catch(()=>({}));
+          errEl.textContent=j.error||`Failed (HTTP ${r.status}).`;
+          submitBtn.disabled=false; submitBtn.textContent='Connect';
+          return;
+        }
+        /* Save succeeded — pull SWID + league_id back out via status so the
+           parser knows which team is "mine" without needing a re-paste. */
+        await PROVIDERS.espn.checkStatus();
+        showYahooToast('ESPN connected');
+        cleanup({success:true});
+      }catch(e){
+        errEl.textContent=e.message||'Network error.';
+        submitBtn.disabled=false; submitBtn.textContent='Connect';
+      }
+    });
+
+    /* Autofocus the first empty field for fast paste */
+    setTimeout(()=>{document.getElementById('espn-league-id').focus();},50);
+  });
 }
 
 /* ── League priority + Settings ──────────────────────────────── */
@@ -2177,8 +2611,11 @@ document.getElementById('live-only-toggle').classList.toggle('on',liveOnly);
 (async()=>{
   const cameFromYahooOAuth=new URLSearchParams(window.location.search).get('yahoo')==='connected';
   consumeYahooReturnParam();
+  consumeEspnReturnParam();
   Object.values(PROVIDERS).forEach(p=>{try{p.rehydrate&&p.rehydrate();}catch(e){console.warn(p.id+' rehydrate failed:',e.message);}});
-  await checkYahooStatus();
+  /* Run Yahoo + ESPN status checks in parallel so bootstrap doesn't pay the
+     latency of two sequential round-trips before deciding what to render. */
+  await Promise.all([checkYahooStatus(),checkEspnStatus()]);
   if(cameFromYahooOAuth)showSetup();
   else if(isAnyProviderConnected())await run();
   else showSetup();
