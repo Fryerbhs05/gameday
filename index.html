@@ -2168,6 +2168,9 @@ const PROVIDERS={
         const data=await r.json();
         const parsed=parseEspnLeague(data,season,week,isHist);
         if(!parsed)return{results:[],contexts:[],debugLeagues:[]};
+        /* Stash the real league name so renderConnectCard can display it */
+        if(parsed.lg.leagueName)connectionState.espn.league_name=parsed.lg.leagueName;
+        renderSetupProviders();
         return{
           results:[{...parsed.lg,provider:'espn'}],
           contexts:[parsed.ctx],
@@ -2182,7 +2185,9 @@ const PROVIDERS={
     renderConnectCard(rootEl){
       if(connectionState.espn.connected){
         const lid=connectionState.espn.league_id;
-        rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>ESPN connected${lid?` <span style="color:var(--ink-500)">· league ${lid}</span>`:''}</span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('espn')">Disconnect</button>`;
+        const lname=connectionState.espn.league_name;
+        const leagueLabel=lname?lname:(lid?`league ${lid}`:'');
+        rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>ESPN connected${leagueLabel?` <span style="color:var(--ink-500)">· ${leagueLabel}</span>`:''}</span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('espn')">Disconnect</button>`;
       }else{
         rootEl.innerHTML=`<button class="btn-espn provider-connect-btn" onclick="handleProviderConnect('espn')"><span class="btn-espn-icon">E</span><span>Connect your ESPN account</span></button>`;
       }
