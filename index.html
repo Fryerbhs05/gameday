@@ -130,6 +130,85 @@
     .last-refreshed.visible { display: block; }
     @media (max-width: 640px) { .last-refreshed { display: none !important; } }
 
+    /* ── Menu trigger (hamburger) ────────────────────────────── */
+    .site-header__menu-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px; padding: 0; margin-right: 8px;
+      background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
+      color: var(--ink-700); cursor: pointer; flex-shrink: 0;
+      transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), transform 80ms var(--ease-out);
+    }
+    .site-header__menu-btn:hover { background: var(--paper-deep); border-color: var(--line); }
+    .site-header__menu-btn:active { transform: scale(0.96); }
+    .site-header__menu-btn svg { width: 22px; height: 22px; display: block; }
+
+    /* ── Slide-out drawer + overlay ──────────────────────────── */
+    .menu-overlay {
+      position: fixed; inset: 0; background: rgba(20,24,28,0.42);
+      opacity: 0; pointer-events: none;
+      transition: opacity var(--duration-base) var(--ease-out);
+      z-index: 200;
+    }
+    .menu-overlay.open { opacity: 1; pointer-events: auto; }
+    .menu-drawer {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: min(320px, 88vw); background: var(--paper);
+      box-shadow: 2px 0 24px rgba(20,24,28,0.18);
+      transform: translateX(-100%);
+      transition: transform 260ms var(--ease-out);
+      z-index: 201; display: flex; flex-direction: column;
+    }
+    .menu-drawer.open { transform: translateX(0); }
+    .menu-drawer__head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 18px; border-bottom: 1px solid var(--line);
+    }
+    .menu-drawer__wordmark { display: flex; align-items: center; }
+    .menu-drawer__wordmark svg { height: 26px; width: auto; display: block; }
+    .menu-drawer__close {
+      width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid var(--line); border-radius: var(--radius-md);
+      color: var(--ink-700); cursor: pointer; flex-shrink: 0;
+      transition: background var(--duration-fast) var(--ease-out);
+    }
+    .menu-drawer__close:hover { background: var(--paper-deep); }
+    .menu-drawer__close svg { width: 18px; height: 18px; display: block; }
+    .menu-drawer__list {
+      list-style: none; padding: 10px 8px; margin: 0; flex: 1; overflow-y: auto;
+    }
+    .menu-drawer__list li { margin: 0; }
+    .menu-drawer__item {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 14px; margin: 2px 0; border-radius: var(--radius-md);
+      font: 500 15px/1.2 var(--font-sans); color: var(--ink-900);
+      cursor: pointer; user-select: none;
+      background: transparent; border: 0; width: 100%; text-align: left;
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+    }
+    .menu-drawer__item:hover { background: var(--paper-deep); }
+    .menu-drawer__item.is-active { background: var(--coral-200); color: var(--coral-700); }
+    .menu-drawer__item.is-disabled { opacity: 0.45; cursor: not-allowed; }
+    .menu-drawer__item.is-disabled:hover { background: transparent; }
+    .menu-drawer__badge {
+      font: 500 9px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--ink-500); background: var(--paper-deep);
+      padding: 4px 7px; border-radius: var(--radius-pill); flex-shrink: 0;
+    }
+    .menu-drawer__divider { height: 1px; background: var(--line); margin: 10px 14px; border: 0; }
+    .menu-drawer__section-label {
+      font: 500 10px/1 var(--font-mono); color: var(--ink-500);
+      letter-spacing: 0.16em; text-transform: uppercase;
+      padding: 14px 14px 6px; list-style: none;
+    }
+    .menu-drawer__foot {
+      padding: 14px 18px; border-top: 1px solid var(--line);
+      font: 400 11px/1.4 var(--font-mono); color: var(--ink-500); letter-spacing: 0.04em;
+    }
+    body.menu-open { overflow: hidden; }
+    @media (prefers-reduced-motion: reduce) {
+      .menu-drawer, .menu-overlay, .site-header__menu-btn { transition: none; }
+    }
+
     /* ── Buttons ──────────────────────────────────────────────── */
     .btn-primary {
       background: var(--coral-500); color: var(--paper);
@@ -1125,6 +1204,13 @@
 <!-- ── Header ─────────────────────────────────────────────────── -->
 <header class="site-header">
   <div class="site-header__inner">
+    <button class="site-header__menu-btn" id="menu-trigger" type="button" aria-label="Open menu" aria-controls="site-menu" aria-expanded="false">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="4" y1="7" x2="20" y2="7"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <line x1="4" y1="17" x2="20" y2="17"/>
+      </svg>
+    </button>
     <a class="site-header__brand" href="/" aria-label="Conflicted — home">
       <svg xmlns="http://www.w3.org/2000/svg" width="480" height="130" viewBox="0 0 480 130" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="brandTitle brandDesc">
         <title id="brandTitle">Conflicted</title>
@@ -1152,6 +1238,75 @@
     </nav>
   </div>
 </header>
+
+<!-- ══ MENU DRAWER ═════════════════════════════════════════════ -->
+<div class="menu-overlay" id="menu-overlay" hidden></div>
+<aside class="menu-drawer" id="site-menu" role="dialog" aria-modal="true" aria-label="Site menu" hidden>
+  <div class="menu-drawer__head">
+    <a class="menu-drawer__wordmark" href="/" aria-label="Conflicted — home">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 130" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <defs>
+          <clipPath id="menuLeftHalf"><rect x="0" y="0" width="240" height="130"/></clipPath>
+          <clipPath id="menuRightHalf"><rect x="240" y="0" width="240" height="130"/></clipPath>
+        </defs>
+        <text x="240" y="70" text-anchor="middle"
+              style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;fill:var(--navy-700,#1A3A52);"
+              clip-path="url(#menuLeftHalf)">CONFLICTED</text>
+        <text x="240" y="70" text-anchor="middle"
+              style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;fill:var(--coral-500,#D85A30);"
+              clip-path="url(#menuRightHalf)">CONFLICTED</text>
+        <line x1="240" y1="22" x2="240" y2="82" style="stroke:var(--ink-900,#15181C);stroke-width:1.2;"/>
+      </svg>
+    </a>
+    <button class="menu-drawer__close" id="menu-close" type="button" aria-label="Close menu">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="6" y1="6" x2="18" y2="18"/>
+        <line x1="18" y1="6" x2="6" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <ul class="menu-drawer__list" role="menu">
+    <li class="menu-drawer__section-label" role="presentation">Views</li>
+    <li role="none">
+      <button class="menu-drawer__item is-active" data-menu-action="dashboard" role="menuitem" type="button">
+        <span>Dashboard</span>
+      </button>
+    </li>
+    <li role="none">
+      <button class="menu-drawer__item is-disabled" data-menu-action="exposure" role="menuitem" type="button" aria-disabled="true" disabled>
+        <span>Exposure map</span>
+        <span class="menu-drawer__badge">Soon</span>
+      </button>
+    </li>
+    <li role="none">
+      <button class="menu-drawer__item is-disabled" data-menu-action="watch-priority" role="menuitem" type="button" aria-disabled="true" disabled>
+        <span>Watch priority</span>
+        <span class="menu-drawer__badge">Soon</span>
+      </button>
+    </li>
+    <li role="presentation"><hr class="menu-drawer__divider" aria-hidden="true"></li>
+    <li class="menu-drawer__section-label" role="presentation">Site</li>
+    <li role="none">
+      <button class="menu-drawer__item is-disabled" data-menu-action="about" role="menuitem" type="button" aria-disabled="true" disabled>
+        <span>About</span>
+        <span class="menu-drawer__badge">Soon</span>
+      </button>
+    </li>
+    <li role="none">
+      <button class="menu-drawer__item is-disabled" data-menu-action="blog" role="menuitem" type="button" aria-disabled="true" disabled>
+        <span>Blog</span>
+        <span class="menu-drawer__badge">Soon</span>
+      </button>
+    </li>
+    <li role="none">
+      <button class="menu-drawer__item is-disabled" data-menu-action="contact" role="menuitem" type="button" aria-disabled="true" disabled>
+        <span>Contact</span>
+        <span class="menu-drawer__badge">Soon</span>
+      </button>
+    </li>
+  </ul>
+  <div class="menu-drawer__foot">All your leagues, one place.</div>
+</aside>
 
 <!-- ══ LANDING ═════════════════════════════════════════════════ -->
 <div id="setup-panel">
@@ -1464,6 +1619,10 @@ function showBoard(){
   hideAll();document.getElementById('board').style.display='block';
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='inline-flex');
   document.getElementById('week-label').style.display='block';
+}
+function goToDashboardOrSetup(){
+  if(isAnyProviderConnected()||isDemoMode) showBoard();
+  else showSetup();
 }
 
 function buildWeekSelect(sel){const el=document.getElementById('week-select');el.innerHTML='';for(let w=1;w<=MAX_WEEK;w++){const o=document.createElement('option');o.value=w;o.textContent=`Week ${w}`;if(w===sel)o.selected=true;el.appendChild(o);}}
@@ -2825,6 +2984,76 @@ initThemeToggle();
   else if(isAnyProviderConnected())await run();
   else showSetup();
 })();
+</script>
+
+<!-- ============ Menu drawer behavior ============ -->
+<script>
+  (function() {
+    var trigger = document.getElementById('menu-trigger');
+    var drawer = document.getElementById('site-menu');
+    var overlay = document.getElementById('menu-overlay');
+    var closeBtn = document.getElementById('menu-close');
+    if (!trigger || !drawer || !overlay || !closeBtn) return;
+
+    function openMenu() {
+      drawer.hidden = false;
+      overlay.hidden = false;
+      // Ensure closed baseline is applied before transitioning to open
+      drawer.classList.remove('open');
+      overlay.classList.remove('open');
+      void drawer.offsetWidth; // force reflow
+      drawer.classList.add('open');
+      overlay.classList.add('open');
+      document.body.classList.add('menu-open');
+      trigger.setAttribute('aria-expanded', 'true');
+      setTimeout(function() { closeBtn.focus(); }, 50);
+      syncActive();
+    }
+    function closeMenu() {
+      drawer.classList.remove('open');
+      overlay.classList.remove('open');
+      document.body.classList.remove('menu-open');
+      trigger.setAttribute('aria-expanded', 'false');
+      setTimeout(function() {
+        if (!drawer.classList.contains('open')) {
+          drawer.hidden = true;
+          overlay.hidden = true;
+        }
+      }, 300);
+    }
+    function isOpen() { return drawer.classList.contains('open'); }
+
+    function syncActive() {
+      var board = document.getElementById('board');
+      var onBoard = !!(board && board.style.display && board.style.display !== 'none');
+      drawer.querySelectorAll('[data-menu-action="dashboard"]').forEach(function(btn) {
+        btn.classList.toggle('is-active', onBoard);
+      });
+    }
+
+    trigger.addEventListener('click', function() {
+      if (isOpen()) closeMenu(); else openMenu();
+    });
+    closeBtn.addEventListener('click', closeMenu);
+    overlay.addEventListener('click', closeMenu);
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && isOpen()) closeMenu();
+    });
+
+    drawer.querySelectorAll('[data-menu-action]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        if (btn.classList.contains('is-disabled')) { e.preventDefault(); return; }
+        var action = btn.getAttribute('data-menu-action');
+        closeMenu();
+        if (action === 'dashboard') {
+          if (typeof window.goToDashboardOrSetup === 'function') window.goToDashboardOrSetup();
+          else if (typeof window.showBoard === 'function') window.showBoard();
+        }
+        // Future routes — wire these up as each view ships:
+        //   exposure, watch-priority, about, blog, contact
+      });
+    });
+  })();
 </script>
 
 <!-- ============ PWA: install banner + service worker registration ============ -->
