@@ -2970,7 +2970,25 @@ initThemeToggle();
     var subEl = banner.querySelector('.cib-sub');
     var deferredPrompt = null;
 
+    // Gating state: only show after the user has been on the dashboard
+    // (#board) for a continuous 10 seconds.
+    var DASHBOARD_DWELL_MS = 10000;
+    var dashboardReady = false;
+    var dwellTimer = null;
+    var promptCaught = false;
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    function isOnDashboard() {
+      var b = document.getElementById('board');
+      if (!b) return false;
+      // showBoard() sets display:block; hideAll() sets display:none.
+      var d = b.style.display;
+      if (d === 'none' || d === '') return false;
+      return true;
+    }
+
     function show() {
+      if (!banner.hidden) return;
       banner.hidden = false;
       requestAnimationFrame(function() { banner.classList.add('cib-visible'); });
     }
@@ -2983,20 +3001,67 @@ initThemeToggle();
       hide();
     }
 
+    function maybeShow() {
+      if (!dashboardReady) return;
+      if (!isOnDashboard()) return;
+      if (isIOS) { show(); return; }
+      if (promptCaught) show();
+    }
+
+    function startDwellTimer() {
+      if (dashboardReady || dwellTimer) return;
+      if (!isOnDashboard()) return;
+      dwellTimer = setTimeout(function() {
+        dashboardReady = true;
+        maybeShow();
+      }, DASHBOARD_DWELL_MS);
+    }
+
+    // Watch for the dashboard becoming visible. We wrap showBoard() if it's
+    // defined; otherwise we poll briefly until it's ready (and as a safety net
+    // even when wrapping succeeds, in case the dashboard was already shown
+    // before this script ran).
+    function hookDashboard() {
+      if (typeof window.showBoard === 'function') {
+        var orig = window.showBoard;
+        window.showBoard = function() {
+          var r = orig.apply(this, arguments);
+          startDwellTimer();
+          return r;
+        };
+      }
+      if (isOnDashboard()) {
+        startDwellTimer();
+      } else {
+        var pollCount = 0;
+        var pollId = setInterval(function() {
+          pollCount++;
+          if (isOnDashboard()) {
+            clearInterval(pollId);
+            startDwellTimer();
+          } else if (pollCount > 600) {
+            // Stop polling after ~5 minutes; the wrapped showBoard will pick it up.
+            clearInterval(pollId);
+          }
+        }, 500);
+      }
+    }
+    hookDashboard();
+
     closeBtn.addEventListener('click', dismiss);
 
-    // iOS Safari doesn't fire beforeinstallprompt — show manual instructions.
-    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     if (isIOS) {
+      // iOS Safari doesn't fire beforeinstallprompt — show manual instructions.
       subEl.innerHTML = 'Tap the <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share button, then "Add to Home Screen".';
       actionBtn.hidden = true;
-      setTimeout(show, 2500);
+      // No immediate show — maybeShow() will fire once the dwell timer elapses.
     } else {
       // Android Chrome / Edge: catch the install prompt event.
       window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         deferredPrompt = e;
-        show();
+        promptCaught = true;
+        maybeShow();
       });
       actionBtn.addEventListener('click', function() {
         if (!deferredPrompt) return;
