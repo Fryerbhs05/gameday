@@ -12,13 +12,28 @@
 
   <!-- ============ PWA: manifest, theme color, iOS support ============ -->
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#F5EFE4" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#0F1B26" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" id="meta-theme-color" content="#0F1B26" />
   <link rel="apple-touch-icon" href="/icons/icon-180.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Conflicted" />
+
+  <!-- ============ Theme: dark by default, user can opt into light ============
+       Inlined in <head> so it runs before paint and avoids a flash. -->
+  <script>
+    (function() {
+      try {
+        var stored = localStorage.getItem('conflicted-theme'); // 'dark' | 'light' | null
+        var theme = (stored === 'light') ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+        var meta = document.getElementById('meta-theme-color');
+        if (meta) meta.setAttribute('content', theme === 'light' ? '#F5EFE4' : '#0F1B26');
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
 
   <style>
     /* ============================================================
@@ -1282,6 +1297,13 @@
       <div class="settings-body" id="settings-body">
         <div class="settings-row">
           <div class="settings-row-meta">
+            <div class="settings-row-title">Appearance</div>
+            <div class="settings-row-sub">Conflicted defaults to dark mode. Flip this on for light mode.</div>
+          </div>
+          <button class="live-toggle" id="theme-toggle" onclick="toggleTheme()" type="button" aria-label="Toggle light mode"></button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-meta">
             <div class="settings-row-title">League priority</div>
             <div class="settings-row-sub" id="settings-priority-sub">Set the order that decides who Conflicted cheers for when leagues conflict.</div>
             <ol class="settings-priority-list" id="settings-priority-list" style="display:none"></ol>
@@ -1348,6 +1370,23 @@ function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.
 function loadLiveOnlyState(){try{liveOnly=localStorage.getItem(LIVE_ONLY_KEY)==='1';}catch(e){liveOnly=false;}}
 function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1':'0');}catch(e){}}
 function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();document.getElementById('live-only-toggle').classList.toggle('on',liveOnly);applyFilters();}
+
+/* ── Theme (light/dark) ───────────────────────────────────────
+   Default = dark. User can opt into light via Settings → Appearance.
+   The initial data-theme attribute is set by the inline script in <head>
+   so the page never paints in the wrong theme. */
+const THEME_KEY='conflicted-theme';
+function getTheme(){return document.documentElement.getAttribute('data-theme')||'dark';}
+function setTheme(theme){
+  document.documentElement.setAttribute('data-theme',theme);
+  try{localStorage.setItem(THEME_KEY,theme);}catch(e){}
+  const m=document.getElementById('meta-theme-color');
+  if(m)m.setAttribute('content',theme==='light'?'#F5EFE4':'#0F1B26');
+  const t=document.getElementById('theme-toggle');
+  if(t)t.classList.toggle('on',theme==='light');
+}
+function toggleTheme(){setTheme(getTheme()==='light'?'dark':'light');}
+function initThemeToggle(){const t=document.getElementById('theme-toggle');if(t)t.classList.toggle('on',getTheme()==='light');}
 const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
 const getNFLState=()=>apiFetch(`${BASE}/state/nfl`);
 const getLeagues=(uid,s)=>apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
@@ -2772,6 +2811,7 @@ function renderSettingsPriorityList(list,order,equal){
 loadPriorityState();
 loadLiveOnlyState();
 document.getElementById('live-only-toggle').classList.toggle('on',liveOnly);
+initThemeToggle();
 
 (async()=>{
   const cameFromYahooOAuth=new URLSearchParams(window.location.search).get('yahoo')==='connected';
