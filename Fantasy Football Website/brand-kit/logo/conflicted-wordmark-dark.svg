@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 130" role="img" aria-labelledby="title desc">
+  <title id="title">Conflicted</title>
+  <desc id="desc">The Conflicted wordmark for dark backgrounds, bisected vertically with the left half in light navy and the right half in coral.</desc>
+  <defs>
+    <clipPath id="leftHalfDk"><rect x="0" y="0" width="240" height="130"/></clipPath>
+    <clipPath id="rightHalfDk"><rect x="240" y="0" width="240" height="130"/></clipPath>
+  </defs>
+  <text x="240" y="70" text-anchor="middle"
+        style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;"
+        fill="#7AA8D1"
+        clip-path="url(#leftHalfDk)">CONFLICTED</text>
+  <text x="240" y="70" text-anchor="middle"
+        style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;"
+        fill="#E88761"
+        clip-path="url(#rightHalfDk)">CONFLICTED</text>
+  <line x1="240" y1="22" x2="240" y2="82" stroke="#F5EFE4" stroke-width="1.2"/>
+  <text x="240" y="110" text-anchor="middle"
+        style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:500;font-size:11px;letter-spacing:0.25em;"
+        fill="#9E988A">ALL YOUR LEAGUES, ONE PLACE</text>
+</svg>

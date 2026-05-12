@@ -1,0 +1,193 @@
+/* ============================================================
+   Conflicted — design tokens
+   Drop-in replacement for the existing :root block in index.html.
+   Light mode is default. Dark mode applies via prefers-color-scheme
+   or by setting [data-theme="dark"] on the <html> element.
+   ============================================================ */
+
+:root {
+  /* ── Brand pair ─────────────────────────────────────────── */
+  --navy-900:      #0F2235;
+  --navy-700:      #1A3A52;   /* default brand navy */
+  --navy-500:      #2B6FA8;
+  --navy-300:      #7AA8D1;
+
+  --coral-700:     #B0451F;
+  --coral-500:     #D85A30;   /* default brand coral */
+  --coral-400:     #E26538;
+  --coral-200:     #F4C4B0;
+
+  /* ── Surfaces ───────────────────────────────────────────── */
+  --paper:         #F5EFE4;   /* primary background — the cream */
+  --paper-soft:    #FAF6EC;   /* layered surfaces, cards */
+  --paper-deep:    #EDE5D4;   /* recessed surfaces, dividers */
+
+  /* ── Ink (text) ─────────────────────────────────────────── */
+  --ink-900:       #15181C;
+  --ink-700:       #2C2C2A;
+  --ink-500:       #5F5E5A;
+  --ink-300:       #A8A6A0;
+
+  /* ── Lines ──────────────────────────────────────────────── */
+  --line:          #D8D2C4;
+  --line-soft:     #E5DFD0;
+
+  /* ── Status palette ─────────────────────────────────────── */
+  --cheer:         #3D8B5C;
+  --cheer-soft:    #D9E8DD;
+
+  --enemy:         #A33D2E;
+  --enemy-soft:    #EFD5CE;
+
+  /* "split" replaces the old --conflicted variable.
+     User-facing label can remain "Conflicted" — see 02-color-system.md. */
+  --split:         #B27F1A;
+  --split-soft:    #F0E2BF;
+
+  --neutral:       #7A7770;
+  --neutral-soft:  #E8E3D5;
+
+  /* ── Semantic system colors (alias status palette) ──────── */
+  --success:       var(--cheer);
+  --warning:       var(--split);
+  --danger:        var(--enemy);
+  --info:          var(--navy-500);
+
+  /* ── Type ───────────────────────────────────────────────── */
+  --font-sans:     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:     'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* ── Radius ─────────────────────────────────────────────── */
+  --radius-sm:     4px;
+  --radius-md:     8px;
+  --radius-lg:     12px;
+  --radius-pill:   999px;
+
+  /* ── Spacing scale (4px base) ───────────────────────────── */
+  --space-1:       4px;
+  --space-2:       8px;
+  --space-3:       12px;
+  --space-4:       16px;
+  --space-5:       20px;
+  --space-6:       24px;
+  --space-8:       32px;
+  --space-12:      48px;
+  --space-16:      64px;
+
+  /* ── Layout ─────────────────────────────────────────────── */
+  --max-width:     980px;
+  --gutter:        24px;
+
+  /* ── Motion ─────────────────────────────────────────────── */
+  --ease-out:      cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+}
+
+/* ============================================================
+   Dark mode — applied via OS preference or [data-theme="dark"].
+   Surface tokens flip; brand pair shifts slightly lighter for
+   contrast on dark navy.
+   ============================================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy-700:      #7AA8D1;
+    --navy-500:      #5790C0;
+    --navy-300:      #2B6FA8;
+
+    --coral-500:     #E88761;
+    --coral-400:     #F0997B;
+    --coral-700:     #D85A30;
+
+    --paper:         #0F1B26;
+    --paper-soft:    #162635;
+    --paper-deep:    #0A1019;
+
+    --ink-900:       #F5EFE4;
+    --ink-700:       #E0DACA;
+    --ink-500:       #9E988A;
+    --ink-300:       #5F5E5A;
+
+    --line:          #2A3949;
+    --line-soft:     #1F2C3A;
+
+    --cheer:         #6BBF8C;
+    --cheer-soft:    #1F3329;
+    --enemy:         #D86A5C;
+    --enemy-soft:    #3A1F1A;
+    --split:         #D9A445;
+    --split-soft:    #3A2D14;
+    --neutral:       #9E988A;
+    --neutral-soft:  #1F2530;
+  }
+}
+
+:root[data-theme="dark"] {
+  --navy-700:      #7AA8D1;
+  --navy-500:      #5790C0;
+  --navy-300:      #2B6FA8;
+  --coral-500:     #E88761;
+  --coral-400:     #F0997B;
+  --coral-700:     #D85A30;
+  --paper:         #0F1B26;
+  --paper-soft:    #162635;
+  --paper-deep:    #0A1019;
+  --ink-900:       #F5EFE4;
+  --ink-700:       #E0DACA;
+  --ink-500:       #9E988A;
+  --ink-300:       #5F5E5A;
+  --line:          #2A3949;
+  --line-soft:     #1F2C3A;
+  --cheer:         #6BBF8C;
+  --cheer-soft:    #1F3329;
+  --enemy:         #D86A5C;
+  --enemy-soft:    #3A1F1A;
+  --split:         #D9A445;
+  --split-soft:    #3A2D14;
+  --neutral:       #9E988A;
+  --neutral-soft:  #1F2530;
+}
+
+/* ============================================================
+   Base reset and body defaults — apply globally.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
+body {
+  background: var(--paper);
+  color: var(--ink-700);
+  font: 400 15px/1.55 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--navy-500);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+a:hover { color: var(--coral-500); }
+
+::selection { background: var(--coral-200); color: var(--ink-900); }
+
+/* ============================================================
+   Type utility classes — match 03-typography.md scale.
+   ============================================================ */
+
+.t-display    { font: 900 56px/1.0  var(--font-sans); letter-spacing: -0.04em; }
+.t-h1         { font: 800 36px/1.1  var(--font-sans); letter-spacing: -0.01em; color: var(--ink-900); }
+.t-h2         { font: 700 24px/1.2  var(--font-sans); letter-spacing: -0.01em; color: var(--ink-900); }
+.t-h3         { font: 700 18px/1.3  var(--font-sans); color: var(--ink-900); }
+.t-body       { font: 400 15px/1.55 var(--font-sans); color: var(--ink-700); }
+.t-body-strong{ font: 500 15px/1.55 var(--font-sans); color: var(--ink-900); }
+.t-small      { font: 400 13px/1.5  var(--font-sans); color: var(--ink-500); }
+.t-micro      { font: 500 11px/1.4  var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-500); }
+
+.t-stat-xl    { font: 500 28px/1.0  var(--font-mono); color: var(--ink-900); }
+.t-stat       { font: 500 18px/1.1  var(--font-mono); color: var(--ink-900); }
+.t-stat-sm    { font: 400 13px/1.2  var(--font-mono); color: var(--ink-500); }

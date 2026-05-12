@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title desc">
+  <title id="title">Conflicted C-mark</title>
+  <desc id="desc">The Conflicted monogram — two C letterforms facing each other, one navy and one coral, with a small gap between them representing divided loyalty.</desc>
+  <g transform="translate(60, 60)">
+    <path d="M 14 -36 A 42 42 0 1 0 14 36"
+          fill="none" stroke="#1A3A52" stroke-width="16" stroke-linecap="round"/>
+    <path d="M -14 -36 A 42 42 0 1 1 -14 36"
+          fill="none" stroke="#D85A30" stroke-width="16" stroke-linecap="round"/>
+  </g>
+</svg>

@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game Day — Know Who To Root For</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Tokens ──────────────────────────────────────────────── */
+    :root {
+      --bg:          #141926;
+      --bg-surface:  #1a1f2e;
+      --bg-card:     #0f1420;
+      --bg-deep:     #0b1018;
+      --border:      #252e42;
+      --text:        #f0f2f5;
+      --text-dim:    #c8d2e0;
+      --text-muted:  #7c8fa6;
+      --text-hint:   #5a6a82;
+      --text-ghost:  #3d4a60;
+
+      --gold:             #c5a84b;
+      --gold-dim:         rgba(197,168,75,0.12);
+      --gold-border:      rgba(197,168,75,0.35);
+
+      --cheer:            #5aac82;
+      --cheer-dim:        rgba(90,172,130,0.12);
+      --cheer-border:     rgba(90,172,130,0.35);
+      --cheer-deep:       #3d7a5c;
+
+      --conflicted:       #c5a84b;
+      --conflicted-dim:   rgba(197,168,75,0.12);
+      --conflicted-border:rgba(197,168,75,0.35);
+
+      --enemy:            #b05252;
+      --enemy-dim:        rgba(176,82,82,0.12);
+      --enemy-border:     rgba(176,82,82,0.35);
+      --enemy-deep:       #7a3535;
+
+      --neutral:          #4b5a78;
+      --neutral-dim:      rgba(75,90,120,0.10);
+
+      --radius: 10px;
+      --fd: 'Barlow Condensed', sans-serif;
+      --fm: 'IBM Plex Mono', monospace;
+      --max-w: 900px;
+      --pad: 40px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--fd); min-height: 100vh; overflow-x: hidden; }
+
+    /* ── Header ───────────────────────────────────────────────── */
+    header { background: var(--bg-card); border-bottom: 1px solid var(--border); height: 60px; position: sticky; top: 0; z-index: 100; }
+    .header-inner { max-width: var(--max-w); margin: 0 auto; padding: 0 var(--pad); height: 100%; display: flex; align-items: center; justify-content: space-between; }
+    .header-left { display: flex; align-items: baseline; gap: 12px; }
+    .site-title { font-size: 1.5rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text); }
+    .site-title span { color: var(--gold); }
+    .site-tagline { font-family: var(--fm); font-size: 0.6rem; color: var(--text-ghost); letter-spacing: 0.06em; }
+    .week-badge { font-family: var(--fm); font-size: 0.62rem; color: var(--text-muted); background: var(--border); padding: 3px 10px; border-radius: 20px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .header-time { font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); }
+
+    /* Injury status badge */
+    .inj-badge { font-family: var(--fm); font-size: 0.56rem; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500; border: 1px solid; flex-shrink: 0; }
+    .inj-Q  { background: rgba(197,168,75,0.15); color: var(--gold);   border-color: rgba(197,168,75,0.35); }
+    .inj-D  { background: rgba(245,130,11,0.15); color: #f97316;       border-color: rgba(245,130,11,0.35); }
+    .inj-O  { background: rgba(176,82,82,0.18);  color: var(--enemy);  border-color: var(--enemy-border);   }
+    .inj-IR { background: rgba(176,82,82,0.12);  color: var(--enemy);  border-color: var(--enemy-border);   }
+    .inj-SUS{ background: rgba(75,90,120,0.15);  color: var(--neutral); border-color: rgba(75,90,120,0.3);  }
+
+    /* Last refreshed timestamp */
+    .last-refreshed { display: none; font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); white-space: nowrap; }
+    .last-refreshed.visible { display: block; }
+    @media (max-width: 640px) { .last-refreshed { display: none !important; } }
+
+    /* ── Buttons ──────────────────────────────────────────────── */
+    .btn { font-family: var(--fd); font-weight: 700; font-size: 1rem; letter-spacing: 0.06em; text-transform: uppercase; border: none; border-radius: var(--radius); padding: 10px 20px; cursor: pointer; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-gold { background: var(--gold); color: var(--bg-card); }
+    .btn-gold:hover:not(:disabled) { opacity: 0.88; }
+    .btn-ghost { background: transparent; color: var(--text-hint); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--border); color: var(--text); }
+    .btn-demo { background: var(--gold-dim); color: var(--gold); border: 1px solid var(--gold-border); }
+    .btn-demo:hover { background: rgba(197,168,75,0.2); }
+    .btn-demo.active { background: var(--gold); color: var(--bg-card); }
+    .btn-live { background: var(--cheer-dim); color: var(--cheer); border: 1px solid var(--cheer-border); display: flex; align-items: center; gap: 5px; }
+    .btn-live:hover { background: rgba(90,172,130,0.2); }
+    .btn-live.current { background: var(--cheer); color: var(--bg-card); }
+    .btn-live .dot-live { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .btn-sm { font-size: 0.75rem; padding: 6px 14px; }
+    .btn-icon { font-family: var(--fm); font-size: 1rem; padding: 6px 10px; background: var(--bg-surface); color: var(--text-hint); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: background 0.15s; line-height: 1; }
+    .btn-icon:hover:not(:disabled) { background: var(--border); color: var(--text); }
+    .btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ═══════════════════════════════════════════════════════════
+       LANDING PAGE
+    ═══════════════════════════════════════════════════════════ */
+    #setup-panel { display: flex; flex-direction: column; align-items: stretch; }
+
+    /* ── Hero — centered ──────────────────────────────────────── */
+    .lp-hero {
+      padding: 64px var(--pad) 48px;
+      max-width: var(--max-w);
+      margin: 0 auto;
+      width: 100%;
+      text-align: center;
+    }
+    .lp-eyebrow {
+      font-family: var(--fm); font-size: 0.62rem; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--text-hint); margin-bottom: 22px;
+      display: flex; align-items: center; justify-content: center; gap: 14px;
+    }
+    .lp-eyebrow::before, .lp-eyebrow::after { content: ''; display: block; width: 32px; height: 1px; background: var(--gold); opacity: 0.4; }
+    .lp-hero h1 {
+      font-size: 3.6rem; font-weight: 900; color: var(--text);
+      line-height: 1.02; margin-bottom: 22px;
+      letter-spacing: 0.01em; text-transform: uppercase;
+    }
+    .lp-hero h1 em { font-style: normal; color: var(--gold); }
+    .lp-hero-sub {
+      font-family: var(--fm); font-size: 0.8rem; color: var(--text-muted);
+      line-height: 1.8; max-width: 480px; margin: 0 auto;
+    }
+
+    /* ── Scenario block ───────────────────────────────────────── */
+    .lp-scenario-outer {
+      display: flex; justify-content: center;
+      padding: 0 var(--pad) 56px;
+      width: 100%;
+    }
+    .lp-scenario {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px 36px;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    /* Flag + headline — centered */
+    .sc-top { text-align: center; margin-bottom: 22px; }
+    .sc-flag { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .sc-flag-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); animation: blink 1.4s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .sc-flag-txt { font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); letter-spacing: 0.1em; text-transform: uppercase; }
+    .sc-headline { font-size: 1.9rem; font-weight: 900; text-transform: uppercase; color: var(--text); line-height: 1.1; letter-spacing: 0.02em; }
+    .sc-headline em { font-style: normal; color: var(--gold); }
+
+    /* League cards */
+    .sc-cards { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .sc-card { background: var(--bg-surface); border-radius: 8px; padding: 13px 16px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); }
+    .sc-bar { width: 3px; height: 38px; border-radius: 2px; flex-shrink: 0; }
+    .sc-bar-cheer { background: var(--cheer-deep); }
+    .sc-bar-enemy { background: var(--enemy-deep); }
+    .sc-body { flex: 1; }
+    .sc-league { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+    .sc-league-cheer { color: var(--cheer); }
+    .sc-league-enemy { color: var(--enemy); }
+    .sc-role { font-family: var(--fm); font-size: 0.68rem; color: var(--text-hint); }
+    .sc-role strong { color: var(--text-muted); }
+    .sc-pts-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+    .sc-pts { font-size: 1.15rem; font-weight: 700; font-family: var(--fm); line-height: 1; }
+    .sc-pts-cheer { color: var(--cheer); }
+    .sc-pts-enemy { color: var(--enemy); }
+    .sc-pts-lbl { font-family: var(--fm); font-size: 0.56rem; color: var(--text-hint); letter-spacing: 0.06em; text-transform: uppercase; }
+
+    /* Closing block — centered, prominent */
+    .sc-closing {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--gold);
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px;
+      text-align: center;
+    }
+    .sc-closing-pre {
+      font-family: var(--fm); font-size: 0.58rem; color: var(--text-hint);
+      letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px;
+    }
+    .sc-closing-main {
+      font-size: 1.3rem; font-weight: 900; text-transform: uppercase;
+      letter-spacing: 0.03em; color: var(--text); line-height: 1.25;
+    }
+    .sc-closing-main em { font-style: normal; color: var(--gold); }
+
+    /* Scenario interstitial blurb */
+    .sc-interstitial {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .sc-int-icon {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--gold-dim);
+      border: 1px solid var(--gold-border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 2px;
+      font-size: 14px;
+    }
+    .sc-int-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gold); margin-bottom: 5px; }
+    .sc-int-text { font-family: var(--fm); font-size: 0.68rem; color: var(--text-muted); line-height: 1.7; }
+    .sc-int-text strong { color: var(--text-dim); }
+
+    /* ── How it works — horizontal grid ──────────────────────── */
+    .lp-how {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 0 var(--pad) 56px;
+      width: 100%;
+    }
+    .lp-how-inner { width: 100%; max-width: var(--max-w); }
+    .lp-section-label {
+      font-family: var(--fm); font-size: 0.62rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 28px;
+      text-align: center;
+    }
+    .how-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0; }
+    .how-step { padding: 0 22px; position: relative; }
+    .how-step:not(:last-child)::after { content: ''; position: absolute; top: 14px; right: 0; width: 1px; height: 24px; background: var(--border); transform: translateY(-50%); }
+    .how-step:first-child { padding-left: 0; }
+    .how-step:last-child  { padding-right: 0; }
+    .how-num { font-size: 0.65rem; font-weight: 700; color: var(--gold); font-family: var(--fm); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+    .how-num::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .how-title { font-size: 0.82rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+    .how-desc { font-family: var(--fm); font-size: 0.64rem; color: var(--text-hint); line-height: 1.65; }
+
+    /* ── Divider ──────────────────────────────────────────────── */
+    .lp-divider { height: 1px; background: var(--border); max-width: var(--max-w); margin: 0 auto; width: calc(100% - var(--pad) * 2); }
+
+    /* ── Sign-in ──────────────────────────────────────────────── */
+    .lp-signin { padding: 48px var(--pad) 64px; display: flex; justify-content: center; }
+    .signin-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--gold);
+      border-radius: 12px;
+      padding: 32px 36px;
+      width: 400px;
+      text-align: center;
+    }
+    .signin-card h3 { font-size: 1.3rem; font-weight: 900; text-transform: uppercase; color: var(--text); letter-spacing: 0.04em; margin-bottom: 4px; }
+    .signin-card-sub { font-family: var(--fm); font-size: 0.66rem; color: var(--text-hint); margin-bottom: 18px; }
+    .signin-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .signin-input { flex: 1; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 6px; padding: 10px 13px; font-family: var(--fm); font-size: 0.8rem; color: var(--text); outline: none; transition: border-color 0.2s; }
+    .signin-input:focus { border-color: var(--gold); }
+    .signin-input::placeholder { color: var(--text-ghost); }
+    .or-row { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+    .or-line { flex: 1; height: 1px; background: var(--border); }
+    .or-txt { font-family: var(--fm); font-size: 0.58rem; color: var(--text-ghost); letter-spacing: 0.08em; }
+    .btn-demo-full { width: 100%; background: transparent; border: 1px solid var(--border); color: var(--text-hint); font-family: var(--fm); font-size: 0.65rem; padding: 10px; border-radius: 6px; cursor: pointer; letter-spacing: 0.04em; transition: background 0.15s, color 0.15s; }
+    .btn-demo-full:hover { background: var(--border); color: var(--text); }
+
+    /* Yahoo connect block — sits inside .signin-card between Sleeper input and OR row */
+    .yahoo-row { margin: 4px 0 6px; }
+    .yahoo-row-label { font-family: var(--fm); font-size: 0.58rem; color: var(--text-ghost); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+    .btn-yahoo { width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--bg-deep); border: 1px solid var(--gold); color: var(--text); font-family: var(--fm); font-size: 0.7rem; font-weight: 700; padding: 10px; border-radius: 6px; cursor: pointer; letter-spacing: 0.04em; text-transform: uppercase; transition: background 0.15s, color 0.15s; }
+    .btn-yahoo:hover { background: var(--gold); color: var(--bg-card); }
+    .btn-yahoo-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 3px; background: #6001d2; color: #fff; font-weight: 900; font-family: var(--fm); font-size: 0.65rem; flex-shrink: 0; }
+    .yahoo-status { display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(90,172,130,0.08); border: 1px solid var(--cheer); border-radius: 6px; padding: 8px 12px; font-family: var(--fm); font-size: 0.7rem; color: var(--text); letter-spacing: 0.03em; }
+    .yahoo-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cheer); flex-shrink: 0; }
+    .yahoo-disconnect { background: transparent; border: none; color: var(--text-hint); font-family: var(--fm); font-size: 0.6rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; letter-spacing: 0.04em; padding: 0; margin-left: 6px; }
+    .yahoo-disconnect:hover { color: var(--text); }
+
+    /* Provider-card grid — multi-platform setup screen */
+    .provider-card-grid { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 14px; }
+    .provider-card { background: var(--bg-deep); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; transition: border-color 0.2s; }
+    .provider-card.connected { border-color: var(--cheer); background: rgba(90,172,130,0.04); }
+    .provider-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .provider-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; color: #fff; font-family: var(--fm); font-size: 0.72rem; font-weight: 900; flex-shrink: 0; }
+    .provider-card-title { font-family: var(--fm); font-size: 0.72rem; font-weight: 700; color: var(--text); letter-spacing: 0.04em; text-transform: uppercase; }
+    .provider-card-body { display: flex; flex-direction: column; gap: 8px; }
+    .provider-card-body .signin-input-row { margin: 0; }
+    .provider-input { flex: 1; }
+    .provider-connect-btn { white-space: nowrap; }
+    .provider-status { display: flex; align-items: center; gap: 8px; font-family: var(--fm); font-size: 0.7rem; color: var(--text); letter-spacing: 0.02em; }
+    .provider-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cheer); flex-shrink: 0; }
+    .btn-provider-disconnect { align-self: flex-start; background: transparent; border: none; color: var(--text-hint); font-family: var(--fm); font-size: 0.6rem; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; letter-spacing: 0.04em; padding: 0; }
+    .btn-provider-disconnect:hover { color: var(--text); }
+    .provider-error { color: var(--enemy); font-family: var(--fm); font-size: 0.65rem; margin: 0; }
+    #continue-btn { width: 100%; padding: 11px; font-family: var(--fm); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; border: none; border-radius: 6px; cursor: pointer; transition: background 0.15s, color 0.15s, opacity 0.15s; background: var(--gold); color: var(--bg-card); }
+    #continue-btn:disabled { background: var(--border); color: var(--text-ghost); cursor: not-allowed; opacity: 0.7; }
+
+    /* Toast for OAuth round-trip confirmations */
+    .yahoo-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--cheer); color: var(--bg-card); font-family: var(--fm); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 10px 18px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); z-index: 9999; opacity: 1; transition: opacity 0.3s; animation: yahoo-toast-in 0.3s ease-out; }
+    .yahoo-toast.toast-error { background: var(--enemy); }
+    @keyframes yahoo-toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+    /* ═══════════════════════════════════════════════════════════
+       LOADING / ERROR
+    ═══════════════════════════════════════════════════════════ */
+    #loading-panel { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 60px); gap: 20px; }
+    .spinner { width: 44px; height: 44px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-msg { font-family: var(--fm); font-size: 0.75rem; color: var(--text-muted); letter-spacing: 0.04em; }
+    #error-panel { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 60px); gap: 16px; padding: 40px; text-align: center; }
+    .error-msg { font-family: var(--fm); font-size: 0.8rem; color: var(--enemy); max-width: 480px; line-height: 1.6; background: var(--enemy-dim); border: 1px solid var(--enemy-border); border-radius: var(--radius); padding: 20px 28px; }
+
+    /* ═══════════════════════════════════════════════════════════
+       BOARD
+    ═══════════════════════════════════════════════════════════ */
+    #board { display: none; }
+    .board-inner { max-width: var(--max-w); margin: 0 auto; padding: 24px var(--pad) 60px; }
+    .board-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .board-user { font-family: var(--fm); font-size: 0.7rem; color: var(--text-muted); }
+    .board-user strong { color: var(--gold); font-size: 0.8rem; }
+
+    /* Nav controls */
+    .nav-controls { display: flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; margin-bottom: 14px; flex-wrap: wrap; }
+    .nav-label { font-family: var(--fm); font-size: 0.58rem; color: var(--text-hint); letter-spacing: 0.08em; text-transform: uppercase; }
+    .nav-divider { width: 1px; height: 26px; background: var(--border); margin: 0 6px; }
+    select.nav-select { font-family: var(--fd); font-size: 1rem; font-weight: 700; color: var(--text); background: transparent; border: none; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; padding-right: 18px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a6a82'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 2px center; }
+    select.nav-select option { background: #0f1420; color: #f0f2f5; font-size: 0.9rem; }
+    select.week-select { min-width: 90px; }
+    .nav-spacer { flex: 1; }
+    .nav-ctx { font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); }
+
+    /* Scores strip */
+    .scores-strip { display: none; gap: 10px; margin-bottom: 14px; overflow-x: auto; }
+    .scores-strip.visible { display: flex; }
+    .score-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; min-width: 180px; flex-shrink: 0; position: relative; overflow: hidden; }
+    .score-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .score-card.s-live::before  { background: var(--conflicted); }
+    .score-card.s-win::before   { background: var(--cheer); }
+    .score-card.s-loss::before  { background: var(--enemy); }
+    .score-card.s-final::before { background: var(--neutral); }
+    .score-card.s-live  { border-color: var(--conflicted-border); }
+    .score-card.s-win   { border-color: var(--cheer-border); }
+    .score-card.s-loss  { border-color: var(--enemy-border); }
+    .scard-league { font-family: var(--fm); font-size: 0.58rem; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .scard-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .scard-matchup { display: flex; align-items: center; gap: 6px; }
+    .scard-team { flex: 1; text-align: center; }
+    .scard-pts { font-size: 1.5rem; font-weight: 900; line-height: 1; color: var(--text); }
+    .scard-pts.mine        { color: var(--cheer); }
+    .scard-pts.opp         { color: var(--text-hint); }
+    .scard-pts.mine.losing { color: var(--text-hint); }
+    .scard-pts.opp.leading { color: var(--enemy); }
+    .scard-lbl { font-family: var(--fm); font-size: 0.52rem; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.06em; }
+    .scard-dash { font-family: var(--fm); color: var(--border); font-size: 0.9rem; }
+    .scard-state { font-family: var(--fm); font-size: 0.56rem; text-align: center; margin-top: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .scard-state.live  { color: var(--conflicted); }
+    .scard-state.win   { color: var(--cheer); }
+    .scard-state.loss  { color: var(--enemy); }
+    .scard-state.final { color: var(--neutral); }
+    .scard-state.none  { color: var(--text-hint); }
+
+    /* League filters */
+    .league-filters { display: none; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 14px; }
+    .league-filters.visible { display: flex; }
+    .filter-label { font-family: var(--fm); font-size: 0.58rem; color: var(--text-hint); letter-spacing: 0.08em; text-transform: uppercase; margin-right: 4px; flex-shrink: 0; }
+    .filter-pill { font-family: var(--fm); font-size: 0.62rem; padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 1px solid; transition: opacity 0.15s, transform 0.1s; font-weight: 500; letter-spacing: 0.02em; white-space: nowrap; }
+    .filter-pill:hover { transform: translateY(-1px); }
+    .filter-pill.all-pill { background: var(--border); color: var(--text-muted); border-color: var(--border); }
+    .filter-pill.all-pill.active { background: var(--text-muted); color: var(--bg); border-color: var(--text-muted); }
+    .filter-pill.inactive { opacity: 0.32; }
+    .filter-divider { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+    .filter-count { font-family: var(--fm); font-size: 0.58rem; color: var(--text-hint); margin-left: auto; }
+
+    /* Banners */
+    .banner { display: none; align-items: center; gap: 12px; border-radius: var(--radius); padding: 11px 18px; margin-bottom: 12px; font-family: var(--fm); font-size: 0.68rem; line-height: 1.6; }
+    .banner.visible { display: flex; }
+    .banner-icon { font-size: 1rem; flex-shrink: 0; }
+    .banner strong { color: var(--text); }
+    .banner-demo      { background: var(--gold-dim);              border: 1px solid var(--gold-border);           color: var(--gold); }
+    .banner-offseason { background: var(--neutral-dim);           border: 1px solid rgba(75,90,120,0.28);         color: var(--text-muted); }
+    .banner-history   { background: rgba(59,130,246,0.08);        border: 1px solid rgba(59,130,246,0.25);        color: #6fa8dc; }
+    .banner-scoring   { background: var(--cheer-dim);             border: 1px solid var(--cheer-border);          color: var(--cheer); }
+
+    /* No-data */
+    #no-data-state { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 60px 20px; text-align: center; }
+    #no-data-state.visible { display: flex; }
+    .no-data-icon { font-size: 2.8rem; }
+    .no-data-title { font-size: 1.6rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .no-data-msg { font-family: var(--fm); font-size: 0.75rem; color: var(--text-hint); line-height: 1.75; max-width: 420px; }
+    .no-data-msg strong { color: var(--gold); }
+    .no-data-hint { font-family: var(--fm); font-size: 0.65rem; color: var(--text-ghost); }
+
+    /* Debug */
+    .debug-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 14px; overflow: hidden; }
+    .debug-toggle { width: 100%; background: none; border: none; padding: 10px 15px; display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-hint); font-family: var(--fm); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; text-align: left; transition: background 0.15s; }
+    .debug-toggle:hover { background: rgba(255,255,255,0.02); }
+    .debug-toggle .arrow { transition: transform 0.2s; margin-left: auto; }
+    .debug-toggle.open .arrow { transform: rotate(90deg); }
+    .debug-body { display: none; padding: 0 15px 12px; border-top: 1px solid var(--border); }
+    .debug-body.open { display: block; }
+    .debug-meta { font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); padding: 8px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 16px; }
+    .debug-meta strong { color: var(--cheer); }
+    .debug-meta .warn  { color: var(--gold); }
+    .debug-leagues { display: flex; flex-direction: column; gap: 5px; }
+    .debug-league { font-family: var(--fm); font-size: 0.6rem; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .lg-name { color: var(--text); font-weight: 500; flex: 1; min-width: 130px; display: flex; align-items: center; gap: 6px; }
+    .lg-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .lg-id { color: var(--text-hint); font-size: 0.55rem; }
+    .dpill { padding: 2px 7px; border-radius: 4px; font-size: 0.55rem; letter-spacing: 0.04em; border: 1px solid; }
+    .dp-ok   { background: var(--cheer-dim);   color: var(--cheer);   border-color: var(--cheer-border);   }
+    .dp-warn { background: var(--enemy-dim);   color: var(--enemy);   border-color: var(--enemy-border);   }
+    .dp-dim  { background: var(--neutral-dim); color: var(--neutral); border-color: rgba(75,90,120,0.25); }
+
+    /* Summary pills */
+    .summary-bar { display: flex; gap: 12px; margin-bottom: 22px; }
+    .summary-pill { flex: 1; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; border: 1px solid; }
+    .summary-pill.cheer      { background: var(--cheer-dim);      border-color: var(--cheer-border);      }
+    .summary-pill.conflicted { background: var(--conflicted-dim); border-color: var(--conflicted-border); }
+    .summary-pill.enemy      { background: var(--enemy-dim);      border-color: var(--enemy-border);      }
+    .pill-count { font-size: 2.4rem; font-weight: 900; line-height: 1; }
+    .summary-pill.cheer      .pill-count { color: var(--cheer);      }
+    .summary-pill.conflicted .pill-count { color: var(--conflicted); }
+    .summary-pill.enemy      .pill-count { color: var(--enemy);      }
+    .pill-label { display: flex; flex-direction: column; gap: 2px; }
+    .pill-label strong { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text); }
+    .pill-label span { font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); }
+
+    /* Columns */
+    .columns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: start; }
+    .column-header { display: flex; align-items: center; gap: 10px; padding: 0 4px 12px; border-bottom: 2px solid; margin-bottom: 12px; }
+    .column.cheer      .column-header { border-color: var(--cheer);      }
+    .column.conflicted .column-header { border-color: var(--conflicted); }
+    .column.enemy      .column-header { border-color: var(--enemy);      }
+    .col-icon  { font-size: 1.2rem; }
+    .col-title { font-size: 1.4rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
+    .column.cheer      .col-title { color: var(--cheer);      }
+    .column.conflicted .col-title { color: var(--conflicted); }
+    .column.enemy      .col-title { color: var(--enemy);      }
+    .col-subtitle { font-family: var(--fm); font-size: 0.56rem; color: var(--text-hint); margin-left: auto; }
+
+    /* Player cards */
+    .player-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 15px; margin-bottom: 7px; display: flex; flex-direction: column; gap: 6px; transition: transform 0.12s, box-shadow 0.12s; animation: fadeUp 0.26s ease both; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .player-card:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
+    .column.cheer      .player-card { border-left: 3px solid var(--cheer);      }
+    .column.conflicted .player-card { border-left: 3px solid var(--conflicted); }
+    .column.enemy      .player-card { border-left: 3px solid var(--enemy);      }
+    .player-card.filtered-out { display: none; }
+    .player-card.clinched { opacity: 0.4; filter: grayscale(0.5); border-left-color: var(--neutral); }
+
+    .card-top { display: flex; align-items: center; gap: 9px; }
+    .pos-badge { font-family: var(--fm); font-size: 0.58rem; font-weight: 500; padding: 3px 6px; border-radius: 4px; letter-spacing: 0.06em; flex-shrink: 0; }
+    .pos-QB  { background: rgba(99,102,241,0.2);  color: #9fa3f5; }
+    .pos-RB  { background: rgba(90,172,130,0.15); color: var(--cheer); }
+    .pos-WR  { background: rgba(59,130,246,0.18); color: #74aff5; }
+    .pos-TE  { background: rgba(197,168,75,0.18); color: var(--gold); }
+    .pos-K   { background: rgba(168,85,247,0.18); color: #c48af5; }
+    .pos-DEF { background: rgba(176,82,82,0.18);  color: var(--enemy); }
+    .pos-default { background: var(--border); color: var(--text-hint); }
+    .player-name { font-size: 0.95rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-team { font-family: var(--fm); font-size: 0.6rem; color: var(--text-hint); margin-left: auto; flex-shrink: 0; }
+
+    .league-pts-row { font-family: var(--fm); font-size: 0.58rem; display: flex; align-items: center; gap: 6px; color: var(--text-hint); }
+    .league-pts-dot  { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+    .league-pts-name { flex: 1; }
+    .league-pts-val  { color: var(--text-dim); font-weight: 500; }
+    .league-pts-fmt  { opacity: 0.55; font-size: 0.52rem; }
+    .league-pts-proj { color: var(--text-hint); font-size: 0.55rem; }
+
+    .ctx-badge { font-family: var(--fm); font-size: 0.55rem; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.04em; border: 1px solid; white-space: nowrap; }
+    .ctx-need    { background: var(--cheer-dim);      color: var(--cheer);      border-color: var(--cheer-border);      }
+    .ctx-avoid   { background: var(--enemy-dim);      color: var(--enemy);      border-color: var(--enemy-border);      }
+    .ctx-mixed   { background: var(--conflicted-dim); color: var(--conflicted); border-color: var(--conflicted-border); }
+    .ctx-settled { background: var(--neutral-dim);    color: var(--neutral);    border-color: rgba(75,90,120,0.3);      }
+    .ctx-final   { background: var(--neutral-dim);    color: var(--neutral);    border-color: rgba(75,90,120,0.3);      }
+
+    .league-context { display: flex; flex-direction: column; gap: 3px; }
+    .league-line { font-family: var(--fm); font-size: 0.56rem; letter-spacing: 0.02em; display: flex; align-items: center; gap: 5px; color: var(--text-hint); }
+    .league-line .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+    .empty-state { font-family: var(--fm); font-size: 0.65rem; color: var(--text-hint); text-align: center; padding: 28px 16px; border: 1px dashed var(--border); border-radius: var(--radius); }
+
+    /* ═══════════════════════════════════════════════════════════
+       MOBILE — max-width 640px
+    ═══════════════════════════════════════════════════════════ */
+    @media (max-width: 640px) {
+
+      /* Adjust padding variable for mobile */
+      :root { --pad: 18px; }
+
+      /* ── Header ── */
+      .site-tagline { display: none !important; }
+      .site-title { font-size: 1.25rem; }
+      .header-time { display: none; }
+      /* Hide "Change User" text label, keep icon-like refresh */
+      #change-user-btn { display: none !important; }
+
+      /* ── Landing: Hero ── */
+      .lp-hero { padding: 40px var(--pad) 32px; text-align: center; }
+      .lp-hero h1 { font-size: 2.4rem; }
+      .lp-hero-sub { font-size: 0.75rem; }
+
+      /* ── Landing: Scenario ── */
+      .lp-scenario-outer { padding: 0 var(--pad) 36px; }
+      .lp-scenario { padding: 22px 20px; }
+      .sc-headline { font-size: 1.55rem; }
+      .sc-closing-main { font-size: 1.05rem; }
+
+      /* ── Landing: How it works — stack vertically on mobile ── */
+      .how-grid { grid-template-columns: 1fr; gap: 20px; }
+      .how-step { padding: 0; }
+      .how-step:not(:last-child)::after { display: none; }
+      .how-num { font-size: 0.65rem; }
+      .lp-how { padding: 0 var(--pad) 36px; }
+
+      /* ── Landing: Sign-in ── */
+      .lp-signin { padding: 32px var(--pad) 48px; }
+      .signin-card { width: 100%; padding: 24px 20px; }
+
+      /* ── Board ── */
+      .board-inner { padding: 16px var(--pad) 40px; }
+      .board-header { flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 12px; }
+
+      /* Nav controls — wrap and tighten */
+      .nav-controls { padding: 8px 12px; gap: 6px; }
+      .nav-divider { display: none; }
+      .nav-ctx { display: none; }
+      select.nav-select { font-size: 0.9rem; }
+      select.week-select { min-width: 76px; }
+
+      /* Scores strip — already scrollable, just reduce card size */
+      .score-card { min-width: 150px; padding: 8px 12px; }
+      .scard-pts { font-size: 1.25rem; }
+
+      /* Summary pills — stack */
+      .summary-bar { flex-direction: column; gap: 8px; }
+      .summary-pill { padding: 12px 16px; }
+      .pill-count { font-size: 2rem; }
+      .pill-label strong { font-size: 1rem; }
+
+      /* Columns — single column stack */
+      .columns { grid-template-columns: 1fr; gap: 28px; }
+
+      /* Column headers — slightly smaller */
+      .col-title { font-size: 1.3rem; }
+
+      /* Filter pills — constrain and wrap */
+      .league-filters {
+        padding: 8px 12px;
+        width: 100%;
+        overflow: hidden;
+        flex-wrap: wrap;
+      }
+      .league-filters #filter-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-width: 0;
+        flex: 1;
+      }
+      .filter-pill { font-size: 0.58rem; padding: 4px 10px; }
+      .filter-count { display: none; }
+      .filter-divider { display: none; }
+
+      /* Debug panel */
+      .debug-league { flex-direction: column; align-items: flex-start; }
+
+      /* No-data state */
+      .no-data-title { font-size: 1.4rem; }
+    }
+
+    /* ── Slightly wider phones / small tablets — 641–768px ── */
+    @media (min-width: 641px) and (max-width: 768px) {
+      :root { --pad: 24px; }
+      .lp-hero h1 { font-size: 2.8rem; }
+      .how-grid { grid-template-columns: 1fr 1fr; gap: 20px 0; }
+      .how-step:nth-child(2)::after { display: none; }
+      .how-step:nth-child(odd) { padding-left: 0; }
+      .how-step:nth-child(even) { padding-right: 0; }
+      .columns { grid-template-columns: 1fr; gap: 24px; }
+      .summary-bar { flex-direction: column; gap: 8px; }
+      .signin-card { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="site-title">Game<span>Day</span></div>
+      <span class="site-tagline" id="header-tagline">Multi-league fantasy football manager</span>
+      <span class="week-badge"   id="week-label"     style="display:none"></span>
+    </div>
+    <div class="header-right">
+      <span class="last-refreshed" id="last-refreshed"></span>
+      <span class="header-time" id="refresh-time"></span>
+      <button class="btn btn-demo btn-sm"  id="demo-btn"        onclick="handleDemo()"       style="display:none">🎭 Demo</button>
+      <button class="btn btn-ghost btn-sm" id="change-user-btn" onclick="handleChangeUser()" style="display:none">Change User</button>
+      <button class="btn btn-gold btn-sm"  id="refresh-btn"     onclick="handleRefresh()"    style="display:none">↻ Refresh</button>
+    </div>
+  </div>
+</header>
+
+<!-- ══ LANDING ═════════════════════════════════════════════════ -->
+<div id="setup-panel">
+
+  <!-- 1. Hero -->
+  <div class="lp-hero">
+    <div class="lp-eyebrow">Multi-league fantasy football manager</div>
+    <h1>Stop doing mental math<br/>on <em>every play</em></h1>
+    <p class="lp-hero-sub">Game Day reads your rosters, watches the scores, and tells you exactly who to root for — across all your leagues, in real time.</p>
+  </div>
+
+  <!-- 2. Sign-in — near top, right under hero -->
+  <div class="lp-signin">
+    <div class="signin-card">
+      <h3>Get started</h3>
+      <p class="signin-card-sub">Connect at least one fantasy platform</p>
+
+      <!-- Provider cards (Sleeper, Yahoo) populated by renderSetupProviders() -->
+      <div id="provider-card-grid" class="provider-card-grid"></div>
+
+      <button id="continue-btn" onclick="handleContinue()" disabled>Continue</button>
+
+      <div class="or-row"><div class="or-line"></div><div class="or-txt">or try it first</div><div class="or-line"></div></div>
+      <button class="btn-demo-full" onclick="handleDemo()">Try demo mode — 4 leagues, live scoring</button>
+    </div>
+  </div>
+
+  <div class="lp-divider"></div>
+
+  <!-- 3. How it works -->
+  <div class="lp-how">
+    <div class="lp-how-inner">
+      <div class="lp-section-label">How it works</div>
+      <div class="how-grid">
+        <div class="how-step">
+          <div class="how-num">01</div>
+          <div class="how-title">Connect Sleeper</div>
+          <div class="how-desc">Enter your username — no passwords, no OAuth. Sleeper's API does the work.</div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">02</div>
+          <div class="how-title">Rosters & matchups load</div>
+          <div class="how-desc">Every league, every opponent lineup, pulled automatically for the current week.</div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">03</div>
+          <div class="how-title">Players get classified</div>
+          <div class="how-desc">Cheer For, Conflicted, or Enemy — based on where they appear across your leagues.</div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">04</div>
+          <div class="how-title">Allegiances shift live</div>
+          <div class="how-desc">Already clinched a league? Players there go neutral. Still in it? Every point matters.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="lp-divider"></div>
+
+  <!-- 4. Scenario — now last, with interstitial blurb between cards and closing -->
+  <div class="lp-scenario-outer" style="padding-top:44px">
+    <div class="lp-scenario">
+
+      <div class="sc-top">
+        <div class="sc-flag">
+          <span class="sc-flag-dot"></span>
+          <span class="sc-flag-txt">The moment</span>
+        </div>
+        <div class="sc-headline">Trey McBride<br/>just scored.<br/><em>Now what?</em></div>
+      </div>
+
+      <div class="sc-cards">
+        <div class="sc-card">
+          <div class="sc-bar sc-bar-cheer"></div>
+          <div class="sc-body">
+            <div class="sc-league sc-league-cheer">Dynasty Royale</div>
+            <div class="sc-role">He's <strong>your starting TE</strong> · cheer</div>
+          </div>
+          <div class="sc-pts-wrap">
+            <div class="sc-pts sc-pts-cheer">+14.2</div>
+            <div class="sc-pts-lbl">for you</div>
+          </div>
+        </div>
+        <div class="sc-card">
+          <div class="sc-bar sc-bar-enemy"></div>
+          <div class="sc-body">
+            <div class="sc-league sc-league-enemy">Redraft Chaos</div>
+            <div class="sc-role">He's <strong>your opponent's TE</strong> · don't cheer</div>
+          </div>
+          <div class="sc-pts-wrap">
+            <div class="sc-pts sc-pts-enemy">−14.2</div>
+            <div class="sc-pts-lbl">against you</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interstitial blurb — between cards and closing statement -->
+      <div class="sc-interstitial">
+        <div class="sc-int-icon">⚡</div>
+        <div>
+          <div class="sc-int-title">He's on your roster in two leagues</div>
+          <div class="sc-int-text">And the answer is <strong>different in each one.</strong> This happens on every big play, across every league, all Sunday long. Most managers don't realize it until the damage is done.</div>
+        </div>
+      </div>
+
+      <div class="sc-closing">
+        <div class="sc-closing-pre">Why Game Day exists</div>
+        <div class="sc-closing-main">
+          <em>Game Day tracks it automatically,</em><br/>
+          so you can watch the game<br/>
+          instead of running the math.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bottom padding -->
+  <div style="height:56px"></div>
+
+</div>
+
+<!-- Loading / Error -->
+<div id="loading-panel"><div class="spinner"></div><div class="loading-msg" id="loading-msg">Connecting to Sleeper...</div></div>
+<div id="error-panel"><div class="error-msg" id="error-msg"></div><button class="btn btn-ghost" onclick="showSetup()">← Try Again</button></div>
+
+<!-- ══ BOARD ════════════════════════════════════════════════════ -->
+<div id="board">
+  <div class="board-inner">
+    <div class="board-header">
+      <div class="board-user">Loaded for <strong id="display-username"></strong> · <span onclick="handleChangeUser()" style="color:var(--text-hint);cursor:pointer;font-size:0.65rem;text-decoration:underline;text-underline-offset:3px;" id="mobile-change-user">change</span></div>
+      <span class="header-time" id="board-refresh-time"></span>
+    </div>
+    <div class="nav-controls">
+      <span class="nav-label">Week</span>
+      <button class="btn-icon" id="week-prev" onclick="changeWeek(-1)">‹</button>
+      <select class="nav-select week-select" id="week-select" onchange="changeWeekTo(+this.value)"></select>
+      <button class="btn-icon" id="week-next" onclick="changeWeek(+1)">›</button>
+      <div class="nav-divider"></div>
+      <span class="nav-label">Season</span>
+      <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
+      <div class="nav-divider"></div>
+      <button class="btn btn-live btn-sm" id="live-btn" onclick="snapToLive()"><span class="dot-live"></span> Live</button>
+      <div class="nav-spacer"></div>
+      <span class="nav-ctx" id="nav-context-label"></span>
+    </div>
+    <div class="scores-strip" id="scores-strip"></div>
+    <div class="league-filters" id="league-filters">
+      <span class="filter-label">Filter</span>
+      <div id="filter-pills"></div>
+      <div class="filter-divider"></div>
+      <span class="filter-count" id="filter-count"></span>
+    </div>
+    <div class="banner banner-demo"      id="banner-demo"><span class="banner-icon">🎭</span><div><strong>Demo Mode</strong> — 4 fake leagues with live scoring context. Enter your username to load real data.</div></div>
+    <div class="banner banner-offseason" id="banner-offseason"><span class="banner-icon">📋</span><div><strong>Roster Mode</strong> — No matchup data yet. Everyone defaults to Cheer For until lineups are set.</div></div>
+    <div class="banner banner-history"   id="banner-history"><span class="banner-icon">📅</span><div id="history-label"></div></div>
+    <div class="banner banner-scoring"   id="banner-scoring"><span class="banner-icon">⚡</span><div><strong>Live Scoring Active</strong> — Allegiances are adjusted based on current scores and lead safety.</div></div>
+    <div class="debug-panel" id="debug-panel" style="display:none">
+      <button class="debug-toggle" id="debug-toggle" onclick="toggleDebug()"><span>🔬</span><span>API Debug</span><span class="arrow">▶</span></button>
+      <div class="debug-body" id="debug-body">
+        <div class="debug-meta" id="debug-meta"></div>
+        <div class="debug-leagues" id="debug-leagues"></div>
+      </div>
+    </div>
+    <div id="no-data-state">
+      <div class="no-data-icon">📭</div>
+      <div class="no-data-title">No League Data</div>
+      <div class="no-data-msg" id="no-data-msg"></div>
+      <div class="no-data-hint">Use the season dropdown or week selector to try a different period.</div>
+    </div>
+    <div class="summary-bar" id="summary-bar">
+      <div class="summary-pill cheer">
+        <div class="pill-count" id="count-cheer">0</div>
+        <div class="pill-label"><strong>🟢 Cheer For</strong><span>Root for them</span></div>
+      </div>
+      <div class="summary-pill conflicted">
+        <div class="pill-count" id="count-conflicted">0</div>
+        <div class="pill-label"><strong>🟡 Conflicted</strong><span>It's complicated</span></div>
+      </div>
+      <div class="summary-pill enemy">
+        <div class="pill-count" id="count-enemy">0</div>
+        <div class="pill-label"><strong>🔴 Enemies</strong><span>Root against</span></div>
+      </div>
+    </div>
+    <div class="columns" id="columns">
+      <div class="column cheer">
+        <div class="column-header"><span class="col-icon">🟢</span><span class="col-title">Cheer For</span><span class="col-subtitle">Only on your rosters</span></div>
+        <div id="cheer-list"></div>
+      </div>
+      <div class="column conflicted">
+        <div class="column-header"><span class="col-icon">🟡</span><span class="col-title">Conflicted</span><span class="col-subtitle">Both sides</span></div>
+        <div id="conflicted-list"></div>
+      </div>
+      <div class="column enemy">
+        <div class="column-header"><span class="col-icon">🔴</span><span class="col-title">Enemies</span><span class="col-subtitle">Only against you</span></div>
+        <div id="enemy-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCRIPT ══════════════════════════════════════════════════ -->
+<script>
+const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#06b6d4','#a855f7','#f97316','#ec4899','#6366f1','#84cc16','#14b8a6','#f43f5e'];
+let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},activeFilters=new Set(),isAnyProviderLoaded=false;
+
+// ─────────────────────────────────────────────────────────────────
+// Provider registry — single source of truth for connection state.
+// Adding a provider (ESPN, etc.) means adding an entry to PROVIDERS
+// further down. Core flows (loadData, setup screen, bootstrap) loop
+// over the registry; nothing else special-cases a specific provider.
+// ─────────────────────────────────────────────────────────────────
+const SLEEPER_LS_KEY='gd_sleeper_username';
+const connectionState={
+  sleeper:{connected:false,identity:null,displayName:null},
+  yahoo:  {connected:false,identity:null,displayName:null},
+};
+function getConnectedProviders(){return Object.keys(PROVIDERS).filter(id=>connectionState[id]?.connected);}
+function isAnyProviderConnected(){return getConnectedProviders().length>0;}
+function getPrimaryDisplayName(){
+  for(const id of Object.keys(PROVIDERS)){
+    const s=connectionState[id];
+    if(s?.connected){const dn=s.displayName||s.identity;if(dn)return dn;}
+  }
+  return 'Conflicted';
+}
+
+function assignColor(n){if(!colorMap[n])colorMap[n]=LC_COLORS[Object.keys(colorMap).length%LC_COLORS.length];return colorMap[n];}
+const lc=n=>colorMap[n]||'#5a6a82';
+function isHistoricalWeek(){const as=parseInt(activeSeason),ls=parseInt(liveSeason);if(as<ls)return true;if(as===ls&&activeWeek<liveWeek)return true;return false;}
+
+async function apiFetch(url){const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
+const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
+const getNFLState=()=>apiFetch(`${BASE}/state/nfl`);
+const getLeagues=(uid,s)=>apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
+const getRosters=lid=>apiFetch(`${BASE}/league/${lid}/rosters`);
+const getMatchups=(lid,w)=>apiFetch(`${BASE}/league/${lid}/matchups/${w}`);
+
+async function getPlayerDB(){
+  const c=localStorage.getItem(CACHE_KEY),t=localStorage.getItem(CACHE_T_KEY);
+  if(c&&t&&Date.now()-parseInt(t)<CACHE_TTL){setLoading('Using cached player data...');return JSON.parse(c);}
+  setLoading('Downloading player database (~5 MB, one-time)...');
+  const db=await apiFetch(`${BASE}/players/nfl`);
+  try{localStorage.setItem(CACHE_KEY,JSON.stringify(db));localStorage.setItem(CACHE_T_KEY,Date.now());}catch(e){}
+  return db;
+}
+
+async function getProjections(season,week){
+  if(isHistoricalWeek())return{};
+  const ck=`gd_proj_${season}_${week}`,tk=`${ck}_t`;
+  const c=localStorage.getItem(ck),t=localStorage.getItem(tk);
+  if(c&&t&&Date.now()-parseInt(t)<PROJ_TTL)return JSON.parse(c);
+  try{setLoading('Fetching projections...');const p=await apiFetch(`${BASE}/projections/nfl/regular/${season}/${week}`);try{localStorage.setItem(ck,JSON.stringify(p));localStorage.setItem(tk,Date.now());}catch(e){}return p;}catch(e){return{};}
+}
+
+function scoringLabel(lg){const s=lg.scoring_settings;if(!s)return'';const r=s.rec??0;if(r===1)return'PPR';if(r===0.5)return'Half';return'Std';}
+
+function calcLiveState(myPts,oppPts,myProj,oppProj){
+  if(!myProj&&!oppProj)return'LIVE';
+  const lead=myPts-oppPts,oppRem=Math.max(0,oppProj-oppPts),myRem=Math.max(0,myProj-myPts);
+  if(lead>oppRem)return'LOCKED_WIN';if(-lead>myRem)return'LOCKED_LOSS';return'LIVE';
+}
+function calcHistoricalState(m,o){return m>o?'FINAL_WIN':m<o?'FINAL_LOSS':'FINAL_TIE';}
+
+function calcSignal(player,contexts){
+  if(!contexts?.length)return null;
+  const rel=contexts.filter(c=>c.leagueState!=='NO_MATCHUP');if(!rel.length)return null;
+  let signal=0,allDecided=true;
+  rel.forEach(ctx=>{
+    const onMine=player.myLeagues.includes(ctx.leagueName),onOpp=player.againstLeagues.includes(ctx.leagueName);
+    if(!onMine&&!onOpp)return;
+    const decided=['LOCKED_WIN','LOCKED_LOSS','FINAL_WIN','FINAL_LOSS','FINAL_TIE'].includes(ctx.leagueState);
+    if(!decided)allDecided=false;
+    if(onMine)signal+=decided?0:1;if(onOpp)signal+=decided?0:-1;
+  });
+  return{signal,allDecided};
+}
+
+function classifyPlayer(player,sig){
+  const mine=player.myLeagues.length>0,theirs=player.againstLeagues.length>0;
+  if(!sig){if(mine&&!theirs)return{bucket:'cheer',clinched:false};if(mine&&theirs)return{bucket:'conflicted',clinched:false};if(theirs)return{bucket:'enemy',clinched:false};return null;}
+  const{signal,allDecided}=sig;
+  if(signal>0)return{bucket:'cheer',clinched:allDecided};if(signal<0)return{bucket:'enemy',clinched:allDecided};
+  if(mine&&!theirs)return{bucket:'cheer',clinched:allDecided};if(!mine&&theirs)return{bucket:'enemy',clinched:allDecided};
+  return{bucket:'conflicted',clinched:allDecided};
+}
+
+function ctxBadge(sig,isHist){
+  if(!sig)return null;if(isHist)return{text:'Final',cls:'ctx-final'};
+  const{signal,allDecided}=sig;
+  if(allDecided)return{text:'Settled',cls:'ctx-settled'};
+  if(signal>1)return{text:'Need Them',cls:'ctx-need'};if(signal===1)return{text:'Want Points',cls:'ctx-need'};
+  if(signal<-1)return{text:'Danger',cls:'ctx-avoid'};if(signal===-1)return{text:'Avoid Points',cls:'ctx-avoid'};
+  return{text:'Mixed',cls:'ctx-mixed'};
+}
+
+function hideAll(){
+  ['setup-panel','loading-panel','error-panel','board'].forEach(id=>document.getElementById(id).style.display='none');
+  ['demo-btn','change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('week-label').style.display='none';
+  document.getElementById('header-tagline').style.display='block';
+}
+function showSetup(){hideAll();isDemoMode=false;currentUser=null;document.getElementById('setup-panel').style.display='flex';try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}}
+function showLoading(msg){hideAll();document.getElementById('loading-panel').style.display='flex';document.getElementById('loading-msg').textContent=msg||'Loading...';}
+function setLoading(msg){document.getElementById('loading-msg').textContent=msg;}
+function showError(msg){hideAll();document.getElementById('error-panel').style.display='flex';document.getElementById('error-msg').textContent=msg;}
+function showBoard(){
+  hideAll();document.getElementById('board').style.display='block';
+  ['demo-btn','change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='inline-block');
+  document.getElementById('demo-btn').classList.toggle('active',isDemoMode);
+  document.getElementById('header-tagline').style.display='none';
+  document.getElementById('week-label').style.display='block';
+}
+
+function buildWeekSelect(sel){const el=document.getElementById('week-select');el.innerHTML='';for(let w=1;w<=MAX_WEEK;w++){const o=document.createElement('option');o.value=w;o.textContent=`Week ${w}`;if(w===sel)o.selected=true;el.appendChild(o);}}
+function buildSeasonSelect(sel){const el=document.getElementById('season-select');el.innerHTML='';for(let y=THIS_YR;y>=FIRST_YR;y--){const o=document.createElement('option');o.value=String(y);o.textContent=String(y);if(String(y)===String(sel))o.selected=true;el.appendChild(o);}}
+
+function updateNavUI(){
+  const isLive=activeWeek===liveWeek&&activeSeason===liveSeason;
+  document.getElementById('week-prev').disabled=activeWeek<=1;
+  document.getElementById('week-next').disabled=activeWeek>=MAX_WEEK;
+  document.getElementById('week-select').value=activeWeek;
+  document.getElementById('season-select').value=activeSeason;
+  document.getElementById('live-btn').classList.toggle('current',isLive);
+  document.getElementById('nav-context-label').textContent=isLive?`Live · ${liveSeason}`:`${activeSeason} · Wk ${activeWeek}`;
+  document.getElementById('week-label').textContent=`Week ${activeWeek} · ${activeSeason}`;
+  const hb=document.getElementById('banner-history');
+  if(!isDemoMode&&!isLive){hb.classList.add('visible');document.getElementById('history-label').innerHTML=isHistoricalWeek()?`<strong>Historical View</strong> — ${activeSeason} Season, Week ${activeWeek}. Scores are final. Hit <strong>Live</strong> to return.`:`<strong>Future Week</strong> — No matchup data yet for Week ${activeWeek}, ${activeSeason}.`;}
+  else hb.classList.remove('visible');
+}
+
+function renderScoresStrip(contexts){
+  const strip=document.getElementById('scores-strip');strip.innerHTML='';
+  if(!contexts.some(c=>c.leagueState!=='NO_MATCHUP')){strip.classList.remove('visible');return;}
+  strip.classList.add('visible');
+  contexts.forEach(ctx=>{
+    const color=lc(ctx.leagueName),st=ctx.leagueState;
+    const sc={LIVE:'s-live',LOCKED_WIN:'s-win',LOCKED_LOSS:'s-loss',FINAL_WIN:'s-win',FINAL_LOSS:'s-loss',FINAL_TIE:'s-final',NO_MATCHUP:''}[st]||'';
+    const stTxt={LIVE:'● Live',LOCKED_WIN:'Clinched ✓',LOCKED_LOSS:'Eliminated',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie',NO_MATCHUP:'No Matchup'}[st]||'';
+    const stCls={LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final',NO_MATCHUP:'none'}[st]||'none';
+    const myWin=ctx.myPoints>=ctx.oppPoints;
+    const card=document.createElement('div');card.className=`score-card ${sc}`;
+    card.innerHTML=`<div class="scard-league"><span class="scard-dot" style="background:${color}"></span>${ctx.leagueName}</div><div class="scard-matchup"><div class="scard-team"><div class="scard-pts mine ${!myWin?'losing':''}">${ctx.myPoints.toFixed(2)}</div><div class="scard-lbl">You</div></div><div class="scard-dash">—</div><div class="scard-team"><div class="scard-pts opp ${!myWin?'leading':''}">${ctx.oppPoints.toFixed(2)}</div><div class="scard-lbl">Opp</div></div></div><div class="scard-state ${stCls}">${stTxt}</div>`;
+    strip.appendChild(card);
+  });
+}
+
+function buildFilterPills(names){
+  const fe=document.getElementById('league-filters'),ce=document.getElementById('filter-pills');
+  ce.innerHTML='';activeFilters.clear();
+  if(names.length<2){fe.classList.remove('visible');return;}fe.classList.add('visible');
+  const all=Object.assign(document.createElement('span'),{className:'filter-pill all-pill active',textContent:'All'});
+  all.dataset.league='__all__';all.onclick=()=>toggleFilter('__all__',names);ce.appendChild(all);
+  names.forEach(name=>{const color=lc(name);const pill=document.createElement('span');pill.className='filter-pill';pill.textContent=name;pill.dataset.league=name;pill.style.cssText=`background:${color}1a;border-color:${color}55;color:${color}`;pill.onclick=()=>toggleFilter(name,names);ce.appendChild(pill);});
+  updateFilterCount();
+}
+function toggleFilter(lg,all){
+  if(lg==='__all__')activeFilters.clear();else activeFilters.has(lg)?activeFilters.delete(lg):activeFilters.add(lg);
+  document.querySelectorAll('.filter-pill').forEach(p=>{const l=p.dataset.league;if(l==='__all__'){p.classList.toggle('active',activeFilters.size===0);p.classList.toggle('inactive',activeFilters.size>0);}else p.classList.toggle('inactive',activeFilters.size>0&&!activeFilters.has(l));});
+  applyFilters();updateFilterCount();
+}
+function updateFilterCount(){document.getElementById('filter-count').textContent=activeFilters.size?`Filtering: ${[...activeFilters].join(', ')}`:''; }
+function applyFilters(){
+  ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
+    const list=document.getElementById(id);const cards=list.querySelectorAll('.player-card');
+    cards.forEach(c=>{const m=!activeFilters.size||c.dataset.leagues.split('|').some(lg=>activeFilters.has(lg));c.classList.toggle('filtered-out',!m);});
+    let e=list.querySelector('.filter-empty');const vis=[...cards].filter(c=>!c.classList.contains('filtered-out')&&c.style.display!=='none');
+    if(!vis.length&&cards.length){if(!e){e=document.createElement('div');e.className='empty-state filter-empty';list.appendChild(e);}e.textContent='No players match this filter';}else if(e)e.remove();
+  });
+  updatePillCounts();
+}
+
+function toggleDebug(){document.getElementById('debug-toggle').classList.toggle('open');document.getElementById('debug-body').classList.toggle('open');}
+function renderDebug(info){
+  if(!info){document.getElementById('debug-panel').style.display='none';return;}
+  document.getElementById('debug-panel').style.display='block';
+  document.getElementById('debug-meta').innerHTML=`<span>Season: <strong>${info.season}</strong></span><span>Week: <strong>${info.week}</strong></span><span>Leagues: <strong>${info.leagues.length}</strong></span><span>Historical: <strong>${info.isHist?'yes':'no'}</strong></span><span>Projections: <strong>${info.hasProj?'loaded':'n/a'}</strong></span>${info.usedFallback?`<span class="warn">⚠ Season fallback</span>`:''}`;
+  const c=document.getElementById('debug-leagues');c.innerHTML='';
+  info.leagues.forEach(lg=>{const row=document.createElement('div');row.className='debug-league';row.innerHTML=`<div class="lg-name"><span class="lg-dot" style="background:${lc(lg.name)}"></span>${lg.name}<span class="lg-id">${lg.leagueId}</span></div><span class="dpill ${lg.rosterFound?'dp-ok':'dp-warn'}">${lg.rosterFound?`${lg.myCount}p`:'NOT FOUND'}</span><span class="dpill ${lg.matchupFound?'dp-ok':'dp-dim'}">${lg.matchupFound?`✓ opp ${lg.oppCount}`:'no matchup'}</span><span class="dpill dp-dim">${lg.state||'—'}</span><span class="dpill dp-dim">${lg.scoringFmt}</span><span class="dpill ${lg.isCoMgr?'dp-ok':'dp-dim'}">${lg.isCoMgr?'Co-mgr':'Owner'}</span>`;c.appendChild(row);});
+}
+
+const posClass=pos=>({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF'}[pos]||'pos-default');
+
+// Update summary pill counts to reflect currently visible cards
+function updatePillCounts(){
+  const pairs=[['cheer-list','count-cheer'],['conflicted-list','count-conflicted'],['enemy-list','count-enemy']];
+  pairs.forEach(([listId,countId])=>{
+    const cards=document.getElementById(listId).querySelectorAll('.player-card');
+    const visible=[...cards].filter(c=>c.style.display!=='none'&&!c.classList.contains('filtered-out')).length;
+    document.getElementById(countId).textContent=visible;
+  });
+}
+
+function buildCard(player,delay,isHist){
+  const div=document.createElement('div');
+  div.className=`player-card${player.clinched?' clinched':''}`;
+  div.style.animationDelay=`${delay}ms`;
+  div.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
+  const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
+  let ptsHTML='';
+  if(hasAnyPts){
+    const rows=Object.entries(lpd).map(([n,d])=>{const color=lc(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:${color};opacity:0.85">${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
+    ptsHTML=`<div style="display:flex;flex-direction:column;gap:3px">${rows}</div>`;
+  }
+  let rosterHTML='';
+  if(!hasAnyPts){
+    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)};opacity:0.9">${n}</span></div>`).join('');
+    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span style="color:${lc(n)};opacity:0.7">${n}</span></div>`).join('');
+    rosterHTML=`<div class="league-context">${myL}${opL}</div>`;
+  }
+
+  // Injury badge — only shown when player is not healthy
+  let injBadge='';
+  if(player.injuryStatus){
+    const inj=player.injuryStatus;
+    const cls=inj==='Questionable'?'inj-Q':inj==='Doubtful'?'inj-D':(inj==='Out'||inj==='IR'||inj==='Injured Reserve')?'inj-O':'inj-SUS';
+    const lbl=inj==='Injured Reserve'?'Injured Reserve':inj;
+    injBadge=`<span class="inj-badge ${cls}">${lbl}</span>`;
+  }
+
+  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="player-team">${player.team||''}</span>${injBadge}</div>${ptsHTML}${rosterHTML}`;
+  return div;
+}
+
+function sortPlayers(arr){return[...arr].sort((a,b)=>{const ai=POS_ORDER.indexOf(a.position)===-1?99:POS_ORDER.indexOf(a.position);const bi=POS_ORDER.indexOf(b.position)===-1?99:POS_ORDER.indexOf(b.position);return ai!==bi?ai-bi:(a.full_name||'').localeCompare(b.full_name||'');});}
+
+function renderBoard(data,username){
+  const{cheerFor,conflicted,enemies,offseasonMode,debugInfo,noData,noDataReason,contexts,hasScoring,isHist}=data;
+  showBoard();updateNavUI();
+  document.getElementById('banner-demo').classList.toggle('visible',isDemoMode);
+  document.getElementById('banner-offseason').classList.toggle('visible',!isDemoMode&&!!offseasonMode);
+  document.getElementById('banner-scoring').classList.toggle('visible',!isDemoMode&&!!hasScoring&&!isHist);
+  renderDebug(isDemoMode?null:debugInfo);
+  document.getElementById('display-username').textContent=isDemoMode?'Demo Mode':username;
+  const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  ['refresh-time','board-refresh-time'].forEach(id=>document.getElementById(id).textContent=`Updated ${now}`);
+  const nde=document.getElementById('no-data-state'),sb=document.getElementById('summary-bar'),cols=document.getElementById('columns');
+  if(noData){nde.classList.add('visible');sb.style.display='none';cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);return;}
+  nde.classList.remove('visible');sb.style.display='';cols.style.display='';
+  if(contexts?.length)renderScoresStrip(contexts);
+  document.getElementById('count-cheer').textContent=cheerFor.length;
+  document.getElementById('count-conflicted').textContent=conflicted.length;
+  document.getElementById('count-enemy').textContent=enemies.length;
+  const lgNames=[];[...cheerFor,...conflicted,...enemies].forEach(p=>[...p.myLeagues,...p.againstLeagues].forEach(n=>{if(!lgNames.includes(n))lgNames.push(n);}));
+  lgNames.forEach(n=>assignColor(n));buildFilterPills(lgNames);
+  function renderList(id,players){const el=document.getElementById(id);el.innerHTML='';if(!players.length){el.innerHTML='<div class="empty-state">No players in this bucket</div>';return;}sortPlayers(players).forEach((p,i)=>el.appendChild(buildCard(p,i*24,isHist)));}
+  renderList('cheer-list',cheerFor);renderList('conflicted-list',conflicted);renderList('enemy-list',enemies);
+  applyFilters();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   YAHOO DATA LAYER — parsers + league orchestration
+   Yahoo's API responses use numeric-keyed objects with a `count` field
+   plus arrays of single-key metadata objects. These helpers normalize
+   that into clean shapes our pipeline can ingest alongside Sleeper.
+═══════════════════════════════════════════════════════════ */
+
+// Iterate Yahoo's numeric-keyed objects, skipping `count` and other non-numeric keys.
+function yhEach(obj, fn) {
+  if (!obj || typeof obj !== 'object') return;
+  Object.keys(obj).forEach(k => { if (/^\d+$/.test(k)) fn(obj[k], k); });
+}
+
+// Collapse Yahoo metadata into a single flat object, regardless of which
+// of three shapes Yahoo decided to use today:
+//   1) array of single-key objects: [{a:1},{b:2}] → {a:1,b:2}
+//   2) array containing one flat object: [{a:1,b:2}] → {a:1,b:2}
+//   3) a plain flat object: {a:1,b:2} → {a:1,b:2}
+function yhFlatten(arr) {
+  if (!arr) return {};
+  if (!Array.isArray(arr)) {
+    return (typeof arr === 'object') ? { ...arr } : {};
+  }
+  const out = {};
+  arr.forEach(item => {
+    if (Array.isArray(item)) Object.assign(out, yhFlatten(item));
+    else if (item && typeof item === 'object') Object.assign(out, item);
+  });
+  return out;
+}
+
+async function yhFetch(query) {
+  const r = await fetch('/api/yahoo/data?' + query, { credentials: 'include' });
+  if (!r.ok) throw new Error('Yahoo ' + query + ' → ' + r.status);
+  return await r.json();
+}
+
+function parseYahooLeagues(json, season) {
+  const out = [];
+  const users = json?.fantasy_content?.users;
+  if (!users) return out;
+  yhEach(users, (u) => {
+    const games = u?.user?.[1]?.games;
+    if (!games) return;
+    yhEach(games, (g) => {
+      const game = g?.game;
+      const meta = Array.isArray(game) ? yhFlatten(game[0]) : {};
+      const leaguesNode = Array.isArray(game) ? game[1]?.leagues : null;
+      if (!leaguesNode) return;
+      const gameSeason = String(meta.season || '');
+      yhEach(leaguesNode, (lw) => {
+        const lArr = lw?.league;
+        if (!lArr) return;
+        const lm = Array.isArray(lArr) ? yhFlatten(lArr[0]) : (typeof lArr === 'object' ? lArr : {});
+        if (lm.game_code && lm.game_code !== 'nfl') return;
+        const lgSeason = String(lm.season || gameSeason);
+        if (season && lgSeason !== String(season)) return;
+        out.push({
+          league_key: lm.league_key,
+          name: lm.name,
+          season: lgSeason,
+          scoring_type: lm.scoring_type || '',
+          current_week: parseInt(lm.current_week) || null,
+          start_week: parseInt(lm.start_week) || 1,
+          end_week: parseInt(lm.end_week) || 17,
+          is_finished: lm.is_finished === 1 || lm.is_finished === '1'
+        });
+      });
+    });
+  });
+  return out;
+}
+
+function parseYahooStandings(json) {
+  const teams = [];
+  const leagueArr = json?.fantasy_content?.league;
+  const standings = Array.isArray(leagueArr) ? (leagueArr[1]?.standings?.[0]?.teams || leagueArr[1]?.standings?.teams) : null;
+  if (!standings) return { teams, myTeamKey: null };
+  yhEach(standings, (tw) => {
+    const tArr = tw?.team;
+    if (!Array.isArray(tArr)) return;
+    const meta = yhFlatten(tArr[0]);
+    let isMine = meta.is_owned_by_current_login === 1 || meta.is_owned_by_current_login === '1';
+    let isComanager = false;
+    const managers = meta.managers;
+    if (Array.isArray(managers)) {
+      managers.forEach(mwrap => {
+        const m = mwrap?.manager;
+        if (m && (m.is_current_login === '1' || m.is_current_login === 1)) {
+          isMine = true;
+          if (m.is_comanager === '1' || m.is_comanager === 1) isComanager = true;
+        }
+      });
+    }
+    teams.push({ team_key: meta.team_key, name: meta.name, isMine, isComanager });
+  });
+  return { teams, myTeamKey: teams.find(t => t.isMine)?.team_key || null };
+}
+
+function parseYahooScoreboard(json) {
+  const out = [];
+  const leagueArr = json?.fantasy_content?.league;
+  const scoreboard = Array.isArray(leagueArr) ? leagueArr[1]?.scoreboard : null;
+  const matchups = scoreboard?.['0']?.matchups || scoreboard?.matchups;
+  if (!matchups) return out;
+  yhEach(matchups, (mw) => {
+    const m = mw?.matchup;
+    if (!m) return;
+    const status = m.status || '';
+    const isPlayoffs = m.is_playoffs === '1' || m.is_playoffs === 1;
+    const isConsolation = m.is_consolation === '1' || m.is_consolation === 1;
+    const winnerTeamKey = m.winner_team_key || null;
+    const teamsNode = m['0']?.teams || m.teams;
+    const teamsArr = [];
+    yhEach(teamsNode, (tw) => {
+      const tArr = tw?.team;
+      if (!Array.isArray(tArr)) return;
+      const meta = yhFlatten(tArr[0]);
+      const extras = Array.isArray(tArr[1]) ? yhFlatten(tArr[1]) : (tArr[1] || {});
+      const ptsObj = extras.team_points || {};
+      const projObj = extras.team_projected_points || {};
+      teamsArr.push({
+        team_key: meta.team_key,
+        name: meta.name,
+        points: parseFloat(ptsObj.total) || 0,
+        projPoints: parseFloat(projObj.total) || 0
+      });
+    });
+    out.push({ status, isPlayoffs, isConsolation, winnerTeamKey, teams: teamsArr });
+  });
+  return out;
+}
+
+function parseYahooRoster(json) {
+  const out = [];
+  const teamArr = json?.fantasy_content?.team;
+  const rosterNode = Array.isArray(teamArr) ? teamArr[1]?.roster : null;
+  const players = rosterNode?.['0']?.players || rosterNode?.players;
+  if (!players) return out;
+  yhEach(players, (pw) => {
+    const pArr = pw?.player;
+    if (!Array.isArray(pArr)) return;
+    const meta = yhFlatten(pArr[0]);
+    const extras = Array.isArray(pArr[1]) ? pArr[1] : {};
+    const sp = yhFlatten(extras.selected_position || []);
+    const slot = sp.position || '';
+    const isStarter = !!slot && slot !== 'BN' && slot !== 'IR';
+    const status = meta.status || meta.injury_status || '';
+    const unhealthy = ['Questionable','Doubtful','Out','Injured Reserve','IR','PUP','Suspended','NFI','DNR','NA','Q','D','O','SUSP'];
+    const shortMap = { Q:'Questionable', D:'Doubtful', O:'Out', SUSP:'Suspended', IR:'Injured Reserve' };
+    let injuryStatus = null;
+    if (unhealthy.includes(status)) injuryStatus = shortMap[status] || status;
+    const name = meta.name?.full || '';
+    out.push({
+      source: 'yahoo',
+      player_key: meta.player_key,
+      name,
+      position: (meta.display_position || meta.primary_position || '').toUpperCase(),
+      team: (meta.editorial_team_abbr || '').toUpperCase(),
+      slot, isStarter, injuryStatus
+    });
+  });
+  return out;
+}
+
+function parseYahooRosterStats(json) {
+  const pp = {};
+  const teamArr = json?.fantasy_content?.team;
+  const rosterNode = Array.isArray(teamArr) ? teamArr[1]?.roster : null;
+  const players = rosterNode?.['0']?.players || rosterNode?.players;
+  if (!players) return pp;
+  yhEach(players, (pw) => {
+    const pArr = pw?.player;
+    if (!Array.isArray(pArr)) return;
+    const meta = yhFlatten(pArr[0]);
+    // player_points may live at pArr[1], pArr[2], or wrapped inside an array
+    // sibling depending on whether Yahoo also returned player_stats. Scan all
+    // siblings instead of trusting a fixed index — historical responses in
+    // particular vary in shape.
+    let ptsObj = null;
+    for (let i = 1; i < pArr.length && !ptsObj; i++) {
+      const sib = pArr[i];
+      if (!sib) continue;
+      if (sib.player_points) { ptsObj = sib.player_points; break; }
+      if (Array.isArray(sib)) {
+        const hit = sib.find(s => s && s.player_points);
+        if (hit) { ptsObj = hit.player_points; break; }
+      }
+    }
+    pp[meta.player_key] = ptsObj ? (parseFloat(ptsObj.total) || 0) : 0;
+  });
+  return pp;
+}
+
+function yahooScoringLabel(scoring_type) {
+  const t = (scoring_type || '').toLowerCase();
+  if (t === 'head' || t === 'h2h') return 'H2H';
+  if (t === 'roto') return 'Roto';
+  if (t === 'points') return 'Points';
+  return scoring_type || '';
+}
+
+async function loadYahooLeague(yLeague, week, isHist) {
+  const fmt = yahooScoringLabel(yLeague.scoring_type);
+  const standingsJson = await yhFetch('endpoint=standings&league_key=' + encodeURIComponent(yLeague.league_key));
+  const { teams, myTeamKey } = parseYahooStandings(standingsJson);
+  if (!myTeamKey) {
+    return { result: null, ctx: null, debug: { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: false, matchupFound: false, myCount: 0, oppCount: 0, state: '—', scoringFmt: fmt, isCoMgr: false }};
+  }
+  const isCoMgr = teams.find(t => t.team_key === myTeamKey)?.isComanager || false;
+
+  let opponentTeamKey = null, myPoints = 0, oppPoints = 0, myProjPts = 0, oppProjPts = 0;
+  let hasMatchup = false, leagueState = 'NO_MATCHUP';
+  try {
+    const sbJson = await yhFetch('endpoint=scoreboard&league_key=' + encodeURIComponent(yLeague.league_key) + '&week=' + week);
+    const matchups = parseYahooScoreboard(sbJson);
+    const myMatchup = matchups.find(m => m.teams.some(t => t.team_key === myTeamKey));
+    if (myMatchup) {
+      hasMatchup = true;
+      const me = myMatchup.teams.find(t => t.team_key === myTeamKey);
+      const opp = myMatchup.teams.find(t => t.team_key !== myTeamKey);
+      myPoints = me?.points || 0; myProjPts = me?.projPoints || 0;
+      oppPoints = opp?.points || 0; oppProjPts = opp?.projPoints || 0;
+      opponentTeamKey = opp?.team_key || null;
+      if (myMatchup.status === 'postevent' || isHist) leagueState = calcHistoricalState(myPoints, oppPoints);
+      else leagueState = calcLiveState(myPoints, oppPoints, myProjPts, oppProjPts);
+    }
+  } catch (e) {
+    console.warn('Yahoo scoreboard failed for', yLeague.name, e.message);
+  }
+
+  let myPlayers = [], oppPlayers = [], myPP = {}, oppPP = {};
+  try {
+    const myRosterJson = await yhFetch('endpoint=roster_stats&team_key=' + encodeURIComponent(myTeamKey) + '&week=' + week);
+    const myRoster = parseYahooRoster(myRosterJson);
+    myPP = parseYahooRosterStats(myRosterJson);
+    const starters = myRoster.filter(p => p.isStarter);
+    myPlayers = starters.length ? starters : myRoster;
+  } catch (e) {
+    console.warn('Yahoo my roster failed for', yLeague.name, e.message);
+  }
+  if (opponentTeamKey) {
+    try {
+      const oppRosterJson = await yhFetch('endpoint=roster_stats&team_key=' + encodeURIComponent(opponentTeamKey) + '&week=' + week);
+      const oppRoster = parseYahooRoster(oppRosterJson);
+      oppPP = parseYahooRosterStats(oppRosterJson);
+      const starters = oppRoster.filter(p => p.isStarter);
+      oppPlayers = starters.length ? starters : oppRoster;
+    } catch (e) {
+      console.warn('Yahoo opp roster failed for', yLeague.name, e.message);
+    }
+  }
+
+  return {
+    result: { leagueName: yLeague.name, myPlayers, oppPlayers, hasMatchup, fmt, source: 'yahoo' },
+    ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myPP, oppPP, fmt, source: 'yahoo' },
+    debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: hasMatchup, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
+  };
+}
+
+// Unified key — collapses Sleeper + Yahoo entries for the same player into one card.
+function unifiedPlayerKey(name, team, pos) {
+  const P = (pos || '').toUpperCase();
+  const T = (team || '').toUpperCase();
+  if (P === 'DEF' || P === 'DST') return T ? 'DST|' + T : null;
+  if (!name) return null;
+  let N = String(name).toLowerCase();
+  N = N.replace(/[.'`,]/g, '');
+  N = N.replace(/-/g, ' ');
+  N = N.replace(/\s+(jr|sr|ii|iii|iv|v)\.?\b/g, '');
+  N = N.replace(/\s+/g, ' ').trim();
+  return N + '|' + T + '|' + P;
+}
+
+async function loadData(){
+  if(!isAnyProviderConnected()){
+    return{noData:true,noDataReason:'No providers connected.',cheerFor:[],conflicted:[],enemies:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
+  }
+  showLoading('Fetching NFL state...');
+  const state=await getNFLState();
+  liveWeek=(state.week>=1&&state.week<=MAX_WEEK)?state.week:1;liveSeason=state.season;
+  // First-load default — if no active week/season has been chosen, use live.
+  if(!isAnyProviderLoaded){activeWeek=liveWeek;activeSeason=liveSeason;}
+  isAnyProviderLoaded=true;
+  buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);
+  const connected=getConnectedProviders();
+  const isHist=isHistoricalWeek();
+  // Provider-agnostic loader: runs each connected provider in parallel, concatenates results.
+  // Returns {valid, leagueContexts, debugLeagues, sleeperProjections, hasProj}.
+  async function fetchAllProviders(season,week,isHist){
+    setLoading(`Loading ${season} leagues from ${connected.map(id=>PROVIDERS[id].displayName).join(' + ')}...`);
+    const providerResults=await Promise.all(connected.map(id=>
+      PROVIDERS[id].loadLeagues(season,week,isHist).catch(e=>{
+        console.warn(`${id} loadLeagues failed:`,e.message);
+        return{results:[],contexts:[],debugLeagues:[]};
+      })
+    ));
+    const valid=[],leagueContexts=[],debugLeagues=[];
+    let sleeperProjections={},hasProj=false;
+    providerResults.forEach((pr,i)=>{
+      pr.results.forEach(r=>valid.push(r));
+      pr.contexts.forEach(c=>leagueContexts.push(c));
+      pr.debugLeagues.forEach(d=>debugLeagues.push(d));
+      if(connected[i]==='sleeper'&&pr.projections){sleeperProjections=pr.projections;hasProj=pr.hasProj||false;}
+    });
+    return{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj};
+  }
+  let{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj}=await fetchAllProviders(activeSeason,activeWeek,isHist);
+  // Provider-agnostic previous-year fallback: if NO provider returned any leagues
+  // for the live season (e.g. preseason / off-season), retry once with prev year.
+  // Applies uniformly whether the user has Sleeper, Yahoo, both, or future ESPN.
+  if(!valid.length&&activeSeason===liveSeason){
+    const prev=String(parseInt(activeSeason)-1);
+    setLoading(`No ${activeSeason} leagues yet — trying ${prev}...`);
+    liveSeason=prev;activeSeason=prev;
+    buildSeasonSelect(activeSeason);buildWeekSelect(activeWeek);
+    ({valid,leagueContexts,debugLeagues,sleeperProjections,hasProj}=await fetchAllProviders(activeSeason,activeWeek,isHist));
+  }
+  // Post-load safety net: if no provider produced any leagues, show no-data.
+  if(!valid.length){
+    const dn=getPrimaryDisplayName();
+    const checked=connected.map(id=>PROVIDERS[id].displayName).join(' or ');
+    return{noData:true,noDataReason:`No leagues found for <strong>${dn}</strong> in <strong>${activeSeason}</strong> on ${checked}. You may not have been in a league that year, or the season hasn't started yet.`,cheerFor:[],conflicted:[],enemies:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
+  }
+  const projPts=id=>{const p=sleeperProjections[id];return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null;};
+  const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
+  const playerDB=await getPlayerDB();setLoading('Classifying players...');
+  const map=new Map();
+  // ensure() accepts either a Sleeper id (string) or a Yahoo player object.
+  // Both resolve to a unified key so the same player across providers collapses
+  // into one card with merged myLeagues/againstLeagues arrays.
+  function ensure(p){
+    let key,full_name,position,team,injuryStatus;
+    if(typeof p==='string'){
+      const info=playerDB[p]||{};
+      full_name=info.full_name||info.last_name||`Player ${p}`;
+      position=info.position||(p.length<=4?'DEF':'—');
+      team=info.team||'';
+      const inj=info.injury_status||info.status||null;
+      const unhealthy=['Questionable','Doubtful','Out','Injured Reserve','IR','PUP','Suspended','NFI','DNR','NA'];
+      injuryStatus=unhealthy.includes(inj)?inj:null;
+      key=unifiedPlayerKey(full_name,team,position)||('sl:'+p);
+    }else{
+      full_name=p.name;position=p.position;team=p.team;injuryStatus=p.injuryStatus||null;
+      key=unifiedPlayerKey(full_name,team,position)||('yh:'+p.player_key);
+    }
+    if(!map.has(key)){
+      map.set(key,{id:key,full_name,position,team,injuryStatus,myLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
+    }
+    const e=map.get(key);
+    if(injuryStatus&&!e.injuryStatus)e.injuryStatus=injuryStatus;
+    return e;
+  }
+  // Points key — Sleeper uses string id directly, Yahoo uses player_key on the obj.
+  const ptsKey=p=>typeof p==='string'?p:p.player_key;
+  // Projections — Sleeper-only (Yahoo's projection lives at the team level via scoreboard, not per-player here).
+  const projForPlayer=p=>(typeof p==='string'&&!isHist&&hasProj)?projPts(p):null;
+  valid.forEach(lg=>{
+    const ctx=leagueContexts.find(c=>c.leagueName===lg.leagueName);
+    lg.myPlayers.forEach(p=>{
+      const e=ensure(p);
+      if(!e.myLeagues.includes(lg.leagueName))e.myLeagues.push(lg.leagueName);
+      const k=ptsKey(p);const pts=ctx?.myPP[k]??null,proj=projForPlayer(p);
+      if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
+    });
+    lg.oppPlayers.forEach(p=>{
+      const e=ensure(p);
+      if(!e.againstLeagues.includes(lg.leagueName))e.againstLeagues.push(lg.leagueName);
+      const k=ptsKey(p);const pts=ctx?.oppPP[k]??null,proj=projForPlayer(p);
+      if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
+    });
+  });
+  const cheerFor=[],conflicted=[],enemies=[];
+  map.forEach(p=>{
+    const sig=calcSignal(p,leagueContexts);
+    const cls=classifyPlayer(p,sig);
+    if(!cls)return;
+    p.bucket=cls.bucket;p.clinched=cls.clinched;
+    p.contextBadge=hasScoring?ctxBadge(sig,isHist):null;
+    if(cls.bucket==='cheer')cheerFor.push(p);
+    else if(cls.bucket==='conflicted')conflicted.push(p);
+    else enemies.push(p);
+  });
+  return{cheerFor,conflicted,enemies,noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
+}
+
+function getDemoData(){
+  const L1='Dynasty Royale',L2='Redraft Chaos',L3='The Gridiron',L4='Devy Masters';
+  [L1,L2,L3,L4].forEach((n,i)=>{colorMap[n]=LC_COLORS[i];});
+  const contexts=[{leagueName:L1,leagueState:'LIVE',myPoints:95.64,oppPoints:72.82,myPP:{},oppPP:{},fmt:'PPR'},{leagueName:L2,leagueState:'LIVE',myPoints:68.40,oppPoints:82.14,myPP:{},oppPP:{},fmt:'Half'},{leagueName:L3,leagueState:'LOCKED_WIN',myPoints:134.20,oppPoints:45.82,myPP:{},oppPP:{},fmt:'Std'},{leagueName:L4,leagueState:'LOCKED_LOSS',myPoints:52.10,oppPoints:118.40,myPP:{},oppPP:{},fmt:'PPR'}];
+  function p(id,name,pos,team,mine,against,lpts,sig,allDecided,injuryStatus=null){const sigResult={signal:sig,allDecided};const cls=classifyPlayer({myLeagues:mine,againstLeagues:against},sigResult);const badge=ctxBadge(sigResult,false);const leaguePoints={};(lpts||[]).forEach(d=>{leaguePoints[d.lg]={pts:d.pts,proj:d.proj??null,fmt:d.fmt};});return{id,full_name:name,position:pos,team,myLeagues:mine,againstLeagues:against,leaguePoints,contextBadge:badge,bucket:cls?.bucket,clinched:cls?.clinched||false,isTaxi:false,isBench:false,myBenchLeagues:[],taxiLeagues:[],injuryStatus};}
+  return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,debugInfo:null,
+    cheerFor:[
+      p('d1','Patrick Mahomes',    'QB','KC', [L1,L3],[],[{lg:L1,pts:22.44,proj:28.0,fmt:'PPR'},{lg:L3,pts:22.44,proj:28.0,fmt:'Std'}],2,false),
+      p('d2','Davante Adams',      'WR','NO', [L1],  [],[{lg:L1,pts:11.80,proj:16.0,fmt:'PPR'}],1,false,'Questionable'),
+      p('d3','Derrick Henry',      'RB','BAL',[L1],  [],[{lg:L1,pts:14.20,proj:18.0,fmt:'PPR'}],1,false),
+      p('d4','Tyreek Hill',        'WR','MIA',[L2,L3],[],[{lg:L2,pts:18.60,proj:22.0,fmt:'Half'},{lg:L3,pts:18.60,proj:22.0,fmt:'Std'}],2,false),
+      p('d7','Travis Kelce',       'TE','KC', [L1],  [L4],[{lg:L1,pts:8.60,proj:14.0,fmt:'PPR'},{lg:L4,pts:8.60,proj:null,fmt:'PPR'}],1,false),
+      p('d8','Christian McCaffrey','RB','SF', [L3],  [],[{lg:L3,pts:24.60,proj:null,fmt:'Std'}],0,true,'Out'),
+    ],
+    conflicted:[
+      p('d9', 'Justin Jefferson',  'WR','MIN',[L1],[L2],[{lg:L1,pts:16.40,proj:20.0,fmt:'PPR'},{lg:L2,pts:16.40,proj:20.0,fmt:'Half'}],0,false),
+      p('d10','Josh Allen',        'QB','BUF',[L2],[L1],[{lg:L2,pts:19.80,proj:26.0,fmt:'Half'},{lg:L1,pts:19.80,proj:26.0,fmt:'PPR'}],0,false,'Doubtful'),
+      p('d11','CeeDee Lamb',       'WR','DAL',[L1],[L2],[{lg:L1,pts:14.20,proj:22.0,fmt:'PPR'},{lg:L2,pts:14.20,proj:22.0,fmt:'Half'}],0,false),
+      p('d12','Saquon Barkley',    'RB','PHI',[L2],[L1],[{lg:L2,pts:11.60,proj:16.0,fmt:'Half'},{lg:L1,pts:11.60,proj:16.0,fmt:'PPR'}],0,false),
+    ],
+    enemies:[
+      p('d13',"Ja'Marr Chase",    'WR','CIN',[],[L1,L2],[{lg:L1,pts:20.20,proj:24.0,fmt:'PPR'},{lg:L2,pts:20.20,proj:24.0,fmt:'Half'}],-2,false),
+      p('d14','Jalen Hurts',       'QB','PHI',[],[L2,L3],[{lg:L2,pts:21.40,proj:28.0,fmt:'Half'},{lg:L3,pts:21.40,proj:28.0,fmt:'Std'}],-2,false,'Injured Reserve'),
+      p('d15','Sam LaPorta',       'TE','DET',[],[L1],   [{lg:L1,pts:6.80, proj:10.0,fmt:'PPR'}],-1,false,'Questionable'),
+      p('d16','Tony Pollard',      'RB','TEN',[],[L1],   [{lg:L1,pts:8.40, proj:12.0,fmt:'PPR'}],-1,false),
+      p('d17','Cooper Kupp',       'WR','LAR',[],[L1,L2],[{lg:L1,pts:13.60,proj:16.0,fmt:'PPR'},{lg:L2,pts:13.60,proj:16.0,fmt:'Half'}],-2,false),
+      p('d18','Stefon Diggs',      'WR','HOU',[],[L4],   [{lg:L4,pts:11.20,proj:null,fmt:'PPR'}],0,true),
+    ]};
+}
+
+async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
+async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
+async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};activeFilters.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
+async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(isAnyProviderConnected())await run();}
+
+function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');hideLastRefreshed();}
+async function handleRefresh(){if(isDemoMode){handleDemo();return;}if(isAnyProviderConnected())await run();}
+async function handleChangeUser(){
+  // Navigate back to the setup screen WITHOUT disconnecting. Users can selectively
+  // disconnect individual providers from inside their respective cards, or add a
+  // second provider alongside what they already have connected.
+  isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();
+  showSetup();
+}
+async function run(){
+  try{
+    renderBoard(await loadData(),getPrimaryDisplayName());
+    lastFetchTime=Date.now();
+    setLastRefreshed();
+    startAutoRefresh();
+  }catch(err){console.error(err);showError(err.message||'Something went wrong. Try reconnecting your providers.');}
+}
+
+/* ── Auto-refresh ─────────────────────────────────────────────── */
+const REFRESH_MS  = 60 * 1000; // 60 seconds
+let refreshTimer  = null;
+let lastFetchTime = 0;
+
+function shouldAutoRefresh(){
+  return !isDemoMode && isAnyProviderConnected() && !isHistoricalWeek();
+}
+
+function startAutoRefresh(){
+  stopAutoRefresh();
+  if(!shouldAutoRefresh())return;
+  // Check every 10s whether it's time to refresh — keeps logic simple
+  refreshTimer = setInterval(async()=>{
+    if(document.hidden)return; // tab not visible — skip
+    if(Date.now()-lastFetchTime >= REFRESH_MS){
+      try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();setLastRefreshed();}
+      catch(e){console.warn('Auto-refresh failed silently:',e.message);}
+    }
+  }, 10000);
+}
+
+function stopAutoRefresh(){
+  if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}
+}
+
+// On tab return — if data is stale (>60s), fetch immediately
+document.addEventListener('visibilitychange',async()=>{
+  if(document.hidden)return;
+  if(!shouldAutoRefresh())return;
+  if(Date.now()-lastFetchTime >= REFRESH_MS){
+    try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();setLastRefreshed();}
+    catch(e){console.warn('Tab-return refresh failed:',e.message);}
+  }
+});
+
+// Last refreshed timestamp — HH:MM:SS format
+function setLastRefreshed(){
+  if(isDemoMode)return;
+  const el=document.getElementById('last-refreshed');
+  if(!el)return;
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,'0');
+  const mm=String(now.getMinutes()).padStart(2,'0');
+  const ss=String(now.getSeconds()).padStart(2,'0');
+  el.textContent=`Last refreshed ${hh}:${mm}:${ss}`;
+  el.classList.add('visible');
+}
+function hideLastRefreshed(){
+  const el=document.getElementById('last-refreshed');
+  if(el){el.textContent='';el.classList.remove('visible');}
+}
+
+buildWeekSelect(1);buildSeasonSelect(THIS_YR);
+
+/* ═══════════════════════════════════════════════════════════
+   YAHOO CONNECTION — login state + connect/disconnect handlers
+═══════════════════════════════════════════════════════════ */
+// ─────────────────────────────────────────────────────────────────
+// PROVIDERS — each entry implements a fixed interface so the core
+// flow stays provider-agnostic. To add ESPN later, add an entry.
+// ─────────────────────────────────────────────────────────────────
+const PROVIDERS={
+  sleeper:{
+    id:'sleeper',
+    displayName:'Sleeper',
+    accentColor:'#06b6d4',
+    connectionType:'username',
+
+    async checkStatus(){
+      // No server-side session for Sleeper — "connected" just means we have a stored username.
+      // rehydrate() set the identity if a saved username exists; we don't re-validate here
+      // because that would trigger a network call on every page load.
+      const u=connectionState.sleeper.identity;
+      const s={connected:!!u,identity:u,displayName:u};
+      connectionState.sleeper={...connectionState.sleeper,connected:s.connected,displayName:s.displayName};
+      return s;
+    },
+
+    async connect(input){
+      const username=String(input||'').trim();
+      if(!username)return{success:false,error:'Username is required.'};
+      try{
+        const user=await getUser(username);
+        if(!user?.user_id)return{success:false,error:`Username "${username}" not found on Sleeper.`};
+        connectionState.sleeper={connected:true,identity:username,displayName:username};
+        this.persist();
+        return{success:true};
+      }catch(e){
+        return{success:false,error:e.message||'Could not reach Sleeper.'};
+      }
+    },
+
+    async disconnect(){
+      connectionState.sleeper={connected:false,identity:null,displayName:null};
+      try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+    },
+
+    async loadLeagues(season,week,isHist){
+      const username=connectionState.sleeper.identity;
+      if(!username)return{results:[],contexts:[],debugLeagues:[]};
+      const user=await getUser(username);
+      if(!user?.user_id)return{results:[],contexts:[],debugLeagues:[]};
+      const leagues=await getLeagues(user.user_id,season);
+      // Note: previous-year fallback now lives in loadData() so it applies
+      // uniformly across all connected providers (Yahoo, Sleeper, future ESPN).
+      if(!leagues?.length)return{results:[],contexts:[],debugLeagues:[]};
+      const projections=await getProjections(season,week);const hasProj=Object.keys(projections).length>0;
+      const projPts=id=>{const p=projections[id];return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null;};
+      const projSum=ids=>ids.reduce((s,id)=>s+(projPts(id)??0),0);
+      const debugLeagues=[],contexts=[];
+      const results=await Promise.all(leagues.map(async lg=>{
+        const rosters=await getRosters(lg.league_id);
+        const myRoster=rosters.find(r=>r.owner_id===user.user_id||(Array.isArray(r.co_owners)&&r.co_owners.includes(user.user_id)));
+        const isCoMgr=myRoster?myRoster.owner_id!==user.user_id:false;const fmt=scoringLabel(lg);
+        if(!myRoster){debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:false,matchupFound:false,myCount:0,oppCount:0,state:'—',scoringFmt:fmt,isCoMgr:false,provider:'sleeper'});return null;}
+        let matchups=[];try{const raw=await getMatchups(lg.league_id,week);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
+        const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
+        const oppMatchup=myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
+        let myPlayers=[],oppPlayers=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP';
+        if(myMatchup){
+          hasMatchup=true;
+          const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
+          const allMine=(myMatchup.players||myRoster.players||[]).filter(id=>id&&id!=='0');
+          myPlayers=starters.length?starters:allMine;
+          myPoints=myMatchup.points||0;myPP=myMatchup.players_points||{};
+          const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
+          const oppTaxiIds=new Set((oppRoster?.taxi||[]).filter(Boolean));
+          const oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
+          const oppAll=(oppMatchup?(oppMatchup.players||oppRoster?.players||[]):[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
+          oppPlayers=oppStarters.length?oppStarters:oppAll;
+          oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
+          leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,hasProj?projSum(myPlayers):0,hasProj?projSum(oppPlayers):0);
+        }else{
+          myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');
+        }
+        myPlayers=myPlayers.filter(id=>id&&id!=='0');
+        oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
+        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
+        debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
+        return{leagueName:lg.name,myPlayers,oppPlayers,hasMatchup,fmt,provider:'sleeper'};
+      }));
+      const valid=results.filter(Boolean);
+      if(leagues?.length&&!valid.length)throw new Error('Found Sleeper leagues but could not read roster data.');
+      return{results:valid,contexts,debugLeagues,projections,hasProj};
+    },
+
+    persist(){try{localStorage.setItem(SLEEPER_LS_KEY,connectionState.sleeper.identity||'');}catch(e){}},
+
+    rehydrate(){
+      try{
+        // Migrate from legacy key if present.
+        const legacy=localStorage.getItem(USER_KEY);
+        const u=localStorage.getItem(SLEEPER_LS_KEY)||legacy;
+        if(u){
+          connectionState.sleeper={connected:true,identity:u,displayName:u};
+          if(legacy&&!localStorage.getItem(SLEEPER_LS_KEY))localStorage.setItem(SLEEPER_LS_KEY,u);
+        }
+      }catch(e){}
+    },
+
+    renderConnectCard(rootEl){
+      if(connectionState.sleeper.connected){
+        rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>Connected as <strong>${connectionState.sleeper.identity}</strong></span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('sleeper')">Disconnect</button>`;
+      }else{
+        rootEl.innerHTML=`<input type="text" class="signin-input provider-input" id="sleeper-input" placeholder="sleeper username" autocomplete="off" /><button class="btn btn-gold btn-sm provider-connect-btn" onclick="handleProviderConnect('sleeper')">Connect</button><p class="provider-error" id="sleeper-error" style="display:none"></p>`;
+        setTimeout(()=>{const inp=document.getElementById('sleeper-input');if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter')handleProviderConnect('sleeper');});},0);
+      }
+    },
+  },
+
+  yahoo:{
+    id:'yahoo',
+    displayName:'Yahoo',
+    accentColor:'#7B0099',
+    connectionType:'oauth',
+
+    async checkStatus(){
+      // Ping the authenticated proxy to see if our session cookie is still valid.
+      // games is the cheapest endpoint — just lists NFL game years for this user.
+      try{
+        const r=await fetch('/api/yahoo/data?endpoint=games',{credentials:'include'});
+        if(r.ok){
+          connectionState.yahoo={connected:true,identity:'yahoo-session',displayName:'Yahoo User'};
+          return connectionState.yahoo;
+        }
+      }catch(e){/* Network failure — fall through to disconnected */}
+      connectionState.yahoo={connected:false,identity:null,displayName:null};
+      return connectionState.yahoo;
+    },
+
+    async connect(){
+      // Full-page redirect to our OAuth init endpoint. Yahoo will eventually
+      // bounce back to /?yahoo=connected once tokens are stored.
+      window.location.href='/api/auth/yahoo';
+    },
+
+    async disconnect(){
+      // logout.js clears the cookie server-side and redirects to /?yahoo=disconnected.
+      window.location.href='/api/auth/logout';
+    },
+
+    async loadLeagues(season,week,isHist){
+      let leaguesJson;
+      try{leaguesJson=await yhFetch('endpoint=leagues&season='+encodeURIComponent(season));}
+      catch(e){console.warn('Yahoo leagues fetch failed:',e.message);return{results:[],contexts:[],debugLeagues:[]};}
+      const yLeagues=parseYahooLeagues(leaguesJson,season);
+      if(!yLeagues.length)return{results:[],contexts:[],debugLeagues:[]};
+      const out=await Promise.all(yLeagues.map(yl=>loadYahooLeague(yl,week,isHist).catch(e=>{console.warn('Yahoo league failed:',yl.name,e.message);return null;})));
+      const results=[],contexts=[],debugLeagues=[];
+      out.forEach(o=>{if(!o)return;if(o.result){o.result.provider='yahoo';results.push(o.result);}if(o.ctx)contexts.push(o.ctx);if(o.debug){o.debug.provider='yahoo';debugLeagues.push(o.debug);}});
+      return{results,contexts,debugLeagues};
+    },
+
+    persist(){/* server-managed cookie — no client persistence */},
+    rehydrate(){/* server-managed cookie — no client persistence */},
+
+    renderConnectCard(rootEl){
+      if(connectionState.yahoo.connected){
+        rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>Yahoo connected</span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('yahoo')">Disconnect</button>`;
+      }else{
+        rootEl.innerHTML=`<button class="btn-yahoo provider-connect-btn" onclick="handleProviderConnect('yahoo')"><span class="btn-yahoo-icon">Y!</span><span>Connect Yahoo</span></button>`;
+      }
+    },
+  },
+};
+
+// Render the setup screen's provider cards by mapping over the registry.
+function renderSetupProviders(){
+  const grid=document.getElementById('provider-card-grid');
+  if(!grid)return;
+  grid.innerHTML='';
+  Object.values(PROVIDERS).forEach(p=>{
+    const card=document.createElement('div');
+    card.className='provider-card'+(connectionState[p.id]?.connected?' connected':'');
+    card.style.setProperty('--accent',p.accentColor);
+    const head=document.createElement('div');head.className='provider-card-header';
+    head.innerHTML=`<span class="provider-icon" style="background:${p.accentColor}">${p.displayName.charAt(0)}</span><span class="provider-card-title">${p.displayName}</span>`;
+    const body=document.createElement('div');body.className='provider-card-body';
+    p.renderConnectCard(body);
+    card.appendChild(head);card.appendChild(body);
+    grid.appendChild(card);
+  });
+  const cont=document.getElementById('continue-btn');
+  if(cont)cont.disabled=!isAnyProviderConnected();
+}
+
+async function handleProviderConnect(id){
+  const p=PROVIDERS[id];if(!p)return;
+  if(p.connectionType==='username'){
+    const inp=document.getElementById(id+'-input');
+    const err=document.getElementById(id+'-error');
+    if(err){err.style.display='none';err.textContent='';}
+    const val=inp?.value?.trim()||'';
+    const res=await p.connect(val);
+    if(res.success)renderSetupProviders();
+    else if(err){err.textContent=res.error||'Connect failed.';err.style.display='block';}
+  }else{
+    // oauth / cookies — provider handles its own flow (typically a redirect).
+    await p.connect();
+  }
+}
+
+async function handleProviderDisconnect(id){
+  const p=PROVIDERS[id];if(!p)return;
+  await p.disconnect();
+  // Yahoo redirects, so this only matters for non-redirect providers.
+  renderSetupProviders();
+}
+
+async function handleContinue(){
+  if(!isAnyProviderConnected())return;
+  isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();
+  await run();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Compatibility shims — older inline HTML in the signin card calls
+// checkYahooStatus / handleConnectYahoo / handleDisconnectYahoo by name.
+// These bridge to the new PROVIDERS registry until the setup screen
+// is migrated fully to renderSetupProviders().
+// ─────────────────────────────────────────────────────────────────
+async function checkYahooStatus(){
+  try{await PROVIDERS.yahoo.checkStatus();}catch(e){console.warn('yahoo status check failed:',e.message);}
+}
+
+function showYahooToast(msg, isError){
+  const t = document.createElement('div');
+  t.className = 'yahoo-toast' + (isError ? ' toast-error' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.style.opacity = '0'; }, 2800);
+  setTimeout(()=>{ t.remove(); }, 3200);
+}
+
+// Surface ?yahoo=connected / ?yahoo=disconnected from the server-side redirect,
+// then strip the param so reloads don't re-fire the toast.
+function consumeYahooReturnParam(){
+  const params = new URLSearchParams(window.location.search);
+  const flag = params.get('yahoo');
+  if(flag === 'connected') showYahooToast('✓ Yahoo connected');
+  else if(flag === 'disconnected') showYahooToast('Yahoo disconnected');
+  if(flag){
+    params.delete('yahoo');
+    const qs = params.toString();
+    const newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+    window.history.replaceState({}, '', newUrl);
+  }
+}
+
+(async()=>{
+  // Detect whether this load is a Yahoo OAuth callback BEFORE the param is stripped.
+  const cameFromYahooOAuth=new URLSearchParams(window.location.search).get('yahoo')==='connected';
+  consumeYahooReturnParam();
+  // Rehydrate each provider's connection state from local persistence.
+  Object.values(PROVIDERS).forEach(p=>{try{p.rehydrate&&p.rehydrate();}catch(e){console.warn(p.id+' rehydrate failed:',e.message);}});
+  // Yahoo status must resolve before loadData() — its merge step gates on yahooConnected.
+  await checkYahooStatus();
+  // OAuth callback: stay on setup so user can also connect Sleeper before continuing.
+  // Otherwise: auto-run if any provider is already connected, else show setup.
+  if(cameFromYahooOAuth)showSetup();
+  else if(isAnyProviderConnected())await run();
+  else showSetup();
+})();
+</script>
+</body>
+</html>
