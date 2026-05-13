@@ -1897,7 +1897,15 @@ function renderBoard(data,username){
   window.__conflictedLastUsername=username;
   const _expoOpen=!!window.__conflictedExposureOpen;
   const{cheerFor,conflicted,enemies,offseasonMode,debugInfo,noData,noDataReason,contexts,hasScoring,isHist}=data;
-  if(!_expoOpen){showBoard();}
+  // Level 1 soft-refresh: skip the showBoard() pulse when board is already visible.
+  // Calling showBoard() runs hideAll() (board → display:none) then resets to block,
+  // which causes a one-frame flicker on every 60s auto-refresh tick. We only need
+  // showBoard() on first arrival; subsequent re-renders should leave the DOM up.
+  const _boardEl=document.getElementById('board');
+  const _alreadyOnBoard=!!(_boardEl && _boardEl.style.display && _boardEl.style.display!=='none');
+  const _preserveScroll=_alreadyOnBoard && !_expoOpen;
+  const _savedScrollY=_preserveScroll?window.scrollY:0;
+  if(!_expoOpen && !_alreadyOnBoard){showBoard();}
   updateNavUI();
   document.getElementById('banner-demo').classList.toggle('visible',isDemoMode);
   document.getElementById('banner-offseason').classList.toggle('visible',!isDemoMode&&!!offseasonMode);
@@ -1907,7 +1915,7 @@ function renderBoard(data,username){
   const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   document.getElementById('board-refresh-time').textContent=`Synced ${now}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();if(_preserveScroll)requestAnimationFrame(()=>window.scrollTo(0,_savedScrollY));return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
   const showLiveToggle=!isDemoMode&&!isHist;
@@ -1927,6 +1935,8 @@ function renderBoard(data,username){
   updateSettingsPanel();
   if(shouldAutoLaunchPriority(currentContexts))showPriorityOnboarding(currentContexts);
   if(window.__conflictedExposureOpen&&typeof renderExposureView==='function'){try{renderExposureView();}catch(e){console.warn('exposure rerender failed',e);}}
+  // Restore scroll after layout settles so the auto-refresh doesn't jump the page.
+  if(_preserveScroll)requestAnimationFrame(()=>window.scrollTo(0,_savedScrollY));
 }
 
 /* ── Yahoo data layer (unchanged from prior implementation) ── */
