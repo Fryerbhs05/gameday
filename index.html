@@ -1897,14 +1897,19 @@ function renderBoard(data,username){
   window.__conflictedLastUsername=username;
   const _expoOpen=!!window.__conflictedExposureOpen;
   const{cheerFor,conflicted,enemies,offseasonMode,debugInfo,noData,noDataReason,contexts,hasScoring,isHist}=data;
-  // Level 1 soft-refresh: skip the showBoard() pulse when board is already visible.
-  // Calling showBoard() runs hideAll() (board → display:none) then resets to block,
-  // which causes a one-frame flicker on every 60s auto-refresh tick. We only need
-  // showBoard() on first arrival; subsequent re-renders should leave the DOM up.
+  // Level 1 soft-refresh: skip showBoard() pulse + pin column height + restore scroll.
+  // Root cause of the scroll-to-top: innerHTML='' on the three columns briefly collapses
+  // page height to ~0, the browser clamps scrollY to the new max (often 0), and even
+  // though cards re-append in the same tick, the clamped scroll position has already
+  // stuck. Fix: pin #columns min-height to its current value before the wipe, restore
+  // scroll inside rAF (before paint), then release the pin.
   const _boardEl=document.getElementById('board');
   const _alreadyOnBoard=!!(_boardEl && _boardEl.style.display && _boardEl.style.display!=='none');
   const _preserveScroll=_alreadyOnBoard && !_expoOpen;
-  const _savedScrollY=_preserveScroll?window.scrollY:0;
+  const _savedScrollY=_preserveScroll?(window.scrollY||document.documentElement.scrollTop||0):0;
+  const _colsEl=document.getElementById('columns');
+  const _pinnedColsHeight=(_preserveScroll && _colsEl)?_colsEl.offsetHeight:0;
+  if(_pinnedColsHeight){_colsEl.style.minHeight=_pinnedColsHeight+'px';}
   if(!_expoOpen && !_alreadyOnBoard){showBoard();}
   updateNavUI();
   document.getElementById('banner-demo').classList.toggle('visible',isDemoMode);
@@ -1915,7 +1920,7 @@ function renderBoard(data,username){
   const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   document.getElementById('board-refresh-time').textContent=`Synced ${now}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();if(_preserveScroll)requestAnimationFrame(()=>window.scrollTo(0,_savedScrollY));return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();_restoreScroll();return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
   const showLiveToggle=!isDemoMode&&!isHist;
@@ -1935,8 +1940,32 @@ function renderBoard(data,username){
   updateSettingsPanel();
   if(shouldAutoLaunchPriority(currentContexts))showPriorityOnboarding(currentContexts);
   if(window.__conflictedExposureOpen&&typeof renderExposureView==='function'){try{renderExposureView();}catch(e){console.warn('exposure rerender failed',e);}}
-  // Restore scroll after layout settles so the auto-refresh doesn't jump the page.
-  if(_preserveScroll)requestAnimationFrame(()=>window.scrollTo(0,_savedScrollY));
+  _restoreScroll();
+
+  // Restore scroll: try sync first (catches the same-task case), then in rAF (catches
+  // anything that resettles after layout). Release the column-height pin AFTER restore
+  // so the page doesn't grow back before scroll lands. Use behavior:'instant' to avoid
+  // smooth-scroll interfering on browsers that have it default-enabled.
+  function _restoreScroll(){
+    if(!_preserveScroll){
+      if(_colsEl)_colsEl.style.minHeight='';
+      return;
+    }
+    const _doScroll=()=>{
+      try{window.scrollTo({top:_savedScrollY,left:0,behavior:'instant'});}
+      catch(e){window.scrollTo(0,_savedScrollY);}
+      if(document.documentElement)document.documentElement.scrollTop=_savedScrollY;
+      if(document.body)document.body.scrollTop=_savedScrollY;
+    };
+    _doScroll();
+    requestAnimationFrame(()=>{
+      _doScroll();
+      requestAnimationFrame(()=>{
+        _doScroll();
+        if(_colsEl)_colsEl.style.minHeight='';
+      });
+    });
+  }
 }
 
 /* ── Yahoo data layer (unchanged from prior implementation) ── */
