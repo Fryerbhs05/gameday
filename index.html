@@ -1584,9 +1584,8 @@
     <div class="exp-card__head">
       <h3 id="exp-heat-title">Heatmap</h3>
       <div class="exp-legend" id="exp-legend">
-        <span><i style="background:var(--coral-500)"></i>Starting</span>
+        <span><i style="background:var(--coral-500)"></i>Rostered</span>
         <span><i style="background:transparent;border:1px dashed var(--line);"></i>Not rostered</span>
-        <span><i style="background:var(--ink-300)"></i>IR / Out</span>
       </div>
     </div>
     <div class="exp-heat" id="exp-heat"></div>
@@ -1594,8 +1593,8 @@
 
   <div class="exp-card" id="exp-list-card">
     <div class="exp-card__head">
-      <h3 id="exp-list-title">Top 10 — most exposed</h3>
-      <span class="exp-card__sort" id="exp-list-sort">Sorted by league count</span>
+      <h3 id="exp-list-title">Exposure list — every player</h3>
+      <span class="exp-card__sort" id="exp-list-sort">Sorted by exposure count</span>
     </div>
     <div class="exp-list" id="exp-list"></div>
   </div>
@@ -2256,10 +2255,12 @@ async function run(){
 
 const REFRESH_MS=60*1000;let refreshTimer=null;let lastFetchTime=0;
 function shouldAutoRefresh(){return !isDemoMode && isAnyProviderConnected() && !isHistoricalWeek();}
+function isDashboardVisible(){const b=document.getElementById('board');if(!b)return false;const d=b.style.display;return !(d==='none'||d==='');}
 function startAutoRefresh(){
   stopAutoRefresh(); if(!shouldAutoRefresh())return;
   refreshTimer=setInterval(async()=>{
     if(document.hidden)return;
+    if(!isDashboardVisible())return; // pause polling when user is on exposure map / any non-dashboard view
     if(Date.now()-lastFetchTime>=REFRESH_MS){
       try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();setLastRefreshed();}
       catch(e){console.warn('Auto-refresh failed silently:',e.message);}
@@ -2269,6 +2270,7 @@ function startAutoRefresh(){
 function stopAutoRefresh(){if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}}
 document.addEventListener('visibilitychange',async()=>{
   if(document.hidden)return; if(!shouldAutoRefresh())return;
+  if(!isDashboardVisible())return; // don't yank user off exposure map when tab regains focus
   if(Date.now()-lastFetchTime>=REFRESH_MS){
     try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();setLastRefreshed();}
     catch(e){console.warn('Tab-return refresh failed:',e.message);}
@@ -3155,32 +3157,38 @@ initThemeToggle();
     return names;
   }
 
-  // Map a player into an exposure row { id, label, sub, pos, leagues:[names], count, status }
+  // Map a player into an exposure row { id, label, sub, pos, leagues:[names], count }
+  // sub is retained internally because aggregateByTeam parses the team off it,
+  // but is no longer rendered in the heat/list display.
   function expoRowFromPlayer(p, mode){
     var src = mode === 'positive' ? (p.myLeagues || []) : (p.againstLeagues || []);
-    var status = 'starting';
-    if (p.injuryStatus && /^(IR|OUT|O|Out|Doubtful|D)$/i.test(String(p.injuryStatus))) status = 'ir';
     return {
       id: p.id || (p.full_name + '|' + p.team),
       label: p.full_name || 'Unknown',
       sub: [p.position, p.team].filter(Boolean).join(' · '),
       pos: p.position || '',
       leagues: src.slice(),
-      count: src.length,
-      status: status
+      count: src.length
     };
   }
 
   // Aggregate by NFL team when axis === 'teams'
+  // Counting rule (confirmed with product 2026-05-12):
+  // Each league-roster-spot counts as one exposure.
+  // Kamara in 3 of your leagues → 3 exposures to NO.
+  // Olave (1) + Carr (2) on top of that → 3 more, total 6.
+  // i.e. count = SUM over players from team t of (number of leagues that player is in).
   function aggregateByTeam(rows){
     var byTeam = {};
     rows.forEach(function(r){
       if(!r.leagues.length) return;
       var t = (r.sub.split('·').pop() || '').trim() || '—';
-      if(!byTeam[t]) byTeam[t] = { id: t, label: t, sub: 'NFL team', pos: '', leagues: [], count: 0, status: 'starting', players: [] };
-      r.leagues.forEach(function(n){ if(byTeam[t].leagues.indexOf(n) === -1) byTeam[t].leagues.push(n); });
+      if(!byTeam[t]) byTeam[t] = { id: t, label: t, sub: '', pos: '', leagues: [], count: 0, status: 'starting', players: [] };
+      r.leagues.forEach(function(n){
+        byTeam[t].count += 1; // every league-roster-spot is one exposure
+        if (byTeam[t].leagues.indexOf(n) === -1) byTeam[t].leagues.push(n); // union for heat-cell rendering
+      });
       byTeam[t].players.push(r.label);
-      byTeam[t].count = byTeam[t].leagues.length;
     });
     return Object.keys(byTeam).map(function(k){ return byTeam[k]; });
   }
@@ -3208,34 +3216,20 @@ initThemeToggle();
     };
   }
 
-  function copyForMode(mode){
-    if (mode === 'negative'){
-      return {
-        title: 'Negative exposure',
-        subtitle: "Players starting against you this week, ranked by how many of your leagues feel it.",
-        kpiTopLabel: 'Biggest threat',
-        kpiTopSub: 'leagues impacted',
-        kpiConflictsLabel: 'Direct conflicts',
-        kpiConflictsSub: 'opponents you face in multiple leagues',
-        kpiFootprintLabel: 'Opposing footprint',
-        kpiFootprintSub: 'unique players on your opponents this week',
-        listTitle: 'Top 10 — biggest threats',
-        legendLabel: 'Starting (vs you)',
-        emptyTitle: 'No opponents to worry about — yet.',
-        emptyBody: 'Once your opponents set their lineups this week, the heatmap will fill in.'
-      };
-    }
+  // Copy is mode-agnostic to prevent header/card reflow when toggling Positive/Negative.
+  // The toggle's coral/navy color carries the meaning; text never changes.
+  function copyForMode(/* mode */){
     return {
       title: 'Exposure map',
-      subtitle: 'Which players are sitting on the most of your rosters this week.',
-      kpiTopLabel: 'Most exposed',
-      kpiTopSub: 'leagues holding this player',
+      subtitle: 'Each cell is one player on a roster this week. Flip Positive / Negative to swap whose rosters.',
+      kpiTopLabel: 'Top exposure',
+      kpiTopSub: 'exposures',
       kpiConflictsLabel: 'Direct conflicts',
-      kpiConflictsSub: 'players started in multiple leagues',
-      kpiFootprintLabel: 'Roster footprint',
-      kpiFootprintSub: 'unique players across all your starting lineups',
-      listTitle: 'Top 10 — most exposed',
-      legendLabel: 'Starting (your roster)',
+      kpiConflictsSub: 'with 2+ league appearances',
+      kpiFootprintLabel: 'Total footprint',
+      kpiFootprintSub: 'across the relevant rosters',
+      listTitle: 'Exposure list — every player',
+      legendLabel: 'Rostered',
       emptyTitle: 'No exposure data yet.',
       emptyBody: 'Connect a league or load demo mode to see your exposure across rosters.'
     };
@@ -3265,7 +3259,7 @@ initThemeToggle();
     if (!heat) return;
     var mode = payload.mode;
     var leagues = payload.leagues;
-    var rows = payload.rows.slice(0, 18); // cap rows for scannability
+    var rows = payload.rows; // full results, no truncation (product decision)
     var nameCol = 'minmax(160px, 1.4fr)';
     var leagueCols = leagues.length ? leagues.map(function(){ return 'minmax(28px, 1fr)'; }).join(' ') : '1fr';
     var gridTemplate = nameCol + ' ' + leagueCols;
@@ -3287,12 +3281,11 @@ initThemeToggle();
     // Body rows
     rows.forEach(function(r){
       html += '<div class="exp-heat__row" style="grid-template-columns:' + gridTemplate + '">';
-      html += '<div class="exp-heat__name"><strong>' + esc(r.label) + '</strong><span>' + esc(r.sub) + '</span></div>';
+      html += '<div class="exp-heat__name"><strong>' + esc(r.label) + '</strong></div>';
       leagues.forEach(function(n){
         var hit = r.leagues.indexOf(n) !== -1;
         if (hit){
           var cls = mode === 'positive' ? 'is-pos' : 'is-neg';
-          if (r.status === 'ir') cls = 'exp-cell--ir';
           html += '<div class="exp-cell ' + cls + '" title="' + esc(r.label) + ' · ' + esc(n) + '"></div>';
         } else {
           html += '<div class="exp-cell exp-cell--empty" title="Not in ' + esc(n) + '"></div>';
@@ -3301,17 +3294,13 @@ initThemeToggle();
       html += '</div>';
     });
 
-    if (payload.rows.length > rows.length){
-      html += '<div class="exp-heat__more">+ ' + (payload.rows.length - rows.length) + ' more players (see top-10 list below)</div>';
-    }
-
     heat.innerHTML = html;
   }
 
   function renderList(payload){
     var list = document.getElementById('exp-list');
     if (!list) return;
-    var rows = payload.rows.slice(0, 10);
+    var rows = payload.rows; // full list, no truncation (product decision)
     list.classList.toggle('mode-negative', payload.mode === 'negative');
     list.classList.toggle('mode-positive', payload.mode === 'positive');
     if (!rows.length){
@@ -3323,9 +3312,9 @@ initThemeToggle();
     rows.forEach(function(r){
       var pct = Math.max(6, Math.round((r.count / max) * 100));
       html += '<div class="exp-list__row" style="grid-template-columns:minmax(0,2fr) minmax(0,3fr) 60px;">' +
-        '<div class="exp-list__name"><strong>' + esc(r.label) + '</strong><em>' + esc(r.sub) + '</em></div>' +
+        '<div class="exp-list__name"><strong>' + esc(r.label) + '</strong></div>' +
         '<div class="exp-list__bar"><div style="width:' + pct + '%"></div></div>' +
-        '<div class="exp-list__count">' + r.count + (payload.mode === 'negative' ? ' opp' : ' lg') + '</div>' +
+        '<div class="exp-list__count">' + r.count + '</div>' +
       '</div>';
     });
     list.innerHTML = html;
@@ -3377,14 +3366,13 @@ initThemeToggle();
       b.classList.toggle('active', b.getAttribute('data-exp-pos') === state.pos);
     });
 
-    // Legend swatch reflects current mode
+    // Legend swatch color follows the active mode; label text is static.
     var legend = document.getElementById('exp-legend');
     if (legend){
       var swatchColor = state.mode === 'negative' ? 'var(--navy-700)' : 'var(--coral-500)';
       legend.innerHTML =
         '<span><i style="background:' + swatchColor + '"></i>' + esc(copy.legendLabel) + '</span>' +
-        '<span><i style="background:transparent;border:1px dashed var(--line);"></i>Not rostered</span>' +
-        '<span><i style="background:var(--ink-300)"></i>IR / Out</span>';
+        '<span><i style="background:transparent;border:1px dashed var(--line);"></i>Not rostered</span>';
     }
 
     // List card title
