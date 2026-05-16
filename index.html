@@ -2255,7 +2255,16 @@ async function loadData(){
   if(!isAnyProviderConnected()){
     return{noData:true,noDataReason:'No providers connected.',cheerFor:[],conflicted:[],enemies:[],allRostered:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
   }
-  showLoading('Pulling your leagues.');
+  // Only show the full-page loading panel on the initial load, when the board
+  // isn't already visible. During a 60s auto-refresh (and also during the
+  // exposure-view background refresh) the board is already on-screen and we
+  // want to keep showing it — hiding it would flash the loading spinner and
+  // reset scroll position. Subsequent setLoading() calls are harmless because
+  // they only update text on the (hidden) loading panel.
+  const _boardEl=document.getElementById('board');
+  const _boardVisible=!!(_boardEl && _boardEl.style.display && _boardEl.style.display!=='none');
+  const _expoOpen=!!window.__conflictedExposureOpen;
+  if(!_boardVisible && !_expoOpen) showLoading('Pulling your leagues.');
   const state=await getNFLState();
   liveWeek=(state.week>=1&&state.week<=MAX_WEEK)?state.week:1;liveSeason=state.season;
   if(!isAnyProviderLoaded){activeWeek=liveWeek;activeSeason=liveSeason;}
