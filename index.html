@@ -1268,15 +1268,22 @@
       flex: 1; min-width: 0; overflow-x: auto;
       padding-left: 8px;
     }
-    .exp-heat__cols { display: grid; gap: 6px; align-items: end; padding-bottom: 8px; min-width: 420px; }
-    .exp-heat__col-label { font: 500 10px/1.2 var(--font-mono); color: var(--ink-500); text-align: center; letter-spacing: 0.06em; text-transform: uppercase; }
+    .exp-heat__cols { display: grid; gap: 6px; align-items: end; padding-bottom: 8px; min-width: 420px; height: 52px; box-sizing: border-box; }
+    .exp-heat__col-label {
+      font: 500 10px/1.2 var(--font-mono); color: var(--ink-500);
+      text-align: center; letter-spacing: 0.04em; text-transform: uppercase;
+      min-width: 0; padding: 0 3px;
+      word-break: break-word; overflow-wrap: break-word; hyphens: auto;
+      max-height: 38px; overflow: hidden;
+      align-self: end;
+    }
     .exp-heat__row { display: grid; gap: 6px; align-items: center; padding: 4px 0; min-width: 420px; height: 34px; box-sizing: border-box; }
     .exp-heat__name {
       display: flex; align-items: center; gap: 8px;
       height: 34px; box-sizing: border-box; padding: 4px 0;
     }
     .exp-heat__name--header {
-      height: 20px; padding: 0 0 8px 0; box-sizing: border-box;
+      height: 52px; padding: 0; box-sizing: border-box;
     }
     .exp-heat__name strong { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); white-space: nowrap; }
     .exp-heat__name span { font: 500 10px/1 var(--font-mono); color: var(--ink-500); letter-spacing: 0.04em; flex-shrink: 0; white-space: nowrap; }
