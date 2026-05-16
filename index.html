@@ -3429,10 +3429,20 @@ initThemeToggle();
       label: p.full_name || 'Unknown',
       sub: [p.position, p.team].filter(Boolean).join(' · '),
       pos: p.position || '',
+      team: p.team || '',
       leagues: src,
       count: src.length
     };
   }
+
+  // Valid NFL team abbreviations (32 teams). Used to gate team-axis aggregation so
+  // stray values like "WR"/"RB" (from players missing p.team) never get bucketed
+  // as if they were teams.
+  var NFL_TEAMS = new Set([
+    'ARI','ATL','BAL','BUF','CAR','CHI','CIN','CLE','DAL','DEN','DET','GB',
+    'HOU','IND','JAX','KC','LAC','LAR','LV','MIA','MIN','NE','NO','NYG',
+    'NYJ','PHI','PIT','SEA','SF','TB','TEN','WAS'
+  ]);
 
   // Aggregate by NFL team when axis === 'teams'
   // Counting rule (confirmed with product 2026-05-12):
@@ -3444,7 +3454,8 @@ initThemeToggle();
     var byTeam = {};
     rows.forEach(function(r){
       if(!r.leagues.length) return;
-      var t = (r.sub.split('·').pop() || '').trim() || '—';
+      var t = (r.team || '').toUpperCase().trim();
+      if (!t || !NFL_TEAMS.has(t)) return; // skip players with missing/invalid team
       if(!byTeam[t]) byTeam[t] = { id: t, label: t, sub: '', pos: '', leagues: [], count: 0, status: 'starting', players: [] };
       r.leagues.forEach(function(n){
         byTeam[t].count += 1; // every league-roster-spot is one exposure
