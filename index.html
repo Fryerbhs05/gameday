@@ -2024,7 +2024,7 @@ function renderBoard(data,username){
   document.getElementById('banner-scoring').classList.toggle('visible',!isDemoMode&&!!hasScoring&&!isHist);
   renderDebug(isDemoMode?null:debugInfo);
   document.getElementById('display-username').textContent=isDemoMode?'Demo mode':username;
-  const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   document.getElementById('board-refresh-time').textContent=`Synced ${now}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
   if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();return;}
