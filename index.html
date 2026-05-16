@@ -1356,6 +1356,13 @@
       </button>
     </li>
     <li role="presentation"><hr class="menu-drawer__divider" aria-hidden="true"></li>
+    <li class="menu-drawer__section-label" role="presentation">Account</li>
+    <li role="none">
+      <button class="menu-drawer__item" data-menu-action="change-user" role="menuitem" type="button">
+        <span>Change user</span>
+      </button>
+    </li>
+    <li role="presentation"><hr class="menu-drawer__divider" aria-hidden="true"></li>
     <li class="menu-drawer__section-label" role="presentation">Site</li>
     <li role="none">
       <button class="menu-drawer__item is-disabled" data-menu-action="about" role="menuitem" type="button" aria-disabled="true" disabled>
@@ -1535,6 +1542,13 @@
             <ol class="settings-priority-list" id="settings-priority-list" style="display:none"></ol>
           </div>
           <button class="btn-secondary" onclick="reRankPriority()" type="button">Re-rank leagues</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Account</div>
+            <div class="settings-row-sub">Disconnect all providers and return to the connection screen.</div>
+          </div>
+          <button class="btn-secondary" onclick="handleChangeUser()" type="button">Change user</button>
         </div>
       </div>
     </div>
@@ -3643,6 +3657,8 @@ initThemeToggle();
           else if (typeof window.showBoard === 'function') window.showBoard();
         } else if (action === 'exposure') {
           if (typeof window.showExposure === 'function') window.showExposure();
+        } else if (action === 'change-user') {
+          if (typeof window.handleChangeUser === 'function') window.handleChangeUser();
         }
         // Future routes — wire these up as each view ships:
         //   watch-priority, about, blog, contact
