@@ -1237,7 +1237,12 @@
     .exp-heat__cols { display: grid; gap: 6px; align-items: end; padding-bottom: 8px; }
     .exp-heat__col-label { font: 500 10px/1.2 var(--font-mono); color: var(--ink-500); text-align: center; letter-spacing: 0.06em; text-transform: uppercase; }
     .exp-heat__row { display: grid; gap: 6px; align-items: center; padding: 4px 0; }
-    .exp-heat__name { display: flex; align-items: baseline; gap: 8px; }
+    .exp-heat__name {
+      display: flex; align-items: baseline; gap: 8px;
+      position: sticky; left: 0; z-index: 1;
+      background: var(--paper);
+      box-shadow: 2px 0 6px -2px rgba(0,0,0,0.10);
+    }
     .exp-heat__name strong { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); white-space: nowrap; }
     .exp-heat__name span { font: 500 10px/1 var(--font-mono); color: var(--ink-500); letter-spacing: 0.04em; flex-shrink: 0; white-space: nowrap; }
     .exp-cell { height: 26px; border-radius: 4px; }
@@ -3401,7 +3406,7 @@ initThemeToggle();
     var html = '';
     // Column header row
     html += '<div class="exp-heat__cols" style="grid-template-columns:' + gridTemplate + '">';
-    html += '<div></div>';
+    html += '<div class="exp-heat__name"></div>';
     leagues.forEach(function(n){
       html += '<div class="exp-heat__col-label" title="' + esc(n) + '">' + esc(n) + '</div>';
     });
