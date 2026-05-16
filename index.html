@@ -1565,6 +1565,10 @@
         <button type="button" class="active" data-exp-axis="players" role="tab" aria-selected="true">Players</button>
         <button type="button" data-exp-axis="teams" role="tab" aria-selected="false">NFL teams</button>
       </div>
+      <div class="exp-toggle" id="exp-bench-toggle" role="tablist" aria-label="Roster scope">
+        <button type="button" class="active" data-exp-bench="starters" role="tab" aria-selected="true">Starters only</button>
+        <button type="button" data-exp-bench="all" role="tab" aria-selected="false">Include bench</button>
+      </div>
     </div>
   </div>
 
@@ -2110,21 +2114,23 @@ async function loadYahooLeague(yLeague, week, isHist) {
       else leagueState = calcLiveState(myPoints, oppPoints, myProjPts, oppProjPts);
     }
   } catch (e) { console.warn('Yahoo scoreboard failed for', yLeague.name, e.message); }
-  let myPlayers = [], oppPlayers = [], myPP = {}, oppPP = {};
+  let myPlayers = [], oppPlayers = [], myBench = [], oppBench = [], myPP = {}, oppPP = {};
   try {
     const myRosterJson = await yhFetch('endpoint=roster_stats&team_key=' + encodeURIComponent(myTeamKey) + '&week=' + week);
     const myRoster = parseYahooRoster(myRosterJson); myPP = parseYahooRosterStats(myRosterJson);
     const starters = myRoster.filter(p => p.isStarter); myPlayers = starters.length ? starters : myRoster;
+    myBench = starters.length ? myRoster.filter(p => !p.isStarter) : [];
   } catch (e) { console.warn('Yahoo my roster failed for', yLeague.name, e.message); }
   if (opponentTeamKey) {
     try {
       const oppRosterJson = await yhFetch('endpoint=roster_stats&team_key=' + encodeURIComponent(opponentTeamKey) + '&week=' + week);
       const oppRoster = parseYahooRoster(oppRosterJson); oppPP = parseYahooRosterStats(oppRosterJson);
       const starters = oppRoster.filter(p => p.isStarter); oppPlayers = starters.length ? starters : oppRoster;
+      oppBench = starters.length ? oppRoster.filter(p => !p.isStarter) : [];
     } catch (e) { console.warn('Yahoo opp roster failed for', yLeague.name, e.message); }
   }
   return {
-    result: { leagueName: yLeague.name, myPlayers, oppPlayers, hasMatchup, fmt, source: 'yahoo' },
+    result: { leagueName: yLeague.name, myPlayers, oppPlayers, myBench, oppBench, hasMatchup, fmt, source: 'yahoo' },
     ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myPP, oppPP, fmt, source: 'yahoo' },
     debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: hasMatchup, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
   };
@@ -2140,7 +2146,7 @@ function unifiedPlayerKey(name, team, pos) {
 
 async function loadData(){
   if(!isAnyProviderConnected()){
-    return{noData:true,noDataReason:'No providers connected.',cheerFor:[],conflicted:[],enemies:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
+    return{noData:true,noDataReason:'No providers connected.',cheerFor:[],conflicted:[],enemies:[],allRostered:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
   }
   showLoading('Pulling your leagues.');
   const state=await getNFLState();
@@ -2179,7 +2185,7 @@ async function loadData(){
   if(!valid.length){
     const dn=getPrimaryDisplayName();
     const checked=connected.map(id=>PROVIDERS[id].displayName).join(' or ');
-    return{noData:true,noDataReason:`No leagues found for <strong>${dn}</strong> in <strong>${activeSeason}</strong> on ${checked}. You may not have been in a league that year, or the season hasn't started yet.`,cheerFor:[],conflicted:[],enemies:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
+    return{noData:true,noDataReason:`No leagues found for <strong>${dn}</strong> in <strong>${activeSeason}</strong> on ${checked}. You may not have been in a league that year, or the season hasn't started yet.`,cheerFor:[],conflicted:[],enemies:[],allRostered:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
   }
   /* Best-effort fetch of NFL game states for the live-only toggle. Doesn't block on failure. */
   if(!isHist)await fetchNflGameStates(activeSeason,activeWeek);
@@ -2203,7 +2209,7 @@ async function loadData(){
       key=unifiedPlayerKey(full_name,team,position)||('yh:'+p.player_key);
     }
     if(!map.has(key)){
-      map.set(key,{id:key,full_name,position,team,injuryStatus,myLeagues:[],againstLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
+      map.set(key,{id:key,full_name,position,team,injuryStatus,myLeagues:[],againstLeagues:[],myBenchLeagues:[],againstBenchLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
     }
     const e=map.get(key);
     if(injuryStatus&&!e.injuryStatus)e.injuryStatus=injuryStatus;
@@ -2225,9 +2231,21 @@ async function loadData(){
       const k=ptsKey(p);const pts=ctx?.oppPP[k]??null,proj=projForPlayer(p);
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
     });
+    (lg.myBench||[]).forEach(p=>{
+      const e=ensure(p);
+      if(!e.myBenchLeagues.includes(lg.leagueName))e.myBenchLeagues.push(lg.leagueName);
+    });
+    (lg.oppBench||[]).forEach(p=>{
+      const e=ensure(p);
+      if(!e.againstBenchLeagues.includes(lg.leagueName))e.againstBenchLeagues.push(lg.leagueName);
+    });
   });
   const cheerFor=[],conflicted=[],enemies=[];
   map.forEach(p=>{
+    // Bench-only players (no starter rostering on either side) belong in allRostered
+    // for the heat map but must not enter the dashboard buckets — classifyPlayer's
+    // fallback path would otherwise put them in "conflicted".
+    if(!p.myLeagues.length&&!p.againstLeagues.length)return;
     const sig=calcSignal(p,leagueContexts);
     const cls=classifyPlayer(p,sig);
     if(!cls)return;
@@ -2237,7 +2255,7 @@ async function loadData(){
     else if(cls.bucket==='conflicted')conflicted.push(p);
     else enemies.push(p);
   });
-  return{cheerFor,conflicted,enemies,noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
+  return{cheerFor,conflicted,enemies,allRostered:Array.from(map.values()),noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
 }
 
 function getDemoData(){
@@ -2249,30 +2267,37 @@ function getDemoData(){
     {leagueName:L3,leagueState:'LOCKED_WIN',myPoints:134.20,oppPoints:45.82,myPP:{},oppPP:{},fmt:'Std'},
     {leagueName:L4,leagueState:'LOCKED_LOSS',myPoints:52.10,oppPoints:118.40,myPP:{},oppPP:{},fmt:'PPR'}
   ];
-  function p(id,name,pos,team,mine,against,lpts,sig,allDecided,injuryStatus=null){const sigResult={signal:sig,allDecided};const cls=classifyPlayer({myLeagues:mine,againstLeagues:against},sigResult);const badge=ctxBadge(sigResult,false);const leaguePoints={};(lpts||[]).forEach(d=>{leaguePoints[d.lg]={pts:d.pts,proj:d.proj??null,fmt:d.fmt};});return{id,full_name:name,position:pos,team,myLeagues:mine,againstLeagues:against,leaguePoints,contextBadge:badge,bucket:cls?.bucket,clinched:cls?.clinched||false,injuryStatus};}
-  return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,debugInfo:null,
-    cheerFor:[
-      p('d1','Patrick Mahomes','QB','KC',[L1,L3],[],[{lg:L1,pts:22.44,proj:28.0,fmt:'PPR'},{lg:L3,pts:22.44,proj:28.0,fmt:'Std'}],2,false),
+  function p(id,name,pos,team,mine,against,lpts,sig,allDecided,injuryStatus=null,myBench=[],againstBench=[]){const sigResult={signal:sig,allDecided};const cls=classifyPlayer({myLeagues:mine,againstLeagues:against},sigResult);const badge=ctxBadge(sigResult,false);const leaguePoints={};(lpts||[]).forEach(d=>{leaguePoints[d.lg]={pts:d.pts,proj:d.proj??null,fmt:d.fmt};});return{id,full_name:name,position:pos,team,myLeagues:mine,againstLeagues:against,myBenchLeagues:myBench,againstBenchLeagues:againstBench,leaguePoints,contextBadge:badge,bucket:cls?.bucket,clinched:cls?.clinched||false,injuryStatus};}
+  /* Bench-only players (not classified into cheer/conflicted/enemies, but appear in heat map when "Include bench" is on) */
+  const benchOnly=[
+    p('d19','Rashee Rice','WR','KC',[],[],[],0,false,null,[L1,L2],[]),
+    p('d20','Najee Harris','RB','LAC',[],[],[],0,false,null,[L3],[L1]),
+    p('d21','Jaylen Waddle','WR','MIA',[],[],[],0,false,null,[],[L2,L4]),
+    p('d22','Tank Dell','WR','HOU',[],[],[],0,false,null,[L4],[]),
+  ];
+  const cheerFor=[
+      p('d1','Patrick Mahomes','QB','KC',[L1,L3],[],[{lg:L1,pts:22.44,proj:28.0,fmt:'PPR'},{lg:L3,pts:22.44,proj:28.0,fmt:'Std'}],2,false,null,[L2],[]),
       p('d2','Davante Adams','WR','NO',[L1],[],[{lg:L1,pts:11.80,proj:16.0,fmt:'PPR'}],1,false,'Questionable'),
-      p('d3','Derrick Henry','RB','BAL',[L1],[],[{lg:L1,pts:14.20,proj:18.0,fmt:'PPR'}],1,false),
+      p('d3','Derrick Henry','RB','BAL',[L1],[],[{lg:L1,pts:14.20,proj:18.0,fmt:'PPR'}],1,false,null,[L3],[]),
       p('d4','Tyreek Hill','WR','MIA',[L2,L3],[],[{lg:L2,pts:18.60,proj:22.0,fmt:'Half'},{lg:L3,pts:18.60,proj:22.0,fmt:'Std'}],2,false),
       p('d7','Travis Kelce','TE','KC',[L1],[L4],[{lg:L1,pts:8.60,proj:14.0,fmt:'PPR'},{lg:L4,pts:8.60,proj:null,fmt:'PPR'}],1,false),
       p('d8','Christian McCaffrey','RB','SF',[L3],[],[{lg:L3,pts:24.60,proj:null,fmt:'Std'}],0,true,'Out'),
-    ],
-    conflicted:[
-      p('d9','Justin Jefferson','WR','MIN',[L1],[L2],[{lg:L1,pts:16.40,proj:20.0,fmt:'PPR'},{lg:L2,pts:16.40,proj:20.0,fmt:'Half'}],0,false),
+  ];
+  const conflicted=[
+      p('d9','Justin Jefferson','WR','MIN',[L1],[L2],[{lg:L1,pts:16.40,proj:20.0,fmt:'PPR'},{lg:L2,pts:16.40,proj:20.0,fmt:'Half'}],0,false,null,[L4],[]),
       p('d10','Josh Allen','QB','BUF',[L2],[L1],[{lg:L2,pts:19.80,proj:26.0,fmt:'Half'},{lg:L1,pts:19.80,proj:26.0,fmt:'PPR'}],0,false,'Doubtful'),
       p('d11','CeeDee Lamb','WR','DAL',[L1],[L2],[{lg:L1,pts:14.20,proj:22.0,fmt:'PPR'},{lg:L2,pts:14.20,proj:22.0,fmt:'Half'}],0,false),
       p('d12','Saquon Barkley','RB','PHI',[L2],[L1],[{lg:L2,pts:11.60,proj:16.0,fmt:'Half'},{lg:L1,pts:11.60,proj:16.0,fmt:'PPR'}],0,false),
-    ],
-    enemies:[
-      p('d13',"Ja'Marr Chase",'WR','CIN',[],[L1,L2],[{lg:L1,pts:20.20,proj:24.0,fmt:'PPR'},{lg:L2,pts:20.20,proj:24.0,fmt:'Half'}],-2,false),
+  ];
+  const enemies=[
+      p('d13',"Ja'Marr Chase",'WR','CIN',[],[L1,L2],[{lg:L1,pts:20.20,proj:24.0,fmt:'PPR'},{lg:L2,pts:20.20,proj:24.0,fmt:'Half'}],-2,false,null,[],[L3]),
       p('d14','Jalen Hurts','QB','PHI',[],[L2,L3],[{lg:L2,pts:21.40,proj:28.0,fmt:'Half'},{lg:L3,pts:21.40,proj:28.0,fmt:'Std'}],-2,false,'Injured Reserve'),
       p('d15','Sam LaPorta','TE','DET',[],[L1],[{lg:L1,pts:6.80,proj:10.0,fmt:'PPR'}],-1,false,'Questionable'),
       p('d16','Tony Pollard','RB','TEN',[],[L1],[{lg:L1,pts:8.40,proj:12.0,fmt:'PPR'}],-1,false),
       p('d17','Cooper Kupp','WR','LAR',[],[L1,L2],[{lg:L1,pts:13.60,proj:16.0,fmt:'PPR'},{lg:L2,pts:13.60,proj:16.0,fmt:'Half'}],-2,false),
       p('d18','Stefon Diggs','WR','HOU',[],[L4],[{lg:L4,pts:11.20,proj:null,fmt:'PPR'}],0,true),
-    ]};
+  ];
+  return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,debugInfo:null,allRostered:[...cheerFor,...conflicted,...enemies,...benchOnly],cheerFor,conflicted,enemies};
 }
 
 async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
@@ -2399,7 +2424,7 @@ function parseEspnLeague(data,season,week,isHist){
   const myTeam=data.teams.find(t=>(t.owners||[]).some(o=>String(o).toLowerCase()===mySwid));
   if(!myTeam){
     return{
-      lg:{leagueName,myPlayers:[],oppPlayers:[],hasMatchup:false,fmt},
+      lg:{leagueName,myPlayers:[],oppPlayers:[],myBench:[],oppBench:[],hasMatchup:false,fmt},
       ctx:{leagueName,leagueState:'NO_MATCHUP',myPoints:0,oppPoints:0,myPP:{},oppPP:{},fmt},
       dbg:{name:leagueName,leagueId,rosterFound:false,matchupFound:false,myCount:0,oppCount:0,state:'NO_TEAM',scoringFmt:fmt,isCoMgr:false}
     };
@@ -2412,7 +2437,7 @@ function parseEspnLeague(data,season,week,isHist){
     s.matchupPeriodId===week&&(s.home?.teamId===myTeam.id||s.away?.teamId===myTeam.id)
   );
 
-  let myPlayers=[],oppPlayers=[],hasMatchup=false,myPoints=0,oppPoints=0;
+  let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0;
   let myPP={},oppPP={},leagueState='NO_MATCHUP';
 
   if(matchup){
@@ -2427,9 +2452,13 @@ function parseEspnLeague(data,season,week,isHist){
     const oppRosterEntries=oppEntry?.rosterForCurrentScoringPeriod?.entries||[];
     const myStarters=myRosterEntries.filter(e=>!ESPN_BENCH_SLOTS.has(e.lineupSlotId));
     const oppStarters=oppRosterEntries.filter(e=>!ESPN_BENCH_SLOTS.has(e.lineupSlotId));
+    const myBenchEntries=myRosterEntries.filter(e=>ESPN_BENCH_SLOTS.has(e.lineupSlotId));
+    const oppBenchEntries=oppRosterEntries.filter(e=>ESPN_BENCH_SLOTS.has(e.lineupSlotId));
 
     myPlayers=myStarters.map(espnPlayerObj).filter(Boolean);
     oppPlayers=oppStarters.map(espnPlayerObj).filter(Boolean);
+    myBench=myBenchEntries.map(espnPlayerObj).filter(Boolean);
+    oppBench=oppBenchEntries.map(espnPlayerObj).filter(Boolean);
 
     myStarters.forEach(e=>{
       const obj=espnPlayerObj(e);if(!obj)return;
@@ -2454,11 +2483,13 @@ function parseEspnLeague(data,season,week,isHist){
        roster in player buckets even without head-to-head context. */
     const entries=myTeam.roster?.entries||[];
     const starters=entries.filter(e=>!ESPN_BENCH_SLOTS.has(e.lineupSlotId));
+    const benchEntries=entries.filter(e=>ESPN_BENCH_SLOTS.has(e.lineupSlotId));
     myPlayers=(starters.length?starters:entries).map(espnPlayerObj).filter(Boolean);
+    myBench=starters.length?benchEntries.map(espnPlayerObj).filter(Boolean):[];
   }
 
   return{
-    lg:{leagueName,myPlayers,oppPlayers,hasMatchup,fmt},
+    lg:{leagueName,myPlayers,oppPlayers,myBench,oppBench,hasMatchup,fmt},
     ctx:{leagueName,leagueState,myPoints,oppPoints,myPP,oppPP,fmt},
     dbg:{name:leagueName,leagueId,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr:false}
   };
@@ -2506,26 +2537,32 @@ const PROVIDERS={
         let matchups=[];try{const raw=await getMatchups(lg.league_id,week);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
         const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
         const oppMatchup=myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
-        let myPlayers=[],oppPlayers=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP';
+        let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP';
         if(myMatchup){
           hasMatchup=true;
           const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
           const allMine=(myMatchup.players||myRoster.players||[]).filter(id=>id&&id!=='0');
           myPlayers=starters.length?starters:allMine;
+          const myStartSet=new Set(starters);
+          myBench=starters.length?allMine.filter(id=>!myStartSet.has(id)):[];
           myPoints=myMatchup.points||0;myPP=myMatchup.players_points||{};
           const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
           const oppTaxiIds=new Set((oppRoster?.taxi||[]).filter(Boolean));
           const oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
           const oppAll=(oppMatchup?(oppMatchup.players||oppRoster?.players||[]):[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
           oppPlayers=oppStarters.length?oppStarters:oppAll;
+          const oppStartSet=new Set(oppStarters);
+          oppBench=oppStarters.length?oppAll.filter(id=>!oppStartSet.has(id)):[];
           oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
           leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,hasProj?projSum(myPlayers):0,hasProj?projSum(oppPlayers):0);
         }else{myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');}
         myPlayers=myPlayers.filter(id=>id&&id!=='0');
         oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
+        myBench=myBench.filter(id=>id&&id!=='0');
+        oppBench=oppBench.filter(id=>id&&id!=='0');
         contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
         debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
-        return{leagueName:lg.name,myPlayers,oppPlayers,hasMatchup,fmt,provider:'sleeper'};
+        return{leagueName:lg.name,myPlayers,oppPlayers,myBench,oppBench,hasMatchup,fmt,provider:'sleeper'};
       }));
       const valid=results.filter(Boolean);
       if(leagues?.length&&!valid.length)throw new Error('Found Sleeper leagues but could not read roster data.');
@@ -3159,11 +3196,16 @@ initThemeToggle();
 <!-- ============ Exposure map view ============ -->
 <script>
 (function(){
+  var EXP_INCLUDE_BENCH_KEY = 'gd_exp_include_bench';
+  var initialIncludeBench = false;
+  try { initialIncludeBench = localStorage.getItem(EXP_INCLUDE_BENCH_KEY) === '1'; } catch(e){}
+
   // State for the exposure view (independent of dashboard filters)
   var state = {
-    mode: 'positive',   // 'positive' | 'negative'
-    axis: 'players',    // 'players' | 'teams'
-    pos: 'ALL'          // ALL | QB | RB | WR | TE | K | DEF
+    mode: 'positive',          // 'positive' | 'negative'
+    axis: 'players',           // 'players' | 'teams'
+    pos: 'ALL',                // ALL | QB | RB | WR | TE | K | DEF
+    includeBench: initialIncludeBench // false = starters only, true = include bench
   };
 
   function esc(s){
@@ -3175,11 +3217,15 @@ initThemeToggle();
   function getData(){ return window.__conflictedLastData || null; }
 
   // Returns sorted list of league names known to the current data
-  function leaguesFromData(data, mode){
+  function leaguesFromData(data, mode, includeBench){
     var names = [];
-    var all = [].concat(data.cheerFor || [], data.conflicted || [], data.enemies || []);
+    var all = Array.isArray(data.allRostered) && data.allRostered.length
+      ? data.allRostered
+      : [].concat(data.cheerFor || [], data.conflicted || [], data.enemies || []);
     all.forEach(function(p){
-      var src = mode === 'positive' ? (p.myLeagues || []) : (p.againstLeagues || []);
+      var primary = mode === 'positive' ? (p.myLeagues || []) : (p.againstLeagues || []);
+      var bench   = mode === 'positive' ? (p.myBenchLeagues || []) : (p.againstBenchLeagues || []);
+      var src = includeBench ? primary.concat(bench) : primary;
       src.forEach(function(n){ if(names.indexOf(n) === -1) names.push(n); });
     });
     // Stable order: keep order of first appearance from contexts if available
@@ -3199,14 +3245,23 @@ initThemeToggle();
   // Map a player into an exposure row { id, label, sub, pos, leagues:[names], count }
   // sub is retained internally because aggregateByTeam parses the team off it,
   // but is no longer rendered in the heat/list display.
-  function expoRowFromPlayer(p, mode){
-    var src = mode === 'positive' ? (p.myLeagues || []) : (p.againstLeagues || []);
+  function expoRowFromPlayer(p, mode, includeBench){
+    var primary = mode === 'positive' ? (p.myLeagues || []) : (p.againstLeagues || []);
+    var bench   = mode === 'positive' ? (p.myBenchLeagues || []) : (p.againstBenchLeagues || []);
+    var src;
+    if (includeBench){
+      // Defensive dedupe: same league shouldn't appear in both, but guard anyway.
+      src = primary.slice();
+      bench.forEach(function(n){ if (src.indexOf(n) === -1) src.push(n); });
+    } else {
+      src = primary.slice();
+    }
     return {
       id: p.id || (p.full_name + '|' + p.team),
       label: p.full_name || 'Unknown',
       sub: [p.position, p.team].filter(Boolean).join(' · '),
       pos: p.position || '',
-      leagues: src.slice(),
+      leagues: src,
       count: src.length
     };
   }
@@ -3235,10 +3290,13 @@ initThemeToggle();
   function computeExposureData(){
     var data = getData();
     if(!data) return null;
-    var all = [].concat(data.cheerFor || [], data.conflicted || [], data.enemies || []);
+    var all = Array.isArray(data.allRostered) && data.allRostered.length
+      ? data.allRostered
+      : [].concat(data.cheerFor || [], data.conflicted || [], data.enemies || []);
     var mode = state.mode;
+    var includeBench = !!state.includeBench;
     // Filter players whose contribution is meaningful for this mode
-    var rows = all.map(function(p){ return expoRowFromPlayer(p, mode); }).filter(function(r){ return r.count > 0; });
+    var rows = all.map(function(p){ return expoRowFromPlayer(p, mode, includeBench); }).filter(function(r){ return r.count > 0; });
     // Apply position filter
     if (state.pos !== 'ALL'){
       rows = rows.filter(function(r){ return r.pos === state.pos; });
@@ -3246,12 +3304,18 @@ initThemeToggle();
     if (state.axis === 'teams'){
       rows = aggregateByTeam(rows);
     }
-    rows.sort(function(a,b){ return b.count - a.count || a.label.localeCompare(b.label); });
+    var posOrder = (typeof POS_ORDER !== 'undefined') ? POS_ORDER : ['QB','RB','WR','TE','K','DEF'];
+    rows.sort(function(a,b){
+      if(b.count !== a.count) return b.count - a.count;
+      var ai = posOrder.indexOf(a.pos), bi = posOrder.indexOf(b.pos);
+      if(ai === -1) ai = posOrder.length; if(bi === -1) bi = posOrder.length;
+      return ai - bi || a.label.localeCompare(b.label);
+    });
     return {
       data: data,
       mode: mode,
       rows: rows,
-      leagues: leaguesFromData(data, mode)
+      leagues: leaguesFromData(data, mode, includeBench)
     };
   }
 
@@ -3263,8 +3327,6 @@ initThemeToggle();
       subtitle: 'Each cell is one player on a roster this week. Flip Positive / Negative to swap whose rosters.',
       kpiTopLabel: 'Top exposure',
       kpiTopSub: 'exposures',
-      kpiConflictsLabel: 'Direct conflicts',
-      kpiConflictsSub: 'with 2+ league appearances',
       kpiFootprintLabel: 'Total footprint',
       kpiFootprintSub: 'across the relevant rosters',
       listTitle: 'Exposure list — every player',
@@ -3277,7 +3339,6 @@ initThemeToggle();
   function renderKPIs(payload, copy){
     var rows = payload.rows;
     var top = rows[0];
-    var conflictCount = rows.filter(function(r){ return r.count >= 2; }).length;
     var footprint = rows.length;
     var kpis = document.getElementById('exp-kpis');
     if (!kpis) return;
@@ -3285,9 +3346,6 @@ initThemeToggle();
       '<div class="exp-kpi"><p class="exp-kpi__label">' + esc(copy.kpiTopLabel) + '</p>' +
         '<p class="exp-kpi__value">' + (top ? esc(top.label) : '—') + '</p>' +
         '<p class="exp-kpi__sub">' + (top ? top.count + ' ' + esc(copy.kpiTopSub) : '—') + '</p></div>' +
-      '<div class="exp-kpi"><p class="exp-kpi__label">' + esc(copy.kpiConflictsLabel) + '</p>' +
-        '<p class="exp-kpi__value">' + conflictCount + '</p>' +
-        '<p class="exp-kpi__sub">' + esc(copy.kpiConflictsSub) + '</p></div>' +
       '<div class="exp-kpi"><p class="exp-kpi__label">' + esc(copy.kpiFootprintLabel) + '</p>' +
         '<p class="exp-kpi__value">' + footprint + '</p>' +
         '<p class="exp-kpi__sub">' + esc(copy.kpiFootprintSub) + '</p></div>';
@@ -3399,6 +3457,17 @@ initThemeToggle();
         b.setAttribute('aria-selected', active ? 'true' : 'false');
       });
     }
+    var benchToggle = document.getElementById('exp-bench-toggle');
+    if (benchToggle){
+      benchToggle.classList.toggle('mode-positive', state.mode === 'positive');
+      benchToggle.classList.toggle('mode-negative', state.mode === 'negative');
+      var benchVal = state.includeBench ? 'all' : 'starters';
+      benchToggle.querySelectorAll('button').forEach(function(b){
+        var active = b.getAttribute('data-exp-bench') === benchVal;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+    }
 
     // Position filter pills
     document.querySelectorAll('#exp-filters [data-exp-pos]').forEach(function(b){
@@ -3475,6 +3544,13 @@ initThemeToggle();
     var p = e.target.closest('[data-exp-pos]');
     if (p){
       state.pos = p.getAttribute('data-exp-pos');
+      renderExposureView();
+      return;
+    }
+    var bn = e.target.closest('[data-exp-bench]');
+    if (bn){
+      state.includeBench = bn.getAttribute('data-exp-bench') === 'all';
+      try { localStorage.setItem(EXP_INCLUDE_BENCH_KEY, state.includeBench ? '1' : '0'); } catch(err){}
       renderExposureView();
       return;
     }
