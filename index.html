@@ -105,6 +105,24 @@
     .t-stat{font:500 18px/1.1 var(--font-mono);color:var(--ink-900);}
     .t-stat-sm{font:400 13px/1.2 var(--font-mono);color:var(--ink-500);}
 
+    /* "Synced HH:MM:SS" pill — green flash on LIVE-button refresh, then fades
+       back to the static look. .synced-flash snaps on (no transition), removing
+       the class lets the base rule's transition fade it back out over ~1.3s. */
+    #board-refresh-time {
+      display: inline-block;
+      padding: 3px 9px;
+      border: 1px solid transparent;
+      background: transparent;
+      border-radius: var(--radius-pill);
+      transition: background 1.3s var(--ease-out), border-color 1.3s var(--ease-out), color 1.3s var(--ease-out);
+    }
+    #board-refresh-time.synced-flash {
+      background: var(--cheer-soft);
+      border-color: var(--cheer);
+      color: var(--cheer);
+      transition: none;
+    }
+
     /* ── Header ───────────────────────────────────────────────── */
     .site-header {
       background: var(--paper); border-bottom: 1px solid var(--line);
@@ -123,13 +141,6 @@
       letter-spacing: 0.08em; text-transform: uppercase;
       background: var(--paper-deep); padding: 6px 10px; border-radius: var(--radius-pill);
     }
-    .last-refreshed {
-      display: none; font: 400 11px/1 var(--font-mono); color: var(--ink-500);
-      letter-spacing: 0.04em; white-space: nowrap;
-    }
-    .last-refreshed.visible { display: block; }
-    @media (max-width: 640px) { .last-refreshed { display: none !important; } }
-
     /* ── Menu trigger (hamburger) ────────────────────────────── */
     .site-header__menu-btn {
       display: inline-flex; align-items: center; justify-content: center;
@@ -1321,7 +1332,6 @@
       </svg>
     </a>
     <nav class="site-header__nav">
-      <span class="last-refreshed" id="last-refreshed"></span>
       <span class="site-header__week" id="week-label" style="display:none"></span>
       <button class="btn-ghost" id="change-user-btn" onclick="handleChangeUser()" style="display:none">Change user</button>
       <button class="btn-live" id="refresh-btn" onclick="handleRefresh()" style="display:none"><span class="dot-live"></span> LIVE</button>
@@ -2421,8 +2431,23 @@ async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek
 async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};activeFilters.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
 async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(isAnyProviderConnected())await run();}
 
-function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');hideLastRefreshed();}
-async function handleRefresh(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode){handleDemo();return;}if(isAnyProviderConnected())await run();}
+function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');}
+async function handleRefresh(){
+  activeWeek=liveWeek;activeSeason=liveSeason;
+  buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();
+  if(isDemoMode){handleDemo();flashSyncedFeedback();return;}
+  if(isAnyProviderConnected()){await run();flashSyncedFeedback();}
+}
+function flashSyncedFeedback(){
+  const el=document.getElementById('board-refresh-time');
+  if(!el)return;
+  el.classList.remove('synced-flash');
+  // Force reflow so re-adding the class restarts the snap-on + fade-back cycle
+  // even if the user spams the LIVE button.
+  void el.offsetWidth;
+  el.classList.add('synced-flash');
+  setTimeout(()=>el.classList.remove('synced-flash'),200);
+}
 async function handleChangeUser(){isDemoMode=false;colorMap={};activeFilters.clear();resetRenderIndexes();stopAutoRefresh();showSetup();}
 function resetRenderIndexes(){
   ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
@@ -2438,7 +2463,6 @@ async function run(){
   try{
     renderBoard(await loadData(),getPrimaryDisplayName());
     lastFetchTime=Date.now();
-    setLastRefreshed();
     startAutoRefresh();
   }catch(err){console.error(err);showError(err.message||'Something went wrong on our end. Refreshing usually fixes it.');}
 }
@@ -2452,7 +2476,7 @@ function startAutoRefresh(){
     if(document.hidden)return;
     if(!isDashboardVisible())return; // pause polling when user is on exposure map / any non-dashboard view
     if(Date.now()-lastFetchTime>=REFRESH_MS){
-      try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();setLastRefreshed();}
+      try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();}
       catch(e){console.warn('Auto-refresh failed silently:',e.message);}
     }
   },10000);
@@ -2462,19 +2486,10 @@ document.addEventListener('visibilitychange',async()=>{
   if(document.hidden)return; if(!shouldAutoRefresh())return;
   if(!isDashboardVisible())return; // don't yank user off exposure map when tab regains focus
   if(Date.now()-lastFetchTime>=REFRESH_MS){
-    try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();setLastRefreshed();}
+    try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();}
     catch(e){console.warn('Tab-return refresh failed:',e.message);}
   }
 });
-function setLastRefreshed(){
-  if(isDemoMode)return;
-  const el=document.getElementById('last-refreshed'); if(!el)return;
-  const now=new Date();
-  const hh=String(now.getHours()).padStart(2,'0'),mm=String(now.getMinutes()).padStart(2,'0'),ss=String(now.getSeconds()).padStart(2,'0');
-  el.textContent=`Synced ${hh}:${mm}:${ss}`;
-  el.classList.add('visible');
-}
-function hideLastRefreshed(){const el=document.getElementById('last-refreshed');if(el){el.textContent='';el.classList.remove('visible');}}
 
 buildWeekSelect(1);buildSeasonSelect(THIS_YR);
 
