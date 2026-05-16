@@ -1237,8 +1237,8 @@
     .exp-heat__cols { display: grid; gap: 6px; align-items: end; padding-bottom: 8px; }
     .exp-heat__col-label { font: 500 10px/1.2 var(--font-mono); color: var(--ink-500); text-align: center; letter-spacing: 0.06em; text-transform: uppercase; }
     .exp-heat__row { display: grid; gap: 6px; align-items: center; padding: 4px 0; }
-    .exp-heat__name { display: flex; align-items: baseline; gap: 8px; min-width: 0; overflow: hidden; }
-    .exp-heat__name strong { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .exp-heat__name { display: flex; align-items: baseline; gap: 8px; }
+    .exp-heat__name strong { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); white-space: nowrap; }
     .exp-heat__name span { font: 500 10px/1 var(--font-mono); color: var(--ink-500); letter-spacing: 0.04em; flex-shrink: 0; white-space: nowrap; }
     .exp-cell { height: 26px; border-radius: 4px; }
     .exp-cell--empty { background: transparent; border: 1px dashed var(--line); }
@@ -1249,8 +1249,8 @@
 
     .exp-list__row { display: grid; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
     .exp-list__row:last-child { border-bottom: 0; }
-    .exp-list__name { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); display: flex; align-items: baseline; gap: 8px; min-width: 0; overflow: hidden; }
-    .exp-list__name strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+    .exp-list__name { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); display: flex; align-items: baseline; gap: 8px; }
+    .exp-list__name strong { white-space: nowrap; font-weight: 500; }
     .exp-list__name em { font: 500 10px/1 var(--font-mono); color: var(--ink-500); letter-spacing: 0.04em; font-style: normal; flex-shrink: 0; }
     .exp-list__bar { height: 8px; background: var(--paper-deep); border-radius: 4px; overflow: hidden; }
     .exp-list__bar div { height: 100%; background: var(--coral-500); transition: width var(--duration-base) var(--ease-out); border-radius: 4px; }
@@ -3365,13 +3365,31 @@ initThemeToggle();
         '<p class="exp-kpi__sub">' + esc(copy.kpiFootprintSub) + '</p></div>';
   }
 
+  function measureNameColWidth(rows) {
+    var fallback = 'minmax(160px, 1.4fr)';
+    try {
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      var fontSans = getComputedStyle(document.documentElement).getPropertyValue('--font-sans').trim() || 'system-ui,-apple-system,sans-serif';
+      ctx.font = '500 13px ' + fontSans;
+      var max = 160;
+      rows.forEach(function(r) {
+        var w = ctx.measureText(r.label).width;
+        if (w > max) max = w;
+      });
+      return Math.ceil(max) + 24 + 'px'; // 24px for left+right padding
+    } catch(e) {
+      return fallback;
+    }
+  }
+
   function renderHeat(payload){
     var heat = document.getElementById('exp-heat');
     if (!heat) return;
     var mode = payload.mode;
     var leagues = payload.leagues;
     var rows = payload.rows; // full results, no truncation (product decision)
-    var nameCol = 'minmax(160px, 1.4fr)';
+    var nameCol = measureNameColWidth(rows);
     var leagueCols = leagues.length ? leagues.map(function(){ return 'minmax(28px, 1fr)'; }).join(' ') : '1fr';
     var gridTemplate = nameCol + ' ' + leagueCols;
 
@@ -3419,10 +3437,11 @@ initThemeToggle();
       return;
     }
     var max = rows[0].count || 1;
+    var nameW = measureNameColWidth(rows);
     var html = '';
     rows.forEach(function(r){
       var pct = Math.max(6, Math.round((r.count / max) * 100));
-      html += '<div class="exp-list__row" style="grid-template-columns:minmax(0,2fr) minmax(0,3fr) 60px;">' +
+      html += '<div class="exp-list__row" style="grid-template-columns:' + nameW + ' minmax(0,1fr) 60px;">' +
         '<div class="exp-list__name"><strong>' + esc(r.label) + '</strong></div>' +
         '<div class="exp-list__bar"><div style="width:' + pct + '%"></div></div>' +
         '<div class="exp-list__count">' + r.count + '</div>' +
