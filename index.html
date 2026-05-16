@@ -263,10 +263,21 @@
       font: 500 13px/1 var(--font-sans);
       border: 1px solid var(--cheer); border-radius: var(--radius-md);
       padding: 7px 12px; cursor: pointer;
-      transition: background var(--duration-fast) var(--ease-out);
+      transition: background var(--duration-fast) var(--ease-out),
+                  color var(--duration-fast) var(--ease-out),
+                  transform var(--duration-fast) var(--ease-out),
+                  box-shadow var(--duration-fast) var(--ease-out);
     }
     .btn-live:hover { background: color-mix(in oklab, var(--cheer-soft) 70%, var(--paper)); }
+    /* Tactile press: a 1px depression on mouse-down gives an instant "yes, I
+       registered your click" cue, independent of the async fetch that follows. */
+    .btn-live:active { transform: translateY(1px); box-shadow: inset 0 1px 0 color-mix(in oklab, var(--cheer) 30%, transparent); }
     .btn-live.current { background: var(--cheer); color: var(--paper); }
+    /* In-flight sync state: invert to solid green for the duration of the fetch
+       so the user can see the request is running. The dot pulses to signal
+       "work in progress" using the existing livePulse keyframe. */
+    .btn-live.syncing { background: var(--cheer); color: var(--paper); cursor: progress; }
+    .btn-live.syncing .dot-live { animation: livePulse 1.0s ease-in-out infinite; }
     .btn-live .dot-live { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
     /* Injury status badges */
@@ -2433,10 +2444,19 @@ async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWee
 
 function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');}
 async function handleRefresh(){
-  activeWeek=liveWeek;activeSeason=liveSeason;
-  buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();
-  if(isDemoMode){handleDemo();flashSyncedFeedback();return;}
-  if(isAnyProviderConnected()){await run();flashSyncedFeedback();}
+  const btn=document.getElementById('refresh-btn');
+  // Ignore re-clicks while a sync is already in flight — the .syncing class is
+  // our authoritative in-flight signal.
+  if(btn&&btn.classList.contains('syncing'))return;
+  if(btn)btn.classList.add('syncing');
+  try{
+    activeWeek=liveWeek;activeSeason=liveSeason;
+    buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();
+    if(isDemoMode){handleDemo();flashSyncedFeedback();return;}
+    if(isAnyProviderConnected()){await run();flashSyncedFeedback();}
+  }finally{
+    if(btn)btn.classList.remove('syncing');
+  }
 }
 function flashSyncedFeedback(){
   const el=document.getElementById('board-refresh-time');
