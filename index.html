@@ -854,8 +854,8 @@
       margin-bottom: 8px;
       display: flex; flex-direction: column; gap: 7px;
       transition: transform var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
-      animation: fadeUp var(--duration-base) var(--ease-out) both;
     }
+    .player-card[data-fresh="1"] { animation: fadeUp var(--duration-base) var(--ease-out) both; }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     .player-card:hover { transform: translateY(-1px); border-color: var(--ink-300); }
     .column.cheer      .player-card { border-left: 3px solid var(--cheer); }
@@ -1779,6 +1779,18 @@ function showBoard(){
   hideAll();document.getElementById('board').style.display='block';
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='inline-flex');
   document.getElementById('week-label').style.display='block';
+  // Replay the card entrance animation on view-switches (priority/exposure → board).
+  // Routine 60s refreshes don't go through showBoard (the _alreadyOnBoard guard in
+  // renderBoard skips it), so this never fires during the flash-prone path.
+  markAllCardsFresh();
+}
+function markAllCardsFresh(){
+  const cards=document.querySelectorAll('.player-card');
+  if(!cards.length)return;
+  cards.forEach(c=>{c.dataset.fresh='1';});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    cards.forEach(c=>c.removeAttribute('data-fresh'));
+  }));
 }
 function goToDashboardOrSetup(){
   if(isAnyProviderConnected()||isDemoMode) showBoard();
@@ -1802,33 +1814,75 @@ function updateNavUI(){
 }
 
 function renderScoresStrip(contexts){
-  const strip=document.getElementById('scores-strip');strip.innerHTML='';
-  if(!contexts.some(c=>c.leagueState!=='NO_MATCHUP')){strip.classList.remove('visible');return;}
+  const strip=document.getElementById('scores-strip');
+  if(!strip._cellIndex)strip._cellIndex=new Map();
+  const idx=strip._cellIndex;
+  if(!contexts.some(c=>c.leagueState!=='NO_MATCHUP')){
+    idx.forEach(n=>n.remove());idx.clear();
+    strip.classList.remove('visible');return;
+  }
   strip.classList.add('visible');
+  const newNames=new Set(contexts.map(c=>c.leagueName));
+  for(const[name,node]of idx){if(!newNames.has(name)){node.remove();idx.delete(name);}}
   contexts.forEach(ctx=>{
     const color=lc(ctx.leagueName),st=ctx.leagueState;
     const dataStatus={LIVE:'live',LOCKED_WIN:'winning',LOCKED_LOSS:'losing',FINAL_WIN:'winning',FINAL_LOSS:'losing',FINAL_TIE:'final',NO_MATCHUP:''}[st]||'';
     const stTxt={LIVE:'● Live',LOCKED_WIN:'Clinched',LOCKED_LOSS:'Eliminated',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie',NO_MATCHUP:'No matchup'}[st]||'';
     const stCls={LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final',NO_MATCHUP:'none'}[st]||'none';
-    const cell=document.createElement('div');cell.className='score-cell';cell.dataset.status=dataStatus;
-    cell.innerHTML=`
-      <div class="score-cell__league"><span class="score-cell__league-dot" style="background:${color}"></span>${ctx.leagueName}</div>
-      <div class="score-cell__row"><span class="score-cell__label">You</span><span class="score-cell__points">${ctx.myPoints.toFixed(2)}</span></div>
+    let cell=idx.get(ctx.leagueName);
+    if(!cell){
+      cell=document.createElement('div');cell.className='score-cell';
+      cell.innerHTML=`
+      <div class="score-cell__league"><span class="score-cell__league-dot" style="background:${color}"></span><span class="score-cell__league-name">${ctx.leagueName}</span></div>
+      <div class="score-cell__row"><span class="score-cell__label">You</span><span class="score-cell__points score-cell__points--you">${ctx.myPoints.toFixed(2)}</span></div>
       <div class="score-cell__row"><span class="score-cell__label">Opp</span><span class="score-cell__points score-cell__points--opp">${ctx.oppPoints.toFixed(2)}</span></div>
       <div class="score-cell__divider"></div>
-      <div class="score-cell__state ${stCls}">${stTxt}</div>
-    `;
-    strip.appendChild(cell);
+      <div class="score-cell__state ${stCls}">${stTxt}</div>`;
+      idx.set(ctx.leagueName,cell);
+    } else {
+      // Update points + state in place; league name/dot are immutable.
+      const youEl=cell.querySelector('.score-cell__points--you');
+      const oppEl=cell.querySelector('.score-cell__points--opp');
+      const stateEl=cell.querySelector('.score-cell__state');
+      if(youEl)youEl.textContent=ctx.myPoints.toFixed(2);
+      if(oppEl)oppEl.textContent=ctx.oppPoints.toFixed(2);
+      if(stateEl){stateEl.className=`score-cell__state ${stCls}`;stateEl.textContent=stTxt;}
+    }
+    cell.dataset.status=dataStatus;
+    strip.appendChild(cell); // reorders without re-creating
   });
 }
 
+let _lastFilterPillsKey='';
 function buildFilterPills(names){
   const fe=document.getElementById('league-filters'),ce=document.getElementById('filter-pills');
-  ce.innerHTML='';activeFilters.clear();
-  if(names.length<2){fe.classList.remove('visible');return;}fe.classList.add('visible');
-  const all=Object.assign(document.createElement('span'),{className:'filter-pill all-pill active',textContent:'All'});
-  all.dataset.league='__all__';all.onclick=()=>toggleFilter('__all__',names);ce.appendChild(all);
-  names.forEach(name=>{const color=lc(name);const pill=document.createElement('span');pill.className='filter-pill';pill.textContent=name;pill.dataset.league=name;pill.style.cssText=`background:${color}1a;border-color:${color}55;color:${color}`;pill.onclick=()=>toggleFilter(name,names);ce.appendChild(pill);});
+  const key=names.join('|');
+  // Drop any active filter for a league that no longer exists. Preserve the rest
+  // so the user's selection survives 60s refreshes.
+  for(const lg of[...activeFilters]){if(!names.includes(lg))activeFilters.delete(lg);}
+  if(key===_lastFilterPillsKey){
+    // Pills DOM unchanged — just re-sync active/inactive classes from state.
+    document.querySelectorAll('#filter-pills .filter-pill').forEach(p=>{
+      const l=p.dataset.league;
+      if(l==='__all__'){p.classList.toggle('active',activeFilters.size===0);p.classList.toggle('inactive',activeFilters.size>0);}
+      else p.classList.toggle('inactive',activeFilters.size>0&&!activeFilters.has(l));
+    });
+    updateFilterCount();
+    return;
+  }
+  _lastFilterPillsKey=key;
+  ce.innerHTML='';
+  if(names.length<2){fe.classList.remove('visible');updateFilterCount();return;}fe.classList.add('visible');
+  const all=Object.assign(document.createElement('span'),{className:'filter-pill all-pill',textContent:'All'});
+  all.dataset.league='__all__';all.onclick=()=>toggleFilter('__all__',names);
+  all.classList.toggle('active',activeFilters.size===0);
+  all.classList.toggle('inactive',activeFilters.size>0);
+  ce.appendChild(all);
+  names.forEach(name=>{
+    const color=lc(name);const pill=document.createElement('span');pill.className='filter-pill';pill.textContent=name;pill.dataset.league=name;pill.style.cssText=`background:${color}1a;border-color:${color}55;color:${color}`;pill.onclick=()=>toggleFilter(name,names);
+    if(activeFilters.size>0&&!activeFilters.has(name))pill.classList.add('inactive');
+    ce.appendChild(pill);
+  });
   updateFilterCount();
 }
 function toggleFilter(lg,all){
@@ -1878,13 +1932,7 @@ function updatePillCounts(){
   });
 }
 
-function buildCard(player,delay,isHist){
-  const div=document.createElement('div');
-  div.className=`player-card${player.clinched?' clinched':''}`;
-  div.style.animationDelay=`${delay}ms`;
-  div.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
-  div.dataset.team=player.team||'';
-  div.dataset.live=isPlayerLive(player)?'1':'0';
+function buildCardInner(player,isHist){
   const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
   let ptsHTML='';
   if(hasAnyPts){
@@ -1907,8 +1955,37 @@ function buildCard(player,delay,isHist){
   }
   const livePill=isPlayerLive(player)?`<span class="live-pill" aria-label="In a live game"><span class="live-dot"></span>LIVE</span>`:'';
 
-  div.innerHTML=`<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${livePill}<span class="player-team">${player.team||''}</span>${injBadge}</div>${ptsHTML}${rosterHTML}`;
+  return `<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${livePill}<span class="player-team">${player.team||''}</span>${injBadge}</div>${ptsHTML}${rosterHTML}`;
+}
+
+function buildCard(player,isHist){
+  const div=document.createElement('div');
+  div.className=`player-card${player.clinched?' clinched':''}`;
+  div.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
+  div.dataset.team=player.team||'';
+  div.dataset.live=isPlayerLive(player)?'1':'0';
+  const inner=buildCardInner(player,isHist);
+  div.innerHTML=inner;
+  div._cardHash=inner;
   return div;
+}
+
+// Update an existing card in place. Preserves the outer node (so [data-fresh]
+// animation does not re-trigger on routine 60s refreshes) and the .filtered-out
+// class owned by applyFilters. Replaces innerHTML only when content actually
+// changes — string equality on the rendered inner HTML is the simplest reliable
+// signal, since the card is small (~500 bytes) and any field change shows up.
+function updateCard(node,player,isHist){
+  // Always refresh dataset (consumed by applyFilters) and clinched class:
+  node.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
+  node.dataset.team=player.team||'';
+  node.dataset.live=isPlayerLive(player)?'1':'0';
+  node.classList.toggle('clinched',!!player.clinched);
+  const inner=buildCardInner(player,isHist);
+  if(node._cardHash!==inner){
+    node.innerHTML=inner;
+    node._cardHash=inner;
+  }
 }
 
 function playerMaxPts(p){
@@ -1934,19 +2011,12 @@ function renderBoard(data,username){
   window.__conflictedLastUsername=username;
   const _expoOpen=!!window.__conflictedExposureOpen;
   const{cheerFor,conflicted,enemies,offseasonMode,debugInfo,noData,noDataReason,contexts,hasScoring,isHist}=data;
-  // Level 1 soft-refresh: skip showBoard() pulse + pin column height + restore scroll.
-  // Root cause of the scroll-to-top: innerHTML='' on the three columns briefly collapses
-  // page height to ~0, the browser clamps scrollY to the new max (often 0), and even
-  // though cards re-append in the same tick, the clamped scroll position has already
-  // stuck. Fix: pin #columns min-height to its current value before the wipe, restore
-  // scroll inside rAF (before paint), then release the pin.
+  // Soft-refresh: with keyed reconciliation below, the columns no longer wipe-
+  // and-rebuild so page height never collapses — the old scroll-pin / restore
+  // machinery is unnecessary. Only suppress the showBoard() pulse if the board
+  // is already on-screen.
   const _boardEl=document.getElementById('board');
   const _alreadyOnBoard=!!(_boardEl && _boardEl.style.display && _boardEl.style.display!=='none');
-  const _preserveScroll=_alreadyOnBoard && !_expoOpen;
-  const _savedScrollY=_preserveScroll?(window.scrollY||document.documentElement.scrollTop||0):0;
-  const _colsEl=document.getElementById('columns');
-  const _pinnedColsHeight=(_preserveScroll && _colsEl)?_colsEl.offsetHeight:0;
-  if(_pinnedColsHeight){_colsEl.style.minHeight=_pinnedColsHeight+'px';}
   if(!_expoOpen && !_alreadyOnBoard){showBoard();}
   updateNavUI();
   document.getElementById('banner-demo').classList.toggle('visible',isDemoMode);
@@ -1957,7 +2027,7 @@ function renderBoard(data,username){
   const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   document.getElementById('board-refresh-time').textContent=`Synced ${now}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();_restoreScroll();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
   const showLiveToggle=!isDemoMode&&!isHist;
@@ -1969,7 +2039,37 @@ function renderBoard(data,username){
   document.getElementById('count-enemy').textContent=enemies.length;
   const lgNames=[];[...cheerFor,...conflicted,...enemies].forEach(p=>[...p.myLeagues,...p.againstLeagues].forEach(n=>{if(!lgNames.includes(n))lgNames.push(n);}));
   lgNames.forEach(n=>assignColor(n));buildFilterPills(lgNames);
-  function renderList(id,players){const el=document.getElementById(id);el.innerHTML='';if(!players.length){el.innerHTML='<div class="empty-state">No players in this bucket.</div>';return;}sortPlayers(players).forEach((p,i)=>el.appendChild(buildCard(p,i*24,isHist)));}
+  // Keyed reconciliation: keep existing .player-card nodes across 60s refreshes
+  // so the columns don't wipe-and-rebuild (the cause of the visual flash). New
+  // cards get [data-fresh="1"] to play the entrance animation once; updates and
+  // reorders leave that attribute alone.
+  function renderList(id,players){
+    const el=document.getElementById(id);
+    if(!el._cardIndex)el._cardIndex=new Map();
+    const idx=el._cardIndex;
+    if(!players.length){
+      idx.forEach(n=>n.remove());idx.clear();
+      if(!el.querySelector('.empty-state'))el.innerHTML='<div class="empty-state">No players in this bucket.</div>';
+      return;
+    }
+    const emptyEl=el.querySelector('.empty-state');if(emptyEl)emptyEl.remove();
+    const sorted=sortPlayers(players);
+    const newIds=new Set(sorted.map(p=>String(p.id)));
+    for(const[pid,node]of idx){if(!newIds.has(pid)){node.remove();idx.delete(pid);}}
+    sorted.forEach(p=>{
+      const pid=String(p.id);
+      let node=idx.get(pid);
+      if(node){updateCard(node,p,isHist);}
+      else{
+        node=buildCard(p,isHist);
+        node.dataset.playerId=pid;
+        node.dataset.fresh='1';
+        idx.set(pid,node);
+        requestAnimationFrame(()=>requestAnimationFrame(()=>node.removeAttribute('data-fresh')));
+      }
+      el.appendChild(node); // reorders without re-creating
+    });
+  }
   renderList('cheer-list',cheerFor);renderList('conflicted-list',conflicted);renderList('enemy-list',enemies);
   applyFilters();
   currentContexts=Array.isArray(contexts)?contexts.slice():[];
@@ -1977,32 +2077,6 @@ function renderBoard(data,username){
   updateSettingsPanel();
   if(shouldAutoLaunchPriority(currentContexts))showPriorityOnboarding(currentContexts);
   if(window.__conflictedExposureOpen&&typeof renderExposureView==='function'){try{['setup-panel','loading-panel','error-panel','board','priority-panel'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});var _vexp=document.getElementById('view-exposure');if(_vexp)_vexp.style.display='block';renderExposureView();}catch(e){console.warn('exposure rerender failed',e);}}
-  _restoreScroll();
-
-  // Restore scroll: try sync first (catches the same-task case), then in rAF (catches
-  // anything that resettles after layout). Release the column-height pin AFTER restore
-  // so the page doesn't grow back before scroll lands. Use behavior:'instant' to avoid
-  // smooth-scroll interfering on browsers that have it default-enabled.
-  function _restoreScroll(){
-    if(!_preserveScroll){
-      if(_colsEl)_colsEl.style.minHeight='';
-      return;
-    }
-    const _doScroll=()=>{
-      try{window.scrollTo({top:_savedScrollY,left:0,behavior:'instant'});}
-      catch(e){window.scrollTo(0,_savedScrollY);}
-      if(document.documentElement)document.documentElement.scrollTop=_savedScrollY;
-      if(document.body)document.body.scrollTop=_savedScrollY;
-    };
-    _doScroll();
-    requestAnimationFrame(()=>{
-      _doScroll();
-      requestAnimationFrame(()=>{
-        _doScroll();
-        if(_colsEl)_colsEl.style.minHeight='';
-      });
-    });
-  }
 }
 
 /* ── Yahoo data layer (unchanged from prior implementation) ── */
@@ -2340,7 +2414,17 @@ async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWee
 
 function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');hideLastRefreshed();}
 async function handleRefresh(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode){handleDemo();return;}if(isAnyProviderConnected())await run();}
-async function handleChangeUser(){isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();showSetup();}
+async function handleChangeUser(){isDemoMode=false;colorMap={};activeFilters.clear();resetRenderIndexes();stopAutoRefresh();showSetup();}
+function resetRenderIndexes(){
+  ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){if(el._cardIndex){el._cardIndex.forEach(n=>n.remove());el._cardIndex.clear();} el.innerHTML='';}
+  });
+  const strip=document.getElementById('scores-strip');
+  if(strip){if(strip._cellIndex){strip._cellIndex.forEach(n=>n.remove());strip._cellIndex.clear();} strip.innerHTML='';}
+  _lastFilterPillsKey='';
+  const fp=document.getElementById('filter-pills');if(fp)fp.innerHTML='';
+}
 async function run(){
   try{
     renderBoard(await loadData(),getPrimaryDisplayName());
