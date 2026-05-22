@@ -6,7 +6,7 @@
    for failed navigation requests.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v1';
+const CACHE_VERSION = 'conflicted-v2';
 const OFFLINE_URL = '/offline.html';
 
 /* Files cached at install so the offline page always works,
@@ -46,9 +46,12 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   // For navigation requests (loading a page), try network, fall back to offline.
+  // Important: a 401/403 is NOT an offline condition — the user is online but
+  // their session expired. Pass those through so the app can render its own
+  // "session expired / reconnect" state instead of the offline fallback.
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(() => caches.match(OFFLINE_URL))
+      fetch(req).then((res) => res).catch(() => caches.match(OFFLINE_URL))
     );
     return;
   }

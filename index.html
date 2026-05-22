@@ -792,6 +792,7 @@
     .banner-offseason { background: var(--neutral-soft); border: 1px solid var(--ink-300); color: var(--ink-700); }
     .banner-history   { background: var(--paper-deep);   border: 1px solid var(--navy-300); color: var(--ink-700); }
     .banner-scoring   { background: var(--cheer-soft);   border: 1px solid var(--cheer);   color: var(--ink-700); }
+    .banner-warn      { background: var(--enemy-soft);   border: 1px solid var(--enemy);   color: var(--ink-700); }
 
     /* No-data */
     #no-data-state { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 60px 20px; text-align: center; }
@@ -818,12 +819,11 @@
     .debug-body { display: none; padding: 0 15px 12px; border-top: 1px solid var(--line); }
     .debug-body.open { display: block; }
     .debug-meta {
-      font: 400 11px/1.4 var(--font-mono); color: var(--ink-500);
-      padding: 10px 0; border-bottom: 1px solid var(--line);
-      margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 16px;
+      padding: 12px 0; border-bottom: 1px solid var(--line);
+      margin-bottom: 12px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 10px;
     }
-    .debug-meta strong { color: var(--cheer); }
-    .debug-meta .warn  { color: var(--split); }
     .debug-leagues { display: flex; flex-direction: column; gap: 5px; }
     .debug-league {
       font: 400 11px/1.4 var(--font-mono);
@@ -834,6 +834,19 @@
     .lg-name { color: var(--ink-900); font-weight: 500; flex: 1; min-width: 130px; display: flex; align-items: center; gap: 6px; }
     .lg-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .lg-id { color: var(--ink-500); font-size: 10px; }
+    .debug-table-wrap { overflow-x: auto; }
+    .debug-table { width: 100%; border-collapse: collapse; font: 400 12px/1.4 var(--font-sans); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+    .debug-table th { text-align: left; padding: 8px 10px; font: 500 10px/1 var(--font-sans); color: var(--ink-500); letter-spacing: 0.06em; text-transform: uppercase; background: var(--paper-soft); border-bottom: 1px solid var(--line); white-space: nowrap; }
+    .debug-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--ink-900); vertical-align: middle; }
+    .debug-table tr:last-child td { border-bottom: none; }
+    .debug-table tr:hover td { background: var(--paper-soft); }
+    .debug-table .lg-name-cell { display: flex; align-items: center; gap: 7px; font-weight: 500; min-width: 140px; }
+    .debug-table .lg-id-sub { display: block; color: var(--ink-500); font: 400 10px/1.2 var(--font-mono); margin-top: 2px; }
+    .debug-meta-item { display: flex; flex-direction: column; gap: 3px; padding: 6px 10px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+    .debug-meta-label { font: 500 10px/1 var(--font-sans); color: var(--ink-500); letter-spacing: 0.06em; text-transform: uppercase; }
+    .debug-meta-value { font: 600 13px/1.2 var(--font-sans); color: var(--ink-900); }
+    .debug-meta-value.warn { color: var(--split); }
+    .debug-meta-value.ok { color: var(--cheer); }
     .dpill { padding: 2px 7px; border-radius: var(--radius-sm); font-size: 10px; letter-spacing: 0.04em; border: 1px solid; }
     .dp-ok   { background: var(--cheer-soft);   color: var(--cheer);   border-color: var(--cheer);   }
     .dp-warn { background: var(--enemy-soft);   color: var(--enemy);   border-color: var(--enemy);   }
@@ -1548,6 +1561,7 @@
     </div>
     <div class="banner banner-demo"      id="banner-demo"><div><strong>Demo mode</strong> — 4 fake leagues with live scoring context. Connect a platform to load real data.</div></div>
     <div class="banner banner-offseason" id="banner-offseason"><div><strong>Roster mode</strong> — no matchup data yet. Everyone defaults to your guys until lineups are set.</div></div>
+    <div class="banner banner-warn"      id="banner-partial"><div id="banner-partial-msg"></div></div>
     <div id="no-data-state">
       <div class="no-data-title">No league data</div>
       <div class="no-data-msg" id="no-data-msg"></div>
@@ -1602,7 +1616,7 @@
       <button class="debug-toggle" id="debug-toggle" onclick="toggleDebug()"><span>API debug</span><span class="arrow">▶</span></button>
       <div class="debug-body" id="debug-body">
         <div class="debug-meta" id="debug-meta"></div>
-        <div class="debug-leagues" id="debug-leagues"></div>
+        <div class="debug-table-wrap"><table class="debug-table" id="debug-leagues-table"><thead><tr><th>League</th><th>Provider</th><th>Roster</th><th>Matchup</th><th>State</th><th>Scoring</th><th>Role</th></tr></thead><tbody id="debug-leagues"></tbody></table></div>
       </div>
     </div>
   </div>
@@ -1749,7 +1763,8 @@ async function getProjections(season,week){
   if(isHistoricalWeek())return{};
   const ck=`gd_proj_${season}_${week}`,tk=`${ck}_t`;
   const c=localStorage.getItem(ck),t=localStorage.getItem(tk);
-  if(c&&t&&Date.now()-parseInt(t)<PROJ_TTL)return JSON.parse(c);
+  const cachedT=parseInt(t,10);
+  if(c&&Number.isFinite(cachedT)&&Date.now()-cachedT<PROJ_TTL){try{return JSON.parse(c);}catch(_){/* corrupted JSON — fall through to refetch */}}
   try{setLoading('Fetching projections.');const p=await apiFetch(`${BASE}/projections/nfl/regular/${season}/${week}`);try{localStorage.setItem(ck,JSON.stringify(p));localStorage.setItem(tk,Date.now());}catch(e){}return p;}catch(e){return{};}
 }
 
@@ -1944,9 +1959,22 @@ function toggleDebug(){document.getElementById('debug-toggle').classList.toggle(
 function renderDebug(info){
   if(!info){document.getElementById('debug-panel').style.display='none';return;}
   document.getElementById('debug-panel').style.display='block';
-  document.getElementById('debug-meta').innerHTML=`<span>Season: <strong>${info.season}</strong></span><span>Week: <strong>${info.week}</strong></span><span>Leagues: <strong>${info.leagues.length}</strong></span><span>Historical: <strong>${info.isHist?'yes':'no'}</strong></span><span>Projections: <strong>${info.hasProj?'loaded':'n/a'}</strong></span>${info.usedFallback?`<span class="warn">⚠ Season fallback</span>`:''}`;
+  const metaItems=[
+    {label:'Season',value:info.season},
+    {label:'Week',value:info.week},
+    {label:'Leagues',value:info.leagues.length},
+    {label:'Historical',value:info.isHist?'Yes':'No',cls:info.isHist?'ok':''},
+    {label:'Projections',value:info.hasProj?'Loaded':'N/A',cls:info.hasProj?'ok':''}
+  ];
+  if(info.usedFallback)metaItems.push({label:'Notice',value:'⚠ Season fallback',cls:'warn'});
+  document.getElementById('debug-meta').innerHTML=metaItems.map(m=>`<div class="debug-meta-item"><span class="debug-meta-label">${m.label}</span><span class="debug-meta-value ${m.cls||''}">${m.value}</span></div>`).join('');
   const c=document.getElementById('debug-leagues');c.innerHTML='';
-  info.leagues.forEach(lg=>{const row=document.createElement('div');row.className='debug-league';row.innerHTML=`<div class="lg-name"><span class="lg-dot" style="background:${lc(lg.name)}"></span>${lg.name}<span class="lg-id">${lg.leagueId}</span></div><span class="dpill ${lg.rosterFound?'dp-ok':'dp-warn'}">${lg.rosterFound?`${lg.myCount}p`:'NOT FOUND'}</span><span class="dpill ${lg.matchupFound?'dp-ok':'dp-dim'}">${lg.matchupFound?`✓ opp ${lg.oppCount}`:'no matchup'}</span><span class="dpill dp-dim">${lg.state||'—'}</span><span class="dpill dp-dim">${lg.scoringFmt}</span><span class="dpill ${lg.isCoMgr?'dp-ok':'dp-dim'}">${lg.isCoMgr?'Co-mgr':'Owner'}</span>`;c.appendChild(row);});
+  info.leagues.forEach(lg=>{
+    const tr=document.createElement('tr');
+    const provider=(lg.provider||'—').toString().toUpperCase();
+    tr.innerHTML=`<td><div class="lg-name-cell"><span class="lg-dot" style="background:${lc(lg.name)}"></span><div>${lg.name}<span class="lg-id-sub">${lg.leagueId}</span></div></div></td><td><span class="dpill dp-dim">${provider}</span></td><td><span class="dpill ${lg.rosterFound?'dp-ok':'dp-warn'}">${lg.rosterFound?`${lg.myCount} players`:'Not found'}</span></td><td><span class="dpill ${lg.matchupFound?'dp-ok':'dp-dim'}">${lg.matchupFound?`vs opp · ${lg.oppCount}`:'No matchup'}</span></td><td><span class="dpill dp-dim">${lg.state||'—'}</span></td><td><span class="dpill dp-dim">${lg.scoringFmt}</span></td><td><span class="dpill ${lg.isCoMgr?'dp-ok':'dp-dim'}">${lg.isCoMgr?'Co-mgr':'Owner'}</span></td>`;
+    c.appendChild(tr);
+  });
 }
 
 const posClass=pos=>({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF'}[pos]||'pos-default');
@@ -2038,7 +2066,7 @@ function renderBoard(data,username){
   window.__conflictedLastData=data;
   window.__conflictedLastUsername=username;
   const _expoOpen=!!window.__conflictedExposureOpen;
-  const{cheerFor,conflicted,enemies,offseasonMode,debugInfo,noData,noDataReason,contexts,hasScoring,isHist}=data;
+  const{cheerFor,conflicted,enemies,offseasonMode,debugInfo,noData,noDataReason,contexts,hasScoring,isHist,partialError}=data;
   // Soft-refresh: with keyed reconciliation below, the columns no longer wipe-
   // and-rebuild so page height never collapses — the old scroll-pin / restore
   // machinery is unnecessary. Only suppress the showBoard() pulse if the board
@@ -2050,6 +2078,9 @@ function renderBoard(data,username){
   document.getElementById('banner-demo').classList.toggle('visible',isDemoMode);
   document.getElementById('banner-offseason').classList.toggle('visible',!isDemoMode&&!!offseasonMode);
   document.getElementById('banner-scoring').classList.toggle('visible',!isDemoMode&&!!hasScoring&&!isHist);
+  const partialBanner=document.getElementById('banner-partial');
+  if(!isDemoMode&&partialError){document.getElementById('banner-partial-msg').textContent=partialError;partialBanner.classList.add('visible');}
+  else{partialBanner.classList.remove('visible');}
   renderDebug(isDemoMode?null:debugInfo);
   document.getElementById('display-username').textContent=isDemoMode?'Demo mode':username;
   const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -2264,10 +2295,13 @@ async function loadYahooLeague(yLeague, week, isHist) {
       oppBench = starters.length ? oppRoster.filter(p => !p.isStarter) : [];
     } catch (e) { console.warn('Yahoo opp roster failed for', yLeague.name, e.message); }
   }
+  /* Only call it a real matchup if both rosters loaded — otherwise we render
+     "you vs nobody" cards when the opponent roster fetch silently failed. */
+  const matchupActuallyValid = hasMatchup && myPlayers.length > 0 && (!opponentTeamKey || oppPlayers.length > 0);
   return {
-    result: { leagueName: yLeague.name, myPlayers, oppPlayers, myBench, oppBench, hasMatchup, fmt, source: 'yahoo' },
+    result: { leagueName: yLeague.name, myPlayers, oppPlayers, myBench, oppBench, hasMatchup: matchupActuallyValid, fmt, source: 'yahoo' },
     ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myPP, oppPP, fmt, source: 'yahoo' },
-    debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: hasMatchup, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
+    debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: matchupActuallyValid, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
   };
 }
 function unifiedPlayerKey(name, team, pos) {
@@ -2283,6 +2317,12 @@ async function loadData(){
   if(!isAnyProviderConnected()){
     return{noData:true,noDataReason:'No providers connected.',cheerFor:[],conflicted:[],enemies:[],allRostered:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
   }
+  /* Re-entrancy guard: if a previous loadData() is still in flight, return its
+     promise so callers all settle on the same result instead of stacking fetches. */
+  if(isFetching&&window.__conflictedInflight)return window.__conflictedInflight;
+  isFetching=true;
+  window.__conflictedInflight=(async()=>{
+  try{
   // Only show the full-page loading panel on the initial load, when the board
   // isn't already visible. During a 60s auto-refresh (and also during the
   // exposure-view background refresh) the board is already on-screen and we
@@ -2305,31 +2345,42 @@ async function loadData(){
     const providerResults=await Promise.all(connected.map(id=>
       PROVIDERS[id].loadLeagues(season,week,isHist).catch(e=>{
         console.warn(`${id} loadLeagues failed:`,e.message);
-        return{results:[],contexts:[],debugLeagues:[]};
+        return{results:[],contexts:[],debugLeagues:[],error:e.message||'fetch failed',providerId:id};
       })
     ));
-    const valid=[],leagueContexts=[],debugLeagues=[];
+    const valid=[],leagueContexts=[],debugLeagues=[],failedProviderIds=[];
     let sleeperProjections={},hasProj=false;
     providerResults.forEach((pr,i)=>{
       pr.results.forEach(r=>valid.push(r));
       pr.contexts.forEach(c=>leagueContexts.push(c));
       pr.debugLeagues.forEach(d=>debugLeagues.push(d));
       if(connected[i]==='sleeper'&&pr.projections){sleeperProjections=pr.projections;hasProj=pr.hasProj||false;}
+      if(pr.error)failedProviderIds.push(connected[i]);
     });
-    return{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj};
+    return{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds};
   }
-  let{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj}=await fetchAllProviders(activeSeason,activeWeek,isHist);
+  let{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds}=await fetchAllProviders(activeSeason,activeWeek,isHist);
   if(!valid.length&&activeSeason===liveSeason){
-    const prev=String(parseInt(activeSeason)-1);
-    setLoading(`No ${activeSeason} leagues yet — trying ${prev}.`);
-    liveSeason=prev;activeSeason=prev;
-    buildSeasonSelect(activeSeason);buildWeekSelect(activeWeek);
-    ({valid,leagueContexts,debugLeagues,sleeperProjections,hasProj}=await fetchAllProviders(activeSeason,activeWeek,isHist));
+    /* Capture fallback season locally so concurrent user input can't see a
+       half-mutated activeSeason/liveSeason pair while the second fetch runs. */
+    const fallbackSeason=String(parseInt(activeSeason,10)-1);
+    setLoading(`No ${activeSeason} leagues yet — trying ${fallbackSeason}.`);
+    const fb=await fetchAllProviders(fallbackSeason,activeWeek,isHist);
+    if(fb.valid.length){
+      liveSeason=fallbackSeason;activeSeason=fallbackSeason;
+      buildSeasonSelect(activeSeason);buildWeekSelect(activeWeek);
+      ({valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds}=fb);
+    }
   }
   if(!valid.length){
     const dn=getPrimaryDisplayName();
     const checked=connected.map(id=>PROVIDERS[id].displayName).join(' or ');
-    return{noData:true,noDataReason:`No leagues found for <strong>${dn}</strong> in <strong>${activeSeason}</strong> on ${checked}. You may not have been in a league that year, or the season hasn't started yet.`,cheerFor:[],conflicted:[],enemies:[],allRostered:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
+    /* Distinguish "every provider erred" from "providers responded but you have no leagues". */
+    const allFailed=failedProviderIds&&failedProviderIds.length===connected.length&&connected.length>0;
+    const reason=allFailed
+      ? `Couldn't reach <strong>${connected.map(id=>PROVIDERS[id].displayName).join(' or ')}</strong>. Check your connection and try again.`
+      : `No leagues found for <strong>${dn}</strong> in <strong>${activeSeason}</strong> on ${checked}. You may not have been in a league that year, or the season hasn't started yet.`;
+    return{noData:true,noDataReason:reason,cheerFor:[],conflicted:[],enemies:[],allRostered:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
   }
   /* Best-effort fetch of NFL game states for the live-only toggle. Doesn't block on failure. */
   if(!isHist)await fetchNflGameStates(activeSeason,activeWeek);
@@ -2399,7 +2450,13 @@ async function loadData(){
     else if(cls.bucket==='conflicted')conflicted.push(p);
     else enemies.push(p);
   });
-  return{cheerFor,conflicted,enemies,allRostered:Array.from(map.values()),noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
+  const partialError=(failedProviderIds&&failedProviderIds.length)
+    ? `${failedProviderIds.map(id=>PROVIDERS[id].displayName).join(' and ')} data unavailable — showing the rest.`
+    : null;
+  return{cheerFor,conflicted,enemies,allRostered:Array.from(map.values()),noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,partialError,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
+  }finally{isFetching=false;window.__conflictedInflight=null;}
+  })();
+  return window.__conflictedInflight;
 }
 
 function getDemoData(){
@@ -2494,7 +2551,7 @@ async function run(){
   }catch(err){console.error(err);showError(err.message||'Something went wrong on our end. Refreshing usually fixes it.');}
 }
 
-const REFRESH_MS=60*1000;let refreshTimer=null;let lastFetchTime=0;
+const REFRESH_MS=60*1000;let refreshTimer=null;let lastFetchTime=0;let isFetching=false;
 function shouldAutoRefresh(){return !isDemoMode && isAnyProviderConnected() && !isHistoricalWeek();}
 function isDashboardVisible(){const b=document.getElementById('board');if(!b)return false;const d=b.style.display;return !(d==='none'||d==='');}
 function startAutoRefresh(){
@@ -2503,7 +2560,8 @@ function startAutoRefresh(){
     if(document.hidden)return;
     if(!isDashboardVisible())return; // pause polling when user is on exposure map / any non-dashboard view
     if(Date.now()-lastFetchTime>=REFRESH_MS){
-      try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();}
+      lastFetchTime=Date.now(); // claim the slot before awaiting so the next tick won't fire
+      try{renderBoard(await loadData(),getPrimaryDisplayName());}
       catch(e){console.warn('Auto-refresh failed silently:',e.message);}
     }
   },10000);
@@ -2513,7 +2571,8 @@ document.addEventListener('visibilitychange',async()=>{
   if(document.hidden)return; if(!shouldAutoRefresh())return;
   if(!isDashboardVisible())return; // don't yank user off exposure map when tab regains focus
   if(Date.now()-lastFetchTime>=REFRESH_MS){
-    try{renderBoard(await loadData(),getPrimaryDisplayName());lastFetchTime=Date.now();}
+    lastFetchTime=Date.now(); // claim the slot before awaiting
+    try{renderBoard(await loadData(),getPrimaryDisplayName());}
     catch(e){console.warn('Tab-return refresh failed:',e.message);}
   }
 });
@@ -2700,7 +2759,9 @@ const PROVIDERS={
       const results=await Promise.all(leagues.map(async lg=>{
         const rosters=await getRosters(lg.league_id);
         const myRoster=rosters.find(r=>r.owner_id===user.user_id||(Array.isArray(r.co_owners)&&r.co_owners.includes(user.user_id)));
-        const isCoMgr=myRoster?myRoster.owner_id!==user.user_id:false;const fmt=scoringLabel(lg);
+        /* Co-mgr if you're not the primary owner OR if the roster has any co_owners
+           array entries (covers the case where you ARE the primary on a shared team). */
+        const isCoMgr=!!(myRoster&&(myRoster.owner_id!==user.user_id||(Array.isArray(myRoster.co_owners)&&myRoster.co_owners.length>0)));const fmt=scoringLabel(lg);
         if(!myRoster){debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:false,matchupFound:false,myCount:0,oppCount:0,state:'—',scoringFmt:fmt,isCoMgr:false,provider:'sleeper'});return null;}
         let matchups=[];try{const raw=await getMatchups(lg.league_id,week);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
         const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
@@ -2728,9 +2789,12 @@ const PROVIDERS={
         oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
         myBench=myBench.filter(id=>id&&id!=='0');
         oppBench=oppBench.filter(id=>id&&id!=='0');
+        /* Match Yahoo's stance: only call it a real matchup if both rosters
+           actually loaded. Prevents "you vs empty" half-loads. */
+        const matchupActuallyValid=hasMatchup&&myPlayers.length>0&&oppPlayers.length>0;
         contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
-        debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
-        return{leagueName:lg.name,myPlayers,oppPlayers,myBench,oppBench,hasMatchup,fmt,provider:'sleeper'};
+        debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:matchupActuallyValid,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
+        return{leagueName:lg.name,myPlayers,oppPlayers,myBench,oppBench,hasMatchup:matchupActuallyValid,fmt,provider:'sleeper'};
       }));
       const valid=results.filter(Boolean);
       if(leagues?.length&&!valid.length)throw new Error('Found Sleeper leagues but could not read roster data.');
@@ -2827,12 +2891,12 @@ const PROVIDERS={
       try{
         const url=`/api/espn/data?endpoint=boxscore&season=${encodeURIComponent(season)}&week=${encodeURIComponent(week)}`;
         const r=await fetch(url,{credentials:'include'});
-        if(r.status===401){
+        if(r?.status===401){
           /* Backend cleared session — surface re-connect state */
           connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null};
           return{results:[],contexts:[],debugLeagues:[]};
         }
-        if(!r.ok){console.warn('ESPN data fetch failed:',r.status);return{results:[],contexts:[],debugLeagues:[]};}
+        if(!r?.ok){console.warn('ESPN data fetch failed:',r?.status);return{results:[],contexts:[],debugLeagues:[]};}
         const data=await r.json();
         const parsed=parseEspnLeague(data,season,week,isHist);
         if(!parsed)return{results:[],contexts:[],debugLeagues:[]};
