@@ -1323,11 +1323,106 @@
     .exp-empty button { background: var(--coral-500); color: var(--paper); border: 0; border-radius: var(--radius-md); padding: 10px 22px; font: 500 14px/1 var(--font-sans); cursor: pointer; transition: background var(--duration-fast) var(--ease-out); }
     .exp-empty button:hover { background: var(--coral-400); }
 
+    /* ── Exposure tooltip (Option A) ─────────────────────────── */
+    .exp-tooltip {
+      position: fixed; z-index: 1000; pointer-events: none;
+      background: var(--ink-900); color: var(--paper);
+      padding: 12px 14px; border-radius: 8px;
+      font: 400 12px/1.4 var(--font-sans);
+      width: 260px; max-width: calc(100vw - 24px);
+      box-shadow: 0 4px 16px rgba(0,0,0,.22);
+      opacity: 0; transition: opacity var(--duration-fast) var(--ease-out);
+    }
+    .exp-tooltip.visible { opacity: 1; }
+    .exp-tooltip__name { font: 500 14px/1.1 var(--font-sans); margin: 0 0 8px; color: var(--paper); }
+    .exp-tooltip__pills { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+    .exp-tooltip__sec { font: 500 10px/1 var(--font-mono); color: var(--ink-300); letter-spacing: .1em; text-transform: uppercase; margin: 8px 0 6px; }
+    .exp-tooltip__list { margin: 0; padding: 0; list-style: none; }
+    .exp-tooltip__list li { font: 400 12px/1.5 var(--font-sans); display: flex; justify-content: space-between; gap: 8px; color: var(--paper); padding: 2px 0; }
+    .exp-tooltip__list li span { color: var(--ink-300); font: 500 10px/1.5 var(--font-mono); }
+
+    .exp-pill { font: 500 10px/1 var(--font-mono); padding: 4px 7px; border-radius: 10px; letter-spacing: .04em; display: inline-block; }
+    .exp-pill--team { background: var(--paper-deep); color: var(--ink-700); }
+    .exp-tooltip .exp-pill--team { background: var(--ink-700); color: var(--ink-300); }
+    .exp-pill--pos-qb { background: #EEEDFE; color: #3C3489; }
+    .exp-pill--pos-rb { background: #E1F5EE; color: #0F6E56; }
+    .exp-pill--pos-wr { background: #E6F1FB; color: #185FA5; }
+    .exp-pill--pos-te { background: #FAEEDA; color: #854F0B; }
+    .exp-pill--pos-k  { background: #F1EFE8; color: #444441; }
+    .exp-pill--pos-def{ background: #FCEBEB; color: #791F1F; }
+
+    /* ── Exposure drawer (Option C) ──────────────────────────── */
+    .exp-heat__name { cursor: pointer; transition: background var(--duration-fast) var(--ease-out); border-radius: 4px; }
+    .exp-heat__name:hover { background: var(--paper-deep); }
+    .exp-heat__name.is-active { background: var(--paper-deep); }
+    .exp-list__row { cursor: pointer; transition: background var(--duration-fast) var(--ease-out); border-radius: 4px; }
+    .exp-list__row:hover { background: var(--paper-deep); padding-left: 6px; padding-right: 6px; }
+    .exp-list__row.is-active { background: var(--paper-deep); padding-left: 6px; padding-right: 6px; }
+
+    .exp-drawer {
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: 8px; padding: 14px 16px; margin: 10px 0 18px;
+    }
+    .exp-drawer__head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .exp-drawer__avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--coral-500); color: var(--paper);
+      display: flex; align-items: center; justify-content: center;
+      font: 500 13px/1 var(--font-sans); flex-shrink: 0;
+    }
+    .exp-drawer__name { font: 500 16px/1.1 var(--font-sans); margin: 0 0 4px; color: var(--ink-900); }
+    .exp-drawer__pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .exp-drawer__close { margin-left: auto; background: transparent; border: 0; cursor: pointer; color: var(--ink-500); font: 500 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 4px; }
+    .exp-drawer__close:hover { background: var(--paper-deep); color: var(--ink-900); }
+
+    .exp-drawer__summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
+    .exp-drawer__stat { background: var(--paper); border-radius: 6px; padding: 10px 12px; }
+    .exp-drawer__stat-label { font: 500 9px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .1em; text-transform: uppercase; margin: 0 0 6px; }
+    .exp-drawer__stat-value { font: 500 15px/1 var(--font-sans); color: var(--ink-900); margin: 0; }
+    .exp-drawer__stat-sub { font: 400 11px/1.2 var(--font-sans); color: var(--ink-500); margin: 3px 0 0; }
+
+    .exp-drawer__section-h { font: 500 9px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .12em; text-transform: uppercase; margin: 0 0 8px; }
+    .exp-drawer__lg-row {
+      display: grid; grid-template-columns: 1fr auto auto auto;
+      gap: 10px; align-items: center;
+      padding: 10px 0; border-top: 1px solid var(--line-soft);
+    }
+    .exp-drawer__lg-row:first-of-type { border-top: 0; padding-top: 4px; }
+    .exp-drawer__lg-name { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .exp-pill--fmt { font: 500 10px/1 var(--font-mono); padding: 3px 6px; border-radius: 4px; background: var(--paper-deep); color: var(--ink-500); letter-spacing: .04em; }
+    .exp-pill--rank { font: 500 11px/1 var(--font-mono); padding: 4px 8px; border-radius: 10px; background: var(--coral-500); color: var(--paper); letter-spacing: .04em; }
+    .exp-pill--rank-unknown { background: transparent; color: var(--ink-500); border: 1px dashed var(--line); }
+    .exp-pill--slot { font: 500 10px/1 var(--font-mono); padding: 4px 7px; border-radius: 10px; letter-spacing: .04em; }
+    .exp-pill--slot-start { background: #0F6E56; color: #E1F5EE; }
+    .exp-pill--slot-bench { background: var(--paper-deep); color: var(--ink-500); }
+    .exp-pill--slot-notin { background: transparent; color: var(--ink-300); border: 1px dashed var(--line); }
+    .exp-drawer__lg-row.is-muted .exp-drawer__lg-name,
+    .exp-drawer__lg-row.is-muted .exp-pill--fmt,
+    .exp-drawer__lg-row.is-muted .exp-pill--rank { color: var(--ink-300); }
+    .exp-drawer__lg-row.is-muted .exp-pill--rank { background: transparent; border: 1px dashed var(--line); }
+
+    .exp-drawer__toggle {
+      font: 500 11px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .04em;
+      padding: 10px 0 2px; cursor: pointer; border-top: 1px solid var(--line-soft);
+      margin-top: 4px; display: flex; align-items: center; gap: 6px;
+      background: transparent; border-left: 0; border-right: 0; border-bottom: 0;
+      width: 100%; text-align: left;
+    }
+    .exp-drawer__toggle:hover { color: var(--ink-900); }
+    .exp-drawer__toggle .caret { display: inline-block; font: 500 10px/1 var(--font-mono); transition: transform var(--duration-fast) var(--ease-out); }
+    .exp-drawer__toggle.is-open .caret { transform: rotate(90deg); }
+    .exp-drawer__not-rostered { display: none; }
+    .exp-drawer__not-rostered.is-open { display: block; }
+
     @media (max-width: 640px) {
       #view-exposure { padding: 18px 12px 60px; }
       .exp-kpis { grid-template-columns: 1fr; }
       .exp-head { flex-direction: column; align-items: stretch; }
       .exp-head__controls { width: 100%; }
+      .exp-drawer__summary { grid-template-columns: 1fr; }
+      .exp-drawer__lg-row { grid-template-columns: 1fr auto; row-gap: 6px; }
+      .exp-drawer__lg-row .exp-pill--fmt,
+      .exp-drawer__lg-row .exp-pill--rank { grid-column: span 1; }
     }
   </style>
 </head>
@@ -1769,6 +1864,185 @@ async function getProjections(season,week){
 }
 
 function scoringLabel(lg){const s=lg.scoring_settings;if(!s)return'';const r=s.rec??0;if(r===1)return'PPR';if(r===0.5)return'Half';return'Std';}
+
+/* ── Season stats + per-league positional ranking ─────────────────
+   Powers the exposure-view tooltip and drawer. Two layers:
+
+     1. fetchSeasonStats(season)        - Sleeper season-to-date raw stats
+     2. computeSeasonPointsForLeague()  - applies a league's scoring_settings
+     3. computePosRankByLeague(...)     - per-league position rank table
+
+   Sleeper exposes raw scoring_settings on every league. Yahoo and ESPN only
+   surface a derived `fmt` label (PPR/Half/Std) because the backend proxies
+   drop the raw stat-modifier objects. For those leagues we synthesize a
+   standard Sleeper-shaped scoring object from the fmt label as a fallback.
+   When the backend is enhanced to pass through raw scoring for Yahoo/ESPN,
+   computePosRankByLeague can consume it directly without other changes. */
+
+const SEASON_STATS_TTL = 24*60*60*1000; // 24h
+
+async function fetchSeasonStats(season){
+  /* Hits Sleeper's season aggregate endpoint. Returns object keyed by Sleeper
+     player_id with raw stat columns (pass_yd, rec, rush_td, fum_lost, etc.).
+     We do NOT use the pre-computed pts_ppr / pts_half_ppr / pts_std fields
+     because we need to rescore against each league's actual settings. */
+  const ck = `gd_season_stats_${season}`, tk = `${ck}_t`;
+  try{
+    const c = localStorage.getItem(ck), t = parseInt(localStorage.getItem(tk),10);
+    if(c && Number.isFinite(t) && Date.now()-t < SEASON_STATS_TTL){
+      try { return JSON.parse(c); } catch(_) { /* corrupted — refetch */ }
+    }
+  }catch(_){}
+  try{
+    const data = await apiFetch(`${BASE}/stats/nfl/regular/${season}`);
+    try{ localStorage.setItem(ck, JSON.stringify(data)); localStorage.setItem(tk, String(Date.now())); }catch(_){}
+    return data;
+  }catch(e){
+    console.warn('Season stats fetch failed:', e.message);
+    return {};
+  }
+}
+
+/* Canonical Sleeper scoring keys we know how to handle. Each entry is either:
+     [statKey]                              - 1:1 multiply (pts = stat * setting)
+     [statKey, threshold, valueIfMet]       - threshold bonus (e.g. 100 rec yd)
+   The statKey matches the corresponding column in /stats/nfl/regular/{season}.
+   Bucketed stats (FG distances, defensive points-allowed tiers) ship as their
+   own already-bucketed columns from Sleeper (`fgm_30_39`, `pts_allow_1_6`...). */
+const SCORING_RULES = [
+  // Passing
+  ['pass_yd'], ['pass_td'], ['pass_int'], ['pass_2pt'], ['pass_cmp'], ['pass_att'], ['pass_sack'],
+  ['bonus_pass_yd_300', null, null], ['bonus_pass_yd_400', null, null],
+  // Rushing
+  ['rush_yd'], ['rush_td'], ['rush_2pt'], ['rush_att'],
+  ['bonus_rush_yd_100', null, null], ['bonus_rush_yd_200', null, null],
+  ['bonus_rush_rec_yd_100', null, null], ['bonus_rush_rec_yd_200', null, null],
+  // Receiving
+  ['rec'], ['rec_yd'], ['rec_td'], ['rec_2pt'], ['rec_tgt'],
+  ['bonus_rec_yd_100', null, null], ['bonus_rec_yd_200', null, null],
+  // Per-position receiving bonuses (Sleeper schema keeps these as separate keys)
+  ['bonus_rec_te'], ['bonus_rec_rb'], ['bonus_rec_wr'],
+  // Fumbles / misc offense
+  ['fum'], ['fum_lost'], ['fum_rec'], ['fum_rec_td'], ['fum_ret_yd'],
+  // Kicking - field goals (bucketed by distance band)
+  ['fgm'], ['fgm_0_19'], ['fgm_20_29'], ['fgm_30_39'], ['fgm_40_49'], ['fgm_50p'],
+  ['fgm_50_59'], ['fgm_60p'],
+  ['fgmiss'], ['fgmiss_0_19'], ['fgmiss_20_29'], ['fgmiss_30_39'], ['fgmiss_40_49'],
+  ['xpm'], ['xpmiss'],
+  // Defense / special teams
+  ['def_td'], ['def_sack'], ['def_int'], ['def_fum_rec'], ['def_safe'],
+  ['def_4_and_stop'], ['def_st_td'], ['def_st_ff'], ['def_st_fum_rec'],
+  ['def_pr_td'], ['def_kr_td'], ['def_block_kick'],
+  ['blk_kick'], ['blk_kick_ret_yd'],
+  // Defensive points allowed tiers (Sleeper provides as pre-bucketed keys)
+  ['pts_allow_0'], ['pts_allow_1_6'], ['pts_allow_7_13'], ['pts_allow_14_20'],
+  ['pts_allow_21_27'], ['pts_allow_28_34'], ['pts_allow_35p'],
+  // Yards allowed tiers
+  ['yds_allow_0_100'], ['yds_allow_100_199'], ['yds_allow_200_299'],
+  ['yds_allow_300_349'], ['yds_allow_350_399'], ['yds_allow_400_449'],
+  ['yds_allow_450_499'], ['yds_allow_500_549'], ['yds_allow_550p'],
+  // IDP - included for completeness; ranks for IDP leagues will be approximate
+  ['idp_tkl'], ['idp_tkl_solo'], ['idp_tkl_ast'], ['idp_tkl_loss'],
+  ['idp_sack'], ['idp_int'], ['idp_fum_force'], ['idp_fum_rec'],
+  ['idp_def_td'], ['idp_safe'], ['idp_pass_def'], ['idp_blk_kick']
+];
+
+function computeSeasonPointsForLeague(playerStats, scoringSettings){
+  /* playerStats is a single player's raw stat object from /stats/nfl/regular/.
+     scoringSettings is Sleeper-shaped: { [scoringKey]: pointsPerUnit }.
+     Missing stats and missing settings are treated as 0 (the common case). */
+  if(!playerStats || !scoringSettings) return 0;
+  let total = 0;
+  for(const rule of SCORING_RULES){
+    const key = rule[0];
+    const setting = scoringSettings[key];
+    if(!setting) continue;
+    const stat = playerStats[key];
+    if(!stat) continue;
+    total += stat * setting;
+  }
+  return total;
+}
+
+/* Yahoo/ESPN fallback: synthesize a Sleeper-shaped scoring object from a
+   PPR / Half / Std label using standard-league defaults. Covers ~95% of
+   non-custom leagues correctly. If a Yahoo/ESPN league uses exotic scoring,
+   ranks will skew slightly until the backend passes raw scoring through. */
+function synthesizeScoringFromFmt(fmt){
+  const recValue = fmt==='PPR' ? 1 : fmt==='Half' ? 0.5 : 0;
+  return {
+    pass_yd: 0.04, pass_td: 4, pass_int: -2, pass_2pt: 2,
+    rush_yd: 0.1, rush_td: 6, rush_2pt: 2,
+    rec: recValue, rec_yd: 0.1, rec_td: 6, rec_2pt: 2,
+    fum_lost: -2,
+    fgm_0_19: 3, fgm_20_29: 3, fgm_30_39: 3, fgm_40_49: 4, fgm_50p: 5,
+    xpm: 1, xpmiss: -1, fgmiss: -1,
+    def_td: 6, def_sack: 1, def_int: 2, def_fum_rec: 2, def_safe: 2,
+    def_st_td: 6, def_pr_td: 6, def_kr_td: 6,
+    pts_allow_0: 10, pts_allow_1_6: 7, pts_allow_7_13: 4,
+    pts_allow_14_20: 1, pts_allow_21_27: 0, pts_allow_28_34: -1, pts_allow_35p: -4
+  };
+}
+
+function normalizeScoringForContext(ctx){
+  /* Prefer raw scoring_settings if the provider preserved them; otherwise
+     fall back to a fmt-derived standard profile. */
+  if(ctx && ctx.scoringRaw && typeof ctx.scoringRaw==='object') return ctx.scoringRaw;
+  return synthesizeScoringFromFmt(ctx?.fmt || 'Std');
+}
+
+function computePosRankByLeague(seasonStats, playerDB, leagueContexts){
+  /* For each league, score every player using that league's scoring, group by
+     position, sort descending, assign rank. Returns:
+        { [leagueName]: { [sleeperPlayerId]: rank } }
+     Plus a top-level _byPos map so we can look up the total cohort size for
+     "RB7 of 64 RBs" type sub-text. */
+  const out = { _meta: {} };
+  if(!seasonStats || !playerDB || !leagueContexts) return out;
+  const playerIds = Object.keys(seasonStats);
+  leagueContexts.forEach(ctx => {
+    const scoring = normalizeScoringForContext(ctx);
+    const scored = [];
+    for(const pid of playerIds){
+      const stats = seasonStats[pid];
+      const info = playerDB[pid];
+      if(!info || !info.position) continue;
+      const pos = String(info.position).toUpperCase();
+      const pts = computeSeasonPointsForLeague(stats, scoring);
+      if(pts <= 0) continue; // exclude zero-point players from the rank universe
+      scored.push({ pid, pos, pts });
+    }
+    /* Group by position, sort, rank. Sort uses stable tiebreaker on player_id
+       so the same scoring produces the same rank order on every render. */
+    const byPos = {};
+    scored.forEach(s => { (byPos[s.pos] = byPos[s.pos] || []).push(s); });
+    const lgMap = {};
+    Object.keys(byPos).forEach(pos => {
+      byPos[pos].sort((a,b) => (b.pts - a.pts) || a.pid.localeCompare(b.pid));
+      byPos[pos].forEach((s,i) => { lgMap[s.pid] = i + 1; });
+      out._meta[ctx.leagueName+'|'+pos] = byPos[pos].length;
+    });
+    out[ctx.leagueName] = lgMap;
+  });
+  return out;
+}
+
+/* Player matching for Yahoo/ESPN-rostered players. Sleeper-rostered players
+   come in as a Sleeper ID string; Yahoo/ESPN players come in as objects with
+   name/team/position. To rank a Yahoo player we need their Sleeper ID so we
+   can index into seasonStats. Build a name-team-pos -> sleeperId lookup
+   once per data load. */
+function buildSleeperIdLookup(playerDB){
+  const lookup = {};
+  if(!playerDB) return lookup;
+  for(const pid of Object.keys(playerDB)){
+    const info = playerDB[pid];
+    if(!info || !info.full_name) continue;
+    const k = unifiedPlayerKey(info.full_name, info.team || '', info.position || '');
+    if(k && !lookup[k]) lookup[k] = pid;
+  }
+  return lookup;
+}
 
 function calcLiveState(myPts,oppPts,myProj,oppProj){
   if(!myProj&&!oppProj)return'LIVE';
@@ -2387,9 +2661,15 @@ async function loadData(){
   const projPts=id=>{const p=sleeperProjections[id];return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null;};
   const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
   const playerDB=await getPlayerDB();setLoading('Classifying players.');
+  /* Season stats + per-league position ranks. Best-effort: failures degrade
+     gracefully (ranks just won't show up in the tooltip/drawer). */
+  setLoading('Computing season ranks.');
+  const seasonStats=await fetchSeasonStats(activeSeason);
+  const posRankByLeague=computePosRankByLeague(seasonStats,playerDB,leagueContexts);
+  const sleeperIdLookup=buildSleeperIdLookup(playerDB);
   const map=new Map();
   function ensure(p){
-    let key,full_name,position,team,injuryStatus;
+    let key,full_name,position,team,injuryStatus,sleeperId=null;
     if(typeof p==='string'){
       const info=playerDB[p]||{};
       full_name=info.full_name||info.last_name||`Player ${p}`;
@@ -2399,15 +2679,21 @@ async function loadData(){
       const unhealthy=['Questionable','Doubtful','Out','Injured Reserve','IR','PUP','Suspended','NFI','DNR','NA'];
       injuryStatus=unhealthy.includes(inj)?inj:null;
       key=unifiedPlayerKey(full_name,team,position)||('sl:'+p);
+      sleeperId=p; // Sleeper-rostered players carry their own Sleeper ID
     }else{
       full_name=p.name;position=p.position;team=p.team;injuryStatus=p.injuryStatus||null;
       key=unifiedPlayerKey(full_name,team,position)||('yh:'+p.player_key);
+      /* Yahoo/ESPN players: resolve to Sleeper ID via name+team+pos so we can
+         look them up in seasonStats / posRankByLeague. */
+      const ulookup=unifiedPlayerKey(full_name,team,position);
+      if(ulookup&&sleeperIdLookup[ulookup])sleeperId=sleeperIdLookup[ulookup];
     }
     if(!map.has(key)){
-      map.set(key,{id:key,full_name,position,team,injuryStatus,myLeagues:[],againstLeagues:[],myBenchLeagues:[],againstBenchLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
+      map.set(key,{id:key,full_name,position,team,injuryStatus,sleeperId,myLeagues:[],againstLeagues:[],myBenchLeagues:[],againstBenchLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
     }
     const e=map.get(key);
     if(injuryStatus&&!e.injuryStatus)e.injuryStatus=injuryStatus;
+    if(sleeperId&&!e.sleeperId)e.sleeperId=sleeperId;
     return e;
   }
   const ptsKey=p=>typeof p==='string'?p:p.player_key;
@@ -2453,7 +2739,7 @@ async function loadData(){
   const partialError=(failedProviderIds&&failedProviderIds.length)
     ? `${failedProviderIds.map(id=>PROVIDERS[id].displayName).join(' and ')} data unavailable — showing the rest.`
     : null;
-  return{cheerFor,conflicted,enemies,allRostered:Array.from(map.values()),noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,partialError,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
+  return{cheerFor,conflicted,enemies,allRostered:Array.from(map.values()),noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,posRankByLeague,partialError,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
   }finally{isFetching=false;window.__conflictedInflight=null;}
   })();
   return window.__conflictedInflight;
@@ -2792,7 +3078,7 @@ const PROVIDERS={
         /* Match Yahoo's stance: only call it a real matchup if both rosters
            actually loaded. Prevents "you vs empty" half-loads. */
         const matchupActuallyValid=hasMatchup&&myPlayers.length>0&&oppPlayers.length>0;
-        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt});
+        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt,scoringRaw:lg.scoring_settings||null});
         debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:matchupActuallyValid,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
         return{leagueName:lg.name,myPlayers,oppPlayers,myBench,oppBench,hasMatchup:matchupActuallyValid,fmt,provider:'sleeper'};
       }));
@@ -3631,7 +3917,7 @@ initThemeToggle();
     html += '<div class="exp-heat__names">';
     html += '<div class="exp-heat__name exp-heat__name--header"></div>';
     rows.forEach(function(r){
-      html += '<div class="exp-heat__name"><strong>' + esc(r.label) + '</strong></div>';
+      html += '<div class="exp-heat__name" data-exp-row="' + esc(r.id) + '"><strong>' + esc(r.label) + '</strong></div>';
     });
     html += '</div>';
 
@@ -3643,14 +3929,14 @@ initThemeToggle();
     });
     html += '</div>';
     rows.forEach(function(r){
-      html += '<div class="exp-heat__row" style="grid-template-columns:' + leagueCols + '">';
+      html += '<div class="exp-heat__row" data-exp-row="' + esc(r.id) + '" style="grid-template-columns:' + leagueCols + '">';
       leagues.forEach(function(n){
         var hit = r.leagues.indexOf(n) !== -1;
         if (hit){
           var cls = mode === 'positive' ? 'is-pos' : 'is-neg';
-          html += '<div class="exp-cell ' + cls + '" title="' + esc(r.label) + ' · ' + esc(n) + '"></div>';
+          html += '<div class="exp-cell ' + cls + '" data-exp-row="' + esc(r.id) + '" data-exp-league="' + esc(n) + '"></div>';
         } else {
-          html += '<div class="exp-cell exp-cell--empty" title="Not in ' + esc(n) + '"></div>';
+          html += '<div class="exp-cell exp-cell--empty" data-exp-row="' + esc(r.id) + '" data-exp-league="' + esc(n) + '" data-exp-notin="1"></div>';
         }
       });
       html += '</div>';
@@ -3675,7 +3961,7 @@ initThemeToggle();
     var html = '';
     rows.forEach(function(r){
       var pct = Math.max(6, Math.round((r.count / max) * 100));
-      html += '<div class="exp-list__row" style="grid-template-columns:' + nameW + ' minmax(0,1fr) 60px;">' +
+      html += '<div class="exp-list__row" data-exp-row="' + esc(r.id) + '" style="grid-template-columns:' + nameW + ' minmax(0,1fr) 60px;">' +
         '<div class="exp-list__name"><strong>' + esc(r.label) + '</strong></div>' +
         '<div class="exp-list__bar"><div style="width:' + pct + '%"></div></div>' +
         '<div class="exp-list__count">' + r.count + '</div>' +
@@ -3813,8 +4099,302 @@ initThemeToggle();
     window.scrollTo(0, 0);
   }
 
+  /* ── Tooltip (Option A) + Drawer (Option C) ─────────────────────
+     Both hang off `data-exp-row` markers added in renderHeat / renderList.
+     A single shared tooltip element is appended to <body> and repositioned
+     near the hovered target. Click toggles the drawer inline. */
+
+  function posPillClass(pos){
+    var p = (pos||'').toUpperCase();
+    if (p==='QB') return 'exp-pill--pos-qb';
+    if (p==='RB') return 'exp-pill--pos-rb';
+    if (p==='WR') return 'exp-pill--pos-wr';
+    if (p==='TE') return 'exp-pill--pos-te';
+    if (p==='K')  return 'exp-pill--pos-k';
+    if (p==='DEF'||p==='DST') return 'exp-pill--pos-def';
+    return 'exp-pill--team';
+  }
+
+  function findPlayerById(id){
+    var data = getData(); if (!data) return null;
+    var pool = Array.isArray(data.allRostered) && data.allRostered.length
+      ? data.allRostered
+      : [].concat(data.cheerFor||[], data.conflicted||[], data.enemies||[]);
+    for (var i=0;i<pool.length;i++){ if (pool[i].id === id) return pool[i]; }
+    return null;
+  }
+
+  /* Compute per-league slot for a player (RB1/FLEX/BENCH/etc.). We don't have
+     true ESPN/Sleeper slot IDs in the allRostered shape, so we infer from the
+     three league arrays we DO have on each player object:
+       myLeagues       = starting lineup (positive mode)
+       myBenchLeagues  = bench
+       againstLeagues  = opponent starter (negative mode)
+     For the drawer we treat "in myLeagues" as "starting" and "in myBenchLeagues"
+     as "bench". This matches the heatmap's grouping rule. */
+  function slotForPlayerInLeague(player, leagueName, mode){
+    var startList = mode === 'negative' ? (player.againstLeagues||[]) : (player.myLeagues||[]);
+    var benchList = mode === 'negative' ? (player.againstBenchLeagues||[]) : (player.myBenchLeagues||[]);
+    if (startList.indexOf(leagueName) !== -1) return 'start';
+    if (benchList.indexOf(leagueName) !== -1) return 'bench';
+    return 'notin';
+  }
+
+  function slotLabelForPosition(pos){
+    var p = (pos||'').toUpperCase();
+    if (p==='QB') return 'QB';
+    if (p==='RB') return 'RB';
+    if (p==='WR') return 'WR';
+    if (p==='TE') return 'TE';
+    if (p==='K')  return 'K';
+    if (p==='DEF'||p==='DST') return 'DEF';
+    return 'STARTER';
+  }
+
+  function rankForPlayerInLeague(player, leagueName){
+    var data = getData(); if (!data || !data.posRankByLeague) return null;
+    if (!player || !player.sleeperId) return null;
+    var lg = data.posRankByLeague[leagueName];
+    if (!lg) return null;
+    var r = lg[player.sleeperId];
+    return (typeof r === 'number') ? r : null;
+  }
+
+  // ── Tooltip ────────────────────────────────────────────────
+  var tooltipEl = null;
+  function ensureTooltip(){
+    if (tooltipEl) return tooltipEl;
+    tooltipEl = document.createElement('div');
+    tooltipEl.className = 'exp-tooltip';
+    tooltipEl.setAttribute('role','tooltip');
+    document.body.appendChild(tooltipEl);
+    return tooltipEl;
+  }
+
+  function renderTooltipFor(player, mode){
+    var modeLeagues = mode === 'negative'
+      ? [].concat(player.againstLeagues||[], player.againstBenchLeagues||[])
+      : [].concat(player.myLeagues||[],     player.myBenchLeagues||[]);
+    var leagues = [];
+    modeLeagues.forEach(function(n){ if (leagues.indexOf(n)===-1) leagues.push(n); });
+    var pos = (player.position||'').toUpperCase();
+    var posLabel = pos || '—';
+    var pillsHtml = '<span class="exp-pill ' + posPillClass(pos) + '">' + esc(posLabel) + '</span>';
+    if (player.team) pillsHtml += '<span class="exp-pill exp-pill--team">' + esc(player.team) + '</span>';
+    var listHtml = leagues.length
+      ? leagues.map(function(n){
+          var slot = slotForPlayerInLeague(player, n, mode);
+          var slotLabel = slot==='start' ? slotLabelForPosition(pos) : (slot==='bench' ? 'BENCH' : '—');
+          return '<li><b>' + esc(n) + '</b><span>' + esc(slotLabel) + '</span></li>';
+        }).join('')
+      : '<li><b>—</b><span>no leagues</span></li>';
+    var sectionLabel = mode === 'negative'
+      ? 'On opponent rosters in'
+      : 'Rostered in ' + leagues.length + ' of your leagues';
+    return '<p class="exp-tooltip__name">' + esc(player.full_name) + '</p>' +
+      '<div class="exp-tooltip__pills">' + pillsHtml + '</div>' +
+      '<p class="exp-tooltip__sec">' + esc(sectionLabel) + '</p>' +
+      '<ul class="exp-tooltip__list">' + listHtml + '</ul>';
+  }
+
+  function positionTooltip(targetEl){
+    var t = ensureTooltip();
+    var r = targetEl.getBoundingClientRect();
+    var tw = t.offsetWidth || 260;
+    var th = t.offsetHeight || 100;
+    /* Default: above and right-aligned to the target. Clamp to viewport. */
+    var left = Math.min(window.innerWidth - tw - 8, Math.max(8, r.left));
+    var top  = r.top - th - 10;
+    if (top < 8) top = r.bottom + 10; // not enough room above — flip below
+    t.style.left = left + 'px';
+    t.style.top  = top  + 'px';
+  }
+
+  function showTooltipFor(targetEl){
+    var rowId = targetEl.getAttribute('data-exp-row');
+    if (!rowId) return;
+    var player = findPlayerById(rowId);
+    if (!player) return;
+    var t = ensureTooltip();
+    t.innerHTML = renderTooltipFor(player, state.mode);
+    t.classList.add('visible');
+    positionTooltip(targetEl);
+  }
+
+  function hideTooltip(){
+    if (tooltipEl) tooltipEl.classList.remove('visible');
+  }
+
+  // Delegated hover (mouseover/mouseout bubble; mouseenter/leave do not)
+  var view = document.getElementById('view-exposure');
+  if (view){
+    view.addEventListener('mouseover', function(e){
+      var el = e.target.closest('[data-exp-row]');
+      if (!el) return;
+      showTooltipFor(el);
+    });
+    view.addEventListener('mouseout', function(e){
+      var el = e.target.closest('[data-exp-row]');
+      if (!el) return;
+      /* Only hide if we're actually leaving the row (not jumping to a child). */
+      var rel = e.relatedTarget;
+      if (rel && el.contains(rel)) return;
+      hideTooltip();
+    });
+    /* Reposition on scroll (heatmap names column + window). */
+    view.addEventListener('scroll', hideTooltip, true);
+    window.addEventListener('scroll', hideTooltip, { passive: true });
+  }
+
+  // ── Drawer ─────────────────────────────────────────────────
+  var openDrawerRowId = null;
+
+  function pillForSlot(slot, pos){
+    if (slot==='start') return '<span class="exp-pill exp-pill--slot exp-pill--slot-start">' + esc(slotLabelForPosition(pos)) + '</span>';
+    if (slot==='bench') return '<span class="exp-pill exp-pill--slot exp-pill--slot-bench">BENCH</span>';
+    return '<span class="exp-pill exp-pill--slot exp-pill--slot-notin">not rostered</span>';
+  }
+
+  function renderDrawer(player){
+    var data = getData(); if (!data) return '';
+    var allLeagueNames = (data.contexts||[]).map(function(c){ return c.leagueName; });
+    var ctxByName = {};
+    (data.contexts||[]).forEach(function(c){ ctxByName[c.leagueName] = c; });
+
+    var pos = (player.position||'').toUpperCase();
+    var teamLabel = player.team || '—';
+    var initials = (player.full_name||'?').split(/\s+/).map(function(s){return s[0]||'';}).join('').slice(0,2).toUpperCase();
+
+    /* Split leagues into rostered (start or bench in this mode) and not-rostered. */
+    var rosteredLeagues = [], notRostered = [];
+    allLeagueNames.forEach(function(n){
+      var slot = slotForPlayerInLeague(player, n, state.mode);
+      if (slot === 'notin') notRostered.push(n);
+      else rosteredLeagues.push(n);
+    });
+
+    function lgRowHtml(name, isMuted){
+      var ctx = ctxByName[name] || {};
+      var fmt = ctx.fmt || '—';
+      var slot = slotForPlayerInLeague(player, name, state.mode);
+      var rank = rankForPlayerInLeague(player, name);
+      var rankHtml = (rank!=null)
+        ? '<span class="exp-pill exp-pill--rank">' + esc(pos) + esc(String(rank)) + '</span>'
+        : '<span class="exp-pill exp-pill--rank exp-pill--rank-unknown">—</span>';
+      return '<div class="exp-drawer__lg-row' + (isMuted?' is-muted':'') + '">' +
+        '<span class="exp-drawer__lg-name">' + esc(name) + '</span>' +
+        '<span class="exp-pill exp-pill--fmt">' + esc(fmt) + '</span>' +
+        rankHtml +
+        pillForSlot(slot, pos) +
+        '</div>';
+    }
+
+    var headerPills = '<span class="exp-pill ' + posPillClass(pos) + '">' + esc(pos||'—') + '</span>' +
+                      '<span class="exp-pill exp-pill--team">' + esc(teamLabel) + '</span>';
+    var summaryHtml =
+      '<div class="exp-drawer__stat">' +
+        '<p class="exp-drawer__stat-label">Exposure</p>' +
+        '<p class="exp-drawer__stat-value">' + rosteredLeagues.length + ' / ' + allLeagueNames.length + '</p>' +
+        '<p class="exp-drawer__stat-sub">' + (allLeagueNames.length ? Math.round(100*rosteredLeagues.length/allLeagueNames.length) + '% of your leagues' : '—') + '</p>' +
+      '</div>' +
+      '<div class="exp-drawer__stat">' +
+        '<p class="exp-drawer__stat-label">Position</p>' +
+        '<p class="exp-drawer__stat-value">' + esc(pos||'—') + '</p>' +
+        '<p class="exp-drawer__stat-sub">' + esc(teamLabel) + '</p>' +
+      '</div>';
+
+    var rosteredHtml = rosteredLeagues.length
+      ? '<p class="exp-drawer__section-h">Rostered in</p>' + rosteredLeagues.map(function(n){return lgRowHtml(n,false);}).join('')
+      : '<p class="exp-drawer__section-h">Not rostered in any of your leagues this week</p>';
+
+    var notRosteredBlock = '';
+    if (notRostered.length){
+      notRosteredBlock =
+        '<button type="button" class="exp-drawer__toggle" data-exp-drawer-toggle="notrostered">' +
+          '<span class="caret">›</span>Not rostered in ' + notRostered.length + ' other league' + (notRostered.length===1?'':'s') +
+        '</button>' +
+        '<div class="exp-drawer__not-rostered" data-exp-drawer-section="notrostered">' +
+          notRostered.map(function(n){return lgRowHtml(n,true);}).join('') +
+        '</div>';
+    }
+
+    return '<div class="exp-drawer" data-exp-drawer="' + esc(player.id) + '">' +
+      '<div class="exp-drawer__head">' +
+        '<div class="exp-drawer__avatar">' + esc(initials) + '</div>' +
+        '<div style="min-width:0;">' +
+          '<p class="exp-drawer__name">' + esc(player.full_name) + '</p>' +
+          '<div class="exp-drawer__pill-row">' + headerPills + '</div>' +
+        '</div>' +
+        '<button type="button" class="exp-drawer__close" data-exp-drawer-close="1">close ✕</button>' +
+      '</div>' +
+      '<div class="exp-drawer__summary">' + summaryHtml + '</div>' +
+      rosteredHtml +
+      notRosteredBlock +
+    '</div>';
+  }
+
+  function closeDrawer(){
+    if (!openDrawerRowId) return;
+    var existing = document.querySelector('[data-exp-drawer]');
+    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    document.querySelectorAll('.is-active[data-exp-row]').forEach(function(el){ el.classList.remove('is-active'); });
+    openDrawerRowId = null;
+  }
+
+  function openDrawerForRow(rowId, anchorEl){
+    /* Toggle off if clicking the same row again. */
+    if (openDrawerRowId === rowId){ closeDrawer(); return; }
+    closeDrawer();
+    var player = findPlayerById(rowId);
+    if (!player) return;
+    var html = renderDrawer(player);
+    /* Drawer is inserted after the closest natural container so it expands inline. */
+    var container = anchorEl.closest('.exp-list__row, .exp-heat__row, .exp-heat__name');
+    if (!container) return;
+    container.insertAdjacentHTML('afterend', html);
+    openDrawerRowId = rowId;
+    /* Highlight every row representing this player (could be in both heat and list). */
+    document.querySelectorAll('[data-exp-row="' + (window.CSS && CSS.escape ? CSS.escape(rowId) : rowId.replace(/"/g,'\\"')) + '"]').forEach(function(el){
+      if (el.matches('.exp-list__row, .exp-heat__name')) el.classList.add('is-active');
+    });
+    hideTooltip();
+    /* Scroll the drawer into view if it landed off-screen. */
+    var drawerEl = document.querySelector('[data-exp-drawer]');
+    if (drawerEl){
+      var r = drawerEl.getBoundingClientRect();
+      if (r.bottom > window.innerHeight) drawerEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  // Close drawer if data re-renders (filters, mode toggles) — drawer would be stale.
+  var _origRenderExposure = renderExposureView;
+  renderExposureView = function(){
+    closeDrawer();
+    return _origRenderExposure.apply(this, arguments);
+  };
+
   // Wire toggle/filter clicks once on load
   document.addEventListener('click', function(e){
+    /* Drawer close button. */
+    if (e.target.closest('[data-exp-drawer-close]')){ closeDrawer(); return; }
+    /* Drawer collapsible "not rostered" section. */
+    var tog = e.target.closest('[data-exp-drawer-toggle]');
+    if (tog){
+      var key = tog.getAttribute('data-exp-drawer-toggle');
+      tog.classList.toggle('is-open');
+      var sec = document.querySelector('[data-exp-drawer-section="' + key + '"]');
+      if (sec) sec.classList.toggle('is-open');
+      return;
+    }
+    /* Drawer row click: list rows and heat name labels open the drawer.
+       Heat cells (rostered or empty) intentionally do NOT open the drawer —
+       hover tooltip is their interaction. Keeps the heatmap scannable. */
+    var rowEl = e.target.closest('.exp-list__row[data-exp-row], .exp-heat__name[data-exp-row]');
+    if (rowEl){
+      var rid = rowEl.getAttribute('data-exp-row');
+      if (rid){ openDrawerForRow(rid, rowEl); return; }
+    }
+
     var t = e.target.closest('[data-exp-mode]');
     if (t){
       state.mode = t.getAttribute('data-exp-mode');
@@ -3840,6 +4420,11 @@ initThemeToggle();
       renderExposureView();
       return;
     }
+  });
+
+  /* Esc closes drawer. */
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && openDrawerRowId) closeDrawer();
   });
 
   // Expose entry points
