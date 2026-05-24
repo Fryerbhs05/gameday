@@ -1425,6 +1425,12 @@
     .exp-drawer__lg-row.is-muted .exp-pill--fmt,
     .exp-drawer__lg-row.is-muted .exp-pill--rank { color: var(--ink-300); }
     .exp-drawer__lg-row.is-muted .exp-pill--rank { background: transparent; border: 1px dashed var(--line); }
+    /* Team drawer — player rows are interactive (drill into the player's drawer). */
+    .exp-drawer__team-player { cursor: pointer; border-radius: 4px; transition: background var(--duration-fast) var(--ease-out); }
+    .exp-drawer__team-player:hover,
+    .exp-drawer__team-player:focus-visible { background: var(--paper-deep); outline: none; }
+    .exp-drawer__team-player-sub { display: block; font: 400 11px/1.3 var(--font-sans); color: var(--ink-500); margin-top: 2px; white-space: nowrap; }
+    .exp-drawer__empty { font: 400 13px/1.4 var(--font-sans); color: var(--ink-500); padding: 16px 0 4px; margin: 0; }
 
     .exp-drawer__toggle {
       font: 500 11px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .04em;
@@ -4349,6 +4355,84 @@ initThemeToggle();
     '</div>';
   }
 
+  /* Team-mode drawer — when the axis toggle is set to "NFL teams", clicking a team
+     row/tile opens this sheet instead. It lists every player from that NFL team that
+     is rostered on at least one of the user's leagues; each player row is clickable
+     and swaps the sheet content to that player's individual drawer. */
+  function playersOnTeam(teamCode){
+    var data = getData(); if (!data) return [];
+    var pool = Array.isArray(data.allRostered) && data.allRostered.length
+      ? data.allRostered
+      : [].concat(data.cheerFor||[], data.conflicted||[], data.enemies||[]);
+    var code = (teamCode || '').toUpperCase().trim();
+    var mode = state.mode;
+    var includeBench = !!state.includeBench;
+    var posFilter = state.pos;
+    /* Match the same filters the team-axis aggregation uses upstream:
+         - mode-specific exposure (positive vs negative)
+         - bench inclusion setting
+         - active position filter (so a team's roster reflects what the user is viewing) */
+    return pool.filter(function(p){
+      if ((p.team || '').toUpperCase() !== code) return false;
+      if (posFilter && posFilter !== 'ALL' && (p.position || '').toUpperCase() !== posFilter) return false;
+      var row = expoRowFromPlayer(p, mode, includeBench);
+      return row.count > 0;
+    });
+  }
+
+  function renderTeamDrawer(teamCode){
+    var code = (teamCode || '').toUpperCase().trim();
+    var teamName = (typeof NFL_TEAM_NAMES !== 'undefined' && NFL_TEAM_NAMES[code]) || code;
+    var players = playersOnTeam(code);
+    var mode = state.mode;
+    var includeBench = !!state.includeBench;
+    /* Annotate each player with their mode-aware exposure count for display + sort. */
+    var annotated = players.map(function(p){
+      var row = expoRowFromPlayer(p, mode, includeBench);
+      return { p: p, exposures: row.count };
+    });
+    /* Sort: most exposures desc → position order → alpha. */
+    var posOrder = (typeof POS_ORDER !== 'undefined') ? POS_ORDER : ['QB','RB','WR','TE','K','DEF'];
+    annotated.sort(function(a,b){
+      if (b.exposures !== a.exposures) return b.exposures - a.exposures;
+      var ai = posOrder.indexOf((a.p.position||'').toUpperCase()), bi = posOrder.indexOf((b.p.position||'').toUpperCase());
+      if (ai === -1) ai = posOrder.length; if (bi === -1) bi = posOrder.length;
+      return ai - bi || (a.p.full_name||'').localeCompare(b.p.full_name||'');
+    });
+    var initials = code.slice(0,3);
+
+    function playerRowHtml(item){
+      var p = item.p;
+      var pos = (p.position||'').toUpperCase();
+      var posPill = '<span class="exp-pill ' + posPillClass(pos) + '">' + esc(pos||'—') + '</span>';
+      var subText = item.exposures + ' exposure' + (item.exposures === 1 ? '' : 's');
+      return '<div class="exp-drawer__lg-row exp-drawer__team-player" data-exp-team-player="' + esc(p.id) + '" role="button" tabindex="0">' +
+        '<span class="exp-drawer__lg-name">' + esc(p.full_name||'—') + '<span class="exp-drawer__team-player-sub">' + esc(subText) + '</span></span>' +
+        posPill +
+        '</div>';
+    }
+
+    var listHtml = annotated.length
+      ? annotated.map(playerRowHtml).join('')
+      : '<p class="exp-drawer__empty">No players from this team are rostered in your leagues for the current view.</p>';
+
+    return '<div class="exp-drawer" data-exp-drawer="team:' + esc(code) + '">' +
+      '<div class="exp-drawer__head">' +
+        '<div class="exp-drawer__avatar">' + esc(initials) + '</div>' +
+        '<div style="min-width:0;">' +
+          '<p class="exp-drawer__name">' + esc(teamName) + '</p>' +
+          '<div class="exp-drawer__pill-row">' +
+            '<span class="exp-pill exp-pill--team">' + esc(code) + '</span>' +
+            '<span class="exp-pill exp-pill--fmt">' + annotated.length + ' rostered</span>' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="exp-drawer__close" data-exp-drawer-close="1">close ✕</button>' +
+      '</div>' +
+      '<p class="exp-drawer__section-h">Players on roster</p>' +
+      listHtml +
+    '</div>';
+  }
+
   /* Bottom-sheet overlay — the drawer renders inside a fixed sheet that slides up
      from the bottom of the viewport, with a dimmed backdrop. The drawer's internal
      markup (head, stats, league list, etc.) is unchanged — only the outer container
@@ -4390,17 +4474,21 @@ initThemeToggle();
   function openDrawerForRow(rowId, anchorEl){
     /* Toggle off if clicking the same row again. */
     if (openDrawerRowId === rowId){ closeDrawer(); return; }
-    /* Switching players while sheet is already open — swap content without re-animating. */
-    var wasOpen = !!openDrawerRowId;
     closeDrawer();
-    var player = findPlayerById(rowId);
-    if (!player) return;
+    /* Route by axis: players → renderDrawer(player), teams → renderTeamDrawer(code). */
+    var html;
+    if (state.axis === 'teams'){
+      html = renderTeamDrawer(rowId);
+    } else {
+      var player = findPlayerById(rowId);
+      if (!player) return;
+      html = renderDrawer(player);
+    }
     ensureSheet();
-    var html = renderDrawer(player);
     var body = sheetEl.querySelector('[data-exp-sheet-body]');
     if (body) body.innerHTML = html;
     openDrawerRowId = rowId;
-    /* Highlight the list row representing this player (if visible in list). */
+    /* Highlight the list row representing this row (if visible in list). */
     document.querySelectorAll('[data-exp-row="' + (window.CSS && CSS.escape ? CSS.escape(rowId) : rowId.replace(/"/g,'\\"')) + '"]').forEach(function(el){
       if (el.matches('.exp-list__row')) el.classList.add('is-active');
     });
@@ -4413,13 +4501,38 @@ initThemeToggle();
     });
   }
 
+  /* Helper for swapping the sheet content (e.g., team → player drilldown) without
+     closing+reopening. Keeps the slide-up animation from re-firing. */
+  function swapSheetToPlayer(playerId){
+    var player = findPlayerById(playerId);
+    if (!player || !sheetEl) return;
+    var body = sheetEl.querySelector('[data-exp-sheet-body]');
+    if (body) body.innerHTML = renderDrawer(player);
+    openDrawerRowId = playerId;
+    /* Scroll the new content back to the top inside the sheet body. */
+    if (body) body.scrollTop = 0;
+  }
+
   /* Dismissal: backdrop tap + Esc key. (Close button is wired via the existing
      data-exp-drawer-close handler.) */
   document.addEventListener('click', function(e){
-    if (e.target.closest('[data-exp-sheet-backdrop]')) closeDrawer();
+    if (e.target.closest('[data-exp-sheet-backdrop]')) { closeDrawer(); return; }
+    /* Team drawer → tap a player row to drill into that player's drawer. */
+    var teamPlayer = e.target.closest('[data-exp-team-player]');
+    if (teamPlayer){
+      var pid = teamPlayer.getAttribute('data-exp-team-player');
+      if (pid) swapSheetToPlayer(pid);
+      return;
+    }
   });
   document.addEventListener('keydown', function(e){
     if (e.key === 'Escape' && openDrawerRowId) closeDrawer();
+    /* Allow Enter/Space to activate focused team-player rows for keyboard users. */
+    if ((e.key === 'Enter' || e.key === ' ') && document.activeElement && document.activeElement.matches('[data-exp-team-player]')){
+      e.preventDefault();
+      var pid = document.activeElement.getAttribute('data-exp-team-player');
+      if (pid) swapSheetToPlayer(pid);
+    }
   });
 
   // Close drawer if data re-renders (filters, mode toggles) — drawer would be stale.
