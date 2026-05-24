@@ -1300,7 +1300,7 @@
     }
     .exp-heat__name strong { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); white-space: nowrap; }
     .exp-heat__name span { font: 500 10px/1 var(--font-mono); color: var(--ink-500); letter-spacing: 0.04em; flex-shrink: 0; white-space: nowrap; }
-    .exp-cell { height: 26px; border-radius: 4px; }
+    .exp-cell { height: 26px; border-radius: 4px; cursor: pointer; }
     .exp-cell--empty { background: transparent; border: 1px dashed var(--line); }
     .exp-cell--ir { background: var(--ink-300); }
     .exp-cell.is-pos { background: var(--coral-500); }
@@ -1352,9 +1352,7 @@
     .exp-pill--pos-def{ background: #FCEBEB; color: #791F1F; }
 
     /* ── Exposure drawer (Option C) ──────────────────────────── */
-    .exp-heat__name { cursor: pointer; transition: background var(--duration-fast) var(--ease-out); border-radius: 4px; }
-    .exp-heat__name:hover { background: var(--paper-deep); }
-    .exp-heat__name.is-active { background: var(--paper-deep); }
+    /* Heatmap is a visual-only surface — no cursor, no hover, no active state. */
     .exp-list__row { cursor: pointer; transition: background var(--duration-fast) var(--ease-out); border-radius: 4px; }
     .exp-list__row:hover { background: var(--paper-deep); padding-left: 6px; padding-right: 6px; }
     .exp-list__row.is-active { background: var(--paper-deep); padding-left: 6px; padding-right: 6px; }
@@ -1377,25 +1375,23 @@
 
     .exp-drawer__summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
     .exp-drawer__stat { background: var(--paper); border-radius: 6px; padding: 10px 12px; }
-    .exp-drawer__stat-label { font: 500 9px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .1em; text-transform: uppercase; margin: 0 0 6px; }
+    .exp-drawer__stat-label { font: 500 9px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .1em; text-transform: uppercase; margin: 0 0 6px; display: block; }
+    .exp-drawer__stat-row { display: flex; align-items: baseline; gap: 8px; margin: 0; flex-wrap: wrap; }
     .exp-drawer__stat-value { font: 500 15px/1 var(--font-sans); color: var(--ink-900); margin: 0; }
-    .exp-drawer__stat-sub { font: 400 11px/1.2 var(--font-sans); color: var(--ink-500); margin: 3px 0 0; }
+    .exp-drawer__stat-sub { font: 400 11px/1.2 var(--font-sans); color: var(--ink-500); margin: 0; }
 
     .exp-drawer__section-h { font: 500 9px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .12em; text-transform: uppercase; margin: 0 0 8px; }
     .exp-drawer__lg-row {
-      display: grid; grid-template-columns: 1fr auto auto auto;
+      display: grid; grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px; align-items: center;
       padding: 10px 0; border-top: 1px solid var(--line-soft);
     }
     .exp-drawer__lg-row:first-of-type { border-top: 0; padding-top: 4px; }
     .exp-drawer__lg-name { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .exp-pill--fmt { font: 500 10px/1 var(--font-mono); padding: 3px 6px; border-radius: 4px; background: var(--paper-deep); color: var(--ink-500); letter-spacing: .04em; }
-    .exp-pill--rank { font: 500 11px/1 var(--font-mono); padding: 4px 8px; border-radius: 10px; background: var(--coral-500); color: var(--paper); letter-spacing: .04em; }
+    .exp-pill--fmt { font: 500 10px/1 var(--font-mono); padding: 4px 8px; border-radius: 10px; background: var(--paper-deep); color: var(--ink-500); letter-spacing: .04em; }
+    .exp-pill--rank { font: 500 11px/1 var(--font-mono); padding: 4px 8px; border-radius: 10px; background: var(--coral-500); color: var(--paper); letter-spacing: .04em; display: inline-flex; align-items: baseline; gap: 5px; }
+    .exp-pill--rank .exp-pill__fmt-prefix { font: 500 10px/1 var(--font-mono); opacity: .78; letter-spacing: .04em; }
     .exp-pill--rank-unknown { background: transparent; color: var(--ink-500); border: 1px dashed var(--line); }
-    .exp-pill--slot { font: 500 10px/1 var(--font-mono); padding: 4px 7px; border-radius: 10px; letter-spacing: .04em; }
-    .exp-pill--slot-start { background: #0F6E56; color: #E1F5EE; }
-    .exp-pill--slot-bench { background: var(--paper-deep); color: var(--ink-500); }
-    .exp-pill--slot-notin { background: transparent; color: var(--ink-300); border: 1px dashed var(--line); }
     .exp-drawer__lg-row.is-muted .exp-drawer__lg-name,
     .exp-drawer__lg-row.is-muted .exp-pill--fmt,
     .exp-drawer__lg-row.is-muted .exp-pill--rank { color: var(--ink-300); }
@@ -1420,9 +1416,6 @@
       .exp-head { flex-direction: column; align-items: stretch; }
       .exp-head__controls { width: 100%; }
       .exp-drawer__summary { grid-template-columns: 1fr; }
-      .exp-drawer__lg-row { grid-template-columns: 1fr auto; row-gap: 6px; }
-      .exp-drawer__lg-row .exp-pill--fmt,
-      .exp-drawer__lg-row .exp-pill--rank { grid-column: span 1; }
     }
   </style>
 </head>
@@ -4225,26 +4218,9 @@ initThemeToggle();
     if (tooltipEl) tooltipEl.classList.remove('visible');
   }
 
-  // Delegated hover (mouseover/mouseout bubble; mouseenter/leave do not)
-  var view = document.getElementById('view-exposure');
-  if (view){
-    view.addEventListener('mouseover', function(e){
-      var el = e.target.closest('[data-exp-row]');
-      if (!el) return;
-      showTooltipFor(el);
-    });
-    view.addEventListener('mouseout', function(e){
-      var el = e.target.closest('[data-exp-row]');
-      if (!el) return;
-      /* Only hide if we're actually leaving the row (not jumping to a child). */
-      var rel = e.relatedTarget;
-      if (rel && el.contains(rel)) return;
-      hideTooltip();
-    });
-    /* Reposition on scroll (heatmap names column + window). */
-    view.addEventListener('scroll', hideTooltip, true);
-    window.addEventListener('scroll', hideTooltip, { passive: true });
-  }
+  // Hover tooltips are disabled across the entire Exposure view. All player
+  // inspection happens via click → inline drawer (both heatmap tiles and list rows).
+  // hideTooltip is kept as a no-op so any residual callers don't error.
 
   // ── Drawer ─────────────────────────────────────────────────
   var openDrawerRowId = null;
@@ -4275,17 +4251,24 @@ initThemeToggle();
 
     function lgRowHtml(name, isMuted){
       var ctx = ctxByName[name] || {};
-      var fmt = ctx.fmt || '—';
-      var slot = slotForPlayerInLeague(player, name, state.mode);
+      var fmt = ctx.fmt || '';
       var rank = rankForPlayerInLeague(player, name);
-      var rankHtml = (rank!=null)
-        ? '<span class="exp-pill exp-pill--rank">' + esc(pos) + esc(String(rank)) + '</span>'
-        : '<span class="exp-pill exp-pill--rank exp-pill--rank-unknown">—</span>';
+      /* slot is still computed on the backend (slotForPlayerInLeague) for data integrity,
+         but no longer rendered in this row per design. */
+      var rightPillHtml;
+      if (rank != null) {
+        /* Option C — fmt as inline prefix inside the rank pill. */
+        var prefix = fmt ? '<span class="exp-pill__fmt-prefix">' + esc(fmt) + '</span>' : '';
+        rightPillHtml = '<span class="exp-pill exp-pill--rank">' + prefix + esc(pos) + esc(String(rank)) + '</span>';
+      } else {
+        /* No rank — show the fmt pill solo (no dashed em-dash placeholder). */
+        rightPillHtml = fmt
+          ? '<span class="exp-pill exp-pill--fmt">' + esc(fmt) + '</span>'
+          : '<span class="exp-pill exp-pill--rank exp-pill--rank-unknown">—</span>';
+      }
       return '<div class="exp-drawer__lg-row' + (isMuted?' is-muted':'') + '">' +
         '<span class="exp-drawer__lg-name">' + esc(name) + '</span>' +
-        '<span class="exp-pill exp-pill--fmt">' + esc(fmt) + '</span>' +
-        rankHtml +
-        pillForSlot(slot, pos) +
+        rightPillHtml +
         '</div>';
     }
 
@@ -4293,14 +4276,18 @@ initThemeToggle();
                       '<span class="exp-pill exp-pill--team">' + esc(teamLabel) + '</span>';
     var summaryHtml =
       '<div class="exp-drawer__stat">' +
-        '<p class="exp-drawer__stat-label">Exposure</p>' +
-        '<p class="exp-drawer__stat-value">' + rosteredLeagues.length + ' / ' + allLeagueNames.length + '</p>' +
-        '<p class="exp-drawer__stat-sub">' + (allLeagueNames.length ? Math.round(100*rosteredLeagues.length/allLeagueNames.length) + '% of your leagues' : '—') + '</p>' +
+        '<span class="exp-drawer__stat-label">Exposure</span>' +
+        '<p class="exp-drawer__stat-row">' +
+          '<span class="exp-drawer__stat-value">' + rosteredLeagues.length + ' / ' + allLeagueNames.length + '</span>' +
+          '<span class="exp-drawer__stat-sub">' + (allLeagueNames.length ? Math.round(100*rosteredLeagues.length/allLeagueNames.length) + '% of your leagues' : '—') + '</span>' +
+        '</p>' +
       '</div>' +
       '<div class="exp-drawer__stat">' +
-        '<p class="exp-drawer__stat-label">Position</p>' +
-        '<p class="exp-drawer__stat-value">' + esc(pos||'—') + '</p>' +
-        '<p class="exp-drawer__stat-sub">' + esc(teamLabel) + '</p>' +
+        '<span class="exp-drawer__stat-label">Position</span>' +
+        '<p class="exp-drawer__stat-row">' +
+          '<span class="exp-drawer__stat-value">' + esc(pos||'—') + '</span>' +
+          '<span class="exp-drawer__stat-sub">' + esc(teamLabel) + '</span>' +
+        '</p>' +
       '</div>';
 
     var rosteredHtml = rosteredLeagues.length
@@ -4348,14 +4335,19 @@ initThemeToggle();
     var player = findPlayerById(rowId);
     if (!player) return;
     var html = renderDrawer(player);
-    /* Drawer is inserted after the closest natural container so it expands inline. */
-    var container = anchorEl.closest('.exp-list__row, .exp-heat__row, .exp-heat__name');
+    /* Drawer anchors inline:
+         - List row click → insert directly after that .exp-list__row
+         - Heat tile click → insert after the entire .exp-heat container (so the
+           drawer spans the full Heatmap card width, not the inner scroll column) */
+    var listAnchor = anchorEl.closest('.exp-list__row');
+    var heatAnchor = anchorEl.closest('.exp-heat');
+    var container = listAnchor || heatAnchor;
     if (!container) return;
     container.insertAdjacentHTML('afterend', html);
     openDrawerRowId = rowId;
-    /* Highlight every row representing this player (could be in both heat and list). */
+    /* Highlight the list row representing this player (if visible in list). */
     document.querySelectorAll('[data-exp-row="' + (window.CSS && CSS.escape ? CSS.escape(rowId) : rowId.replace(/"/g,'\\"')) + '"]').forEach(function(el){
-      if (el.matches('.exp-list__row, .exp-heat__name')) el.classList.add('is-active');
+      if (el.matches('.exp-list__row')) el.classList.add('is-active');
     });
     hideTooltip();
     /* Scroll the drawer into view if it landed off-screen. */
@@ -4386,13 +4378,19 @@ initThemeToggle();
       if (sec) sec.classList.toggle('is-open');
       return;
     }
-    /* Drawer row click: list rows and heat name labels open the drawer.
-       Heat cells (rostered or empty) intentionally do NOT open the drawer —
-       hover tooltip is their interaction. Keeps the heatmap scannable. */
-    var rowEl = e.target.closest('.exp-list__row[data-exp-row], .exp-heat__name[data-exp-row]');
-    if (rowEl){
-      var rid = rowEl.getAttribute('data-exp-row');
-      if (rid){ openDrawerForRow(rid, rowEl); return; }
+    /* Drawer open triggers:
+         - Exposure List rows (click anywhere on row) → drawer anchors to that row
+         - Heatmap tiles (click the colored or empty cell) → drawer anchors to the heat row
+       Heatmap name labels are intentionally NOT clickable — only the tiles. */
+    var listRow = e.target.closest('.exp-list__row[data-exp-row]');
+    if (listRow){
+      var lrid = listRow.getAttribute('data-exp-row');
+      if (lrid){ openDrawerForRow(lrid, listRow); return; }
+    }
+    var heatCell = e.target.closest('.exp-cell[data-exp-row]');
+    if (heatCell){
+      var hrid = heatCell.getAttribute('data-exp-row');
+      if (hrid){ openDrawerForRow(hrid, heatCell); return; }
     }
 
     var t = e.target.closest('[data-exp-mode]');
