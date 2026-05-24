@@ -975,7 +975,15 @@
       .signin-card { padding: 24px 20px; }
       .provider-card-grid { grid-template-columns: 1fr; }
       .board-inner { padding: 16px var(--gutter) 40px; }
-      .nav-controls { padding: 8px 12px; gap: 6px; }
+      .nav-controls { padding: 6px 10px; gap: 2px; flex-wrap: nowrap; }
+      .nav-controls .nav-label { display: none; }
+      .nav-controls .btn-icon { padding: 4px 6px; font-size: 13px; }
+      .nav-controls select.nav-select { font-size: 13px; padding-right: 14px; }
+      .nav-controls select.week-select { min-width: 0; }
+      .nav-controls .nav-spacer { min-width: 4px; }
+      .nav-controls #board-refresh-time { font-size: 11px; white-space: nowrap; padding: 4px 6px; }
+      .nav-controls #board-refresh-time .synced-label,
+      .nav-controls #board-refresh-time .synced-seconds { display: none; }
       .nav-divider { display: none; }
       .nav-ctx { display: none; }
       .columns { grid-template-columns: minmax(0, 1fr); gap: 28px; }
@@ -2432,8 +2440,14 @@ function renderBoard(data,username){
   if(!isDemoMode&&partialError){document.getElementById('banner-partial-msg').textContent=partialError;partialBanner.classList.add('visible');}
   else{partialBanner.classList.remove('visible');}
   renderDebug(isDemoMode?null:debugInfo);
-  const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  document.getElementById('board-refresh-time').textContent=`Synced ${now}`;
+  /* Build "Synced HH:MM:SS AM" but wrap "Synced " and ":SS" so mobile CSS can hide them and keep the row on one line. */
+  const _now=new Date();
+  const _hm=_now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});           /* "02:16 PM" */
+  const _ss=String(_now.getSeconds()).padStart(2,'0');                                  /* "25" */
+  /* Split "02:16 PM" → ["02:16","PM"] so we can splice seconds before the AM/PM. */
+  const _parts=_hm.split(' ');
+  const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
+  document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
   if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
