@@ -1247,6 +1247,9 @@
     .exp-toggle button.active { color: var(--paper); background: var(--ink-900); }
     .exp-toggle.mode-positive button.active { background: var(--coral-500); }
     .exp-toggle.mode-negative button.active { background: var(--navy-700); color: var(--paper-soft); }
+    /* View toggle: show only the active card */
+    body[data-exp-view="leaderboard"] #exp-heat-card { display: none; }
+    body[data-exp-view="grid"] #exp-list-card { display: none; }
 
     .exp-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; }
     .exp-filter-pill { font: 500 12px/1 var(--font-sans); padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--paper); color: var(--ink-500); cursor: pointer; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
@@ -1767,6 +1770,10 @@
         <button type="button" class="active" data-exp-bench="starters" role="tab" aria-selected="true">Starters only</button>
         <button type="button" data-exp-bench="all" role="tab" aria-selected="false">Include bench</button>
       </div>
+      <div class="exp-toggle" id="exp-view-toggle" role="tablist" aria-label="View">
+        <button type="button" class="active" data-exp-view="leaderboard" role="tab" aria-selected="true">Leaderboard</button>
+        <button type="button" data-exp-view="grid" role="tab" aria-selected="false">Grid</button>
+      </div>
     </div>
   </div>
 
@@ -1784,7 +1791,7 @@
 
   <div class="exp-card" id="exp-heat-card">
     <div class="exp-card__head">
-      <h3 id="exp-heat-title">Heatmap</h3>
+      <h3 id="exp-heat-title">Grid</h3>
       <div class="exp-legend" id="exp-legend">
         <span><i style="background:var(--coral-500)"></i>Rostered</span>
         <span><i style="background:transparent;border:1px dashed var(--line);"></i>Not rostered</span>
@@ -1795,7 +1802,7 @@
 
   <div class="exp-card" id="exp-list-card">
     <div class="exp-card__head">
-      <h3 id="exp-list-title">Exposure list — every player</h3>
+      <h3 id="exp-list-title">Leaderboard — every player</h3>
       <span class="exp-card__sort" id="exp-list-sort">Sorted by exposure count</span>
     </div>
     <div class="exp-list" id="exp-list"></div>
@@ -3743,15 +3750,22 @@ initThemeToggle();
 <script>
 (function(){
   var EXP_INCLUDE_BENCH_KEY = 'gd_exp_include_bench';
+  var EXP_VIEW_KEY = 'gd_exp_view';
   var initialIncludeBench = false;
   try { initialIncludeBench = localStorage.getItem(EXP_INCLUDE_BENCH_KEY) === '1'; } catch(e){}
+  var initialView = 'leaderboard';
+  try {
+    var storedView = localStorage.getItem(EXP_VIEW_KEY);
+    if (storedView === 'grid' || storedView === 'leaderboard') initialView = storedView;
+  } catch(e){}
 
   // State for the exposure view (independent of dashboard filters)
   var state = {
     mode: 'positive',          // 'positive' | 'negative'
     axis: 'players',           // 'players' | 'teams'
     pos: 'ALL',                // ALL | QB | RB | WR | TE | K | DEF
-    includeBench: initialIncludeBench // false = starters only, true = include bench
+    includeBench: initialIncludeBench, // false = starters only, true = include bench
+    view: initialView          // 'leaderboard' | 'grid'
   };
 
   function esc(s){
@@ -3886,7 +3900,7 @@ initThemeToggle();
       kpiTopSub: 'exposures',
       kpiFootprintLabel: 'Total footprint',
       kpiFootprintSub: 'across the relevant rosters',
-      listTitle: 'Exposure list — every player',
+      listTitle: 'Leaderboard — every player',
       legendLabel: 'Rostered',
       emptyTitle: 'No exposure data yet.',
       emptyBody: 'Connect a league or load demo mode to see your exposure across rosters.'
@@ -4068,6 +4082,18 @@ initThemeToggle();
         b.setAttribute('aria-selected', active ? 'true' : 'false');
       });
     }
+    var viewToggle = document.getElementById('exp-view-toggle');
+    if (viewToggle){
+      viewToggle.classList.toggle('mode-positive', state.mode === 'positive');
+      viewToggle.classList.toggle('mode-negative', state.mode === 'negative');
+      viewToggle.querySelectorAll('button').forEach(function(b){
+        var active = b.getAttribute('data-exp-view') === state.view;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+    }
+    // Reflect current view on body so CSS can show only the active card
+    document.body.setAttribute('data-exp-view', state.view);
 
     // Position filter pills
     document.querySelectorAll('#exp-filters [data-exp-pos]').forEach(function(b){
@@ -4087,7 +4113,7 @@ initThemeToggle();
     var listTitle = document.getElementById('exp-list-title');
     if (listTitle) listTitle.textContent = copy.listTitle;
     var heatTitle = document.getElementById('exp-heat-title');
-    if (heatTitle) heatTitle.textContent = state.axis === 'teams' ? 'Heatmap — NFL teams × leagues' : 'Heatmap — players × leagues';
+    if (heatTitle) heatTitle.textContent = state.axis === 'teams' ? 'Grid — NFL teams × leagues' : 'Grid — players × leagues';
 
     var heat = document.getElementById('exp-heat');
     var list = document.getElementById('exp-list');
@@ -4592,6 +4618,16 @@ initThemeToggle();
     if (bn){
       state.includeBench = bn.getAttribute('data-exp-bench') === 'all';
       try { localStorage.setItem(EXP_INCLUDE_BENCH_KEY, state.includeBench ? '1' : '0'); } catch(err){}
+      renderExposureView();
+      return;
+    }
+    var v = e.target.closest('[data-exp-view]');
+    if (v){
+      state.view = v.getAttribute('data-exp-view');
+      try { localStorage.setItem(EXP_VIEW_KEY, state.view); } catch(err){}
+      document.body.setAttribute('data-exp-view', state.view);
+      // Close any open drawer when switching views so it doesn't dangle
+      if (typeof openDrawerRowId !== 'undefined' && openDrawerRowId) closeDrawer();
       renderExposureView();
       return;
     }
