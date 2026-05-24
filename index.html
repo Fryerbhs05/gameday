@@ -1261,6 +1261,27 @@
     /* Filter strip (row 2 on mobile): the three data-shaping toggles */
     .exp-filter-strip { display: contents; }
 
+    /* Settings button — mobile only; matches toggle chrome */
+    .exp-settings-btn { display: none; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--paper); color: var(--ink-700); font: 500 12px/1 var(--font-sans); padding: 9px 14px; cursor: pointer; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+    .exp-settings-btn:hover { background: var(--paper-deep); color: var(--ink-900); }
+    .exp-settings-btn:active { background: var(--paper-deep); }
+
+    /* Settings sheet content */
+    .exp-settings { padding: 4px 2px 0; }
+    .exp-settings__head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 12px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+    .exp-settings__title { font: 600 16px/1.2 var(--font-sans); color: var(--ink-900); margin: 0; letter-spacing: -0.01em; }
+    .exp-settings__close { background: transparent; border: 0; padding: 6px 8px; color: var(--ink-500); cursor: pointer; font: 500 14px/1 var(--font-mono); border-radius: var(--radius-sm); }
+    .exp-settings__close:hover { color: var(--ink-900); background: var(--paper-deep); }
+    .exp-settings__section { margin-bottom: 16px; }
+    .exp-settings__label { font: 500 10px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-500); margin: 0 0 8px; }
+    .exp-settings__section .exp-toggle { display: flex; width: 100%; }
+    .exp-settings__section .exp-toggle button { flex: 1 1 0; padding: 12px 14px; font-size: 13px; }
+    .exp-settings__footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 2px 4px; border-top: 1px solid var(--line); margin-top: 6px; }
+    .exp-settings__reset { background: transparent; border: 0; color: var(--ink-500); font: 500 12px/1 var(--font-sans); cursor: pointer; padding: 8px 4px; }
+    .exp-settings__reset:hover { color: var(--ink-900); text-decoration: underline; }
+    .exp-settings__done { background: var(--ink-900); color: var(--paper); border: 0; padding: 10px 20px; border-radius: var(--radius-md); font: 500 13px/1 var(--font-sans); cursor: pointer; }
+    .exp-settings__done:hover { background: var(--ink-700); }
+
     .exp-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; }
     .exp-filter-pill { font: 500 12px/1 var(--font-sans); padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--paper); color: var(--ink-500); cursor: pointer; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
     .exp-filter-pill:hover:not(.active) { background: var(--paper-deep); }
@@ -1460,20 +1481,20 @@
 
     @media (max-width: 640px) {
       #view-exposure { padding: 18px 12px 60px; }
-      .exp-kpis { grid-template-columns: 1fr; }
+      .exp-kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
       .exp-head { flex-direction: column; align-items: stretch; }
       .exp-head__controls { width: 100%; flex-direction: column; align-items: stretch; gap: 10px; }
       .exp-drawer__summary { grid-template-columns: 1fr; }
 
-      /* Row 1 — context bar: selects left, view toggle right */
-      .exp-context-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
-      .exp-context-bar .exp-select-group { flex: 0 0 auto; }
+      /* Row 1 — context bar: selects left, view toggle + settings right */
+      .exp-context-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; width: 100%; }
+      .exp-context-bar .exp-select-group { flex: 1 1 auto; }
+      .exp-context-bar .exp-select-group select.nav-select { flex: 1 1 auto; min-width: 0; }
       .exp-context-bar #exp-view-toggle { flex: 0 0 auto; }
+      .exp-context-bar .exp-settings-btn { display: inline-flex; flex: 0 0 auto; }
 
-      /* Row 2 — filter strip: horizontal scroll, no wrap */
-      .exp-filter-strip { display: flex; gap: 8px; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
-      .exp-filter-strip::-webkit-scrollbar { display: none; }
-      .exp-filter-strip > .exp-toggle { flex: 0 0 auto; }
+      /* Inline filter strip is moved into the Settings sheet on mobile */
+      .exp-filter-strip { display: none; }
     }
   </style>
 </head>
@@ -1786,6 +1807,7 @@
           <button type="button" class="active" data-exp-view="leaderboard" role="tab" aria-selected="true">Leaderboard</button>
           <button type="button" data-exp-view="grid" role="tab" aria-selected="false">Grid</button>
         </div>
+        <button type="button" class="exp-settings-btn" id="exp-settings-btn" aria-label="Open settings" data-exp-settings-open="1">Settings</button>
       </div>
       <div class="exp-filter-strip">
         <div class="exp-toggle mode-positive" id="exp-mode-toggle" role="tablist" aria-label="Exposure mode">
@@ -4312,6 +4334,8 @@ initThemeToggle();
 
   // ── Drawer ─────────────────────────────────────────────────
   var openDrawerRowId = null;
+  var openSettings = false;
+  function anySheetOpen(){ return !!openDrawerRowId || openSettings; }
 
   function pillForSlot(slot, pos){
     if (slot==='start') return '<span class="exp-pill exp-pill--slot exp-pill--slot-start">' + esc(slotLabelForPosition(pos)) + '</span>';
@@ -4508,7 +4532,7 @@ initThemeToggle();
   }
 
   function closeDrawer(){
-    if (!openDrawerRowId) return;
+    if (!anySheetOpen()) return;
     if (sheetEl) sheetEl.classList.remove('is-open');
     if (backdropEl) backdropEl.classList.remove('is-open');
     document.body.classList.remove('exp-sheet-open');
@@ -4522,6 +4546,7 @@ initThemeToggle();
       }
     }, 240);
     openDrawerRowId = null;
+    openSettings = false;
   }
 
   function openDrawerForRow(rowId, anchorEl){
@@ -4566,9 +4591,111 @@ initThemeToggle();
     if (body) body.scrollTop = 0;
   }
 
+  /* ── Settings sheet (mobile) ──
+     Houses the three data-shaping toggles (Mode, Group by, Roster scope) in a
+     bottom-sheet panel so the page surface stays uncluttered on phones. */
+  function renderSettingsSheet(){
+    function isActive(key, val){
+      if (key === 'mode') return state.mode === val;
+      if (key === 'axis') return state.axis === val;
+      if (key === 'bench') return (state.includeBench ? 'all' : 'starters') === val;
+      return false;
+    }
+    function btn(attr, val, label){
+      var cls = isActive(attr === 'data-exp-mode' ? 'mode' : attr === 'data-exp-axis' ? 'axis' : 'bench', val) ? ' class="active"' : '';
+      var sel = isActive(attr === 'data-exp-mode' ? 'mode' : attr === 'data-exp-axis' ? 'axis' : 'bench', val) ? 'true' : 'false';
+      return '<button type="button"' + cls + ' ' + attr + '="' + val + '" role="tab" aria-selected="' + sel + '">' + esc(label) + '</button>';
+    }
+    var modeClass = state.mode === 'positive' ? 'mode-positive' : 'mode-negative';
+    return '<div class="exp-settings">' +
+      '<div class="exp-settings__head">' +
+        '<h3 class="exp-settings__title">Settings</h3>' +
+        '<button type="button" class="exp-settings__close" aria-label="Close" data-exp-settings-close="1">✕</button>' +
+      '</div>' +
+      '<div class="exp-settings__section">' +
+        '<p class="exp-settings__label">Mode</p>' +
+        '<div class="exp-toggle ' + modeClass + '" id="exp-mode-toggle-sheet" role="tablist" aria-label="Exposure mode">' +
+          btn('data-exp-mode', 'positive', 'Positive') +
+          btn('data-exp-mode', 'negative', 'Negative') +
+        '</div>' +
+      '</div>' +
+      '<div class="exp-settings__section">' +
+        '<p class="exp-settings__label">Group by</p>' +
+        '<div class="exp-toggle" id="exp-axis-toggle-sheet" role="tablist" aria-label="Axis">' +
+          btn('data-exp-axis', 'players', 'Players') +
+          btn('data-exp-axis', 'teams', 'NFL teams') +
+        '</div>' +
+      '</div>' +
+      '<div class="exp-settings__section">' +
+        '<p class="exp-settings__label">Roster scope</p>' +
+        '<div class="exp-toggle" id="exp-bench-toggle-sheet" role="tablist" aria-label="Roster scope">' +
+          btn('data-exp-bench', 'starters', 'Starters only') +
+          btn('data-exp-bench', 'all', 'Include bench') +
+        '</div>' +
+      '</div>' +
+      '<div class="exp-settings__footer">' +
+        '<button type="button" class="exp-settings__reset" data-exp-settings-reset="1">Reset to defaults</button>' +
+        '<button type="button" class="exp-settings__done" data-exp-settings-close="1">Done</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  /* Refresh the active states inside the open Settings sheet without rebuilding
+     the whole sheet (preserves scroll position and feel of the toggles). */
+  function updateSettingsSheetUI(){
+    if (!openSettings || !sheetEl) return;
+    var body = sheetEl.querySelector('[data-exp-sheet-body]');
+    if (!body) return;
+    function syncToggle(selectorId, attr, currentVal){
+      var t = body.querySelector('#' + selectorId);
+      if (!t) return;
+      t.querySelectorAll('button').forEach(function(b){
+        var on = b.getAttribute(attr) === currentVal;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+    var modeT = body.querySelector('#exp-mode-toggle-sheet');
+    if (modeT){
+      modeT.classList.toggle('mode-positive', state.mode === 'positive');
+      modeT.classList.toggle('mode-negative', state.mode === 'negative');
+    }
+    syncToggle('exp-mode-toggle-sheet', 'data-exp-mode', state.mode);
+    syncToggle('exp-axis-toggle-sheet', 'data-exp-axis', state.axis);
+    syncToggle('exp-bench-toggle-sheet', 'data-exp-bench', state.includeBench ? 'all' : 'starters');
+  }
+
+  function openSettingsSheet(){
+    /* If a row drawer is currently open, close it first — only one sheet at a time. */
+    if (openDrawerRowId) closeDrawer();
+    ensureSheet();
+    var body = sheetEl.querySelector('[data-exp-sheet-body]');
+    if (body){ body.innerHTML = renderSettingsSheet(); body.scrollTop = 0; }
+    openSettings = true;
+    document.body.classList.add('exp-sheet-open');
+    requestAnimationFrame(function(){
+      if (sheetEl) sheetEl.classList.add('is-open');
+      if (backdropEl) backdropEl.classList.add('is-open');
+    });
+  }
+
   /* Dismissal: backdrop tap + Esc key. (Close button is wired via the existing
      data-exp-drawer-close handler.) */
   document.addEventListener('click', function(e){
+    /* Settings open. */
+    if (e.target.closest('[data-exp-settings-open]')){ openSettingsSheet(); return; }
+    /* Settings close (X button, Done button). */
+    if (e.target.closest('[data-exp-settings-close]')){ closeDrawer(); return; }
+    /* Settings reset. */
+    if (e.target.closest('[data-exp-settings-reset]')){
+      state.mode = 'positive';
+      state.axis = 'players';
+      state.includeBench = false;
+      state.pos = 'ALL';
+      try { localStorage.setItem(EXP_INCLUDE_BENCH_KEY, '0'); } catch(err){}
+      renderExposureView();
+      return;
+    }
     if (e.target.closest('[data-exp-sheet-backdrop]')) { closeDrawer(); return; }
     /* Team drawer → tap a player row to drill into that player's drawer. */
     var teamPlayer = e.target.closest('[data-exp-team-player]');
@@ -4579,7 +4706,7 @@ initThemeToggle();
     }
   });
   document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape' && openDrawerRowId) closeDrawer();
+    if (e.key === 'Escape' && anySheetOpen()) closeDrawer();
     /* Allow Enter/Space to activate focused team-player rows for keyboard users. */
     if ((e.key === 'Enter' || e.key === ' ') && document.activeElement && document.activeElement.matches('[data-exp-team-player]')){
       e.preventDefault();
@@ -4588,11 +4715,15 @@ initThemeToggle();
     }
   });
 
-  // Close drawer if data re-renders (filters, mode toggles) — drawer would be stale.
+  // Close player/team drawer if data re-renders (filters, mode toggles) — it'd
+  // be stale. But preserve the Settings sheet so toggling inside it stays open.
   var _origRenderExposure = renderExposureView;
   renderExposureView = function(){
-    closeDrawer();
-    return _origRenderExposure.apply(this, arguments);
+    if (openDrawerRowId) closeDrawer();
+    var r = _origRenderExposure.apply(this, arguments);
+    /* If Settings is open, refresh its active states so the sheet reflects the new state. */
+    if (openSettings) updateSettingsSheetUI();
+    return r;
   };
 
   // Wire toggle/filter clicks once on load
@@ -4660,9 +4791,9 @@ initThemeToggle();
     }
   });
 
-  /* Esc closes drawer. */
+  /* Esc closes any open sheet (drawer or settings). */
   document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape' && openDrawerRowId) closeDrawer();
+    if (e.key === 'Escape' && anySheetOpen()) closeDrawer();
   });
 
   // Expose entry points
