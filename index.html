@@ -1357,6 +1357,35 @@
     .exp-list__row:hover { background: var(--paper-deep); padding-left: 6px; padding-right: 6px; }
     .exp-list__row.is-active { background: var(--paper-deep); padding-left: 6px; padding-right: 6px; }
 
+    /* Bottom-sheet overlay shell — wraps the drawer when opened from heatmap or list. */
+    .exp-sheet-backdrop {
+      position: fixed; inset: 0; background: rgba(15, 23, 38, 0);
+      z-index: 900; pointer-events: none;
+      transition: background var(--duration-base) var(--ease-out);
+    }
+    .exp-sheet-backdrop.is-open { background: rgba(15, 23, 38, .55); pointer-events: auto; }
+    .exp-sheet {
+      position: fixed; left: 50%; bottom: 0; transform: translate(-50%, 100%);
+      width: min(640px, 100vw); max-height: 86vh; z-index: 901;
+      background: var(--paper); color: var(--ink-900);
+      border-top-left-radius: 16px; border-top-right-radius: 16px;
+      box-shadow: 0 -8px 32px rgba(0,0,0,.28);
+      display: flex; flex-direction: column;
+      transition: transform var(--duration-base) var(--ease-out);
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    .exp-sheet.is-open { transform: translate(-50%, 0); }
+    .exp-sheet__handle {
+      width: 44px; height: 4px; border-radius: 2px;
+      background: var(--ink-300); opacity: .5;
+      margin: 8px auto 4px; flex-shrink: 0;
+    }
+    .exp-sheet__body { overflow-y: auto; overscroll-behavior: contain; padding: 6px 16px 18px; }
+    /* When the drawer renders inside the sheet, drop its outer chrome — sheet provides it. */
+    .exp-sheet .exp-drawer { background: transparent; border: 0; padding: 6px 0 0; margin: 0; }
+    /* Lock background scroll while sheet is open. */
+    body.exp-sheet-open { overflow: hidden; }
+
     .exp-drawer {
       background: var(--paper-soft); border: 1px solid var(--line);
       border-radius: 8px; padding: 14px 16px; margin: 10px 0 18px;
@@ -4320,43 +4349,78 @@ initThemeToggle();
     '</div>';
   }
 
+  /* Bottom-sheet overlay — the drawer renders inside a fixed sheet that slides up
+     from the bottom of the viewport, with a dimmed backdrop. The drawer's internal
+     markup (head, stats, league list, etc.) is unchanged — only the outer container
+     differs from the prior inline insertion. */
+  var sheetEl = null, backdropEl = null;
+
+  function ensureSheet(){
+    if (sheetEl) return;
+    backdropEl = document.createElement('div');
+    backdropEl.className = 'exp-sheet-backdrop';
+    backdropEl.setAttribute('data-exp-sheet-backdrop','1');
+    sheetEl = document.createElement('div');
+    sheetEl.className = 'exp-sheet';
+    sheetEl.setAttribute('role','dialog');
+    sheetEl.setAttribute('aria-modal','true');
+    sheetEl.innerHTML = '<div class="exp-sheet__handle" aria-hidden="true"></div>' +
+                        '<div class="exp-sheet__body" data-exp-sheet-body="1"></div>';
+    document.body.appendChild(backdropEl);
+    document.body.appendChild(sheetEl);
+  }
+
   function closeDrawer(){
     if (!openDrawerRowId) return;
-    var existing = document.querySelector('[data-exp-drawer]');
-    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    if (sheetEl) sheetEl.classList.remove('is-open');
+    if (backdropEl) backdropEl.classList.remove('is-open');
+    document.body.classList.remove('exp-sheet-open');
     document.querySelectorAll('.is-active[data-exp-row]').forEach(function(el){ el.classList.remove('is-active'); });
+    /* Clear body after transition so the next render is fresh. */
+    var sheet = sheetEl;
+    setTimeout(function(){
+      if (sheet && !sheet.classList.contains('is-open')){
+        var body = sheet.querySelector('[data-exp-sheet-body]');
+        if (body) body.innerHTML = '';
+      }
+    }, 240);
     openDrawerRowId = null;
   }
 
   function openDrawerForRow(rowId, anchorEl){
     /* Toggle off if clicking the same row again. */
     if (openDrawerRowId === rowId){ closeDrawer(); return; }
+    /* Switching players while sheet is already open — swap content without re-animating. */
+    var wasOpen = !!openDrawerRowId;
     closeDrawer();
     var player = findPlayerById(rowId);
     if (!player) return;
+    ensureSheet();
     var html = renderDrawer(player);
-    /* Drawer anchors inline:
-         - List row click → insert directly after that .exp-list__row
-         - Heat tile click → insert after the entire .exp-heat container (so the
-           drawer spans the full Heatmap card width, not the inner scroll column) */
-    var listAnchor = anchorEl.closest('.exp-list__row');
-    var heatAnchor = anchorEl.closest('.exp-heat');
-    var container = listAnchor || heatAnchor;
-    if (!container) return;
-    container.insertAdjacentHTML('afterend', html);
+    var body = sheetEl.querySelector('[data-exp-sheet-body]');
+    if (body) body.innerHTML = html;
     openDrawerRowId = rowId;
     /* Highlight the list row representing this player (if visible in list). */
     document.querySelectorAll('[data-exp-row="' + (window.CSS && CSS.escape ? CSS.escape(rowId) : rowId.replace(/"/g,'\\"')) + '"]').forEach(function(el){
       if (el.matches('.exp-list__row')) el.classList.add('is-active');
     });
     hideTooltip();
-    /* Scroll the drawer into view if it landed off-screen. */
-    var drawerEl = document.querySelector('[data-exp-drawer]');
-    if (drawerEl){
-      var r = drawerEl.getBoundingClientRect();
-      if (r.bottom > window.innerHeight) drawerEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
+    document.body.classList.add('exp-sheet-open');
+    /* Use rAF so the transform animates from the off-screen starting state. */
+    requestAnimationFrame(function(){
+      if (sheetEl) sheetEl.classList.add('is-open');
+      if (backdropEl) backdropEl.classList.add('is-open');
+    });
   }
+
+  /* Dismissal: backdrop tap + Esc key. (Close button is wired via the existing
+     data-exp-drawer-close handler.) */
+  document.addEventListener('click', function(e){
+    if (e.target.closest('[data-exp-sheet-backdrop]')) closeDrawer();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && openDrawerRowId) closeDrawer();
+  });
 
   // Close drawer if data re-renders (filters, mode toggles) — drawer would be stale.
   var _origRenderExposure = renderExposureView;
