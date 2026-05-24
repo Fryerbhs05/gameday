@@ -1251,6 +1251,16 @@
     body[data-exp-view="leaderboard"] #exp-heat-card { display: none; }
     body[data-exp-view="grid"] #exp-list-card { display: none; }
 
+    /* Grouped controls: Week/Year selects share a bordered shell that matches the toggles */
+    .exp-select-group { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--paper); overflow: hidden; }
+    .exp-select-group select.nav-select { padding: 8px 22px 8px 12px; font: 500 12px/1 var(--font-sans); background-position: right 6px center; }
+    .exp-select-group__divider { width: 1px; background: var(--line); align-self: stretch; }
+
+    /* Context bar (row 1 on mobile): selects on the left, view switch on the right */
+    .exp-context-bar { display: contents; }
+    /* Filter strip (row 2 on mobile): the three data-shaping toggles */
+    .exp-filter-strip { display: contents; }
+
     .exp-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; }
     .exp-filter-pill { font: 500 12px/1 var(--font-sans); padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--paper); color: var(--ink-500); cursor: pointer; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
     .exp-filter-pill:hover:not(.active) { background: var(--paper-deep); }
@@ -1452,8 +1462,18 @@
       #view-exposure { padding: 18px 12px 60px; }
       .exp-kpis { grid-template-columns: 1fr; }
       .exp-head { flex-direction: column; align-items: stretch; }
-      .exp-head__controls { width: 100%; }
+      .exp-head__controls { width: 100%; flex-direction: column; align-items: stretch; gap: 10px; }
       .exp-drawer__summary { grid-template-columns: 1fr; }
+
+      /* Row 1 — context bar: selects left, view toggle right */
+      .exp-context-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
+      .exp-context-bar .exp-select-group { flex: 0 0 auto; }
+      .exp-context-bar #exp-view-toggle { flex: 0 0 auto; }
+
+      /* Row 2 — filter strip: horizontal scroll, no wrap */
+      .exp-filter-strip { display: flex; gap: 8px; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+      .exp-filter-strip::-webkit-scrollbar { display: none; }
+      .exp-filter-strip > .exp-toggle { flex: 0 0 auto; }
     }
   </style>
 </head>
@@ -1756,23 +1776,30 @@
       <p id="exp-subtitle">Which players are sitting on the most of your rosters this week.</p>
     </div>
     <div class="exp-head__controls">
-      <select class="nav-select week-select" id="exp-week-select" onchange="changeWeekTo(+this.value)"></select>
-      <select class="nav-select" id="exp-season-select" onchange="changeSeason(this.value)"></select>
-      <div class="exp-toggle mode-positive" id="exp-mode-toggle" role="tablist" aria-label="Exposure mode">
-        <button type="button" class="active" data-exp-mode="positive" role="tab" aria-selected="true">Positive</button>
-        <button type="button" data-exp-mode="negative" role="tab" aria-selected="false">Negative</button>
+      <div class="exp-context-bar">
+        <div class="exp-select-group">
+          <select class="nav-select week-select" id="exp-week-select" onchange="changeWeekTo(+this.value)"></select>
+          <span class="exp-select-group__divider" aria-hidden="true"></span>
+          <select class="nav-select" id="exp-season-select" onchange="changeSeason(this.value)"></select>
+        </div>
+        <div class="exp-toggle" id="exp-view-toggle" role="tablist" aria-label="View">
+          <button type="button" class="active" data-exp-view="leaderboard" role="tab" aria-selected="true">Leaderboard</button>
+          <button type="button" data-exp-view="grid" role="tab" aria-selected="false">Grid</button>
+        </div>
       </div>
-      <div class="exp-toggle" id="exp-axis-toggle" role="tablist" aria-label="Axis">
-        <button type="button" class="active" data-exp-axis="players" role="tab" aria-selected="true">Players</button>
-        <button type="button" data-exp-axis="teams" role="tab" aria-selected="false">NFL teams</button>
-      </div>
-      <div class="exp-toggle" id="exp-bench-toggle" role="tablist" aria-label="Roster scope">
-        <button type="button" class="active" data-exp-bench="starters" role="tab" aria-selected="true">Starters only</button>
-        <button type="button" data-exp-bench="all" role="tab" aria-selected="false">Include bench</button>
-      </div>
-      <div class="exp-toggle" id="exp-view-toggle" role="tablist" aria-label="View">
-        <button type="button" class="active" data-exp-view="leaderboard" role="tab" aria-selected="true">Leaderboard</button>
-        <button type="button" data-exp-view="grid" role="tab" aria-selected="false">Grid</button>
+      <div class="exp-filter-strip">
+        <div class="exp-toggle mode-positive" id="exp-mode-toggle" role="tablist" aria-label="Exposure mode">
+          <button type="button" class="active" data-exp-mode="positive" role="tab" aria-selected="true">Positive</button>
+          <button type="button" data-exp-mode="negative" role="tab" aria-selected="false">Negative</button>
+        </div>
+        <div class="exp-toggle" id="exp-axis-toggle" role="tablist" aria-label="Axis">
+          <button type="button" class="active" data-exp-axis="players" role="tab" aria-selected="true">Players</button>
+          <button type="button" data-exp-axis="teams" role="tab" aria-selected="false">NFL teams</button>
+        </div>
+        <div class="exp-toggle" id="exp-bench-toggle" role="tablist" aria-label="Roster scope">
+          <button type="button" class="active" data-exp-bench="starters" role="tab" aria-selected="true">Starters only</button>
+          <button type="button" data-exp-bench="all" role="tab" aria-selected="false">Include bench</button>
+        </div>
       </div>
     </div>
   </div>
