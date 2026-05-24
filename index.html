@@ -83,13 +83,13 @@
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { font-size: 16px; -webkit-text-size-adjust: 100%; overflow-x: hidden; }
+    html { font-size: 16px; -webkit-text-size-adjust: 100%; overflow-x: clip; }
     body {
       background: var(--paper);
       color: var(--ink-700);
       font: 400 15px/1.55 var(--font-sans);
       -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
-      min-height: 100vh; overflow-x: hidden;
+      min-height: 100vh; overflow-x: clip;
     }
     a { color: var(--navy-500); text-decoration: none; transition: color var(--duration-fast) var(--ease-out); }
     a:hover { color: var(--coral-500); }
@@ -1807,12 +1807,12 @@
           <button type="button" class="active" data-exp-view="leaderboard" role="tab" aria-selected="true">Leaderboard</button>
           <button type="button" data-exp-view="grid" role="tab" aria-selected="false">Grid</button>
         </div>
-        <button type="button" class="exp-settings-btn" id="exp-settings-btn" aria-label="Open settings" data-exp-settings-open="1">Settings</button>
+        <button type="button" class="exp-settings-btn" id="exp-settings-btn" aria-label="Open filters" data-exp-settings-open="1">Filters</button>
       </div>
       <div class="exp-filter-strip">
         <div class="exp-toggle mode-positive" id="exp-mode-toggle" role="tablist" aria-label="Exposure mode">
-          <button type="button" class="active" data-exp-mode="positive" role="tab" aria-selected="true">Positive</button>
-          <button type="button" data-exp-mode="negative" role="tab" aria-selected="false">Negative</button>
+          <button type="button" class="active" data-exp-mode="positive" role="tab" aria-selected="true">My rosters</button>
+          <button type="button" data-exp-mode="negative" role="tab" aria-selected="false">Opp rosters</button>
         </div>
         <div class="exp-toggle" id="exp-axis-toggle" role="tablist" aria-label="Axis">
           <button type="button" class="active" data-exp-axis="players" role="tab" aria-selected="true">Players</button>
@@ -4609,14 +4609,14 @@ initThemeToggle();
     var modeClass = state.mode === 'positive' ? 'mode-positive' : 'mode-negative';
     return '<div class="exp-settings">' +
       '<div class="exp-settings__head">' +
-        '<h3 class="exp-settings__title">Settings</h3>' +
+        '<h3 class="exp-settings__title">Filters</h3>' +
         '<button type="button" class="exp-settings__close" aria-label="Close" data-exp-settings-close="1">✕</button>' +
       '</div>' +
       '<div class="exp-settings__section">' +
         '<p class="exp-settings__label">Mode</p>' +
         '<div class="exp-toggle ' + modeClass + '" id="exp-mode-toggle-sheet" role="tablist" aria-label="Exposure mode">' +
-          btn('data-exp-mode', 'positive', 'Positive') +
-          btn('data-exp-mode', 'negative', 'Negative') +
+          btn('data-exp-mode', 'positive', 'My rosters') +
+          btn('data-exp-mode', 'negative', 'Opp rosters') +
         '</div>' +
       '</div>' +
       '<div class="exp-settings__section">' +
