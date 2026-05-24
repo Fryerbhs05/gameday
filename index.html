@@ -652,11 +652,6 @@
     ═══════════════════════════════════════════════════════════ */
     #board { display: none; }
     .board-inner { max-width: var(--max-width); margin: 0 auto; padding: 24px var(--gutter) 64px; }
-    .board-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
-    .board-user { font: 400 13px/1.5 var(--font-sans); color: var(--ink-500); }
-    .board-user strong { color: var(--ink-900); font-weight: 700; }
-    .board-user .change-link { color: var(--navy-500); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; font-size: 12px; margin-left: 4px; }
-    .board-user .change-link:hover { color: var(--coral-500); }
 
     /* Nav controls */
     .nav-controls {
@@ -1702,10 +1697,6 @@
 <!-- ══ BOARD ════════════════════════════════════════════════════ -->
 <div id="board">
   <div class="board-inner">
-    <div class="board-header">
-      <div class="board-user">Loaded for <strong id="display-username"></strong><span class="change-link" onclick="handleChangeUser()" id="mobile-change-user">change</span></div>
-      <span class="t-stat-sm" id="board-refresh-time"></span>
-    </div>
     <div class="nav-controls">
       <span class="nav-label">Week</span>
       <button class="btn-icon" id="week-prev" onclick="changeWeek(-1)">‹</button>
@@ -1715,7 +1706,8 @@
       <span class="nav-label">Season</span>
       <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
       <div class="nav-spacer"></div>
-      <span class="nav-ctx" id="nav-context-label"></span>
+      <span class="t-stat-sm" id="board-refresh-time"></span>
+      <span class="nav-ctx" id="nav-context-label" style="display:none"></span>
     </div>
     <div class="banner banner-scoring"   id="banner-scoring"><div><strong>Live scoring active</strong> — allegiances are adjusted based on current scores and lead safety.</div></div>
     <div class="banner banner-history"   id="banner-history"><div id="history-label"></div></div>
@@ -2440,7 +2432,6 @@ function renderBoard(data,username){
   if(!isDemoMode&&partialError){document.getElementById('banner-partial-msg').textContent=partialError;partialBanner.classList.add('visible');}
   else{partialBanner.classList.remove('visible');}
   renderDebug(isDemoMode?null:debugInfo);
-  document.getElementById('display-username').textContent=isDemoMode?'Demo mode':username;
   const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   document.getElementById('board-refresh-time').textContent=`Synced ${now}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
