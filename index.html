@@ -725,6 +725,125 @@
     .score-cell__state.loss   { color: var(--enemy); }
     .score-cell__state.final  { color: var(--neutral); }
     .score-cell__state.none   { color: var(--ink-500); }
+    /* Tappable matchup tiles — pointer cursor, subtle lift on hover, focus ring.
+       Only applied to tiles with a real matchup (NO_MATCHUP tiles stay inert). */
+    .score-cell.is-tappable {
+      cursor: pointer;
+      transition: transform var(--duration-fast) var(--ease-out),
+                  box-shadow var(--duration-fast) var(--ease-out),
+                  background var(--duration-fast) var(--ease-out);
+    }
+    .score-cell.is-tappable:hover {
+      background: var(--paper);
+      box-shadow: 0 2px 8px rgba(15,23,38,.06);
+      transform: translateY(-1px);
+    }
+    .score-cell.is-tappable:focus-visible {
+      outline: 2px solid var(--coral-500);
+      outline-offset: 2px;
+    }
+    .score-cell.is-tappable:active { transform: translateY(0); }
+
+    /* ── Matchup drawer (opens from .score-cell tap) ────────────── */
+    .matchup-drawer { padding: 6px 0 4px; }
+    .matchup-drawer__head {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    }
+    .matchup-drawer__dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .matchup-drawer__name {
+      font: 500 15px/1.1 var(--font-sans); margin: 0; color: var(--ink-900);
+      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .matchup-drawer__fmt {
+      font: 500 10px/1 var(--font-mono); padding: 4px 8px; border-radius: 10px;
+      background: var(--paper-deep); color: var(--ink-500); letter-spacing: .04em;
+      flex-shrink: 0;
+    }
+    .matchup-drawer__close {
+      margin-left: auto; background: transparent; border: 0; cursor: pointer;
+      color: var(--ink-500); font: 500 11px/1 var(--font-mono);
+      padding: 6px 10px; border-radius: 4px; flex-shrink: 0;
+    }
+    .matchup-drawer__close:hover { background: var(--paper-deep); color: var(--ink-900); }
+    .matchup-drawer__score {
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+      gap: 14px; padding: 14px 16px; background: var(--paper); border-radius: 8px;
+      margin-bottom: 16px;
+    }
+    .matchup-drawer__score-side { text-align: center; }
+    .matchup-drawer__score-label {
+      font: 500 10px/1 var(--font-mono); color: var(--ink-500);
+      letter-spacing: .12em; text-transform: uppercase; margin: 0 0 6px;
+    }
+    .matchup-drawer__score-value {
+      font: 500 28px/1 var(--font-mono); color: var(--ink-900); margin: 0;
+    }
+    .matchup-drawer__score-sep {
+      font: 400 18px/1 var(--font-mono); color: var(--ink-300);
+    }
+    .matchup-drawer[data-status="winning"] .matchup-drawer__score-value--you { color: var(--cheer); }
+    .matchup-drawer[data-status="losing"]  .matchup-drawer__score-value--you { color: var(--enemy); }
+    .matchup-drawer[data-status="split"]   .matchup-drawer__score-value--you { color: var(--split); }
+    .matchup-drawer__state {
+      display: block; text-align: center; margin: 0 0 16px;
+      font: 500 10px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
+    }
+    .matchup-drawer__state.live   { color: var(--coral-500); }
+    .matchup-drawer__state.win    { color: var(--cheer); }
+    .matchup-drawer__state.loss   { color: var(--enemy); }
+    .matchup-drawer__state.final  { color: var(--neutral); }
+    .matchup-drawer__cols {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    .matchup-drawer__col-h {
+      font: 500 9px/1 var(--font-mono); color: var(--ink-500);
+      letter-spacing: .12em; text-transform: uppercase; margin: 0 0 8px;
+      padding-bottom: 6px; border-bottom: 1px solid var(--line);
+    }
+    .matchup-drawer__player-row {
+      display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 6px; align-items: center;
+      padding: 7px 0; border-bottom: 1px solid var(--line-soft);
+    }
+    .matchup-drawer__player-row:last-child { border-bottom: 0; }
+    .matchup-drawer__player-name {
+      font: 500 12px/1.2 var(--font-sans); color: var(--ink-900);
+      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .matchup-drawer__player-team {
+      font: 400 10px/1 var(--font-sans); color: var(--ink-500); display: block; margin-top: 2px;
+    }
+    .matchup-drawer__player-pts {
+      font: 500 12px/1 var(--font-mono); color: var(--ink-900);
+      text-align: right; white-space: nowrap;
+    }
+    .matchup-drawer__player-pts--zero { color: var(--ink-300); }
+    .matchup-drawer__empty {
+      font: 400 12px/1.4 var(--font-sans); color: var(--ink-500);
+      padding: 12px 0; margin: 0; text-align: center;
+    }
+    .matchup-drawer__toggle {
+      font: 500 11px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .04em;
+      padding: 12px 0 6px; cursor: pointer; border: 0; background: transparent;
+      width: 100%; text-align: left; margin-top: 8px;
+      border-top: 1px solid var(--line);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .matchup-drawer__toggle:hover { color: var(--ink-900); }
+    .matchup-drawer__toggle .caret {
+      display: inline-block; font: 500 10px/1 var(--font-mono);
+      transition: transform var(--duration-fast) var(--ease-out);
+    }
+    .matchup-drawer__toggle.is-open .caret { transform: rotate(90deg); }
+    .matchup-drawer__bench { display: none; margin-top: 4px; }
+    .matchup-drawer__bench.is-open { display: block; }
+
+    @media (max-width: 480px) {
+      .matchup-drawer__score-value { font-size: 24px; }
+      .matchup-drawer__cols { gap: 8px; }
+    }
 
     /* League filters */
     .league-filters {
@@ -1392,13 +1511,18 @@
     .exp-list__row:hover { background: var(--paper-deep); padding-left: 6px; padding-right: 6px; }
     .exp-list__row.is-active { background: var(--paper-deep); padding-left: 6px; padding-right: 6px; }
 
-    /* Bottom-sheet overlay shell — wraps the drawer when opened from heatmap or list. */
+    /* Bottom-sheet overlay shell — shared between Exposure (player/team/settings)
+       and Dashboard (matchup detail). Canonical class names are .sheet / .sheet-backdrop;
+       .exp-sheet* are kept as aliases so existing exposure markup keeps working. */
+    .sheet-backdrop,
     .exp-sheet-backdrop {
       position: fixed; inset: 0; background: rgba(15, 23, 38, 0);
       z-index: 900; pointer-events: none;
       transition: background var(--duration-base) var(--ease-out);
     }
+    .sheet-backdrop.is-open,
     .exp-sheet-backdrop.is-open { background: rgba(15, 23, 38, .55); pointer-events: auto; }
+    .sheet,
     .exp-sheet {
       position: fixed; left: 50%; bottom: 0; transform: translate(-50%, 100%);
       width: min(640px, 100vw); max-height: 86vh; z-index: 901;
@@ -1409,16 +1533,21 @@
       transition: transform var(--duration-base) var(--ease-out);
       padding-bottom: env(safe-area-inset-bottom, 0);
     }
+    .sheet.is-open,
     .exp-sheet.is-open { transform: translate(-50%, 0); }
+    .sheet__handle,
     .exp-sheet__handle {
       width: 44px; height: 4px; border-radius: 2px;
       background: var(--ink-300); opacity: .5;
       margin: 8px auto 4px; flex-shrink: 0;
     }
+    .sheet__body,
     .exp-sheet__body { overflow-y: auto; overscroll-behavior: contain; padding: 6px 16px 18px; }
-    /* When the drawer renders inside the sheet, drop its outer chrome — sheet provides it. */
+    /* When the exposure drawer renders inside the sheet, drop its outer chrome — sheet provides it. */
+    .sheet .exp-drawer,
     .exp-sheet .exp-drawer { background: transparent; border: 0; padding: 6px 0 0; margin: 0; }
     /* Lock background scroll while sheet is open. */
+    body.sheet-open,
     body.exp-sheet-open { overflow: hidden; }
 
     .exp-drawer {
@@ -2228,9 +2357,12 @@ function renderScoresStrip(contexts){
     const dataStatus={LIVE:'live',LOCKED_WIN:'winning',LOCKED_LOSS:'losing',FINAL_WIN:'winning',FINAL_LOSS:'losing',FINAL_TIE:'final',NO_MATCHUP:''}[st]||'';
     const stTxt={LIVE:'● Live',LOCKED_WIN:'Clinched',LOCKED_LOSS:'Eliminated',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie',NO_MATCHUP:'No matchup'}[st]||'';
     const stCls={LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final',NO_MATCHUP:'none'}[st]||'none';
+    /* Tappable only when there's a real matchup. NO_MATCHUP tiles stay inert. */
+    const tappable = st !== 'NO_MATCHUP';
     let cell=idx.get(ctx.leagueName);
     if(!cell){
       cell=document.createElement('div');cell.className='score-cell';
+      cell.dataset.league=ctx.leagueName;
       cell.innerHTML=`
       <div class="score-cell__league"><span class="score-cell__league-dot" style="background:${color}"></span><span class="score-cell__league-name">${ctx.leagueName}</span></div>
       <div class="score-cell__row"><span class="score-cell__label">You</span><span class="score-cell__points score-cell__points--you">${ctx.myPoints.toFixed(2)}</span></div>
@@ -2248,9 +2380,247 @@ function renderScoresStrip(contexts){
       if(stateEl){stateEl.className=`score-cell__state ${stCls}`;stateEl.textContent=stTxt;}
     }
     cell.dataset.status=dataStatus;
+    /* Tappable affordances: pointer/hover, keyboard activation, ARIA. */
+    if(tappable){
+      cell.classList.add('is-tappable');
+      cell.setAttribute('role','button');
+      cell.setAttribute('tabindex','0');
+      cell.setAttribute('aria-label',`Open matchup detail for ${ctx.leagueName}`);
+    } else {
+      cell.classList.remove('is-tappable');
+      cell.removeAttribute('role');
+      cell.removeAttribute('tabindex');
+      cell.removeAttribute('aria-label');
+    }
     strip.appendChild(cell); // reorders without re-creating
+    /* If the matchup drawer for this league is open, patch its scores + per-player
+       points in place — no re-render, no scroll jump, no flash. */
+    updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt);
   });
 }
+
+/* In-place updater for an open matchup drawer. Looks up the open BottomSheet,
+   verifies its owner matches this league, and patches:
+     - the You/Opp score values
+     - the state pill text + class
+     - the matchup-drawer status data-attribute (drives the score color)
+     - any per-player point spans that have a matching data-mp-pid */
+function updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt){
+  if (!window.BottomSheet || !window.BottomSheet.isOpen()) return;
+  const expectedOwner = 'matchup:' + ctx.leagueName;
+  if (window.BottomSheet.getOwner() !== expectedOwner) return;
+  const sheetEl = window.BottomSheet.getSheetEl();
+  if (!sheetEl) return;
+  const drawer = sheetEl.querySelector('.matchup-drawer[data-matchup-league]');
+  if (!drawer) return;
+  /* Sanity: only patch if the drawer is for this league. */
+  if (drawer.getAttribute('data-matchup-league') !== ctx.leagueName) return;
+  function fmtPts(v){ return (v == null || isNaN(+v)) ? '—' : (+v).toFixed(2); }
+  /* Score band. */
+  const youEl = drawer.querySelector('[data-mp-score="you"]');
+  const oppEl = drawer.querySelector('[data-mp-score="opp"]');
+  if (youEl) youEl.textContent = fmtPts(ctx.myPoints);
+  if (oppEl) oppEl.textContent = fmtPts(ctx.oppPoints);
+  /* State pill. */
+  const stateEl = drawer.querySelector('[data-mp-state]');
+  if (stateEl){
+    stateEl.className = 'matchup-drawer__state ' + stCls;
+    stateEl.textContent = stTxt;
+  }
+  /* Status attribute (drives the score color). */
+  drawer.setAttribute('data-status', dataStatus);
+  /* Per-player points. ctx.myPP / oppPP are the up-to-date per-player point maps. */
+  const myPP = ctx.myPP || {};
+  const oppPP = ctx.oppPP || {};
+  drawer.querySelectorAll('[data-mp-pid]').forEach(span => {
+    const side = span.getAttribute('data-mp-side');
+    const pid = span.getAttribute('data-mp-pid');
+    const map = side === 'my' ? myPP : oppPP;
+    const pts = map[pid] != null ? +map[pid] : 0;
+    span.textContent = fmtPts(pts);
+    span.classList.toggle('matchup-drawer__player-pts--zero', !(pts > 0));
+  });
+}
+
+/* ── Matchup drawer (opens from .score-cell tap) ───────────────────
+   Renders a bottom-sheet view of a single matchup: header, score band,
+   starters comparison, collapsible bench. Pure-string render so it can
+   be passed directly to BottomSheet.open. Per-player point spans carry
+   data-mp-side / data-mp-pid attributes so live-refresh can patch their
+   text without re-rendering the whole drawer. */
+function renderMatchupDrawer(ctx, lg){
+  if (!ctx) return '<div class="matchup-drawer"><p class="matchup-drawer__empty">No matchup data.</p></div>';
+  const escHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const st = ctx.leagueState || 'NO_MATCHUP';
+  const dataStatus = {LIVE:'live',LOCKED_WIN:'winning',LOCKED_LOSS:'losing',FINAL_WIN:'winning',FINAL_LOSS:'losing',FINAL_TIE:'final'}[st] || '';
+  const stTxt = {LIVE:'● Live',LOCKED_WIN:'Clinched',LOCKED_LOSS:'Eliminated',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie'}[st] || 'No matchup';
+  const stCls = {LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final'}[st] || 'none';
+  const color = (typeof lc === 'function') ? lc(ctx.leagueName) : 'var(--ink-300)';
+  const fmt = ctx.fmt || (lg && lg.fmt) || '';
+  /* Per-player points come from ctx.myPP / ctx.oppPP (Sleeper/Yahoo/ESPN all normalize to this shape). */
+  const myPP = ctx.myPP || {};
+  const oppPP = ctx.oppPP || {};
+  function fmtPts(v){
+    if (v == null || isNaN(+v)) return '—';
+    const n = +v;
+    return n.toFixed(2);
+  }
+  /* Normalize the three player shapes the providers store into a single
+     { pid, full_name, position, team } object so we can render uniformly.
+       - Sleeper: raw string player ID — look up in window.playerDB
+       - Yahoo:   { player_key, name, position, team }
+       - ESPN:    { player_key, id, name, position, team } (player_key = "espn:<id>")
+     pid is the key used to read from ctx.myPP / ctx.oppPP, so it must match
+     the key the provider used when building that map (player_key for Yahoo/ESPN,
+     raw ID for Sleeper). */
+  function normalizePlayer(p){
+    if (p == null) return { pid: '', full_name: 'Player', position: '—', team: '' };
+    if (typeof p === 'string'){
+      const db = (window.playerDB && window.playerDB[p]) || null;
+      const full_name = (db && (db.full_name || db.last_name)) || ('Player ' + p);
+      const position = (db && db.position) || (p.length <= 4 ? 'DEF' : '—');
+      const team = (db && db.team) || '';
+      return { pid: p, full_name, position, team };
+    }
+    /* Object (Yahoo / ESPN). Yahoo uses `name`, ESPN normalizes to `name` too. */
+    const pid = p.player_key != null ? String(p.player_key)
+              : (p.id != null ? String(p.id) : '');
+    const full_name = p.full_name || p.name || ('Player ' + (pid || ''));
+    const position = p.position || '—';
+    const team = p.team || '';
+    return { pid, full_name, position, team };
+  }
+  function rowsHtml(players, side, ppMap){
+    if (!players || !players.length){
+      return '<p class="matchup-drawer__empty">No starters.</p>';
+    }
+    return players.map(raw => {
+      const p = normalizePlayer(raw);
+      const pid = p.pid;
+      const pts = ppMap[pid] != null ? +ppMap[pid] : 0;
+      const ptsStr = fmtPts(pts);
+      const ptsCls = pts > 0 ? '' : ' matchup-drawer__player-pts--zero';
+      const pos = p.position || '—';
+      const posCls = (typeof posClass === 'function') ? posClass(pos) : 'pos-default';
+      return '<div class="matchup-drawer__player-row">'
+        + '<span class="pos-badge ' + posCls + '">' + escHtml(pos) + '</span>'
+        + '<span class="matchup-drawer__player-name">' + escHtml(p.full_name)
+        +   (p.team ? '<span class="matchup-drawer__player-team">' + escHtml(p.team) + '</span>' : '')
+        + '</span>'
+        + '<span class="matchup-drawer__player-pts' + ptsCls + '" data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '">' + ptsStr + '</span>'
+      + '</div>';
+    }).join('');
+  }
+  const myPlayers = (lg && lg.myPlayers) || [];
+  const oppPlayers = (lg && lg.oppPlayers) || [];
+  const myBench = (lg && lg.myBench) || [];
+  const oppBench = (lg && lg.oppBench) || [];
+  const benchTotal = myBench.length + oppBench.length;
+  const benchHtml = benchTotal ? (
+    '<button type="button" class="matchup-drawer__toggle" data-matchup-bench-toggle="1" aria-expanded="false">'
+    +   '<span class="caret">▸</span> Bench (' + benchTotal + ')'
+    + '</button>'
+    + '<div class="matchup-drawer__bench" data-matchup-bench="1">'
+    +   '<div class="matchup-drawer__cols">'
+    +     '<div>' + (myBench.length ? rowsHtml(myBench, 'my', myPP) : '<p class="matchup-drawer__empty">No bench.</p>') + '</div>'
+    +     '<div>' + (oppBench.length ? rowsHtml(oppBench, 'opp', oppPP) : '<p class="matchup-drawer__empty">No bench.</p>') + '</div>'
+    +   '</div>'
+    + '</div>'
+  ) : '';
+  return '<div class="matchup-drawer" data-status="' + dataStatus + '" data-matchup-league="' + escHtml(ctx.leagueName) + '">'
+    + '<div class="matchup-drawer__head">'
+    +   '<span class="matchup-drawer__dot" style="background:' + color + '"></span>'
+    +   '<h3 class="matchup-drawer__name">' + escHtml(ctx.leagueName) + '</h3>'
+    +   (fmt ? '<span class="matchup-drawer__fmt">' + escHtml(fmt) + '</span>' : '')
+    +   '<button type="button" class="matchup-drawer__close" data-matchup-drawer-close="1">Close</button>'
+    + '</div>'
+    + '<div class="matchup-drawer__score">'
+    +   '<div class="matchup-drawer__score-side">'
+    +     '<p class="matchup-drawer__score-label">You</p>'
+    +     '<p class="matchup-drawer__score-value matchup-drawer__score-value--you" data-mp-score="you">' + fmtPts(ctx.myPoints) + '</p>'
+    +   '</div>'
+    +   '<span class="matchup-drawer__score-sep">—</span>'
+    +   '<div class="matchup-drawer__score-side">'
+    +     '<p class="matchup-drawer__score-label">Opp</p>'
+    +     '<p class="matchup-drawer__score-value matchup-drawer__score-value--opp" data-mp-score="opp">' + fmtPts(ctx.oppPoints) + '</p>'
+    +   '</div>'
+    + '</div>'
+    + '<p class="matchup-drawer__state ' + stCls + '" data-mp-state="1">' + escHtml(stTxt) + '</p>'
+    + '<div class="matchup-drawer__cols">'
+    +   '<div>'
+    +     '<h4 class="matchup-drawer__col-h">Your starters</h4>'
+    +     rowsHtml(myPlayers, 'my', myPP)
+    +   '</div>'
+    +   '<div>'
+    +     '<h4 class="matchup-drawer__col-h">Opponent starters</h4>'
+    +     rowsHtml(oppPlayers, 'opp', oppPP)
+    +   '</div>'
+    + '</div>'
+    + benchHtml
+  + '</div>';
+}
+window.renderMatchupDrawer = renderMatchupDrawer;
+
+/* Delegated handlers inside the matchup drawer: close button + bench toggle.
+   Bound once on document; safe because BottomSheet's body is the only place
+   .matchup-drawer is rendered. */
+(function wireMatchupDrawerDelegation(){
+  if (window._matchupDelegationBound) return;
+  window._matchupDelegationBound = true;
+  document.addEventListener('click', function(e){
+    if (e.target.closest('[data-matchup-drawer-close]')){
+      if (window.BottomSheet) window.BottomSheet.close();
+      return;
+    }
+    const tog = e.target.closest('[data-matchup-bench-toggle]');
+    if (tog){
+      const wrap = tog.parentElement && tog.parentElement.querySelector('[data-matchup-bench]');
+      const isOpen = tog.classList.toggle('is-open');
+      if (wrap) wrap.classList.toggle('is-open', isOpen);
+      tog.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+  });
+})();
+
+/* Delegated click + keyboard handler on the scores strip. Bound once. */
+(function wireScoresStripDelegation(){
+  const strip = document.getElementById('scores-strip');
+  if (!strip || strip._delegationBound) return;
+  strip._delegationBound = true;
+  function activate(cell){
+    if (!cell || !cell.classList.contains('is-tappable')) return;
+    const leagueName = cell.dataset.league;
+    if (!leagueName) return;
+    /* Look up the current context + league data for this matchup. */
+    const ctx = (window.currentContexts || []).find(c => c.leagueName === leagueName);
+    const lg  = (window.currentLeagues  || []).find(l => l.leagueName === leagueName);
+    if (!ctx || typeof window.renderMatchupDrawer !== 'function' || !window.BottomSheet) return;
+    const targetOwner = 'matchup:' + leagueName;
+    /* Toggle off if this matchup's drawer is already open. */
+    if (window.BottomSheet.isOpen() && window.BottomSheet.getOwner() === targetOwner){
+      window.BottomSheet.close();
+      return;
+    }
+    const html = window.renderMatchupDrawer(ctx, lg);
+    if (window.BottomSheet.isOpen()){
+      /* Swap content + owner in place — no re-animation, no race. setOwner fires
+         the previous owner's onClose (e.g. exposure's onSheetClosed) so its
+         caller-level state resets cleanly. */
+      window.BottomSheet.setBody(html);
+      window.BottomSheet.setOwner(targetOwner);
+    } else {
+      window.BottomSheet.open(html, { owner: targetOwner });
+    }
+  }
+  strip.addEventListener('click', e => activate(e.target.closest('.score-cell.is-tappable')));
+  strip.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const cell = e.target.closest('.score-cell.is-tappable');
+    if (!cell) return;
+    e.preventDefault();
+    activate(cell);
+  });
+})();
 
 let _lastFilterPillsKey='';
 function buildFilterPills(names){
@@ -2493,6 +2863,11 @@ function renderBoard(data,username){
   renderList('cheer-list',cheerFor);renderList('conflicted-list',conflicted);renderList('enemy-list',enemies);
   applyFilters();
   currentContexts=Array.isArray(contexts)?contexts.slice():[];
+  currentLeagues=Array.isArray(data.leagues)?data.leagues.slice():[];
+  /* Expose to delegated handlers (matchup drawer click) that live in a separate
+     IIFE-bound scope without a closure over these top-level lets. */
+  window.currentContexts=currentContexts;
+  window.currentLeagues=currentLeagues;
   reconcilePriorityOrder(currentContexts);
   updateSettingsPanel();
   if(shouldAutoLaunchPriority(currentContexts))showPriorityOnboarding(currentContexts);
@@ -2748,6 +3123,9 @@ async function loadData(){
   const projPts=id=>{const p=sleeperProjections[id];return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null;};
   const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
   const playerDB=await getPlayerDB();setLoading('Classifying players.');
+  /* Expose to delegated handlers (matchup drawer) that need to hydrate raw
+     Sleeper player IDs (strings) into {full_name, position, team} at render time. */
+  window.playerDB=playerDB;
   /* Season stats + per-league position ranks. Best-effort: failures degrade
      gracefully (ranks just won't show up in the tooltip/drawer). */
   setLoading('Computing season ranks.');
@@ -2826,7 +3204,7 @@ async function loadData(){
   const partialError=(failedProviderIds&&failedProviderIds.length)
     ? `${failedProviderIds.map(id=>PROVIDERS[id].displayName).join(' and ')} data unavailable — showing the rest.`
     : null;
-  return{cheerFor,conflicted,enemies,allRostered:Array.from(map.values()),noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,posRankByLeague,partialError,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
+  return{cheerFor,conflicted,enemies,allRostered:Array.from(map.values()),noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,leagues:valid,posRankByLeague,partialError,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
   }finally{isFetching=false;window.__conflictedInflight=null;}
   })();
   return window.__conflictedInflight;
@@ -2871,7 +3249,30 @@ function getDemoData(){
       p('d17','Cooper Kupp','WR','LAR',[],[L1,L2],[{lg:L1,pts:13.60,proj:16.0,fmt:'PPR'},{lg:L2,pts:13.60,proj:16.0,fmt:'Half'}],-2,false),
       p('d18','Stefon Diggs','WR','HOU',[],[L4],[{lg:L4,pts:11.20,proj:null,fmt:'PPR'}],0,true),
   ];
-  return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,debugInfo:null,allRostered:[...cheerFor,...conflicted,...enemies,...benchOnly],cheerFor,conflicted,enemies};
+  /* Build minimal per-league roster shapes so demo matchup drawers have content.
+     Mirrors the live shape: { leagueName, myPlayers, oppPlayers, myBench, oppBench,
+     hasMatchup, fmt }. Players are partial — id, full_name, position, team — enough
+     for the drawer to render. Bench is empty in demo for simplicity. */
+  function dp(id,name,pos,team){return{id,full_name:name,position:pos,team};}
+  const demoLeagues=[
+    {leagueName:L1,fmt:'PPR',hasMatchup:true,
+     myPlayers:[dp('d1','Patrick Mahomes','QB','KC'),dp('d2','Davante Adams','WR','NO'),dp('d3','Derrick Henry','RB','BAL'),dp('d7','Travis Kelce','TE','KC'),dp('d9','Justin Jefferson','WR','MIN'),dp('d11','CeeDee Lamb','WR','DAL')],
+     oppPlayers:[dp('d13',"Ja'Marr Chase",'WR','CIN'),dp('d10','Josh Allen','QB','BUF'),dp('d12','Saquon Barkley','RB','PHI'),dp('d15','Sam LaPorta','TE','DET'),dp('d16','Tony Pollard','RB','TEN'),dp('d17','Cooper Kupp','WR','LAR')],
+     myBench:[dp('d20','Najee Harris','RB','LAC')],oppBench:[]},
+    {leagueName:L2,fmt:'Half',hasMatchup:true,
+     myPlayers:[dp('d4','Tyreek Hill','WR','MIA'),dp('d10','Josh Allen','QB','BUF'),dp('d12','Saquon Barkley','RB','PHI')],
+     oppPlayers:[dp('d9','Justin Jefferson','WR','MIN'),dp('d11','CeeDee Lamb','WR','DAL'),dp('d13',"Ja'Marr Chase",'WR','CIN'),dp('d14','Jalen Hurts','QB','PHI'),dp('d17','Cooper Kupp','WR','LAR')],
+     myBench:[dp('d19','Rashee Rice','WR','KC')],oppBench:[dp('d21','Jaylen Waddle','WR','MIA')]},
+    {leagueName:L3,fmt:'Std',hasMatchup:true,
+     myPlayers:[dp('d1','Patrick Mahomes','QB','KC'),dp('d4','Tyreek Hill','WR','MIA'),dp('d8','Christian McCaffrey','RB','SF')],
+     oppPlayers:[dp('d14','Jalen Hurts','QB','PHI'),dp('d20','Najee Harris','RB','LAC')],
+     myBench:[dp('d3','Derrick Henry','RB','BAL')],oppBench:[]},
+    {leagueName:L4,fmt:'PPR',hasMatchup:true,
+     myPlayers:[dp('d18','Stefon Diggs','WR','HOU'),dp('d22','Tank Dell','WR','HOU')],
+     oppPlayers:[dp('d7','Travis Kelce','TE','KC'),dp('d14','Jalen Hurts','QB','PHI')],
+     myBench:[],oppBench:[dp('d21','Jaylen Waddle','WR','MIA')]}
+  ];
+  return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,leagues:demoLeagues,debugInfo:null,allRostered:[...cheerFor,...conflicted,...enemies,...benchOnly],cheerFor,conflicted,enemies};
 }
 
 async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
@@ -3587,6 +3988,7 @@ function openEspnConnectModal(){
 /* ── League priority + Settings ──────────────────────────────── */
 const PRIORITY_SET_KEY='gd_priority_set',PRIORITY_ORDER_KEY='gd_priority_order',PRIORITY_EQUAL_KEY='gd_priority_equal';
 let currentContexts=[];
+let currentLeagues=[]; // per-league rosters (myPlayers, oppPlayers, myBench, oppBench, hasMatchup, fmt) — used by the dashboard matchup drawer
 let priorityOrder=[];
 let priorityEqual=false;
 let priorityDraftOrder=[];
@@ -3795,6 +4197,123 @@ initThemeToggle();
   if(cameFromYahooOAuth)showSetup();
   else if(isAnyProviderConnected())await run();
   else showSetup();
+})();
+</script>
+
+<!-- ============ Bottom sheet helper (shared) ============ -->
+<script>
+/* Shared bottom-sheet primitive used by Exposure (player/team/settings drawers)
+   and Dashboard (matchup detail drawer). Owns the singleton sheet + backdrop
+   DOM nodes, slide-up animation, body scroll lock, and Esc/backdrop dismissal.
+   Content + open/close intent is owned by callers; this only handles the shell. */
+(function(){
+  var sheetEl = null, backdropEl = null;
+  var isOpenState = false;
+  var currentOnClose = null;
+  var currentOwner = null; // free-form string callers use to identify "their" sheet
+
+  function ensure(){
+    if (sheetEl) return;
+    backdropEl = document.createElement('div');
+    backdropEl.className = 'sheet-backdrop';
+    backdropEl.setAttribute('data-sheet-backdrop','1');
+    sheetEl = document.createElement('div');
+    sheetEl.className = 'sheet';
+    sheetEl.setAttribute('role','dialog');
+    sheetEl.setAttribute('aria-modal','true');
+    sheetEl.innerHTML = '<div class="sheet__handle" aria-hidden="true"></div>' +
+                        '<div class="sheet__body" data-sheet-body="1"></div>';
+    document.body.appendChild(backdropEl);
+    document.body.appendChild(sheetEl);
+  }
+
+  function getBody(){
+    ensure();
+    return sheetEl.querySelector('[data-sheet-body]');
+  }
+
+  function open(html, opts){
+    opts = opts || {};
+    ensure();
+    var body = getBody();
+    if (body) { body.innerHTML = html; body.scrollTop = 0; }
+    /* If a sheet is already open under a different owner, fire its onClose so
+       caller-level state (e.g. exposure's openDrawerRowId) resets cleanly. */
+    var prevCb = currentOnClose;
+    currentOnClose = typeof opts.onClose === 'function' ? opts.onClose : null;
+    currentOwner = opts.owner || null;
+    document.body.classList.add('sheet-open');
+    if (!isOpenState){
+      /* First open — animate up from off-screen via rAF. */
+      requestAnimationFrame(function(){
+        if (sheetEl) sheetEl.classList.add('is-open');
+        if (backdropEl) backdropEl.classList.add('is-open');
+      });
+    }
+    isOpenState = true;
+    if (prevCb) { try { prevCb(); } catch(e){} }
+  }
+
+  function close(){
+    if (!isOpenState) return;
+    var cb = currentOnClose;
+    currentOnClose = null;
+    currentOwner = null;
+    isOpenState = false;
+    if (sheetEl) sheetEl.classList.remove('is-open');
+    if (backdropEl) backdropEl.classList.remove('is-open');
+    document.body.classList.remove('sheet-open');
+    /* Clear body after slide-out so the next open renders fresh. */
+    var sheet = sheetEl;
+    setTimeout(function(){
+      if (sheet && !sheet.classList.contains('is-open')){
+        var body = sheet.querySelector('[data-sheet-body]');
+        if (body) body.innerHTML = '';
+      }
+    }, 240);
+    if (cb) { try { cb(); } catch(e){} }
+  }
+
+  function setBody(html){
+    var body = getBody();
+    if (body) { body.innerHTML = html; body.scrollTop = 0; }
+  }
+
+  function isOpen(){ return isOpenState; }
+  function getOwner(){ return currentOwner; }
+  /* Update the owner tag without re-animating. Use when swapping content between
+     two callers (e.g. exposure → matchup, matchup-A → matchup-B) — fires the
+     previous owner's onClose so it can reset its caller-level state, then
+     installs the new owner + optional onClose. */
+  function setOwner(owner, opts){
+    opts = opts || {};
+    var prevCb = currentOnClose;
+    currentOwner = owner || null;
+    currentOnClose = typeof opts.onClose === 'function' ? opts.onClose : null;
+    if (prevCb) { try { prevCb(); } catch(e){} }
+  }
+  function getSheetEl(){ ensure(); return sheetEl; }
+
+  /* Global dismissal handlers: backdrop tap + Esc key. Caller-specific click
+     handlers (e.g., exposure's [data-exp-drawer-close]) still call BottomSheet.close()
+     directly. */
+  document.addEventListener('click', function(e){
+    if (!isOpenState) return;
+    if (e.target.closest('[data-sheet-backdrop]')) close();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && isOpenState) close();
+  });
+
+  window.BottomSheet = {
+    open: open,
+    close: close,
+    setBody: setBody,
+    setOwner: setOwner,
+    isOpen: isOpen,
+    getOwner: getOwner,
+    getSheetEl: getSheetEl
+  };
 })();
 </script>
 
@@ -4513,49 +5032,34 @@ initThemeToggle();
     '</div>';
   }
 
-  /* Bottom-sheet overlay — the drawer renders inside a fixed sheet that slides up
-     from the bottom of the viewport, with a dimmed backdrop. The drawer's internal
-     markup (head, stats, league list, etc.) is unchanged — only the outer container
-     differs from the prior inline insertion. */
-  var sheetEl = null, backdropEl = null;
+  /* Bottom-sheet overlay — now provided by the shared window.BottomSheet helper.
+     Exposure still owns its own caller-level state (openDrawerRowId, openSettings)
+     and routes all DOM/CSS through BottomSheet.open / setBody / close. */
 
-  function ensureSheet(){
-    if (sheetEl) return;
-    backdropEl = document.createElement('div');
-    backdropEl.className = 'exp-sheet-backdrop';
-    backdropEl.setAttribute('data-exp-sheet-backdrop','1');
-    sheetEl = document.createElement('div');
-    sheetEl.className = 'exp-sheet';
-    sheetEl.setAttribute('role','dialog');
-    sheetEl.setAttribute('aria-modal','true');
-    sheetEl.innerHTML = '<div class="exp-sheet__handle" aria-hidden="true"></div>' +
-                        '<div class="exp-sheet__body" data-exp-sheet-body="1"></div>';
-    document.body.appendChild(backdropEl);
-    document.body.appendChild(sheetEl);
+  /* Helper: get the sheet body element if it exists (used for in-place updates
+     like updateSettingsSheetUI). Returns null if the sheet has never been opened. */
+  function getSheetBody(){
+    var s = window.BottomSheet && window.BottomSheet.getSheetEl && window.BottomSheet.getSheetEl();
+    return s ? s.querySelector('[data-sheet-body]') : null;
+  }
+
+  /* Called when the sheet is dismissed (backdrop tap, Esc, or any caller-initiated
+     close). Resets exposure-local state and clears the row highlight. */
+  function onSheetClosed(){
+    document.querySelectorAll('.is-active[data-exp-row]').forEach(function(el){ el.classList.remove('is-active'); });
+    openDrawerRowId = null;
+    openSettings = false;
   }
 
   function closeDrawer(){
     if (!anySheetOpen()) return;
-    if (sheetEl) sheetEl.classList.remove('is-open');
-    if (backdropEl) backdropEl.classList.remove('is-open');
-    document.body.classList.remove('exp-sheet-open');
-    document.querySelectorAll('.is-active[data-exp-row]').forEach(function(el){ el.classList.remove('is-active'); });
-    /* Clear body after transition so the next render is fresh. */
-    var sheet = sheetEl;
-    setTimeout(function(){
-      if (sheet && !sheet.classList.contains('is-open')){
-        var body = sheet.querySelector('[data-exp-sheet-body]');
-        if (body) body.innerHTML = '';
-      }
-    }, 240);
-    openDrawerRowId = null;
-    openSettings = false;
+    /* BottomSheet.close fires our onClose callback (onSheetClosed) which resets state. */
+    window.BottomSheet.close();
   }
 
   function openDrawerForRow(rowId, anchorEl){
     /* Toggle off if clicking the same row again. */
     if (openDrawerRowId === rowId){ closeDrawer(); return; }
-    closeDrawer();
     /* Route by axis: players → renderDrawer(player), teams → renderTeamDrawer(code). */
     var html;
     if (state.axis === 'teams'){
@@ -4565,33 +5069,30 @@ initThemeToggle();
       if (!player) return;
       html = renderDrawer(player);
     }
-    ensureSheet();
-    var body = sheetEl.querySelector('[data-exp-sheet-body]');
-    if (body) body.innerHTML = html;
+    /* If a different exposure drawer is already open, swap content in place
+       instead of closing+reopening — keeps the slide-up animation from re-firing. */
+    if (window.BottomSheet.isOpen() && window.BottomSheet.getOwner() === 'exposure'){
+      window.BottomSheet.setBody(html);
+    } else {
+      window.BottomSheet.open(html, { owner: 'exposure', onClose: onSheetClosed });
+    }
     openDrawerRowId = rowId;
+    openSettings = false;
     /* Highlight the list row representing this row (if visible in list). */
+    document.querySelectorAll('.is-active[data-exp-row]').forEach(function(el){ el.classList.remove('is-active'); });
     document.querySelectorAll('[data-exp-row="' + (window.CSS && CSS.escape ? CSS.escape(rowId) : rowId.replace(/"/g,'\\"')) + '"]').forEach(function(el){
       if (el.matches('.exp-list__row')) el.classList.add('is-active');
     });
     hideTooltip();
-    document.body.classList.add('exp-sheet-open');
-    /* Use rAF so the transform animates from the off-screen starting state. */
-    requestAnimationFrame(function(){
-      if (sheetEl) sheetEl.classList.add('is-open');
-      if (backdropEl) backdropEl.classList.add('is-open');
-    });
   }
 
   /* Helper for swapping the sheet content (e.g., team → player drilldown) without
      closing+reopening. Keeps the slide-up animation from re-firing. */
   function swapSheetToPlayer(playerId){
     var player = findPlayerById(playerId);
-    if (!player || !sheetEl) return;
-    var body = sheetEl.querySelector('[data-exp-sheet-body]');
-    if (body) body.innerHTML = renderDrawer(player);
+    if (!player || !window.BottomSheet.isOpen()) return;
+    window.BottomSheet.setBody(renderDrawer(player));
     openDrawerRowId = playerId;
-    /* Scroll the new content back to the top inside the sheet body. */
-    if (body) body.scrollTop = 0;
   }
 
   /* ── Settings sheet (mobile) ──
@@ -4646,8 +5147,8 @@ initThemeToggle();
   /* Refresh the active states inside the open Settings sheet without rebuilding
      the whole sheet (preserves scroll position and feel of the toggles). */
   function updateSettingsSheetUI(){
-    if (!openSettings || !sheetEl) return;
-    var body = sheetEl.querySelector('[data-exp-sheet-body]');
+    if (!openSettings) return;
+    var body = getSheetBody();
     if (!body) return;
     function syncToggle(selectorId, attr, currentVal){
       var t = body.querySelector('#' + selectorId);
@@ -4669,21 +5170,20 @@ initThemeToggle();
   }
 
   function openSettingsSheet(){
-    /* If a row drawer is currently open, close it first — only one sheet at a time. */
-    if (openDrawerRowId) closeDrawer();
-    ensureSheet();
-    var body = sheetEl.querySelector('[data-exp-sheet-body]');
-    if (body){ body.innerHTML = renderSettingsSheet(); body.scrollTop = 0; }
+    /* If a row drawer is currently open, swap content in place; otherwise open fresh. */
+    var html = renderSettingsSheet();
+    if (window.BottomSheet.isOpen() && window.BottomSheet.getOwner() === 'exposure'){
+      window.BottomSheet.setBody(html);
+    } else {
+      window.BottomSheet.open(html, { owner: 'exposure', onClose: onSheetClosed });
+    }
+    openDrawerRowId = null;
     openSettings = true;
-    document.body.classList.add('exp-sheet-open');
-    requestAnimationFrame(function(){
-      if (sheetEl) sheetEl.classList.add('is-open');
-      if (backdropEl) backdropEl.classList.add('is-open');
-    });
+    document.querySelectorAll('.is-active[data-exp-row]').forEach(function(el){ el.classList.remove('is-active'); });
   }
 
-  /* Dismissal: backdrop tap + Esc key. (Close button is wired via the existing
-     data-exp-drawer-close handler.) */
+  /* Dismissal: backdrop tap + Esc are now handled by BottomSheet itself.
+     We still wire exposure-specific click triggers here. */
   document.addEventListener('click', function(e){
     /* Settings open. */
     if (e.target.closest('[data-exp-settings-open]')){ openSettingsSheet(); return; }
@@ -4699,7 +5199,6 @@ initThemeToggle();
       renderExposureView();
       return;
     }
-    if (e.target.closest('[data-exp-sheet-backdrop]')) { closeDrawer(); return; }
     /* Team drawer → tap a player row to drill into that player's drawer. */
     var teamPlayer = e.target.closest('[data-exp-team-player]');
     if (teamPlayer){
@@ -4709,7 +5208,6 @@ initThemeToggle();
     }
   });
   document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape' && anySheetOpen()) closeDrawer();
     /* Allow Enter/Space to activate focused team-player rows for keyboard users. */
     if ((e.key === 'Enter' || e.key === ' ') && document.activeElement && document.activeElement.matches('[data-exp-team-player]')){
       e.preventDefault();
