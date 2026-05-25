@@ -1052,6 +1052,7 @@
     .pos-TE  { background: var(--split-soft); color: var(--split); }
     .pos-K   { background: var(--neutral-soft); color: var(--ink-500); }
     .pos-DEF { background: var(--enemy-soft); color: var(--enemy); }
+    .pos-FLEX{ background: var(--line-soft); color: var(--ink-700); border: 1px solid var(--line); }
     .player-name {
       font: 700 14px/1.2 var(--font-sans); color: var(--ink-900);
       letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -2563,12 +2564,32 @@ function renderMatchupDrawer(ctx, lg){
        inward→outward (pts then name) so the points cluster around the center POS. */
     return side === 'my' ? (nameSpan + ptsSpan) : (ptsSpan + nameSpan);
   }
-  /* Center position cell. If both sides have the same position we render one
-     badge; if they differ (flex/superflex pairing) we stack both. Returns the
-     single grid-column cell. */
-  function posCell(myRaw, oppRaw){
-    const mp = myRaw != null ? normalizePlayer(myRaw).position : null;
-    const op = oppRaw != null ? normalizePlayer(oppRaw).position : null;
+  /* Slot resolution for the center POS pill.
+     Priority:
+       1. Provider-supplied lineup slot:
+          - Sleeper: lg.rosterPositions[idx] (indexed slot order, e.g. "FLEX")
+          - Yahoo:   p.slot on the normalized player object ("W/R/T")
+       2. Fall back to the player's eligibility position (display_position).
+     If both sides resolve to the SAME slot (e.g. both flex), render one pill.
+     If they differ (rare — happens only when slots themselves diverge, not
+     just the eligibility), stack both. */
+  function resolveSlot(rawPlayer, idx, rosterPositions){
+    // Sleeper: index-based slot lookup
+    if (rosterPositions && idx < rosterPositions.length){
+      const lbl = slotLabel(rosterPositions[idx]);
+      if (lbl) return lbl;
+    }
+    // Yahoo/ESPN: player object carries `slot`
+    if (rawPlayer && typeof rawPlayer === 'object' && rawPlayer.slot){
+      const lbl = slotLabel(rawPlayer.slot);
+      if (lbl) return lbl;
+    }
+    // Final fallback: eligibility
+    return rawPlayer != null ? normalizePlayer(rawPlayer).position : null;
+  }
+  function posCell(myRaw, oppRaw, idx, rosterPositions){
+    const mp = resolveSlot(myRaw, idx, rosterPositions);
+    const op = resolveSlot(oppRaw, idx, rosterPositions);
     function badge(pos){
       const p = pos || '—';
       const cls = (typeof posClass === 'function') ? posClass(p) : 'pos-default';
@@ -2582,8 +2603,10 @@ function renderMatchupDrawer(ctx, lg){
     return '<div class="matchup-drawer__paired-pos">' + badge(mp || op || '—') + '</div>';
   }
   /* Zip two roster arrays into paired rows. Pairs by slot order (index);
-     when one side has more players, the other side gets a placeholder cell. */
-  function pairedRowsHtml(myPlayers, oppPlayers){
+     when one side has more players, the other side gets a placeholder cell.
+     rosterPositions is the optional slot-by-index map (Sleeper) — passed
+     through to posCell for slot-aware position pills. */
+  function pairedRowsHtml(myPlayers, oppPlayers, rosterPositions){
     const len = Math.max(myPlayers ? myPlayers.length : 0, oppPlayers ? oppPlayers.length : 0);
     if (!len) return '';
     const rows = [];
@@ -2593,7 +2616,7 @@ function renderMatchupDrawer(ctx, lg){
       rows.push(
         '<div class="matchup-drawer__paired-row">'
         + halfCells(my, 'my', myPP)
-        + posCell(my, op)
+        + posCell(my, op, i, rosterPositions)
         + halfCells(op, 'opp', oppPP)
         + '</div>'
       );
@@ -2612,8 +2635,12 @@ function renderMatchupDrawer(ctx, lg){
   const oppPlayers = (lg && lg.oppPlayers) || [];
   const myBench = (lg && lg.myBench) || [];
   const oppBench = (lg && lg.oppBench) || [];
+  /* Sleeper preserves the league's slot order on `rosterPositions` (already
+     filtered to exclude BN/IR/TAXI). Yahoo/ESPN players carry slot per-player
+     so we pass null here and let resolveSlot fall through to p.slot. */
+  const rosterPositions = (lg && Array.isArray(lg.rosterPositions)) ? lg.rosterPositions : null;
   const startersBody = (myPlayers.length || oppPlayers.length)
-    ? pairedRowsHtml(myPlayers, oppPlayers)
+    ? pairedRowsHtml(myPlayers, oppPlayers, rosterPositions)
     : '<p class="matchup-drawer__empty">No starters.</p>';
   const benchTotal = myBench.length + oppBench.length;
   const benchHtml = benchTotal ? (
@@ -2792,7 +2819,26 @@ function renderDebug(info){
   });
 }
 
-const posClass=pos=>({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF'}[pos]||'pos-default');
+const posClass=pos=>({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF',FLEX:'pos-FLEX','W/R':'pos-FLEX','REC FLEX':'pos-FLEX','SUPER FLEX':'pos-FLEX'}[pos]||'pos-default');
+
+/* slotLabel: turn a raw provider slot code (Yahoo "W/R/T", Sleeper "FLEX",
+   "SUPER_FLEX", etc.) into a friendly label for the matchup drawer pill.
+   Plain positions (QB/RB/WR/TE/K/DEF) pass through unchanged. Anything else
+   we don't recognize also passes through verbatim so league-specific slots
+   aren't accidentally hidden. */
+function slotLabel(raw){
+  if(!raw) return '';
+  const s=String(raw).toUpperCase();
+  const map={
+    'W/R/T':'FLEX','FLEX':'FLEX',
+    'W/R':'W/R','WRRB_FLEX':'W/R',
+    'W/T':'W/T','REC_FLEX':'REC FLEX',
+    'Q/W/R/T':'SUPER FLEX','SUPER_FLEX':'SUPER FLEX','SUPERFLEX':'SUPER FLEX',
+    'D':'DEF','DST':'DEF','D/ST':'DEF',
+    'IDP_FLEX':'IDP'
+  };
+  return map[s]||s;
+}
 
 function updatePillCounts(){
   const pairs=[['cheer-list','count-cheer'],['conflicted-list','count-conflicted'],['enemy-list','count-enemy']];
@@ -3677,7 +3723,12 @@ const PROVIDERS={
         const matchupActuallyValid=hasMatchup&&myPlayers.length>0&&oppPlayers.length>0;
         contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt,scoringRaw:lg.scoring_settings||null});
         debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:matchupActuallyValid,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
-        return{leagueName:lg.name,myPlayers,oppPlayers,myBench,oppBench,hasMatchup:matchupActuallyValid,fmt,provider:'sleeper'};
+        /* roster_positions: ordered slot codes (QB, RB, ..., FLEX, BN, ...) that
+           map 1:1 with myMatchup.starters index. Pass through so the matchup
+           drawer can render slot-aware position pills ("FLEX" instead of stacked
+           WR/TE for a flex slot filled by different positions on each side). */
+        const rosterPositions=Array.isArray(lg.roster_positions)?lg.roster_positions.filter(s=>s&&s!=='BN'&&s!=='IR'&&s!=='TAXI'):null;
+        return{leagueName:lg.name,myPlayers,oppPlayers,myBench,oppBench,hasMatchup:matchupActuallyValid,fmt,provider:'sleeper',rosterPositions};
       }));
       const valid=results.filter(Boolean);
       if(leagues?.length&&!valid.length)throw new Error('Found Sleeper leagues but could not read roster data.');
