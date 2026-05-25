@@ -1654,11 +1654,6 @@
     .wp-bench-toggle button { background: transparent; border: 0; padding: 9px 12px; color: var(--ink-500); cursor: pointer; font: 500 11px/1 var(--font-sans); }
     .wp-bench-toggle button + button { border-left: 1px solid var(--line); }
     .wp-bench-toggle button.active { color: var(--paper); background: var(--ink-900); }
-    .wp-jump { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; position: sticky; top: 8px; z-index: 5; padding: 8px 0; background: linear-gradient(var(--paper-soft) 70%, transparent); }
-    .wp-jump__pill { font: 500 11px/1 var(--font-mono); letter-spacing: .04em; padding: 7px 11px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); color: var(--ink-700); cursor: pointer; text-transform: uppercase; transition: background var(--duration-fast) var(--ease-out); }
-    .wp-jump__pill:hover { background: var(--paper-deep); }
-    .wp-jump__pill.is-empty { opacity: .35; cursor: default; }
-    .wp-jump__pill.is-done { color: var(--ink-300); border-style: dashed; }
     .wp-slot { margin: 0 0 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--paper); overflow: hidden; }
     .wp-slot__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; cursor: pointer; user-select: none; }
     .wp-slot__head:hover { background: var(--paper-deep); }
@@ -1685,9 +1680,9 @@
     .wp-game__badge--cheer { background: var(--cheer-soft); color: var(--cheer); }
     .wp-game__badge--hate { background: var(--enemy-soft); color: var(--enemy); }
     .wp-game__badge--zero { background: var(--paper-deep); color: var(--ink-300); }
-    .wp-pills { display: flex; flex-wrap: wrap; gap: 5px; }
-    .wp-pill { font: 500 11px/1.2 var(--font-sans); padding: 5px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; max-width: 100%; }
-    .wp-pill__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 14ch; }
+    .wp-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .wp-pill { font: 500 12px/1.2 var(--font-sans); padding: 6px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
+    .wp-pill__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22ch; }
     .wp-pill--me-start { background: var(--coral-500); color: var(--paper-soft); }
     .wp-pill--me-bench { background: transparent; color: var(--coral-700); border: 1px dashed var(--coral-500); }
     .wp-pill--opp-start { background: var(--navy-700); color: var(--paper-soft); }
@@ -1717,9 +1712,8 @@
       .wp-head__controls { width: 100%; flex-direction: column; align-items: stretch; gap: 8px; }
       .wp-view-toggle, .wp-bench-toggle { width: 100%; }
       .wp-view-toggle button, .wp-bench-toggle button { flex: 1; }
-      .wp-jump { top: 4px; gap: 5px; padding: 6px 0; }
       .wp-game__head { flex-wrap: wrap; }
-      .wp-pill__name { max-width: 11ch; }
+      .wp-pill__name { max-width: 18ch; }
     }
 
     @media (max-width: 640px) {
@@ -2116,7 +2110,6 @@
       </div>
     </div>
   </div>
-  <div class="wp-jump" id="wp-jump" role="navigation" aria-label="Jump to slot"></div>
   <div id="wp-slots"></div>
 </div>
 
@@ -5943,8 +5936,7 @@ initThemeToggle();
   function renderWatchView(){
     var data = getData();
     var slotsHost = document.getElementById('wp-slots');
-    var jumpHost = document.getElementById('wp-jump');
-    if (!slotsHost || !jumpHost) return;
+    if (!slotsHost) return;
 
     var index = buildPlayerIndex(data);
 
@@ -5978,17 +5970,6 @@ initThemeToggle();
     (state.games || []).forEach(function(g){
       scoredByGameId[g.id] = calcGamePriority(g, index, { view: state.view, includeBench: state.includeBench });
     });
-
-    /* ── Jump pills (chronological master order) ── */
-    var jumpHtml = orderedSlots.map(function(s){
-      var done = slotIsDone(s.games);
-      return '<button type="button" class="wp-jump__pill' + (done?' is-done':'') + '" data-wp-jump="' + esc(s.key) + '">' + esc(s.shortLabel) + '</button>';
-    }).join('');
-    if (!jumpHtml){
-      jumpHost.innerHTML = '<span class="wp-jump__pill is-empty">No NFL games this week</span>';
-    } else {
-      jumpHost.innerHTML = jumpHtml;
-    }
 
     /* ── Slot sections (chronological master order) ── */
     var html = '';
@@ -6095,16 +6076,19 @@ initThemeToggle();
     if (s.score === 0) badgeCls = 'wp-game__badge--zero';
     var badgeLabel = s.score + ' player' + (s.score === 1 ? '' : 's');
 
-    /* Player pills — sort: conflict first, then me-start, opp-start, me-bench, opp-bench. */
-    var pillOrder = { 'wp-pill--conflict':0, 'wp-pill--me-start':1, 'wp-pill--opp-start':2, 'wp-pill--me-bench':3, 'wp-pill--opp-bench':4 };
+    /* Player pills — sort by position order (QB→RB→WR→TE→K→DEF),
+       then alpha by name to keep tie order stable. Matches the rest of the app. */
+    var posOrderArr = (typeof POS_ORDER !== 'undefined') ? POS_ORDER : ['QB','RB','WR','TE','K','DEF'];
     var pills = s.players.slice().sort(function(a,b){
-      var ao = pillOrder[a.pillClass] != null ? pillOrder[a.pillClass] : 99;
-      var bo = pillOrder[b.pillClass] != null ? pillOrder[b.pillClass] : 99;
-      return ao - bo;
+      var ap = (a.entry.pos || '').toUpperCase();
+      var bp = (b.entry.pos || '').toUpperCase();
+      var ai = posOrderArr.indexOf(ap); if (ai === -1) ai = posOrderArr.length;
+      var bi = posOrderArr.indexOf(bp); if (bi === -1) bi = posOrderArr.length;
+      if (ai !== bi) return ai - bi;
+      return (a.entry.name || '').localeCompare(b.entry.name || '');
     });
 
     var pillsHtml = pills.map(function(p){
-      var lastName = (p.entry.name || '').split(' ').slice(-1).join(' ') || p.entry.name;
       var countText = '';
       if (state.view === 'maximum' && p.role === 'conflict'){
         countText = '<span class="wp-pill__count">' + p.meCount + '/' + p.oppCount + '</span>';
@@ -6114,7 +6098,7 @@ initThemeToggle();
       }
       return '<span class="wp-pill ' + p.pillClass + (isFinal?' is-final':'') + '" data-wp-player="' + esc(p.entry.id) + '">' +
         '<span class="wp-pill__pos">' + esc(p.entry.pos || '—') + '</span>' +
-        '<span class="wp-pill__name">' + esc(lastName) + '</span>' +
+        '<span class="wp-pill__name">' + esc(p.entry.name || '—') + '</span>' +
         countText +
       '</span>';
     }).join('');
@@ -6271,21 +6255,6 @@ initThemeToggle();
       sec.classList.toggle('is-collapsed', nowCollapsed);
       state.collapsed[key] = nowCollapsed;
       persistCollapsed();
-      return;
-    }
-    /* Jump pill */
-    var jp = e.target.closest('[data-wp-jump]');
-    if (jp){
-      var jKey = jp.getAttribute('data-wp-jump');
-      var sec2 = findSlotEl(jKey);
-      if (sec2){
-        if (sec2.classList.contains('is-collapsed')){
-          sec2.classList.remove('is-collapsed');
-          state.collapsed[jKey] = false;
-          persistCollapsed();
-        }
-        sec2.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
       return;
     }
     /* Player pill → drawer */
