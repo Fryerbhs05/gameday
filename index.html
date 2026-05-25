@@ -3202,6 +3202,99 @@ async function loadData(){
      gracefully (ranks just won't show up in the tooltip/drawer). */
   setLoading('Computing season ranks.');
   const seasonStats=await fetchSeasonStats(activeSeason);
+  /* ── TEMP PROBE: historic team-assignment investigation ─────────────
+     Logs the raw shape of player records from each provider on a historic
+     week, so we can confirm whether team info is captured per-week or
+     only as current-team. Remove after Phase 1 conclusions. */
+  if(isHist){
+    (async function probeHistoricTeams(){
+      try{
+        console.group('🔍 HISTORIC TEAM PROBE — season '+activeSeason+', week '+activeWeek);
+        console.log('liveSeason='+liveSeason+', liveWeek='+liveWeek+', isHist=true');
+        // 1. Sleeper season aggregate — does the per-player record include team?
+        const sleeperLg = valid.find(l=>l.provider==='sleeper');
+        if(sleeperLg){
+          const samplePids = (sleeperLg.myPlayers||[]).concat(sleeperLg.oppPlayers||[]).slice(0,5);
+          console.group('SLEEPER — season aggregate sample (5 players from a roster)');
+          samplePids.forEach(pid=>{
+            const s = seasonStats[pid];
+            const pdb = playerDB[pid] || {};
+            console.log('pid='+pid, {
+              playerDB_team: pdb.team,
+              playerDB_name: pdb.full_name,
+              seasonStats_keys: s ? Object.keys(s).slice(0,30) : '(no stats record)',
+              seasonStats_team_field: s ? (s.team||s.tm||s.pro_team||s.opponent||'(no team field)') : null,
+              seasonStats_has_team_keyish: s ? Object.keys(s).filter(k=>/team|tm|opp/i.test(k)) : []
+            });
+          });
+          console.groupEnd();
+          // 2. Sleeper per-week — fetch the per-week stats endpoint and log shape
+          try{
+            const weekly = await apiFetch(`${BASE}/stats/nfl/regular/${activeSeason}/${activeWeek}`);
+            const wkPids = Object.keys(weekly||{}).slice(0,3);
+            console.group('SLEEPER — per-week endpoint /stats/nfl/regular/'+activeSeason+'/'+activeWeek);
+            console.log('Total players in weekly response:', Object.keys(weekly||{}).length);
+            wkPids.forEach(pid=>{
+              const w = weekly[pid];
+              console.log('pid='+pid, {
+                team_field: w.team||w.tm||w.pro_team||w.opponent||'(no team field)',
+                all_team_keyish: Object.keys(w).filter(k=>/team|tm|opp/i.test(k)),
+                sample_keys: Object.keys(w).slice(0,20)
+              });
+            });
+            // Also show a known traded player if present
+            samplePids.forEach(pid=>{
+              if(weekly[pid]){
+                console.log('roster-player pid='+pid+' weekly team:', weekly[pid].team||weekly[pid].tm||'(none)', 'vs playerDB current:', (playerDB[pid]||{}).team);
+              }
+            });
+            console.groupEnd();
+          }catch(e){ console.warn('SLEEPER per-week fetch failed:', e.message); }
+        } else {
+          console.log('(no Sleeper league loaded — skipping Sleeper probe)');
+        }
+        // 3. Yahoo — log raw player object shape from a historic matchup
+        const yahooLg = valid.find(l=>l.source==='yahoo');
+        if(yahooLg){
+          console.group('YAHOO — sample player objects from historic matchup');
+          (yahooLg.myPlayers||[]).slice(0,3).forEach(p=>{
+            console.log('player:', {
+              all_keys: Object.keys(p),
+              name: p.name,
+              team_field: p.team,
+              player_key: p.player_key,
+              position: p.position,
+              full_object: p
+            });
+          });
+          console.groupEnd();
+        } else {
+          console.log('(no Yahoo league loaded — skipping Yahoo probe)');
+        }
+        // 4. ESPN — same
+        const espnLg = valid.find(l=>l.provider==='espn'||(l.myPlayers&&l.myPlayers[0]&&typeof l.myPlayers[0]==='object'&&String(l.myPlayers[0].player_key||'').startsWith('espn:')));
+        if(espnLg){
+          console.group('ESPN — sample player objects from historic matchup');
+          (espnLg.myPlayers||[]).slice(0,3).forEach(p=>{
+            console.log('player:', {
+              all_keys: Object.keys(p),
+              name: p.name,
+              team_field: p.team,
+              player_key: p.player_key,
+              id: p.id,
+              position: p.position,
+              full_object: p
+            });
+          });
+          console.groupEnd();
+        } else {
+          console.log('(no ESPN league loaded — skipping ESPN probe)');
+        }
+        console.log('\nCopy this entire group and paste back in chat.');
+        console.groupEnd();
+      }catch(e){ console.warn('Historic team probe failed:', e); }
+    })();
+  }
   const posRankByLeague=computePosRankByLeague(seasonStats,playerDB,leagueContexts);
   const sleeperIdLookup=buildSleeperIdLookup(playerDB);
   const map=new Map();
