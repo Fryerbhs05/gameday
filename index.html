@@ -1637,6 +1637,91 @@
     .exp-drawer__not-rostered { display: none; }
     .exp-drawer__not-rostered.is-open { display: block; }
 
+    /* ── Watch Priority view ──────────────────────────────────── */
+    #view-watch { display: none; max-width: var(--max-width); margin: 0 auto; padding: 28px var(--gutter) 80px; }
+    .wp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+    .wp-head__title h2 { font: 600 22px/1.1 var(--font-sans); margin: 0 0 4px; color: var(--ink-900); letter-spacing: -0.02em; }
+    .wp-head__title p { font: 400 13px/1.4 var(--font-sans); color: var(--ink-500); margin: 0; max-width: 56ch; }
+    .wp-head__controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .wp-view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--paper); }
+    .wp-view-toggle button { background: transparent; border: 0; padding: 9px 14px; color: var(--ink-500); cursor: pointer; font: 500 12px/1 var(--font-sans); transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+    .wp-view-toggle button + button { border-left: 1px solid var(--line); }
+    .wp-view-toggle button:hover:not(.active) { background: var(--paper-deep); }
+    .wp-view-toggle button.active { color: var(--paper); background: var(--ink-900); }
+    .wp-view-toggle[data-view="cheer"] button.active { background: var(--cheer); }
+    .wp-view-toggle[data-view="hate"] button.active { background: var(--enemy); }
+    .wp-bench-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--paper); }
+    .wp-bench-toggle button { background: transparent; border: 0; padding: 9px 12px; color: var(--ink-500); cursor: pointer; font: 500 11px/1 var(--font-sans); }
+    .wp-bench-toggle button + button { border-left: 1px solid var(--line); }
+    .wp-bench-toggle button.active { color: var(--paper); background: var(--ink-900); }
+    .wp-jump { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; position: sticky; top: 8px; z-index: 5; padding: 8px 0; background: linear-gradient(var(--paper-soft) 70%, transparent); }
+    .wp-jump__pill { font: 500 11px/1 var(--font-mono); letter-spacing: .04em; padding: 7px 11px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); color: var(--ink-700); cursor: pointer; text-transform: uppercase; transition: background var(--duration-fast) var(--ease-out); }
+    .wp-jump__pill:hover { background: var(--paper-deep); }
+    .wp-jump__pill.is-empty { opacity: .35; cursor: default; }
+    .wp-jump__pill.is-done { color: var(--ink-300); border-style: dashed; }
+    .wp-slot { margin: 0 0 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--paper); overflow: hidden; }
+    .wp-slot__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; cursor: pointer; user-select: none; }
+    .wp-slot__head:hover { background: var(--paper-deep); }
+    .wp-slot__title { font: 600 13px/1.2 var(--font-sans); color: var(--ink-900); letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+    .wp-slot__caret { display: inline-block; transition: transform var(--duration-fast) var(--ease-out); color: var(--ink-500); font-size: 12px; }
+    .wp-slot.is-collapsed .wp-slot__caret { transform: rotate(-90deg); }
+    .wp-slot__meta { font: 500 11px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .04em; text-transform: uppercase; }
+    .wp-slot__body { border-top: 1px solid var(--line-soft); padding: 8px 12px 12px; display: grid; gap: 10px; }
+    .wp-slot.is-collapsed .wp-slot__body { display: none; }
+    .wp-slot__empty { padding: 18px 4px; font: 400 13px/1.5 var(--font-sans); color: var(--ink-500); text-align: center; }
+    .wp-game { border: 1px solid var(--line-soft); border-radius: var(--radius-md); background: var(--paper-soft); padding: 12px 14px; cursor: pointer; transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+    .wp-game:hover { background: var(--paper-deep); border-color: var(--line); }
+    .wp-game--zero { opacity: 0.55; }
+    .wp-game__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .wp-game__matchup { font: 600 14px/1.2 var(--font-sans); color: var(--ink-900); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .wp-game__at { color: var(--ink-300); font-weight: 500; }
+    .wp-game__score { font: 600 12px/1 var(--font-mono); color: var(--ink-700); padding: 4px 7px; border-radius: 8px; background: var(--paper-deep); letter-spacing: .04em; }
+    .wp-game__meta { font: 500 11px/1.4 var(--font-mono); color: var(--ink-500); letter-spacing: .03em; text-transform: uppercase; display: flex; gap: 10px; flex-wrap: wrap; }
+    .wp-game__meta .wp-network { color: var(--ink-700); }
+    .wp-game__meta .wp-live { color: var(--coral-500); font-weight: 600; }
+    .wp-game__meta .wp-final { color: var(--ink-500); }
+    .wp-game__badge { font: 600 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 999px; letter-spacing: .03em; white-space: nowrap; }
+    .wp-game__badge--maximum { background: var(--coral-200); color: var(--coral-700); }
+    .wp-game__badge--cheer { background: var(--cheer-soft); color: var(--cheer); }
+    .wp-game__badge--hate { background: var(--enemy-soft); color: var(--enemy); }
+    .wp-game__badge--zero { background: var(--paper-deep); color: var(--ink-300); }
+    .wp-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+    .wp-pill { font: 500 11px/1.2 var(--font-sans); padding: 5px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; max-width: 100%; }
+    .wp-pill__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 14ch; }
+    .wp-pill--me-start { background: var(--coral-500); color: var(--paper-soft); }
+    .wp-pill--me-bench { background: transparent; color: var(--coral-700); border: 1px dashed var(--coral-500); }
+    .wp-pill--opp-start { background: var(--navy-700); color: var(--paper-soft); }
+    .wp-pill--opp-bench { background: transparent; color: var(--navy-700); border: 1px dashed var(--navy-500); }
+    .wp-pill--conflict { background: linear-gradient(95deg, var(--coral-500) 0 50%, var(--navy-700) 50% 100%); color: var(--paper-soft); }
+    .wp-pill__pos { font: 600 9px/1 var(--font-mono); opacity: 0.78; letter-spacing: .04em; }
+    .wp-pill__count { font: 600 9px/1 var(--font-mono); background: rgba(255,255,255,0.25); padding: 2px 4px; border-radius: 6px; }
+    .wp-pill.is-final { opacity: 0.55; }
+
+    /* Drawer (reuses BottomSheet shell) */
+    .wp-drawer__head { display: flex; align-items: center; gap: 12px; padding: 4px 0 10px; border-bottom: 1px solid var(--line-soft); margin-bottom: 12px; }
+    .wp-drawer__title { font: 600 16px/1.2 var(--font-sans); margin: 0; color: var(--ink-900); flex: 1; }
+    .wp-drawer__subtitle { font: 400 12px/1.3 var(--font-sans); color: var(--ink-500); margin: 2px 0 0; }
+    .wp-drawer__close { background: transparent; border: 0; padding: 6px 10px; color: var(--ink-500); cursor: pointer; font: 500 12px/1 var(--font-sans); border-radius: 6px; }
+    .wp-drawer__close:hover { background: var(--paper-deep); color: var(--ink-900); }
+    .wp-drawer__section { margin-bottom: 14px; }
+    .wp-drawer__section-h { font: 600 11px/1.2 var(--font-mono); text-transform: uppercase; color: var(--ink-500); letter-spacing: .05em; margin: 0 0 8px; }
+    .wp-drawer__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); }
+    .wp-drawer__row:last-child { border-bottom: 0; }
+    .wp-drawer__name { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); }
+    .wp-drawer__sub { font: 400 11px/1.2 var(--font-mono); color: var(--ink-500); display: block; margin-top: 3px; letter-spacing: .03em; }
+    .wp-drawer__pills { display: flex; gap: 5px; flex-wrap: wrap; }
+
+    @media (max-width: 640px) {
+      #view-watch { padding: 18px 12px 60px; }
+      .wp-head { flex-direction: column; align-items: stretch; }
+      .wp-head__controls { width: 100%; flex-direction: column; align-items: stretch; gap: 8px; }
+      .wp-view-toggle, .wp-bench-toggle { width: 100%; }
+      .wp-view-toggle button, .wp-bench-toggle button { flex: 1; }
+      .wp-jump { top: 4px; gap: 5px; padding: 6px 0; }
+      .wp-game__head { flex-wrap: wrap; }
+      .wp-pill__name { max-width: 11ch; }
+    }
+
     @media (max-width: 640px) {
       #view-exposure { padding: 18px 12px 60px; }
       .exp-kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -1734,9 +1819,8 @@
       </button>
     </li>
     <li role="none">
-      <button class="menu-drawer__item is-disabled" data-menu-action="watch-priority" role="menuitem" type="button" aria-disabled="true" disabled>
+      <button class="menu-drawer__item" data-menu-action="watch-priority" role="menuitem" type="button">
         <span>Watch priority</span>
-        <span class="menu-drawer__badge">Soon</span>
       </button>
     </li>
     <li role="presentation"><hr class="menu-drawer__divider" aria-hidden="true"></li>
@@ -2011,6 +2095,29 @@
     </div>
     <div class="exp-list" id="exp-list"></div>
   </div>
+</div>
+
+<!-- ============ Watch Priority view ============ -->
+<div id="view-watch">
+  <div class="wp-head">
+    <div class="wp-head__title">
+      <h2 id="wp-title">Watch priority</h2>
+      <p id="wp-subtitle">NFL games ranked by how many of your players are on the field.</p>
+    </div>
+    <div class="wp-head__controls">
+      <div class="wp-view-toggle" id="wp-view-toggle" role="tablist" aria-label="Watch view">
+        <button type="button" class="active" data-wp-view="maximum" role="tab" aria-selected="true">Maximum Investment</button>
+        <button type="button" data-wp-view="cheer" role="tab" aria-selected="false">Cheer Watch</button>
+        <button type="button" data-wp-view="hate" role="tab" aria-selected="false">Hate Watch</button>
+      </div>
+      <div class="wp-bench-toggle" id="wp-bench-toggle" role="tablist" aria-label="Roster scope">
+        <button type="button" class="active" data-wp-bench="starters" role="tab" aria-selected="true">Starters only</button>
+        <button type="button" data-wp-bench="all" role="tab" aria-selected="false">Include bench</button>
+      </div>
+    </div>
+  </div>
+  <div class="wp-jump" id="wp-jump" role="navigation" aria-label="Jump to slot"></div>
+  <div id="wp-slots"></div>
 </div>
 
 <!-- ══ SCRIPT ══════════════════════════════════════════════════ -->
@@ -2330,7 +2437,7 @@ function ctxBadge(sig,isHist){
 }
 
 function hideAll(){
-  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('week-label').style.display='none';
 }
@@ -3009,7 +3116,8 @@ function renderBoard(data,username){
   reconcilePriorityOrder(currentContexts);
   updateSettingsPanel();
   if(shouldAutoLaunchPriority(currentContexts))showPriorityOnboarding(currentContexts);
-  if(window.__conflictedExposureOpen&&typeof renderExposureView==='function'){try{['setup-panel','loading-panel','error-panel','board','priority-panel'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});var _vexp=document.getElementById('view-exposure');if(_vexp)_vexp.style.display='block';renderExposureView();}catch(e){console.warn('exposure rerender failed',e);}}
+  if(window.__conflictedExposureOpen&&typeof renderExposureView==='function'){try{['setup-panel','loading-panel','error-panel','board','priority-panel','view-watch'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});var _vexp=document.getElementById('view-exposure');if(_vexp)_vexp.style.display='block';renderExposureView();}catch(e){console.warn('exposure rerender failed',e);}}
+  if(window.__conflictedWatchOpen&&typeof renderWatchView==='function'){try{['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});var _vwch=document.getElementById('view-watch');if(_vwch)_vwch.style.display='block';renderWatchView();}catch(e){console.warn('watch rerender failed',e);}}
 }
 
 /* ── Yahoo data layer (unchanged from prior implementation) ── */
@@ -5494,6 +5602,750 @@ initThemeToggle();
 })();
 </script>
 
+<!-- ============ Watch Priority view ============ -->
+<script>
+(function(){
+  /* ── State ─────────────────────────────────────────────────── */
+  var WP_VIEW_KEY = 'gd_wp_view';
+  var WP_BENCH_KEY = 'gd_wp_include_bench';
+  var WP_COLLAPSE_KEY = 'gd_wp_collapsed_slots';
+
+  var initialView = 'maximum';
+  try { var sv = localStorage.getItem(WP_VIEW_KEY); if (sv === 'maximum' || sv === 'cheer' || sv === 'hate') initialView = sv; } catch(e){}
+  var initialBench = false;
+  try { initialBench = localStorage.getItem(WP_BENCH_KEY) === '1'; } catch(e){}
+  var initialCollapsed = {};
+  try { var sc = localStorage.getItem(WP_COLLAPSE_KEY); if (sc) initialCollapsed = JSON.parse(sc) || {}; } catch(e){}
+
+  var state = {
+    view: initialView,            // 'maximum' | 'cheer' | 'hate'
+    includeBench: initialBench,
+    collapsed: initialCollapsed,  // {slotKey: true} manual-collapse overrides
+    games: [],                    // ESPN-derived game list
+    gamesFetchedAt: 0,
+    gamesFetchKey: ''
+  };
+
+  /* ── Utilities ─────────────────────────────────────────────── */
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function getData(){ return window.__conflictedLastData || null; }
+  function cssIdSafe(s){ return String(s).replace(/[^a-zA-Z0-9_-]/g, '_'); }
+  function findSlotEl(slotKey){
+    /* Use [data-wp-slot=...] rather than ID lookup so the `:` in keys like sp:wed
+       can't break getElementById in older browsers. */
+    var all = document.querySelectorAll('[data-wp-slot]');
+    for (var i = 0; i < all.length; i++){
+      if (all[i].getAttribute('data-wp-slot') === slotKey) return all[i];
+    }
+    return null;
+  }
+
+  /* ── ESPN scoreboard fetch ─────────────────────────────────── */
+  /* Pulls the weekly schedule and parses each game into:
+     { id, away, home, awayName, homeName, kickoffISO, kickoffUtc,
+       network, venue, status: 'pre'|'in'|'post', detail, awayScore, homeScore } */
+  var SCHEDULE_TTL = 60 * 1000;  // 60s — matches NFL game state cadence
+  var WP_SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+
+  function fetchWeekGames(season, week){
+    var key = season + '-' + week;
+    var now = Date.now();
+    if (key === state.gamesFetchKey && state.games.length && (now - state.gamesFetchedAt) < SCHEDULE_TTL){
+      return Promise.resolve(state.games);
+    }
+    var url = WP_SCOREBOARD + '?dates=' + season + '&seasontype=2&week=' + week;
+    return fetch(url).then(function(r){ if (!r.ok) throw new Error('ESPN HTTP ' + r.status); return r.json(); }).then(function(j){
+      var games = (j.events || []).map(parseEspnEvent).filter(Boolean);
+      state.games = games;
+      state.gamesFetchKey = key;
+      state.gamesFetchedAt = now;
+      return games;
+    }).catch(function(err){
+      console.warn('Watch Priority: ESPN schedule fetch failed', err && err.message);
+      return [];
+    });
+  }
+
+  function parseEspnEvent(ev){
+    if (!ev) return null;
+    var comp = (ev.competitions && ev.competitions[0]) || null;
+    if (!comp) return null;
+    var competitors = comp.competitors || [];
+    var awayC = competitors.find(function(c){ return c.homeAway === 'away'; }) || competitors[1];
+    var homeC = competitors.find(function(c){ return c.homeAway === 'home'; }) || competitors[0];
+    if (!awayC || !homeC) return null;
+    var awayAbbr = (awayC.team && awayC.team.abbreviation) || '';
+    var homeAbbr = (homeC.team && homeC.team.abbreviation) || '';
+    if (!awayAbbr || !homeAbbr) return null;
+
+    // Network: broadcasts[].names[0] OR geoBroadcasts[].media.shortName
+    var network = '';
+    if (Array.isArray(comp.broadcasts) && comp.broadcasts.length){
+      var b = comp.broadcasts.find(function(x){ return x && Array.isArray(x.names) && x.names.length; });
+      if (b) network = b.names[0];
+    }
+    if (!network && Array.isArray(comp.geoBroadcasts) && comp.geoBroadcasts.length){
+      var g = comp.geoBroadcasts.find(function(x){ return x && x.media && x.media.shortName; });
+      if (g) network = g.media.shortName;
+    }
+
+    var venue = (comp.venue && comp.venue.fullName) || '';
+    var venueCity = (comp.venue && comp.venue.address && comp.venue.address.city) || '';
+    var venueCountry = (comp.venue && comp.venue.address && comp.venue.address.country) || '';
+
+    var statusObj = (comp.status && comp.status.type) || {};
+    var statusState = statusObj.state || 'pre';   // 'pre' | 'in' | 'post'
+    var statusDetail = statusObj.shortDetail || statusObj.detail || '';
+
+    return {
+      id: ev.id || (awayAbbr + '@' + homeAbbr),
+      away: awayAbbr,
+      home: homeAbbr,
+      awayName: (awayC.team && (awayC.team.shortDisplayName || awayC.team.displayName)) || awayAbbr,
+      homeName: (homeC.team && (homeC.team.shortDisplayName || homeC.team.displayName)) || homeAbbr,
+      kickoffISO: ev.date || comp.date || '',
+      kickoffUtc: ev.date ? new Date(ev.date).getTime() : 0,
+      network: network,
+      venue: venue,
+      venueCity: venueCity,
+      venueCountry: venueCountry,
+      status: statusState,
+      detail: statusDetail,
+      awayScore: awayC.score != null ? Number(awayC.score) : null,
+      homeScore: homeC.score != null ? Number(homeC.score) : null
+    };
+  }
+
+  /* ── Time-slot bucketing ───────────────────────────────────── */
+  /* Buckets games into one of:
+       'thu'    — Thursday
+       'sun_e'  — Sunday early window (1pm ET)
+       'sun_a'  — Sunday afternoon window (4pm ET)
+       'sun_n'  — Sunday night (SNF)
+       'mon'    — Monday Night
+       'intl'   — International, Friday/Saturday, Black Friday, holiday, anything else
+     We use ET-localized day/hour because that's what the NFL schedule is anchored on.
+     Internally we still surface kickoff in the user's local time. */
+  /* Regular slot labels (used when a game lands in a standard NFL window). */
+  var STD_SLOT_LABELS = {
+    'thu':   { label: 'Thursday Night',    shortLabel: 'TNF' },
+    'sun_e': { label: 'Sunday Early',      shortLabel: 'Sun Early' },
+    'sun_a': { label: 'Sunday Afternoon',  shortLabel: 'Sun Aft' },
+    'sun_n': { label: 'Sunday Night',      shortLabel: 'SNF' },
+    'mon':   { label: 'Monday Night',      shortLabel: 'MNF' }
+  };
+
+  /* International venues we want to surface with a dedicated slot label.
+     City matching is case-insensitive; country fallback handles edge cases. */
+  var INTL_VENUE_LABELS = [
+    { match: /london/i,              label: 'London Game',      shortLabel: 'London' },
+    { match: /munich/i,              label: 'Munich Game',      shortLabel: 'Munich' },
+    { match: /frankfurt/i,           label: 'Frankfurt Game',   shortLabel: 'Frankfurt' },
+    { match: /madrid/i,              label: 'Madrid Game',      shortLabel: 'Madrid' },
+    { match: /berlin/i,              label: 'Berlin Game',      shortLabel: 'Berlin' },
+    { match: /dublin/i,              label: 'Dublin Game',      shortLabel: 'Dublin' },
+    { match: /são paulo|sao paulo/i, label: 'São Paulo Game',   shortLabel: 'São Paulo' },
+    { match: /mexico city/i,         label: 'Mexico City Game', shortLabel: 'Mexico City' },
+    { match: /toronto/i,             label: 'Toronto Game',     shortLabel: 'Toronto' }
+  ];
+
+  function etParts(utcMs){
+    /* Get ET day-of-week + hour using Intl, no Date hacks. */
+    var d = new Date(utcMs);
+    var fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/New_York',
+      weekday: 'short', hour: 'numeric', hour12: false, minute: '2-digit'
+    });
+    var parts = {};
+    fmt.formatToParts(d).forEach(function(p){ parts[p.type] = p.value; });
+    var hour = parseInt(parts.hour, 10);
+    if (isNaN(hour)) hour = 0;
+    return { weekday: parts.weekday, hour: hour, minute: parseInt(parts.minute,10)||0 };
+  }
+
+  /* Map ET-weekday → full name used in slot labels. */
+  var WEEKDAY_FULL = {
+    Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday',
+    Thu: 'Thursday', Fri: 'Friday', Sat: 'Saturday'
+  };
+
+  /* Returns { key, label, shortLabel } for a game.
+     Standard windows share a key (so all Sunday Early games cluster together).
+     Special games get a venue- or day-derived unique-ish key so they form their
+     own sections. */
+  function slotIdentityForGame(g){
+    if (!g.kickoffUtc){
+      return { key: 'unscheduled', label: 'Unscheduled', shortLabel: 'TBD' };
+    }
+    var p = etParts(g.kickoffUtc);
+    var wd = p.weekday;
+    var hr = p.hour;
+
+    /* International venue detection — runs FIRST so a London game at 9:30 ET
+       Sunday doesn't get mis-bucketed into Sunday Early. */
+    var venueText = ((g.venue || '') + ' ' + (g.venueCity || '') + ' ' + (g.venueCountry || '')).trim();
+    if (venueText){
+      for (var i = 0; i < INTL_VENUE_LABELS.length; i++){
+        var v = INTL_VENUE_LABELS[i];
+        if (v.match.test(venueText)){
+          return { key: 'intl:' + v.shortLabel.toLowerCase().replace(/\s+/g,'-'), label: v.label, shortLabel: v.shortLabel };
+        }
+      }
+    }
+
+    /* Standard windows by ET weekday + hour. */
+    if (wd === 'Thu') return { key: 'thu',   label: STD_SLOT_LABELS.thu.label,   shortLabel: STD_SLOT_LABELS.thu.shortLabel };
+    if (wd === 'Mon') return { key: 'mon',   label: STD_SLOT_LABELS.mon.label,   shortLabel: STD_SLOT_LABELS.mon.shortLabel };
+    if (wd === 'Sun'){
+      if (hr < 12) {
+        // Pre-noon Sunday with no venue match — treat as a Sunday Morning Special.
+        return { key: 'sun_morning', label: 'Sunday Morning Special', shortLabel: 'Sun AM' };
+      }
+      if (hr < 16) return { key: 'sun_e', label: STD_SLOT_LABELS.sun_e.label, shortLabel: STD_SLOT_LABELS.sun_e.shortLabel };
+      if (hr < 19) return { key: 'sun_a', label: STD_SLOT_LABELS.sun_a.label, shortLabel: STD_SLOT_LABELS.sun_a.shortLabel };
+      return { key: 'sun_n', label: STD_SLOT_LABELS.sun_n.label, shortLabel: STD_SLOT_LABELS.sun_n.shortLabel };
+    }
+
+    /* Wed / Fri / Sat / Tue specials — name by the day so multiple-day weeks
+       (e.g. Black Friday + Christmas-Wed) each get their own section. */
+    var dayFull = WEEKDAY_FULL[wd] || wd;
+    return { key: 'sp:' + wd.toLowerCase(), label: dayFull + ' Special', shortLabel: dayFull };
+  }
+
+  function kickoffLabel(g){
+    if (!g.kickoffUtc) return '';
+    var d = new Date(g.kickoffUtc);
+    try {
+      return new Intl.DateTimeFormat(undefined, { weekday:'short', hour:'numeric', minute:'2-digit' }).format(d);
+    } catch(e){
+      return d.toString();
+    }
+  }
+
+  /* ── Player → game mapping ──────────────────────────────────── */
+  /* Returns { playersByTeam: {ABBR: [playerEntry]}, playerLookup: {id: playerEntry} }
+     Each playerEntry tags: which leagues the player starts/benches in for the user
+     (me) and the opposing roster (opp). */
+  function buildPlayerIndex(data){
+    var byTeam = {};
+    if (!data) return { byTeam: byTeam, all: [] };
+    var pool = Array.isArray(data.allRostered) && data.allRostered.length
+      ? data.allRostered
+      : [].concat(data.cheerFor||[], data.conflicted||[], data.enemies||[]);
+    var all = [];
+    pool.forEach(function(p){
+      var tm = (p.team || '').toUpperCase().trim();
+      if (!tm) return;
+      var entry = {
+        id: p.id || (p.full_name + '|' + p.team),
+        name: p.full_name || '—',
+        pos: (p.position || '').toUpperCase(),
+        team: tm,
+        injuryStatus: p.injuryStatus || null,
+        myStartLeagues: (p.myLeagues || []).slice(),
+        myBenchLeagues: (p.myBenchLeagues || []).slice(),
+        oppStartLeagues: (p.againstLeagues || []).slice(),
+        oppBenchLeagues: (p.againstBenchLeagues || []).slice(),
+        raw: p
+      };
+      if (!byTeam[tm]) byTeam[tm] = [];
+      byTeam[tm].push(entry);
+      all.push(entry);
+    });
+    return { byTeam: byTeam, all: all };
+  }
+
+  /* ── Pluggable priority scorer ─────────────────────────────────
+     v1: raw count.
+     Future v2+: replace scorer body with weighted projection logic — the
+     calling code only depends on the returned shape. */
+  function calcGamePriority(game, index, opts){
+    /* opts.view: 'maximum' | 'cheer' | 'hate'
+       opts.includeBench: bool */
+    var view = opts.view;
+    var includeBench = !!opts.includeBench;
+    var teamsInGame = [game.away, game.home];
+    var pulled = [];
+    teamsInGame.forEach(function(tm){
+      (index.byTeam[tm] || []).forEach(function(pe){
+        /* Decide if this player matches the current view + bench setting. */
+        var meStart = pe.myStartLeagues.length;
+        var meBench = pe.myBenchLeagues.length;
+        var oppStart = pe.oppStartLeagues.length;
+        var oppBench = pe.oppBenchLeagues.length;
+
+        var meCount = meStart + (includeBench ? meBench : 0);
+        var oppCount = oppStart + (includeBench ? oppBench : 0);
+
+        var role;
+        if (meCount && oppCount) role = 'conflict';
+        else if (meCount) role = 'me';
+        else if (oppCount) role = 'opp';
+        else return;
+
+        var include;
+        if (view === 'maximum') include = (meCount + oppCount) > 0;
+        else if (view === 'cheer') include = meCount > 0;
+        else if (view === 'hate') include = oppCount > 0;
+        else include = false;
+        if (!include) return;
+
+        /* Visual classification of the pill */
+        var pillClass;
+        if (role === 'conflict') pillClass = 'wp-pill--conflict';
+        else if (role === 'me'){
+          pillClass = meStart > 0 ? 'wp-pill--me-start' : 'wp-pill--me-bench';
+        } else {
+          pillClass = oppStart > 0 ? 'wp-pill--opp-start' : 'wp-pill--opp-bench';
+        }
+
+        /* Score contribution for sorting */
+        var scoreContribution;
+        if (view === 'maximum') scoreContribution = meCount + oppCount;
+        else if (view === 'cheer') scoreContribution = meCount;
+        else scoreContribution = oppCount;
+
+        pulled.push({
+          entry: pe,
+          role: role,
+          pillClass: pillClass,
+          meCount: meCount,
+          oppCount: oppCount,
+          scoreContribution: scoreContribution
+        });
+      });
+    });
+    /* Aggregate score = sum of contributions. v1 raw count. */
+    var score = 0;
+    pulled.forEach(function(x){ score += x.scoreContribution; });
+    return { score: score, players: pulled, teamsInGame: teamsInGame };
+  }
+
+  /* ── Slot completion + auto-collapse ──────────────────────────
+     A slot is "done" when ALL games in it are status==='post'. */
+  function slotIsDone(games){
+    if (!games.length) return false;
+    return games.every(function(g){ return g.status === 'post'; });
+  }
+  function slotIsCollapsed(slotKey, games){
+    if (state.collapsed[slotKey] != null) return !!state.collapsed[slotKey];  // manual override
+    return slotIsDone(games);  // auto-collapse when complete
+  }
+  function persistCollapsed(){
+    try { localStorage.setItem(WP_COLLAPSE_KEY, JSON.stringify(state.collapsed)); } catch(e){}
+  }
+
+  /* ── Render ─────────────────────────────────────────────────── */
+  function renderWatchView(){
+    var data = getData();
+    var slotsHost = document.getElementById('wp-slots');
+    var jumpHost = document.getElementById('wp-jump');
+    if (!slotsHost || !jumpHost) return;
+
+    var index = buildPlayerIndex(data);
+
+    /* Group games into slots dynamically. Each game's slot is determined by
+       slotIdentityForGame() — standard windows share keys, special games get
+       venue/day-specific keys so they form their own sections. */
+    var slotMap = {};      // key → { key, label, shortLabel, games:[] }
+    (state.games || []).forEach(function(g){
+      var ident = slotIdentityForGame(g);
+      if (!slotMap[ident.key]){
+        slotMap[ident.key] = { key: ident.key, label: ident.label, shortLabel: ident.shortLabel, games: [] };
+      }
+      slotMap[ident.key].games.push(g);
+    });
+
+    /* Build chronological master order of slots based on earliest kickoff in each. */
+    var orderedSlots = Object.keys(slotMap).map(function(k){
+      var s = slotMap[k];
+      s.games.sort(function(a,b){ return (a.kickoffUtc||0) - (b.kickoffUtc||0); });
+      s.earliest = (s.games[0] && s.games[0].kickoffUtc) || 0;
+      return s;
+    }).sort(function(a,b){
+      // Unscheduled (kickoff=0) sinks to the bottom rather than the top.
+      var ax = a.earliest || Number.MAX_SAFE_INTEGER;
+      var bx = b.earliest || Number.MAX_SAFE_INTEGER;
+      return ax - bx;
+    });
+
+    /* Score each game once for the active view. */
+    var scoredByGameId = {};
+    (state.games || []).forEach(function(g){
+      scoredByGameId[g.id] = calcGamePriority(g, index, { view: state.view, includeBench: state.includeBench });
+    });
+
+    /* ── Jump pills (chronological master order) ── */
+    var jumpHtml = orderedSlots.map(function(s){
+      var done = slotIsDone(s.games);
+      return '<button type="button" class="wp-jump__pill' + (done?' is-done':'') + '" data-wp-jump="' + esc(s.key) + '">' + esc(s.shortLabel) + '</button>';
+    }).join('');
+    if (!jumpHtml){
+      jumpHost.innerHTML = '<span class="wp-jump__pill is-empty">No NFL games this week</span>';
+    } else {
+      jumpHost.innerHTML = jumpHtml;
+    }
+
+    /* ── Slot sections (chronological master order) ── */
+    var html = '';
+    orderedSlots.forEach(function(s){
+      var games = s.games;
+      var collapsed = slotIsCollapsed(s.key, games);
+      var done = slotIsDone(games);
+
+      /* Slot-level summary count: games + total involved players for the view */
+      var totalInvolved = 0;
+      games.forEach(function(g){ totalInvolved += (scoredByGameId[g.id] && scoredByGameId[g.id].players.length) || 0; });
+
+      var metaPieces = [];
+      metaPieces.push(games.length + ' game' + (games.length===1?'':'s'));
+      if (totalInvolved > 0) metaPieces.push(totalInvolved + ' player' + (totalInvolved===1?'':'s'));
+      if (done) metaPieces.push('Final');
+
+      html += '<section class="wp-slot' + (collapsed?' is-collapsed':'') + '" id="wp-slot-' + cssIdSafe(s.key) + '" data-wp-slot="' + esc(s.key) + '">';
+      html +=   '<header class="wp-slot__head" data-wp-slot-toggle="' + esc(s.key) + '">';
+      html +=     '<span class="wp-slot__title"><span class="wp-slot__caret">▾</span>' + esc(s.label) + '</span>';
+      html +=     '<span class="wp-slot__meta">' + esc(metaPieces.join(' · ')) + '</span>';
+      html +=   '</header>';
+      html +=   '<div class="wp-slot__body">';
+
+      /* Sort games WITHIN slot by priority desc, chronological for ties. */
+      var sortedGames = games.slice().sort(function(a,b){
+        var as = (scoredByGameId[a.id] && scoredByGameId[a.id].score) || 0;
+        var bs = (scoredByGameId[b.id] && scoredByGameId[b.id].score) || 0;
+        if (bs !== as) return bs - as;
+        return (a.kickoffUtc||0) - (b.kickoffUtc||0);
+      });
+
+      var anyNonzero = sortedGames.some(function(g){ return (scoredByGameId[g.id]||{}).score > 0; });
+      if (!anyNonzero) html += '<p class="wp-slot__empty">' + esc(emptySlotCopy(s.key, state.view)) + '</p>';
+
+      sortedGames.forEach(function(g){ html += gameCardHtml(g, scoredByGameId[g.id]); });
+
+      html +=   '</div>';
+      html += '</section>';
+    });
+
+    if (!html){
+      /* No games at all — show a single empty card. */
+      html = '<section class="wp-slot"><div class="wp-slot__body"><p class="wp-slot__empty">' + esc(emptyAllCopy()) + '</p></div></section>';
+    }
+
+    slotsHost.innerHTML = html;
+
+    /* Reflect the view toggle styling (cheer/hate variant) */
+    var vt = document.getElementById('wp-view-toggle');
+    if (vt) vt.setAttribute('data-view', state.view);
+  }
+
+  function emptySlotCopy(slotKey, view){
+    var isIntl = slotKey.indexOf('intl:') === 0;
+    var isSpecial = slotKey.indexOf('sp:') === 0 || slotKey === 'sun_morning';
+    if (view === 'hate'){
+      if (slotKey === 'thu') return 'No opp players in Thursday\'s game — enjoy guilt-free watching.';
+      if (slotKey === 'mon') return 'No opp players Monday night — your week is safe from MNF.';
+      if (slotKey === 'sun_n') return 'No opp players in SNF — the prime-time spotlight is yours alone.';
+      if (isIntl) return 'No opp players in this international game — pure football, no stakes.';
+      if (isSpecial) return 'No opp players in this special — watch without the dread.';
+      return 'No opp players in this slot — nothing to hate-watch here.';
+    }
+    if (view === 'cheer'){
+      if (slotKey === 'thu') return 'None of your players are in the Thursday game — skip it if you want.';
+      if (slotKey === 'mon') return 'No skin in the game Monday — MNF is just football tonight.';
+      if (slotKey === 'sun_n') return 'No players in SNF this week — sit back, no stakes.';
+      if (isIntl) return 'None of your players are in this international game — appreciate the global game.';
+      if (isSpecial) return 'No players of yours in this special — football for football\'s sake.';
+      return 'None of your players in this slot — no cheering needed.';
+    }
+    /* maximum */
+    if (slotKey === 'thu') return 'Neither side has skin in Thursday\'s game.';
+    if (slotKey === 'mon') return 'No players in either lineup for Monday night.';
+    if (slotKey === 'sun_n') return 'SNF is a clean slate this week — no fantasy stakes.';
+    if (isIntl) return 'Neither side has players in this international game.';
+    if (isSpecial) return 'No players from either side of any matchup in this special.';
+    return 'No players from either side of any matchup in this slot.';
+  }
+
+  function emptyAllCopy(){
+    return 'No NFL games on the schedule for this week.';
+  }
+
+  function gameCardHtml(g, scored){
+    var s = scored || { score: 0, players: [] };
+    var isFinal = g.status === 'post';
+    var isLive = g.status === 'in';
+    var statusLine = '';
+    if (isLive) statusLine = '<span class="wp-live">● ' + esc(g.detail || 'Live') + '</span>';
+    else if (isFinal) statusLine = '<span class="wp-final">Final</span>';
+    else statusLine = '<span>' + esc(kickoffLabel(g)) + '</span>';
+
+    var scoreLabel = '';
+    if ((isLive || isFinal) && g.awayScore != null && g.homeScore != null){
+      scoreLabel = '<span class="wp-game__score">' + esc(g.away) + ' ' + g.awayScore + ' — ' + g.homeScore + ' ' + esc(g.home) + '</span>';
+    }
+
+    var badgeCls;
+    if (state.view === 'cheer') badgeCls = 'wp-game__badge--cheer';
+    else if (state.view === 'hate') badgeCls = 'wp-game__badge--hate';
+    else badgeCls = 'wp-game__badge--maximum';
+    if (s.score === 0) badgeCls = 'wp-game__badge--zero';
+    var badgeLabel = s.score + ' player' + (s.score === 1 ? '' : 's');
+
+    /* Player pills — sort: conflict first, then me-start, opp-start, me-bench, opp-bench. */
+    var pillOrder = { 'wp-pill--conflict':0, 'wp-pill--me-start':1, 'wp-pill--opp-start':2, 'wp-pill--me-bench':3, 'wp-pill--opp-bench':4 };
+    var pills = s.players.slice().sort(function(a,b){
+      var ao = pillOrder[a.pillClass] != null ? pillOrder[a.pillClass] : 99;
+      var bo = pillOrder[b.pillClass] != null ? pillOrder[b.pillClass] : 99;
+      return ao - bo;
+    });
+
+    var pillsHtml = pills.map(function(p){
+      var lastName = (p.entry.name || '').split(' ').slice(-1).join(' ') || p.entry.name;
+      var countText = '';
+      if (state.view === 'maximum' && p.role === 'conflict'){
+        countText = '<span class="wp-pill__count">' + p.meCount + '/' + p.oppCount + '</span>';
+      } else if ((p.meCount + p.oppCount) > 1){
+        var c = state.view === 'hate' ? p.oppCount : (state.view === 'cheer' ? p.meCount : (p.meCount + p.oppCount));
+        countText = '<span class="wp-pill__count">' + c + '</span>';
+      }
+      return '<span class="wp-pill ' + p.pillClass + (isFinal?' is-final':'') + '" data-wp-player="' + esc(p.entry.id) + '">' +
+        '<span class="wp-pill__pos">' + esc(p.entry.pos || '—') + '</span>' +
+        '<span class="wp-pill__name">' + esc(lastName) + '</span>' +
+        countText +
+      '</span>';
+    }).join('');
+
+    var metaBits = [statusLine];
+    if (g.network) metaBits.push('<span class="wp-network">' + esc(g.network) + '</span>');
+
+    var awayLogo = teamLogoSpan(g.away);
+    var homeLogo = teamLogoSpan(g.home);
+
+    return '<article class="wp-game' + (s.score===0?' wp-game--zero':'') + '" data-wp-game="' + esc(g.id) + '">' +
+      '<div class="wp-game__head">' +
+        '<div class="wp-game__matchup">' + awayLogo + esc(g.away) + ' <span class="wp-game__at">@</span> ' + homeLogo + esc(g.home) + '</div>' +
+        (scoreLabel || '<span class="wp-game__badge ' + badgeCls + '">' + esc(badgeLabel) + '</span>') +
+      '</div>' +
+      (scoreLabel ? '<div class="wp-game__head"><span></span><span class="wp-game__badge ' + badgeCls + '">' + esc(badgeLabel) + '</span></div>' : '') +
+      '<div class="wp-game__meta">' + metaBits.join(' · ') + '</div>' +
+      (pillsHtml ? '<div class="wp-pills" style="margin-top:10px;">' + pillsHtml + '</div>' : '') +
+    '</article>';
+  }
+
+  function teamLogoSpan(/* abbr */){
+    /* Future: swap for actual logo images. Today the abbreviation alone reads well. */
+    return '';
+  }
+
+  /* ── Player drawer (reuses BottomSheet) ────────────────────── */
+  function renderPlayerDrawer(playerId){
+    var data = getData(); if (!data) return '';
+    var pool = Array.isArray(data.allRostered) ? data.allRostered : [];
+    var p = pool.find(function(x){ return (x.id || (x.full_name + '|' + x.team)) === playerId; });
+    if (!p) return '<div class="wp-drawer__head"><h3 class="wp-drawer__title">Player not found</h3><button class="wp-drawer__close" data-wp-drawer-close="1">close ✕</button></div>';
+
+    var pos = (p.position||'').toUpperCase();
+    var team = (p.team || '—');
+    var myStart = (p.myLeagues || []);
+    var myBench = (p.myBenchLeagues || []);
+    var oppStart = (p.againstLeagues || []);
+    var oppBench = (p.againstBenchLeagues || []);
+
+    function lgRow(name, sideClass){
+      return '<div class="wp-drawer__row"><span class="wp-drawer__name">' + esc(name) + '</span>' +
+        '<span class="wp-pill ' + sideClass + '"><span class="wp-pill__pos">' + esc(pos) + '</span></span></div>';
+    }
+
+    var sections = '';
+    if (myStart.length){
+      sections += '<div class="wp-drawer__section"><p class="wp-drawer__section-h">Your starter in</p>' +
+        myStart.map(function(n){ return lgRow(n, 'wp-pill--me-start'); }).join('') + '</div>';
+    }
+    if (myBench.length){
+      sections += '<div class="wp-drawer__section"><p class="wp-drawer__section-h">On your bench in</p>' +
+        myBench.map(function(n){ return lgRow(n, 'wp-pill--me-bench'); }).join('') + '</div>';
+    }
+    if (oppStart.length){
+      sections += '<div class="wp-drawer__section"><p class="wp-drawer__section-h">Opp starter in</p>' +
+        oppStart.map(function(n){ return lgRow(n, 'wp-pill--opp-start'); }).join('') + '</div>';
+    }
+    if (oppBench.length){
+      sections += '<div class="wp-drawer__section"><p class="wp-drawer__section-h">Opp bench in</p>' +
+        oppBench.map(function(n){ return lgRow(n, 'wp-pill--opp-bench'); }).join('') + '</div>';
+    }
+    if (!sections){
+      sections = '<p class="wp-drawer__sub">Not rostered in any league this week.</p>';
+    }
+
+    return '<div class="wp-drawer__head">' +
+      '<div style="min-width:0;flex:1;">' +
+        '<h3 class="wp-drawer__title">' + esc(p.full_name || '—') + '</h3>' +
+        '<p class="wp-drawer__subtitle">' + esc(pos) + ' · ' + esc(team) + '</p>' +
+      '</div>' +
+      '<button type="button" class="wp-drawer__close" data-wp-drawer-close="1">close ✕</button>' +
+    '</div>' +
+    sections;
+  }
+
+  function openPlayerDrawer(playerId){
+    if (!window.BottomSheet) return;
+    var html = renderPlayerDrawer(playerId);
+    if (window.BottomSheet.isOpen() && window.BottomSheet.getOwner() === 'watch'){
+      window.BottomSheet.setBody(html);
+    } else {
+      window.BottomSheet.open(html, { owner: 'watch', onClose: function(){} });
+    }
+  }
+
+  /* ── Show / hide ───────────────────────────────────────────── */
+  function hideAllForWatch(){
+    if (typeof window.hideAll === 'function') window.hideAll();
+    else {
+      ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure'].forEach(function(id){
+        var el = document.getElementById(id); if (el) el.style.display = 'none';
+      });
+    }
+    ['change-user-btn','refresh-btn'].forEach(function(id){
+      var el = document.getElementById(id); if (el) el.style.display = 'none';
+    });
+    var wkLbl = document.getElementById('week-label'); if (wkLbl) wkLbl.style.display = 'none';
+    /* Also close exposure if it's somehow stuck open */
+    window.__conflictedExposureOpen = false;
+  }
+
+  function showWatch(){
+    hideAllForWatch();
+    var v = document.getElementById('view-watch');
+    if (v) v.style.display = 'block';
+    window.__conflictedWatchOpen = true;
+    /* Use current dashboard activeSeason/activeWeek */
+    var season = (typeof window.activeSeason !== 'undefined') ? window.activeSeason : (new Date()).getFullYear();
+    var week = (typeof window.activeWeek !== 'undefined') ? window.activeWeek : 1;
+    /* Initial render with whatever cached games we have (likely empty first time) */
+    renderWatchView();
+    fetchWeekGames(String(season), week).then(function(){
+      renderWatchView();
+    });
+    window.scrollTo(0, 0);
+  }
+
+  /* ── Event wiring ──────────────────────────────────────────── */
+  document.addEventListener('click', function(e){
+    /* View toggle */
+    var vt = e.target.closest('[data-wp-view]');
+    if (vt){
+      state.view = vt.getAttribute('data-wp-view');
+      try { localStorage.setItem(WP_VIEW_KEY, state.view); } catch(err){}
+      document.querySelectorAll('[data-wp-view]').forEach(function(b){
+        var on = b.getAttribute('data-wp-view') === state.view;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      renderWatchView();
+      return;
+    }
+    /* Bench toggle */
+    var bt = e.target.closest('[data-wp-bench]');
+    if (bt){
+      state.includeBench = bt.getAttribute('data-wp-bench') === 'all';
+      try { localStorage.setItem(WP_BENCH_KEY, state.includeBench ? '1' : '0'); } catch(err){}
+      document.querySelectorAll('[data-wp-bench]').forEach(function(b){
+        var on = (b.getAttribute('data-wp-bench') === (state.includeBench ? 'all' : 'starters'));
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      renderWatchView();
+      return;
+    }
+    /* Slot collapse/expand */
+    var st = e.target.closest('[data-wp-slot-toggle]');
+    if (st){
+      var key = st.getAttribute('data-wp-slot-toggle');
+      var sec = findSlotEl(key);
+      if (!sec) return;
+      var nowCollapsed = !sec.classList.contains('is-collapsed');
+      sec.classList.toggle('is-collapsed', nowCollapsed);
+      state.collapsed[key] = nowCollapsed;
+      persistCollapsed();
+      return;
+    }
+    /* Jump pill */
+    var jp = e.target.closest('[data-wp-jump]');
+    if (jp){
+      var jKey = jp.getAttribute('data-wp-jump');
+      var sec2 = findSlotEl(jKey);
+      if (sec2){
+        if (sec2.classList.contains('is-collapsed')){
+          sec2.classList.remove('is-collapsed');
+          state.collapsed[jKey] = false;
+          persistCollapsed();
+        }
+        sec2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
+    /* Player pill → drawer */
+    var pl = e.target.closest('[data-wp-player]');
+    if (pl){
+      var pid = pl.getAttribute('data-wp-player');
+      openPlayerDrawer(pid);
+      return;
+    }
+    /* Drawer close */
+    if (e.target.closest('[data-wp-drawer-close]')){
+      if (window.BottomSheet) window.BottomSheet.close();
+      return;
+    }
+  });
+
+  /* ── Refresh hook + nav cleanup ────────────────────────────── */
+  /* Refetch schedule periodically while view is open. */
+  setInterval(function(){
+    if (!window.__conflictedWatchOpen) return;
+    var season = (typeof window.activeSeason !== 'undefined') ? window.activeSeason : (new Date()).getFullYear();
+    var week = (typeof window.activeWeek !== 'undefined') ? window.activeWeek : 1;
+    fetchWeekGames(String(season), week).then(function(){ renderWatchView(); });
+  }, 60000);
+
+  /* Hook week/season changes — force schedule re-fetch by clearing cache key. */
+  ['changeWeekTo','changeSeason'].forEach(function(fn){
+    var orig = window[fn];
+    if (typeof orig !== 'function') return;
+    window[fn] = function(){
+      state.gamesFetchKey = '';
+      state.games = [];
+      var r = orig.apply(this, arguments);
+      if (window.__conflictedWatchOpen){
+        var season = (typeof window.activeSeason !== 'undefined') ? window.activeSeason : (new Date()).getFullYear();
+        var week = (typeof window.activeWeek !== 'undefined') ? window.activeWeek : 1;
+        fetchWeekGames(String(season), week).then(function(){ renderWatchView(); });
+      }
+      return r;
+    };
+  });
+
+  /* Clear the watch-open flag whenever a known navigation path returns elsewhere. */
+  ['showBoard','showSetup','showError','showExposure'].forEach(function(fn){
+    var orig = window[fn];
+    if (typeof orig !== 'function') return;
+    window[fn] = function(){
+      window.__conflictedWatchOpen = false;
+      var v = document.getElementById('view-watch');
+      if (v) v.style.display = 'none';
+      return orig.apply(this, arguments);
+    };
+  });
+
+  /* Expose entry points */
+  window.showWatch = showWatch;
+  window.renderWatchView = renderWatchView;
+})();
+</script>
+
 <!-- ============ Menu drawer behavior ============ -->
 <script>
   (function() {
@@ -5534,13 +6386,18 @@ initThemeToggle();
     function syncActive() {
       var board = document.getElementById('board');
       var expo = document.getElementById('view-exposure');
+      var watch = document.getElementById('view-watch');
       var onBoard = !!(board && board.style.display && board.style.display !== 'none');
       var onExpo = !!(expo && expo.style.display && expo.style.display !== 'none');
+      var onWatch = !!(watch && watch.style.display && watch.style.display !== 'none');
       drawer.querySelectorAll('[data-menu-action="dashboard"]').forEach(function(btn) {
-        btn.classList.toggle('is-active', onBoard && !onExpo);
+        btn.classList.toggle('is-active', onBoard && !onExpo && !onWatch);
       });
       drawer.querySelectorAll('[data-menu-action="exposure"]').forEach(function(btn) {
         btn.classList.toggle('is-active', onExpo);
+      });
+      drawer.querySelectorAll('[data-menu-action="watch-priority"]').forEach(function(btn) {
+        btn.classList.toggle('is-active', onWatch);
       });
     }
 
@@ -5563,6 +6420,8 @@ initThemeToggle();
           else if (typeof window.showBoard === 'function') window.showBoard();
         } else if (action === 'exposure') {
           if (typeof window.showExposure === 'function') window.showExposure();
+        } else if (action === 'watch-priority') {
+          if (typeof window.showWatch === 'function') window.showWatch();
         } else if (action === 'change-user') {
           if (typeof window.handleChangeUser === 'function') window.handleChangeUser();
         }
