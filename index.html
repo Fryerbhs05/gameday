@@ -2038,6 +2038,13 @@ function getPrimaryDisplayName(){
 function assignColor(n){if(!colorMap[n])colorMap[n]=LC_COLORS[Object.keys(colorMap).length%LC_COLORS.length];return colorMap[n];}
 const lc=n=>colorMap[n]||'#5F5E5A';
 function isHistoricalWeek(){const as=parseInt(activeSeason),ls=parseInt(liveSeason);if(as<ls)return true;if(as===ls&&activeWeek<liveWeek)return true;return false;}
+/* True only when the selected season is *prior* to the current live season.
+   Used to gate features that depend on team-as-of-week accuracy (NFL team
+   chips, exposure-by-team filter). In-season historic weeks still show team
+   info because mid-season trades are rare enough that current-team is a
+   safe approximation within the active season. */
+function isPriorSeason(){return parseInt(activeSeason)<parseInt(liveSeason);}
+window.isPriorSeason=isPriorSeason;
 
 async function apiFetch(url){const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
 async function fetchNflGameStates(season,week){
@@ -2500,13 +2507,19 @@ function renderMatchupDrawer(ctx, lg){
      pid is the key used to read from ctx.myPP / ctx.oppPP, so it must match
      the key the provider used when building that map (player_key for Yahoo/ESPN,
      raw ID for Sleeper). */
+  /* Prior-season views can't trust team metadata (it reflects current rosters,
+     not the player's team during that historic season). Suppress the chip so we
+     never render a misleading team. In-season historic weeks are unaffected
+     because mid-season trades are rare enough that current-team is a safe
+     approximation within the active season. */
+  const suppressTeam = (typeof window.isPriorSeason === 'function') && window.isPriorSeason();
   function normalizePlayer(p){
     if (p == null) return { pid: '', full_name: 'Player', position: '—', team: '' };
     if (typeof p === 'string'){
       const db = (window.playerDB && window.playerDB[p]) || null;
       const full_name = (db && (db.full_name || db.last_name)) || ('Player ' + p);
       const position = (db && db.position) || (p.length <= 4 ? 'DEF' : '—');
-      const team = (db && db.team) || '';
+      const team = suppressTeam ? '' : ((db && db.team) || '');
       return { pid: p, full_name, position, team };
     }
     /* Object (Yahoo / ESPN). Yahoo uses `name`, ESPN normalizes to `name` too. */
@@ -2514,7 +2527,7 @@ function renderMatchupDrawer(ctx, lg){
               : (p.id != null ? String(p.id) : '');
     const full_name = p.full_name || p.name || ('Player ' + (pid || ''));
     const position = p.position || '—';
-    const team = p.team || '';
+    const team = suppressTeam ? '' : (p.team || '');
     return { pid, full_name, position, team };
   }
   /* Render a player half-row: either the "you" cell pair (name + pts) or
@@ -2809,7 +2822,10 @@ function buildCardInner(player,isHist){
   }
   const livePill=isPlayerLive(player)?`<span class="live-pill" aria-label="In a live game"><span class="live-dot"></span>LIVE</span>`:'';
 
-  return `<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${livePill}<span class="player-team">${player.team||''}</span>${injBadge}</div>${ptsHTML}${rosterHTML}`;
+  /* On prior seasons, the team chip would reflect current rosters not the
+     player's team at the time — suppress to avoid misleading data. */
+  const teamHtml = isPriorSeason() ? '' : `<span class="player-team">${player.team||''}</span>`;
+  return `<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${livePill}${teamHtml}${injBadge}</div>${ptsHTML}${rosterHTML}`;
 }
 
 function buildCard(player,isHist){
@@ -3202,99 +3218,6 @@ async function loadData(){
      gracefully (ranks just won't show up in the tooltip/drawer). */
   setLoading('Computing season ranks.');
   const seasonStats=await fetchSeasonStats(activeSeason);
-  /* ── TEMP PROBE: historic team-assignment investigation ─────────────
-     Logs the raw shape of player records from each provider on a historic
-     week, so we can confirm whether team info is captured per-week or
-     only as current-team. Remove after Phase 1 conclusions. */
-  if(isHist){
-    (async function probeHistoricTeams(){
-      try{
-        console.group('🔍 HISTORIC TEAM PROBE — season '+activeSeason+', week '+activeWeek);
-        console.log('liveSeason='+liveSeason+', liveWeek='+liveWeek+', isHist=true');
-        // 1. Sleeper season aggregate — does the per-player record include team?
-        const sleeperLg = valid.find(l=>l.provider==='sleeper');
-        if(sleeperLg){
-          const samplePids = (sleeperLg.myPlayers||[]).concat(sleeperLg.oppPlayers||[]).slice(0,5);
-          console.group('SLEEPER — season aggregate sample (5 players from a roster)');
-          samplePids.forEach(pid=>{
-            const s = seasonStats[pid];
-            const pdb = playerDB[pid] || {};
-            console.log('pid='+pid, {
-              playerDB_team: pdb.team,
-              playerDB_name: pdb.full_name,
-              seasonStats_keys: s ? Object.keys(s).slice(0,30) : '(no stats record)',
-              seasonStats_team_field: s ? (s.team||s.tm||s.pro_team||s.opponent||'(no team field)') : null,
-              seasonStats_has_team_keyish: s ? Object.keys(s).filter(k=>/team|tm|opp/i.test(k)) : []
-            });
-          });
-          console.groupEnd();
-          // 2. Sleeper per-week — fetch the per-week stats endpoint and log shape
-          try{
-            const weekly = await apiFetch(`${BASE}/stats/nfl/regular/${activeSeason}/${activeWeek}`);
-            const wkPids = Object.keys(weekly||{}).slice(0,3);
-            console.group('SLEEPER — per-week endpoint /stats/nfl/regular/'+activeSeason+'/'+activeWeek);
-            console.log('Total players in weekly response:', Object.keys(weekly||{}).length);
-            wkPids.forEach(pid=>{
-              const w = weekly[pid];
-              console.log('pid='+pid, {
-                team_field: w.team||w.tm||w.pro_team||w.opponent||'(no team field)',
-                all_team_keyish: Object.keys(w).filter(k=>/team|tm|opp/i.test(k)),
-                sample_keys: Object.keys(w).slice(0,20)
-              });
-            });
-            // Also show a known traded player if present
-            samplePids.forEach(pid=>{
-              if(weekly[pid]){
-                console.log('roster-player pid='+pid+' weekly team:', weekly[pid].team||weekly[pid].tm||'(none)', 'vs playerDB current:', (playerDB[pid]||{}).team);
-              }
-            });
-            console.groupEnd();
-          }catch(e){ console.warn('SLEEPER per-week fetch failed:', e.message); }
-        } else {
-          console.log('(no Sleeper league loaded — skipping Sleeper probe)');
-        }
-        // 3. Yahoo — log raw player object shape from a historic matchup
-        const yahooLg = valid.find(l=>l.source==='yahoo');
-        if(yahooLg){
-          console.group('YAHOO — sample player objects from historic matchup');
-          (yahooLg.myPlayers||[]).slice(0,3).forEach(p=>{
-            console.log('player:', {
-              all_keys: Object.keys(p),
-              name: p.name,
-              team_field: p.team,
-              player_key: p.player_key,
-              position: p.position,
-              full_object: p
-            });
-          });
-          console.groupEnd();
-        } else {
-          console.log('(no Yahoo league loaded — skipping Yahoo probe)');
-        }
-        // 4. ESPN — same
-        const espnLg = valid.find(l=>l.provider==='espn'||(l.myPlayers&&l.myPlayers[0]&&typeof l.myPlayers[0]==='object'&&String(l.myPlayers[0].player_key||'').startsWith('espn:')));
-        if(espnLg){
-          console.group('ESPN — sample player objects from historic matchup');
-          (espnLg.myPlayers||[]).slice(0,3).forEach(p=>{
-            console.log('player:', {
-              all_keys: Object.keys(p),
-              name: p.name,
-              team_field: p.team,
-              player_key: p.player_key,
-              id: p.id,
-              position: p.position,
-              full_object: p
-            });
-          });
-          console.groupEnd();
-        } else {
-          console.log('(no ESPN league loaded — skipping ESPN probe)');
-        }
-        console.log('\nCopy this entire group and paste back in chat.');
-        console.groupEnd();
-      }catch(e){ console.warn('Historic team probe failed:', e); }
-    })();
-  }
   const posRankByLeague=computePosRankByLeague(seasonStats,playerDB,leagueContexts);
   const sleeperIdLookup=buildSleeperIdLookup(playerDB);
   const map=new Map();
@@ -4552,10 +4475,15 @@ initThemeToggle();
     } else {
       src = primary.slice();
     }
+    /* Prior seasons: drop team from the subtitle (current-roster team
+       would mislead). The team field is still kept on the record itself —
+       team-axis aggregation is removed separately via the filter pill. */
+    var hidePriorTeam = (typeof window.isPriorSeason === 'function') && window.isPriorSeason();
+    var subParts = hidePriorTeam ? [p.position] : [p.position, p.team];
     return {
       id: p.id || (p.full_name + '|' + p.team),
       label: p.full_name || 'Unknown',
-      sub: [p.position, p.team].filter(Boolean).join(' · '),
+      sub: subParts.filter(Boolean).join(' · '),
       pos: p.position || '',
       team: p.team || '',
       leagues: src,
@@ -4797,8 +4725,11 @@ initThemeToggle();
         b.setAttribute('aria-selected', active ? 'true' : 'false');
       });
     }
+    var hidePriorAxis = (typeof window.isPriorSeason === 'function') && window.isPriorSeason();
+    if (hidePriorAxis && state.axis !== 'players') { state.axis = 'players'; }
     var axisToggle = document.getElementById('exp-axis-toggle');
     if (axisToggle){
+      axisToggle.style.display = hidePriorAxis ? 'none' : '';
       axisToggle.classList.toggle('mode-positive', state.mode === 'positive');
       axisToggle.classList.toggle('mode-negative', state.mode === 'negative');
       axisToggle.querySelectorAll('button').forEach(function(b){
@@ -4970,7 +4901,9 @@ initThemeToggle();
     var pos = (player.position||'').toUpperCase();
     var posLabel = pos || '—';
     var pillsHtml = '<span class="exp-pill ' + posPillClass(pos) + '">' + esc(posLabel) + '</span>';
-    if (player.team) pillsHtml += '<span class="exp-pill exp-pill--team">' + esc(player.team) + '</span>';
+    /* Skip team pill on prior seasons — current-roster team would mislead. */
+    var hidePriorTeam = (typeof window.isPriorSeason === 'function') && window.isPriorSeason();
+    if (player.team && !hidePriorTeam) pillsHtml += '<span class="exp-pill exp-pill--team">' + esc(player.team) + '</span>';
     var listHtml = leagues.length
       ? leagues.map(function(n){
           var slot = slotForPlayerInLeague(player, n, mode);
@@ -5037,7 +4970,9 @@ initThemeToggle();
     (data.contexts||[]).forEach(function(c){ ctxByName[c.leagueName] = c; });
 
     var pos = (player.position||'').toUpperCase();
-    var teamLabel = player.team || '—';
+    /* Prior seasons: hide team — current-roster team would mislead on a year-old roster. */
+    var hidePriorTeam = (typeof window.isPriorSeason === 'function') && window.isPriorSeason();
+    var teamLabel = hidePriorTeam ? '—' : (player.team || '—');
     var initials = (player.full_name||'?').split(/\s+/).map(function(s){return s[0]||'';}).join('').slice(0,2).toUpperCase();
 
     /* Split leagues into rostered (start or bench in this mode) and not-rostered. */
@@ -5072,7 +5007,7 @@ initThemeToggle();
     }
 
     var headerPills = '<span class="exp-pill ' + posPillClass(pos) + '">' + esc(pos||'—') + '</span>' +
-                      '<span class="exp-pill exp-pill--team">' + esc(teamLabel) + '</span>';
+                      (hidePriorTeam ? '' : '<span class="exp-pill exp-pill--team">' + esc(teamLabel) + '</span>');
     var summaryHtml =
       '<div class="exp-drawer__stat">' +
         '<span class="exp-drawer__stat-label">Exposure</span>' +
@@ -5085,7 +5020,7 @@ initThemeToggle();
         '<span class="exp-drawer__stat-label">Position</span>' +
         '<p class="exp-drawer__stat-row">' +
           '<span class="exp-drawer__stat-value">' + esc(pos||'—') + '</span>' +
-          '<span class="exp-drawer__stat-sub">' + esc(teamLabel) + '</span>' +
+          (hidePriorTeam ? '' : '<span class="exp-drawer__stat-sub">' + esc(teamLabel) + '</span>') +
         '</p>' +
       '</div>';
 
@@ -5276,6 +5211,15 @@ initThemeToggle();
       return '<button type="button"' + cls + ' ' + attr + '="' + val + '" role="tab" aria-selected="' + sel + '">' + esc(label) + '</button>';
     }
     var modeClass = state.mode === 'positive' ? 'mode-positive' : 'mode-negative';
+    var hidePriorAxis = (typeof window.isPriorSeason === 'function') && window.isPriorSeason();
+    var groupBySection = hidePriorAxis ? '' :
+      ('<div class="exp-settings__section">' +
+        '<p class="exp-settings__label">Group by</p>' +
+        '<div class="exp-toggle" id="exp-axis-toggle-sheet" role="tablist" aria-label="Axis">' +
+          btn('data-exp-axis', 'players', 'Players') +
+          btn('data-exp-axis', 'teams', 'NFL teams') +
+        '</div>' +
+      '</div>');
     return '<div class="exp-settings">' +
       '<div class="exp-settings__head">' +
         '<h3 class="exp-settings__title">Filters</h3>' +
@@ -5288,13 +5232,7 @@ initThemeToggle();
           btn('data-exp-mode', 'negative', 'Opp rosters') +
         '</div>' +
       '</div>' +
-      '<div class="exp-settings__section">' +
-        '<p class="exp-settings__label">Group by</p>' +
-        '<div class="exp-toggle" id="exp-axis-toggle-sheet" role="tablist" aria-label="Axis">' +
-          btn('data-exp-axis', 'players', 'Players') +
-          btn('data-exp-axis', 'teams', 'NFL teams') +
-        '</div>' +
-      '</div>' +
+      groupBySection +
       '<div class="exp-settings__section">' +
         '<p class="exp-settings__label">Roster scope</p>' +
         '<div class="exp-toggle" id="exp-bench-toggle-sheet" role="tablist" aria-label="Roster scope">' +
