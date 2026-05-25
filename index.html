@@ -2526,7 +2526,11 @@ function renderMatchupDrawer(ctx, lg){
     const pid = p.player_key != null ? String(p.player_key)
               : (p.id != null ? String(p.id) : '');
     const full_name = p.full_name || p.name || ('Player ' + (pid || ''));
-    const position = p.position || '—';
+    /* Prefer the lineup `slot` Yahoo/ESPN assigned this week (QB, WR, W/R/T, BN…)
+       so flex starters render with their actual slot rather than comma-joined
+       eligibility ("WR,RB"). Fall back to `position` (eligibility) when slot
+       isn't available — e.g. Sleeper raw IDs handled above. */
+    const position = (p.slot && String(p.slot).toUpperCase()) || p.position || '—';
     const team = suppressTeam ? '' : (p.team || '');
     return { pid, full_name, position, team };
   }
@@ -3044,8 +3048,21 @@ function parseYahooRoster(json) {
   yhEach(players, (pw) => {
     const pArr = pw?.player; if (!Array.isArray(pArr)) return;
     const meta = yhFlatten(pArr[0]);
-    const extras = Array.isArray(pArr[1]) ? pArr[1] : {};
-    const sp = yhFlatten(extras.selected_position || []);
+    /* Scan ALL siblings for selected_position — Yahoo varies its index across
+       endpoint shapes. On plain /roster it sits at pArr[1]; on the composite
+       /roster/players/stats it can be shifted by the player_points sibling or
+       omitted from pArr[1] entirely. Same silent-zero failure mode as points
+       (varying field position) — mirror the same defensive scan. */
+    let sp = {};
+    for (let i = 1; i < pArr.length; i++) {
+      const sib = pArr[i]; if (!sib) continue;
+      if (sib.selected_position) { sp = yhFlatten(sib.selected_position); break; }
+      if (Array.isArray(sib)) {
+        const hit = sib.find(s => s && s.selected_position);
+        if (hit) { sp = yhFlatten(hit.selected_position); break; }
+      }
+      if (typeof sib === 'object' && sib.selected_position) { sp = yhFlatten(sib.selected_position); break; }
+    }
     const slot = sp.position || ''; const isStarter = !!slot && slot !== 'BN' && slot !== 'IR';
     const status = meta.status || meta.injury_status || '';
     const unhealthy = ['Questionable','Doubtful','Out','Injured Reserve','IR','PUP','Suspended','NFI','DNR','NA','Q','D','O','SUSP'];
@@ -3053,6 +3070,10 @@ function parseYahooRoster(json) {
     let injuryStatus = null;
     if (unhealthy.includes(status)) injuryStatus = shortMap[status] || status;
     const name = meta.name?.full || '';
+    /* `position` here is the player's eligibility (e.g. "WR,RB" for flex-eligible
+       players) — used as the fallback when no lineup slot is known. The matchup
+       drawer prefers `slot` (the actual lineup position that week) when available
+       so flex starters render as "W/R/T" instead of comma-joined eligibility. */
     out.push({ source: 'yahoo', player_key: meta.player_key, name, position: (meta.display_position || meta.primary_position || '').toUpperCase(), team: (meta.editorial_team_abbr || '').toUpperCase(), slot, isStarter, injuryStatus });
   });
   return out;
