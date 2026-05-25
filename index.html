@@ -794,32 +794,56 @@
     .matchup-drawer__state.win    { color: var(--cheer); }
     .matchup-drawer__state.loss   { color: var(--enemy); }
     .matchup-drawer__state.final  { color: var(--neutral); }
-    .matchup-drawer__cols {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    /* Paired-row layout: my name | my pts | POS (shared) | opp pts | opp name.
+       The center POS column owns the visual midline; my side mirrors opp. */
+    .matchup-drawer__paired-head,
+    .matchup-drawer__paired-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto auto minmax(0, 1fr);
+      gap: 8px; align-items: center;
     }
-    .matchup-drawer__col-h {
-      font: 500 9px/1 var(--font-mono); color: var(--ink-500);
-      letter-spacing: .12em; text-transform: uppercase; margin: 0 0 8px;
-      padding-bottom: 6px; border-bottom: 1px solid var(--line);
+    .matchup-drawer__paired-head {
+      padding-bottom: 6px; margin-bottom: 2px; border-bottom: 1px solid var(--line);
     }
-    .matchup-drawer__player-row {
-      display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
-      gap: 6px; align-items: center;
+    .matchup-drawer__paired-row {
       padding: 7px 0; border-bottom: 1px solid var(--line-soft);
     }
-    .matchup-drawer__player-row:last-child { border-bottom: 0; }
+    .matchup-drawer__paired-row:last-child { border-bottom: 0; }
+    .matchup-drawer__col-h {
+      font: 500 9px/1 var(--font-mono); color: var(--ink-500);
+      letter-spacing: .12em; text-transform: uppercase; margin: 0;
+    }
+    .matchup-drawer__col-h--my { text-align: right; }
+    .matchup-drawer__col-h--opp { text-align: left; }
+    .matchup-drawer__col-h--pos { text-align: center; }
     .matchup-drawer__player-name {
       font: 500 12px/1.2 var(--font-sans); color: var(--ink-900);
       min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
+    .matchup-drawer__player-name--my { text-align: right; }
+    .matchup-drawer__player-name--opp { text-align: left; }
     .matchup-drawer__player-team {
       font: 400 10px/1 var(--font-sans); color: var(--ink-500); display: block; margin-top: 2px;
     }
     .matchup-drawer__player-pts {
       font: 500 12px/1 var(--font-mono); color: var(--ink-900);
-      text-align: right; white-space: nowrap;
+      white-space: nowrap; min-width: 34px;
     }
+    .matchup-drawer__player-pts--my { text-align: right; }
+    .matchup-drawer__player-pts--opp { text-align: left; }
     .matchup-drawer__player-pts--zero { color: var(--ink-300); }
+    .matchup-drawer__paired-pos {
+      display: flex; justify-content: center; align-items: center;
+      min-width: 44px;
+    }
+    .matchup-drawer__paired-pos .pos-badge { margin: 0; }
+    /* If my-slot and opp-slot differ (flex pairing), show both stacked vertically. */
+    .matchup-drawer__paired-pos--split {
+      flex-direction: column; gap: 2px;
+    }
+    .matchup-drawer__placeholder {
+      color: var(--ink-300); font: 400 12px/1.2 var(--font-sans);
+    }
     .matchup-drawer__empty {
       font: 400 12px/1.4 var(--font-sans); color: var(--ink-500);
       padding: 12px 0; margin: 0; text-align: center;
@@ -842,7 +866,10 @@
 
     @media (max-width: 480px) {
       .matchup-drawer__score-value { font-size: 24px; }
-      .matchup-drawer__cols { gap: 8px; }
+      .matchup-drawer__paired-head,
+      .matchup-drawer__paired-row { gap: 4px; }
+      .matchup-drawer__player-name { font-size: 11px; }
+      .matchup-drawer__player-pts { font-size: 11px; min-width: 28px; }
     }
 
     /* League filters */
@@ -2490,41 +2517,94 @@ function renderMatchupDrawer(ctx, lg){
     const team = p.team || '';
     return { pid, full_name, position, team };
   }
-  function rowsHtml(players, side, ppMap){
-    if (!players || !players.length){
-      return '<p class="matchup-drawer__empty">No starters.</p>';
+  /* Render a player half-row: either the "you" cell pair (name + pts) or
+     the "opp" cell pair. side controls alignment and the data-mp-side
+     attribute used by live-refresh patching. */
+  function halfCells(raw, side, ppMap){
+    if (raw == null){
+      // placeholder for unpaired roster slot (e.g. opp has 1 more bench player)
+      const nameCls = 'matchup-drawer__player-name matchup-drawer__player-name--' + side + ' matchup-drawer__placeholder';
+      const ptsCls = 'matchup-drawer__player-pts matchup-drawer__player-pts--' + side + ' matchup-drawer__player-pts--zero';
+      if (side === 'my'){
+        return '<span class="' + nameCls + '">—</span>'
+             + '<span class="' + ptsCls + '">—</span>';
+      } else {
+        return '<span class="' + ptsCls + '">—</span>'
+             + '<span class="' + nameCls + '">—</span>';
+      }
     }
-    return players.map(raw => {
-      const p = normalizePlayer(raw);
-      const pid = p.pid;
-      const pts = ppMap[pid] != null ? +ppMap[pid] : 0;
-      const ptsStr = fmtPts(pts);
-      const ptsCls = pts > 0 ? '' : ' matchup-drawer__player-pts--zero';
-      const pos = p.position || '—';
-      const posCls = (typeof posClass === 'function') ? posClass(pos) : 'pos-default';
-      return '<div class="matchup-drawer__player-row">'
-        + '<span class="pos-badge ' + posCls + '">' + escHtml(pos) + '</span>'
-        + '<span class="matchup-drawer__player-name">' + escHtml(p.full_name)
-        +   (p.team ? '<span class="matchup-drawer__player-team">' + escHtml(p.team) + '</span>' : '')
-        + '</span>'
-        + '<span class="matchup-drawer__player-pts' + ptsCls + '" data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '">' + ptsStr + '</span>'
-      + '</div>';
-    }).join('');
+    const p = normalizePlayer(raw);
+    const pid = p.pid;
+    const pts = ppMap[pid] != null ? +ppMap[pid] : 0;
+    const ptsStr = fmtPts(pts);
+    const ptsZero = pts > 0 ? '' : ' matchup-drawer__player-pts--zero';
+    const nameHtml = escHtml(p.full_name)
+      + (p.team ? '<span class="matchup-drawer__player-team">' + escHtml(p.team) + '</span>' : '');
+    const nameSpan = '<span class="matchup-drawer__player-name matchup-drawer__player-name--' + side + '">' + nameHtml + '</span>';
+    const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + ptsZero + '" data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '">' + ptsStr + '</span>';
+    /* Visual order: my side reads outward→inward (name then pts), opp side reads
+       inward→outward (pts then name) so the points cluster around the center POS. */
+    return side === 'my' ? (nameSpan + ptsSpan) : (ptsSpan + nameSpan);
   }
+  /* Center position cell. If both sides have the same position we render one
+     badge; if they differ (flex/superflex pairing) we stack both. Returns the
+     single grid-column cell. */
+  function posCell(myRaw, oppRaw){
+    const mp = myRaw != null ? normalizePlayer(myRaw).position : null;
+    const op = oppRaw != null ? normalizePlayer(oppRaw).position : null;
+    function badge(pos){
+      const p = pos || '—';
+      const cls = (typeof posClass === 'function') ? posClass(p) : 'pos-default';
+      return '<span class="pos-badge ' + cls + '">' + escHtml(p) + '</span>';
+    }
+    if (mp && op && mp !== op){
+      return '<div class="matchup-drawer__paired-pos matchup-drawer__paired-pos--split" title="' + escHtml(mp + ' vs ' + op) + '">'
+        + badge(mp) + badge(op)
+      + '</div>';
+    }
+    return '<div class="matchup-drawer__paired-pos">' + badge(mp || op || '—') + '</div>';
+  }
+  /* Zip two roster arrays into paired rows. Pairs by slot order (index);
+     when one side has more players, the other side gets a placeholder cell. */
+  function pairedRowsHtml(myPlayers, oppPlayers){
+    const len = Math.max(myPlayers ? myPlayers.length : 0, oppPlayers ? oppPlayers.length : 0);
+    if (!len) return '';
+    const rows = [];
+    for (let i = 0; i < len; i++){
+      const my = myPlayers && i < myPlayers.length ? myPlayers[i] : null;
+      const op = oppPlayers && i < oppPlayers.length ? oppPlayers[i] : null;
+      rows.push(
+        '<div class="matchup-drawer__paired-row">'
+        + halfCells(my, 'my', myPP)
+        + posCell(my, op)
+        + halfCells(op, 'opp', oppPP)
+        + '</div>'
+      );
+    }
+    return rows.join('');
+  }
+  const pairedHeadHtml =
+    '<div class="matchup-drawer__paired-head">'
+    +   '<span class="matchup-drawer__col-h matchup-drawer__col-h--my">You</span>'
+    +   '<span></span>'
+    +   '<span class="matchup-drawer__col-h matchup-drawer__col-h--pos">Pos</span>'
+    +   '<span></span>'
+    +   '<span class="matchup-drawer__col-h matchup-drawer__col-h--opp">Opp</span>'
+    + '</div>';
   const myPlayers = (lg && lg.myPlayers) || [];
   const oppPlayers = (lg && lg.oppPlayers) || [];
   const myBench = (lg && lg.myBench) || [];
   const oppBench = (lg && lg.oppBench) || [];
+  const startersBody = (myPlayers.length || oppPlayers.length)
+    ? pairedRowsHtml(myPlayers, oppPlayers)
+    : '<p class="matchup-drawer__empty">No starters.</p>';
   const benchTotal = myBench.length + oppBench.length;
   const benchHtml = benchTotal ? (
     '<button type="button" class="matchup-drawer__toggle" data-matchup-bench-toggle="1" aria-expanded="false">'
     +   '<span class="caret">▸</span> Bench (' + benchTotal + ')'
     + '</button>'
     + '<div class="matchup-drawer__bench" data-matchup-bench="1">'
-    +   '<div class="matchup-drawer__cols">'
-    +     '<div>' + (myBench.length ? rowsHtml(myBench, 'my', myPP) : '<p class="matchup-drawer__empty">No bench.</p>') + '</div>'
-    +     '<div>' + (oppBench.length ? rowsHtml(oppBench, 'opp', oppPP) : '<p class="matchup-drawer__empty">No bench.</p>') + '</div>'
-    +   '</div>'
+    +   pairedRowsHtml(myBench, oppBench)
     + '</div>'
   ) : '';
   return '<div class="matchup-drawer" data-status="' + dataStatus + '" data-matchup-league="' + escHtml(ctx.leagueName) + '">'
@@ -2546,16 +2626,8 @@ function renderMatchupDrawer(ctx, lg){
     +   '</div>'
     + '</div>'
     + '<p class="matchup-drawer__state ' + stCls + '" data-mp-state="1">' + escHtml(stTxt) + '</p>'
-    + '<div class="matchup-drawer__cols">'
-    +   '<div>'
-    +     '<h4 class="matchup-drawer__col-h">Your starters</h4>'
-    +     rowsHtml(myPlayers, 'my', myPP)
-    +   '</div>'
-    +   '<div>'
-    +     '<h4 class="matchup-drawer__col-h">Opponent starters</h4>'
-    +     rowsHtml(oppPlayers, 'opp', oppPP)
-    +   '</div>'
-    + '</div>'
+    + pairedHeadHtml
+    + startersBody
     + benchHtml
   + '</div>';
 }
