@@ -1721,6 +1721,83 @@
     .wp-mw-count { font: 600 9px/1 var(--font-mono); background: rgba(255,255,255,0.10); color: #F5EFE4; padding: 3px 5px; border-radius: 999px; letter-spacing: .04em; }
     .wp-mustwatch-toggle button.active .wp-mw-count { background: rgba(255,255,255,0.22); color: #F5EFE4; }
 
+    /* ── Filters button (Watch Priority) ──────────────────────── */
+    /* Mirrors .exp-settings-btn but in the navy/cream brand. Always shown on
+       Watch Priority (not just mobile) — the three toggle groups live behind
+       this single button, same drawer pattern as Exposure on mobile. */
+    .wp-settings-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid #1A3A52; border-radius: var(--radius-md);
+      background: #122A40; color: #F5EFE4;
+      font: 500 12px/1 var(--font-sans);
+      padding: 9px 14px; cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+    }
+    .wp-settings-btn:hover { background: #1A3A52; color: #F5EFE4; }
+    .wp-settings-btn:active { background: #1A3A52; }
+    .wp-settings-btn svg { width: 12px; height: 12px; flex: 0 0 12px; }
+
+    /* ── Filters drawer content (Watch Priority) ──────────────── */
+    /* Renders inside the shared BottomSheet (light/cream theme).
+       Structurally identical to .exp-settings so the two pages feel like
+       siblings; the toggles inside reuse their existing data-wp-* attributes
+       and click handlers, so state updates without re-render. */
+    .wp-settings { padding: 4px 2px 0; }
+    .wp-settings__head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 12px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+    .wp-settings__title { font: 600 16px/1.2 var(--font-sans); color: var(--ink-900); margin: 0; letter-spacing: -0.01em; }
+    .wp-settings__close { background: transparent; border: 0; padding: 6px 8px; color: var(--ink-500); cursor: pointer; font: 500 14px/1 var(--font-mono); border-radius: var(--radius-sm); }
+    .wp-settings__close:hover { color: var(--ink-900); background: var(--paper-deep); }
+    .wp-settings__section { margin-bottom: 16px; }
+    .wp-settings__label { font: 500 10px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-500); margin: 0 0 8px; }
+    /* Override the navy toggle chrome from the inline header — inside the
+       drawer the toggles sit on light paper, so they need light-theme styling
+       and full-width segmented layout. */
+    .wp-settings__section .wp-view-toggle,
+    .wp-settings__section .wp-bench-toggle,
+    .wp-settings__section .wp-mustwatch-toggle {
+      display: flex; width: 100%;
+      background: var(--paper); border: 1px solid var(--line);
+    }
+    .wp-settings__section .wp-view-toggle button,
+    .wp-settings__section .wp-bench-toggle button,
+    .wp-settings__section .wp-mustwatch-toggle button {
+      flex: 1 1 0; padding: 12px 14px; font-size: 13px;
+      color: var(--ink-500); justify-content: center;
+    }
+    .wp-settings__section .wp-view-toggle button + button,
+    .wp-settings__section .wp-bench-toggle button + button,
+    .wp-settings__section .wp-mustwatch-toggle button + button {
+      border-left: 1px solid var(--line);
+    }
+    .wp-settings__section .wp-view-toggle button:hover:not(.active),
+    .wp-settings__section .wp-bench-toggle button:hover:not(.active),
+    .wp-settings__section .wp-mustwatch-toggle button:hover:not(.active) {
+      background: var(--paper-deep); color: var(--ink-900);
+    }
+    .wp-settings__section .wp-view-toggle button.active,
+    .wp-settings__section .wp-bench-toggle button.active {
+      background: var(--ink-900); color: var(--paper);
+    }
+    /* Cheer/Hate views keep their semantic colors even inside the drawer. */
+    .wp-settings__section .wp-view-toggle[data-view="cheer"] button.active { background: var(--cheer, #3D8B5C); color: var(--paper); }
+    .wp-settings__section .wp-view-toggle[data-view="hate"] button.active { background: var(--enemy, #A33D2E); color: var(--paper); }
+    /* Must Watch keeps its coral active state — it's the most user-visible
+       filter so the color hint is worth preserving inside the drawer too. */
+    .wp-settings__section .wp-mustwatch-toggle button.active {
+      background: var(--coral-500, #D85A30); color: var(--paper);
+    }
+    .wp-settings__section .wp-mustwatch-toggle .wp-mw-count {
+      background: rgba(0,0,0,0.08); color: var(--ink-700);
+    }
+    .wp-settings__section .wp-mustwatch-toggle button.active .wp-mw-count {
+      background: rgba(255,255,255,0.25); color: var(--paper);
+    }
+    .wp-settings__footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 2px 4px; border-top: 1px solid var(--line); margin-top: 6px; }
+    .wp-settings__reset { background: transparent; border: 0; color: var(--ink-500); font: 500 12px/1 var(--font-sans); cursor: pointer; padding: 8px 4px; }
+    .wp-settings__reset:hover { color: var(--ink-900); text-decoration: underline; }
+    .wp-settings__done { background: var(--ink-900); color: var(--paper); border: 0; padding: 10px 20px; border-radius: var(--radius-md); font: 500 13px/1 var(--font-sans); cursor: pointer; }
+    .wp-settings__done:hover { background: var(--ink-700); }
+
     /* ── Slot head (spotlight + strip variant) ────────────────── */
     .wp-slot__crown { display: inline-block; width: 7px; height: 7px; background: var(--coral-500); border-radius: 50%; margin-right: 7px; vertical-align: middle; }
 
@@ -2303,19 +2380,10 @@
       <p id="wp-subtitle">NFL games ranked by how many of your players are on the field.</p>
     </div>
     <div class="wp-head__controls">
-      <div class="wp-view-toggle" id="wp-view-toggle" role="tablist" aria-label="Watch view">
-        <button type="button" class="active" data-wp-view="maximum" role="tab" aria-selected="true">Maximum Investment</button>
-        <button type="button" data-wp-view="cheer" role="tab" aria-selected="false">Cheer Watch</button>
-        <button type="button" data-wp-view="hate" role="tab" aria-selected="false">Hate Watch</button>
-      </div>
-      <div class="wp-bench-toggle" id="wp-bench-toggle" role="tablist" aria-label="Roster scope">
-        <button type="button" class="active" data-wp-bench="starters" role="tab" aria-selected="true">Starters only</button>
-        <button type="button" data-wp-bench="all" role="tab" aria-selected="false">Include bench</button>
-      </div>
-      <div class="wp-mustwatch-toggle" id="wp-mustwatch-toggle" role="tablist" aria-label="Filter scope">
-        <button type="button" class="active" data-wp-mustwatch="must" role="tab" aria-selected="true">Must Watch Games <span class="wp-mw-count" id="wp-mw-count-must">—</span></button>
-        <button type="button" data-wp-mustwatch="all" role="tab" aria-selected="false">All games <span class="wp-mw-count" id="wp-mw-count-all">—</span></button>
-      </div>
+      <button type="button" class="wp-settings-btn" id="wp-settings-btn" aria-label="Open filters" data-wp-settings-open="1">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 3h12M4 8h8M6 13h4"/></svg>
+        Filters
+      </button>
     </div>
   </div>
   <div id="wp-slots"></div>
@@ -6205,6 +6273,11 @@ initThemeToggle();
     /* ── Count badges for the Must Watch toggle ── */
     var allGamesCount = (state.games || []).length;
     var mustWatchSlots = orderedSlots.filter(function(s){ return s.topScore > 0; }).length;
+    /* Cache counts on state so the Filters drawer can read them when it
+       opens (it's rendered outside this function and can't see the local
+       orderedSlots). */
+    state._allGamesCount = allGamesCount;
+    state._mustWatchSlots = mustWatchSlots;
     var allBadge = document.getElementById('wp-mw-count-all');
     var mustBadge = document.getElementById('wp-mw-count-must');
     if (allBadge) allBadge.textContent = allGamesCount > 0 ? String(allGamesCount) : '—';
@@ -6690,8 +6763,94 @@ initThemeToggle();
     window.scrollTo(0, 0);
   }
 
+  /* ── Filters drawer (sheet) ───────────────────────────────── */
+  /* Three toggle groups (View, Roster scope, Filter scope) live behind a
+     single Filters button — same drawer pattern Exposure uses on mobile,
+     extended here to all viewports so the Watch Priority header doesn't
+     get cluttered with three side-by-side segmented controls. The toggles
+     inside the sheet reuse their original data-wp-view / data-wp-bench /
+     data-wp-mustwatch attributes, so the existing click handlers below
+     update them in place without us rebuilding the sheet. */
+  function wpBtn(attr, val, label, isActive){
+    var cls = isActive ? ' class="active"' : '';
+    var sel = isActive ? 'true' : 'false';
+    return '<button type="button"' + cls + ' ' + attr + '="' + val + '" role="tab" aria-selected="' + sel + '">' + label + '</button>';
+  }
+  function renderWatchSettingsSheet(){
+    /* Counts come from the last renderWatchView() pass (cached on state).
+       The sheet is opened from a button that's only visible inside the Watch
+       Priority view, which always runs renderWatchView() on entry, so the
+       cache is populated by the time the user can click Filters. */
+    var allGamesCount = (typeof state._allGamesCount === 'number') ? state._allGamesCount : (state.games || []).length;
+    var mustWatchSlots = (typeof state._mustWatchSlots === 'number') ? state._mustWatchSlots : 0;
+    var viewToggleAttr = state.view === 'cheer' ? ' data-view="cheer"' : state.view === 'hate' ? ' data-view="hate"' : '';
+    return '<div class="wp-settings">' +
+      '<div class="wp-settings__head">' +
+        '<h3 class="wp-settings__title">Filters</h3>' +
+        '<button type="button" class="wp-settings__close" aria-label="Close" data-wp-settings-close="1">&times;</button>' +
+      '</div>' +
+      '<div class="wp-settings__section">' +
+        '<p class="wp-settings__label">View</p>' +
+        '<div class="wp-view-toggle"' + viewToggleAttr + ' role="tablist" aria-label="Watch view">' +
+          wpBtn('data-wp-view', 'maximum', 'Maximum Investment', state.view === 'maximum') +
+          wpBtn('data-wp-view', 'cheer', 'Cheer Watch', state.view === 'cheer') +
+          wpBtn('data-wp-view', 'hate', 'Hate Watch', state.view === 'hate') +
+        '</div>' +
+      '</div>' +
+      '<div class="wp-settings__section">' +
+        '<p class="wp-settings__label">Roster scope</p>' +
+        '<div class="wp-bench-toggle" role="tablist" aria-label="Roster scope">' +
+          wpBtn('data-wp-bench', 'starters', 'Starters only', !state.includeBench) +
+          wpBtn('data-wp-bench', 'all', 'Include bench', state.includeBench) +
+        '</div>' +
+      '</div>' +
+      '<div class="wp-settings__section">' +
+        '<p class="wp-settings__label">Filter scope</p>' +
+        '<div class="wp-mustwatch-toggle" role="tablist" aria-label="Filter scope">' +
+          wpBtn('data-wp-mustwatch', 'must', 'Must Watch Games <span class="wp-mw-count" id="wp-mw-count-must">' + (mustWatchSlots > 0 ? mustWatchSlots : '0') + '</span>', state.mustWatch) +
+          wpBtn('data-wp-mustwatch', 'all', 'All games <span class="wp-mw-count" id="wp-mw-count-all">' + (allGamesCount > 0 ? allGamesCount : '—') + '</span>', !state.mustWatch) +
+        '</div>' +
+      '</div>' +
+      '<div class="wp-settings__footer">' +
+        '<button type="button" class="wp-settings__reset" data-wp-settings-reset="1">Reset to defaults</button>' +
+        '<button type="button" class="wp-settings__done" data-wp-settings-close="1">Done</button>' +
+      '</div>' +
+    '</div>';
+  }
+  function openWatchSettingsSheet(){
+    if (!window.BottomSheet) return;
+    var html = renderWatchSettingsSheet();
+    if (window.BottomSheet.isOpen() && window.BottomSheet.getOwner() === 'watch-settings'){
+      window.BottomSheet.setBody(html);
+    } else {
+      window.BottomSheet.open(html, { owner: 'watch-settings' });
+    }
+  }
+
   /* ── Event wiring ──────────────────────────────────────────── */
   document.addEventListener('click', function(e){
+    /* Filters button → open the settings drawer. */
+    if (e.target.closest('[data-wp-settings-open]')){ openWatchSettingsSheet(); return; }
+    /* Sheet close (X button, Done button). */
+    if (e.target.closest('[data-wp-settings-close]')){
+      if (window.BottomSheet) window.BottomSheet.close();
+      return;
+    }
+    /* Sheet reset → defaults (Maximum Investment, Starters only, Must Watch).
+       Must Watch is session-only per the filter-persistence rule. */
+    if (e.target.closest('[data-wp-settings-reset]')){
+      state.view = 'maximum';
+      state.includeBench = false;
+      state.mustWatch = true;
+      try { localStorage.setItem(WP_VIEW_KEY, state.view); } catch(err){}
+      try { localStorage.setItem(WP_BENCH_KEY, state.includeBench ? '1' : '0'); } catch(err){}
+      /* Rebuild sheet body so its active states + count badges refresh. */
+      if (window.BottomSheet && window.BottomSheet.isOpen() && window.BottomSheet.getOwner() === 'watch-settings'){
+        window.BottomSheet.setBody(renderWatchSettingsSheet());
+      }
+      renderWatchView();
+      return;
+    }
     /* View toggle */
     var vt = e.target.closest('[data-wp-view]');
     if (vt){
@@ -6701,6 +6860,12 @@ initThemeToggle();
         var on = b.getAttribute('data-wp-view') === state.view;
         b.classList.toggle('active', on);
         b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      /* Keep the parent .wp-view-toggle's data-view in sync so the
+         cheer/hate active-color rule retargets when the user switches
+         view inside the open Filters drawer. */
+      document.querySelectorAll('.wp-view-toggle').forEach(function(t){
+        t.setAttribute('data-view', state.view);
       });
       renderWatchView();
       return;
