@@ -1692,6 +1692,161 @@
     .wp-pill__count { font: 600 9px/1 var(--font-mono); background: rgba(255,255,255,0.25); padding: 2px 4px; border-radius: 6px; }
     .wp-pill.is-final { opacity: 0.55; }
 
+    /* ── Must Watch toggle (filter scope) ─────────────────────── */
+    .wp-mustwatch-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--paper); }
+    .wp-mustwatch-toggle button { background: transparent; border: 0; padding: 9px 12px; color: var(--ink-500); cursor: pointer; font: 500 11px/1 var(--font-sans); display: inline-flex; align-items: center; gap: 6px; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+    .wp-mustwatch-toggle button + button { border-left: 1px solid var(--line); }
+    .wp-mustwatch-toggle button:hover:not(.active) { background: var(--paper-deep); }
+    .wp-mustwatch-toggle button.active { color: var(--paper); background: var(--ink-900); }
+    .wp-mw-count { font: 600 9px/1 var(--font-mono); background: var(--paper-deep); color: var(--ink-700); padding: 3px 5px; border-radius: 999px; letter-spacing: .04em; }
+    .wp-mustwatch-toggle button.active .wp-mw-count { background: rgba(255,255,255,0.22); color: var(--paper); }
+
+    /* ── Slot head (spotlight + strip variant) ────────────────── */
+    .wp-slot__crown { display: inline-block; width: 7px; height: 7px; background: var(--coral-500); border-radius: 50%; margin-right: 7px; vertical-align: middle; }
+
+    /* ── Game of the Week banner ──────────────────────────────── */
+    /* The hero element of Watch Priority. Sits above the slot list and acts
+       as the cross-slot priority tiebreaker. Styled to pop noticeably more
+       than the spotlight panels — accent stripe, mono "GAME OF THE WEEK"
+       eyebrow, slightly larger matchup line, score badge with bigger number. */
+    .wp-week-watch {
+      position: relative;
+      background: var(--ink-900);
+      color: var(--paper-soft);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px 16px 22px;
+      margin: 0 0 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 0 var(--line-soft), 0 6px 20px -10px rgba(0,0,0,0.25);
+    }
+    .wp-week-watch::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 5px;
+      background: linear-gradient(180deg, var(--coral-500) 0%, var(--coral-700) 100%);
+    }
+    .wp-week-watch__main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .wp-week-watch__eyebrow {
+      font: 600 10px/1 var(--font-mono);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--coral-400, #E26538);
+      display: inline-flex; align-items: center; gap: 7px;
+    }
+    .wp-week-watch__eyebrow::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      background: var(--coral-500);
+      border-radius: 50%;
+      box-shadow: 0 0 0 3px rgba(216,90,48,0.22);
+    }
+    .wp-week-watch__match { font: 700 18px/1.15 var(--font-sans); letter-spacing: -0.02em; margin: 2px 0 0; }
+    .wp-week-watch__meta { font: 500 11px/1.3 var(--font-mono); letter-spacing: 0.04em; color: var(--ink-300); }
+    .wp-week-watch__badge {
+      background: var(--coral-500);
+      color: var(--paper-soft);
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      text-align: center;
+      min-width: 78px;
+      flex-shrink: 0;
+    }
+    .wp-week-watch__badge-num { font: 700 22px/1 var(--font-mono); letter-spacing: -0.02em; display: block; }
+    .wp-week-watch__badge-label { font: 600 9px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.88; margin-top: 5px; display: block; }
+    .wp-week-watch__sub { font: 500 11px/1.3 var(--font-mono); letter-spacing: 0.05em; color: rgba(245,239,228,0.72); margin-top: 4px; }
+    .wp-week-watch__live { color: var(--coral-400, #E26538); font-weight: 600; }
+    .wp-week-watch__at { color: rgba(245,239,228,0.55); font-weight: 500; padding: 0 4px; }
+
+    /* ── Spotlight panel (top of slot) ─────────────────────────── */
+    .wp-spotlight {
+      background: var(--coral-500);
+      color: var(--paper-soft);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      margin: 0 0 8px;
+      cursor: pointer;
+      transition: filter var(--duration-fast) var(--ease-out);
+    }
+    .wp-spotlight:hover { filter: brightness(1.04); }
+    .wp-spotlight--runner-up { background: var(--coral-200); color: var(--coral-700); }
+    .wp-spotlight__crown { font: 600 10px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; margin-bottom: 5px; }
+    .wp-spotlight__match { font: 700 17px/1.1 var(--font-sans); margin: 0 0 4px; letter-spacing: -0.02em; }
+    .wp-spotlight__meta { font: 500 11px/1.3 var(--font-mono); letter-spacing: 0.04em; opacity: 0.85; }
+    .wp-spotlight__pills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+    .wp-spotlight__pills .wp-pill { background: rgba(255,255,255,0.22); color: var(--paper-soft); border: 0; }
+    .wp-spotlight__pills .wp-pill--me-bench { background: transparent; color: var(--paper-soft); border: 1px dashed rgba(255,255,255,0.55); }
+    .wp-spotlight__pills .wp-pill--conflict { background: linear-gradient(95deg, #FFF 0 50%, var(--navy-700) 50% 100%); color: var(--coral-700); }
+    .wp-spotlight--runner-up .wp-spotlight__pills .wp-pill { background: rgba(176,69,31,0.18); color: var(--coral-700); }
+    .wp-spotlight--runner-up .wp-spotlight__pills .wp-pill--me-bench { background: transparent; color: var(--coral-700); border: 1px dashed var(--coral-500); }
+    .wp-spotlight--runner-up .wp-spotlight__pills .wp-pill--conflict { background: linear-gradient(95deg, var(--coral-500) 0 50%, var(--navy-700) 50% 100%); color: var(--paper-soft); }
+    .wp-spotlight__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+    .wp-spotlight__count {
+      font: 600 10px/1 var(--font-mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.18);
+      color: var(--paper-soft);
+      padding: 5px 9px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .wp-spotlight--runner-up .wp-spotlight__count { background: rgba(176,69,31,0.18); color: var(--coral-700); }
+    .wp-spotlight__live { font-weight: 600; }
+    .wp-spotlight__at { opacity: 0.7; font-weight: 500; padding: 0 3px; }
+
+    /* ── Strip (lower-priority games beneath spotlight) ───────── */
+    .wp-strip { background: var(--paper-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-md); overflow: hidden; }
+    .wp-strip__row {
+      display: grid;
+      grid-template-columns: 30px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line-soft);
+      cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-out);
+      width: 100%;
+      background: transparent;
+      border-left: 0;
+      border-right: 0;
+      border-top: 0;
+      font: inherit;
+      color: inherit;
+      text-align: left;
+    }
+    .wp-strip__row:last-child { border-bottom: 0; }
+    .wp-strip__row:hover { background: var(--paper-deep); }
+    .wp-strip__row--zero { opacity: 0.55; cursor: default; }
+    .wp-strip__row--zero:hover { background: var(--paper-soft); }
+    .wp-strip__rank { font: 600 12px/1 var(--font-mono); color: var(--ink-300); letter-spacing: -0.02em; }
+    .wp-strip__main { display: flex; flex-direction: column; gap: 3px; min-width: 0; text-align: left; }
+    .wp-strip__match { font: 600 13px/1.2 var(--font-sans); color: var(--ink-900); letter-spacing: -0.01em; }
+    .wp-strip__at { color: var(--ink-500); font-weight: 500; padding: 0 3px; }
+    .wp-strip__sub { font: 500 10px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .04em; }
+    .wp-strip__count { font: 600 11px/1 var(--font-mono); color: var(--coral-700); background: var(--coral-200); padding: 6px 10px; border-radius: 999px; letter-spacing: .04em; white-space: nowrap; }
+    .wp-strip__count--zero { background: var(--paper-deep); color: var(--ink-300); }
+    .wp-strip__status { font: 500 10px/1 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
+    .wp-strip__status .wp-live { color: var(--coral-500); font-weight: 600; }
+    .wp-strip__status .wp-final { color: var(--ink-500); }
+    .wp-strip__score { font: 600 11px/1 var(--font-mono); color: var(--ink-700); padding: 3px 6px; border-radius: 6px; background: var(--paper-deep); letter-spacing: .04em; margin-left: 6px; }
+
+    /* ── Empty state for Must Watch with no qualifying games ───── */
+    .wp-empty {
+      background: var(--paper-soft);
+      border: 1px dashed var(--line);
+      border-radius: var(--radius-md);
+      padding: 26px 18px;
+      text-align: center;
+      font: 400 13px/1.5 var(--font-sans);
+      color: var(--ink-500);
+    }
+    .wp-empty b, .wp-empty strong { color: var(--ink-900); font-weight: 600; }
+    .wp-empty__head { font: 600 14px/1.3 var(--font-sans); color: var(--ink-900); margin: 0 0 6px; }
+    .wp-empty__sub { font: 400 12px/1.45 var(--font-sans); color: var(--ink-500); margin: 0; }
+
     /* Drawer (reuses BottomSheet shell) */
     .wp-drawer__head { display: flex; align-items: center; gap: 12px; padding: 4px 0 10px; border-bottom: 1px solid var(--line-soft); margin-bottom: 12px; }
     .wp-drawer__title { font: 600 16px/1.2 var(--font-sans); margin: 0; color: var(--ink-900); flex: 1; }
@@ -1710,10 +1865,14 @@
       #view-watch { padding: 18px 12px 60px; }
       .wp-head { flex-direction: column; align-items: stretch; }
       .wp-head__controls { width: 100%; flex-direction: column; align-items: stretch; gap: 8px; }
-      .wp-view-toggle, .wp-bench-toggle { width: 100%; }
-      .wp-view-toggle button, .wp-bench-toggle button { flex: 1; }
+      .wp-view-toggle, .wp-bench-toggle, .wp-mustwatch-toggle { width: 100%; }
+      .wp-view-toggle button, .wp-bench-toggle button, .wp-mustwatch-toggle button { flex: 1; justify-content: center; }
       .wp-game__head { flex-wrap: wrap; }
       .wp-pill__name { max-width: 18ch; }
+      .wp-week-watch { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px 14px 14px 18px; }
+      .wp-week-watch__badge { align-self: flex-start; min-width: 0; padding: 8px 14px; }
+      .wp-week-watch__badge-num { font-size: 18px; }
+      .wp-week-watch__match { font-size: 16px; }
     }
 
     @media (max-width: 640px) {
@@ -2107,6 +2266,10 @@
       <div class="wp-bench-toggle" id="wp-bench-toggle" role="tablist" aria-label="Roster scope">
         <button type="button" class="active" data-wp-bench="starters" role="tab" aria-selected="true">Starters only</button>
         <button type="button" data-wp-bench="all" role="tab" aria-selected="false">Include bench</button>
+      </div>
+      <div class="wp-mustwatch-toggle" id="wp-mustwatch-toggle" role="tablist" aria-label="Filter scope">
+        <button type="button" class="active" data-wp-mustwatch="all" role="tab" aria-selected="true">All games <span class="wp-mw-count" id="wp-mw-count-all">—</span></button>
+        <button type="button" data-wp-mustwatch="must" role="tab" aria-selected="false">Must watch only <span class="wp-mw-count" id="wp-mw-count-must">—</span></button>
       </div>
     </div>
   </div>
@@ -4581,23 +4744,18 @@ initThemeToggle();
 <!-- ============ Exposure map view ============ -->
 <script>
 (function(){
-  var EXP_INCLUDE_BENCH_KEY = 'gd_exp_include_bench';
-  var EXP_VIEW_KEY = 'gd_exp_view';
-  var initialIncludeBench = false;
-  try { initialIncludeBench = localStorage.getItem(EXP_INCLUDE_BENCH_KEY) === '1'; } catch(e){}
-  var initialView = 'leaderboard';
-  try {
-    var storedView = localStorage.getItem(EXP_VIEW_KEY);
-    if (storedView === 'grid' || storedView === 'leaderboard') initialView = storedView;
-  } catch(e){}
-
+  /* Exposure-page filters intentionally do NOT persist across page loads.
+     Per design rule: any filter that hides or reshapes content should reset
+     to defaults on every visit, so the page always feels "fresh" when the
+     user toggles back to this view. Keep this behavior consistent with the
+     Watch Priority Must Watch toggle. */
   // State for the exposure view (independent of dashboard filters)
   var state = {
     mode: 'positive',          // 'positive' | 'negative'
     axis: 'players',           // 'players' | 'teams'
     pos: 'ALL',                // ALL | QB | RB | WR | TE | K | DEF
-    includeBench: initialIncludeBench, // false = starters only, true = include bench
-    view: initialView          // 'leaderboard' | 'grid'
+    includeBench: false,       // false = starters only, true = include bench
+    view: 'leaderboard'        // 'leaderboard' | 'grid'
   };
 
   function esc(s){
@@ -5471,7 +5629,7 @@ initThemeToggle();
       state.axis = 'players';
       state.includeBench = false;
       state.pos = 'ALL';
-      try { localStorage.setItem(EXP_INCLUDE_BENCH_KEY, '0'); } catch(err){}
+      /* No localStorage write — exposure filters are session-only. */
       renderExposureView();
       return;
     }
@@ -5552,14 +5710,14 @@ initThemeToggle();
     var bn = e.target.closest('[data-exp-bench]');
     if (bn){
       state.includeBench = bn.getAttribute('data-exp-bench') === 'all';
-      try { localStorage.setItem(EXP_INCLUDE_BENCH_KEY, state.includeBench ? '1' : '0'); } catch(err){}
+      /* Session-only state — no localStorage write. */
       renderExposureView();
       return;
     }
     var v = e.target.closest('[data-exp-view]');
     if (v){
       state.view = v.getAttribute('data-exp-view');
-      try { localStorage.setItem(EXP_VIEW_KEY, state.view); } catch(err){}
+      /* Session-only state — no localStorage write. */
       document.body.setAttribute('data-exp-view', state.view);
       // Close any open drawer when switching views so it doesn't dangle
       if (typeof openDrawerRowId !== 'undefined' && openDrawerRowId) closeDrawer();
@@ -5599,6 +5757,11 @@ initThemeToggle();
 <script>
 (function(){
   /* ── State ─────────────────────────────────────────────────── */
+  /* View (Maximum/Cheer/Hate) and Bench scope persist via localStorage —
+     they're encoding-changers (re-color, re-rank) that don't hide content.
+     Must Watch DOES hide content, so per the filter-persistence rule it is
+     session-only and resets to 'all' on every page load. Collapsed-slot
+     overrides also persist so a user's manual fold/unfold sticks. */
   var WP_VIEW_KEY = 'gd_wp_view';
   var WP_BENCH_KEY = 'gd_wp_include_bench';
   var WP_COLLAPSE_KEY = 'gd_wp_collapsed_slots';
@@ -5613,6 +5776,7 @@ initThemeToggle();
   var state = {
     view: initialView,            // 'maximum' | 'cheer' | 'hate'
     includeBench: initialBench,
+    mustWatch: false,             // session-only filter; always resets to false on load
     collapsed: initialCollapsed,  // {slotKey: true} manual-collapse overrides
     games: [],                    // ESPN-derived game list
     gamesFetchedAt: 0,
@@ -5971,21 +6135,88 @@ initThemeToggle();
       scoredByGameId[g.id] = calcGamePriority(g, index, { view: state.view, includeBench: state.includeBench });
     });
 
-    /* ── Slot sections (chronological master order) ── */
-    var html = '';
+    /* Sort each slot's games by priority desc, chronological for ties. Stash top + rest. */
     orderedSlots.forEach(function(s){
-      var games = s.games;
-      var collapsed = slotIsCollapsed(s.key, games);
-      var done = slotIsDone(games);
+      s.sortedGames = s.games.slice().sort(function(a,b){
+        var as = (scoredByGameId[a.id] && scoredByGameId[a.id].score) || 0;
+        var bs = (scoredByGameId[b.id] && scoredByGameId[b.id].score) || 0;
+        if (bs !== as) return bs - as;
+        return (a.kickoffUtc||0) - (b.kickoffUtc||0);
+      });
+      s.topGame = s.sortedGames[0] || null;
+      s.topScore = (s.topGame && scoredByGameId[s.topGame.id] && scoredByGameId[s.topGame.id].score) || 0;
+    });
+
+    /* ── Game of the Week: the singular highest-scoring game across ALL slots. ── */
+    var weekLeader = null;
+    var weekLeaderScore = -1;
+    orderedSlots.forEach(function(s){
+      if (s.topGame && s.topScore > weekLeaderScore){
+        weekLeader = s.topGame;
+        weekLeaderScore = s.topScore;
+      }
+    });
+
+    /* ── Count badges for the Must Watch toggle ── */
+    var allGamesCount = (state.games || []).length;
+    var mustWatchSlots = orderedSlots.filter(function(s){ return s.topScore > 0; }).length;
+    var allBadge = document.getElementById('wp-mw-count-all');
+    var mustBadge = document.getElementById('wp-mw-count-must');
+    if (allBadge) allBadge.textContent = allGamesCount > 0 ? String(allGamesCount) : '—';
+    if (mustBadge) mustBadge.textContent = mustWatchSlots > 0 ? String(mustWatchSlots) : '0';
+
+    var html = '';
+
+    /* ── Game of the Week banner (only when there's a real leader with at least one player) ── */
+    if (weekLeader && weekLeaderScore > 0){
+      var wlScored = scoredByGameId[weekLeader.id] || { score: 0, players: [] };
+      var wlIdent = slotIdentityForGame(weekLeader);
+      var wlStatus;
+      if (weekLeader.status === 'in') wlStatus = '<span class="wp-week-watch__live">● ' + esc(weekLeader.detail || 'Live') + '</span>';
+      else if (weekLeader.status === 'post') wlStatus = 'Final';
+      else wlStatus = esc(kickoffLabel(weekLeader));
+      var wlSubBits = [esc(wlIdent.shortLabel || wlIdent.label), wlStatus];
+      if (weekLeader.network) wlSubBits.push(esc(weekLeader.network));
+      html += '<aside class="wp-week-watch" data-wp-week-leader="' + esc(weekLeader.id) + '">';
+      html +=   '<div class="wp-week-watch__main">';
+      html +=     '<span class="wp-week-watch__eyebrow">Game of the week</span>';
+      html +=     '<div class="wp-week-watch__match">' + esc(weekLeader.away) + ' <span class="wp-week-watch__at">@</span> ' + esc(weekLeader.home) + '</div>';
+      html +=     '<div class="wp-week-watch__sub">' + wlSubBits.join(' · ') + '</div>';
+      html +=   '</div>';
+      html +=   '<div class="wp-week-watch__badge">';
+      html +=     '<span class="wp-week-watch__badge-num">' + wlScored.score + '</span>';
+      html +=     '<span class="wp-week-watch__badge-label">' + (wlScored.score === 1 ? 'PLAYER' : 'PLAYERS') + '</span>';
+      html +=   '</div>';
+      html += '</aside>';
+    }
+
+    /* ── Slot sections (chronological master order) ── */
+    var renderedSlotCount = 0;
+    orderedSlots.forEach(function(s){
+      var collapsed = slotIsCollapsed(s.key, s.games);
+      var done = slotIsDone(s.games);
+      var top = s.topGame;
+      var topScored = top ? (scoredByGameId[top.id] || { score: 0, players: [] }) : { score: 0, players: [] };
+
+      /* In Must Watch mode: skip the entire slot if its top game has zero relevant players. */
+      if (state.mustWatch && topScored.score === 0) return;
+      renderedSlotCount++;
 
       /* Slot-level summary count: games + total involved players for the view */
       var totalInvolved = 0;
-      games.forEach(function(g){ totalInvolved += (scoredByGameId[g.id] && scoredByGameId[g.id].players.length) || 0; });
+      s.games.forEach(function(g){ totalInvolved += (scoredByGameId[g.id] && scoredByGameId[g.id].players.length) || 0; });
 
       var metaPieces = [];
-      metaPieces.push(games.length + ' game' + (games.length===1?'':'s'));
-      if (totalInvolved > 0) metaPieces.push(totalInvolved + ' player' + (totalInvolved===1?'':'s'));
+      if (state.mustWatch){
+        metaPieces.push('Top pick');
+        if (totalInvolved > 0) metaPieces.push(totalInvolved + ' player' + (totalInvolved===1?'':'s'));
+      } else {
+        metaPieces.push(s.games.length + ' game' + (s.games.length===1?'':'s'));
+        if (totalInvolved > 0) metaPieces.push(totalInvolved + ' player' + (totalInvolved===1?'':'s'));
+      }
       if (done) metaPieces.push('Final');
+
+      var slotIsWeekLeader = !!(weekLeader && top && weekLeader.id === top.id);
 
       html += '<section class="wp-slot' + (collapsed?' is-collapsed':'') + '" id="wp-slot-' + cssIdSafe(s.key) + '" data-wp-slot="' + esc(s.key) + '">';
       html +=   '<header class="wp-slot__head" data-wp-slot-toggle="' + esc(s.key) + '">';
@@ -5994,25 +6225,42 @@ initThemeToggle();
       html +=   '</header>';
       html +=   '<div class="wp-slot__body">';
 
-      /* Sort games WITHIN slot by priority desc, chronological for ties. */
-      var sortedGames = games.slice().sort(function(a,b){
-        var as = (scoredByGameId[a.id] && scoredByGameId[a.id].score) || 0;
-        var bs = (scoredByGameId[b.id] && scoredByGameId[b.id].score) || 0;
-        if (bs !== as) return bs - as;
-        return (a.kickoffUtc||0) - (b.kickoffUtc||0);
-      });
+      if (top && topScored.score > 0){
+        /* Spotlight: saturated coral if this is also the week leader, soft if just slot leader. */
+        html += renderSpotlight(top, topScored, slotIsWeekLeader);
 
-      var anyNonzero = sortedGames.some(function(g){ return (scoredByGameId[g.id]||{}).score > 0; });
-      if (!anyNonzero) html += '<p class="wp-slot__empty">' + esc(emptySlotCopy(s.key, state.view)) + '</p>';
-
-      sortedGames.forEach(function(g){ html += gameCardHtml(g, scoredByGameId[g.id]); });
+        /* Strip: remaining games in this slot, all-games mode only. */
+        if (!state.mustWatch && s.sortedGames.length > 1){
+          html += '<div class="wp-strip">';
+          s.sortedGames.slice(1).forEach(function(g, i){
+            html += renderStripRow(g, scoredByGameId[g.id], i + 2);
+          });
+          html += '</div>';
+        }
+      } else if (!state.mustWatch){
+        /* All-games mode but no players in any game this slot — show empty copy + the slot's
+           game list as plain strip rows so users still see the matchups. */
+        html += '<p class="wp-slot__empty">' + esc(emptySlotCopy(s.key, state.view)) + '</p>';
+        if (s.sortedGames.length){
+          html += '<div class="wp-strip">';
+          s.sortedGames.forEach(function(g, i){
+            html += renderStripRow(g, scoredByGameId[g.id], i + 1);
+          });
+          html += '</div>';
+        }
+      }
 
       html +=   '</div>';
       html += '</section>';
     });
 
-    if (!html){
-      /* No games at all — show a single empty card. */
+    /* ── Empty states ── */
+    if (state.mustWatch && renderedSlotCount === 0){
+      html = '<div class="wp-empty">' +
+             '<p class="wp-empty__head">No must-watch games this week.</p>' +
+             '<p class="wp-empty__sub">None of your matchups have skin in any game on the schedule. Flip back to <strong>All games</strong> to browse the full slate.</p>' +
+             '</div>';
+    } else if (!html){
       html = '<section class="wp-slot"><div class="wp-slot__body"><p class="wp-slot__empty">' + esc(emptyAllCopy()) + '</p></div></section>';
     }
 
@@ -6055,29 +6303,9 @@ initThemeToggle();
     return 'No NFL games on the schedule for this week.';
   }
 
-  function gameCardHtml(g, scored){
+  /* ── Player pill rendering (shared by spotlight) ─────────────── */
+  function pillsHtmlFor(scored, isFinal){
     var s = scored || { score: 0, players: [] };
-    var isFinal = g.status === 'post';
-    var isLive = g.status === 'in';
-    var statusLine = '';
-    if (isLive) statusLine = '<span class="wp-live">● ' + esc(g.detail || 'Live') + '</span>';
-    else if (isFinal) statusLine = '<span class="wp-final">Final</span>';
-    else statusLine = '<span>' + esc(kickoffLabel(g)) + '</span>';
-
-    var scoreLabel = '';
-    if ((isLive || isFinal) && g.awayScore != null && g.homeScore != null){
-      scoreLabel = '<span class="wp-game__score">' + esc(g.away) + ' ' + g.awayScore + ' — ' + g.homeScore + ' ' + esc(g.home) + '</span>';
-    }
-
-    var badgeCls;
-    if (state.view === 'cheer') badgeCls = 'wp-game__badge--cheer';
-    else if (state.view === 'hate') badgeCls = 'wp-game__badge--hate';
-    else badgeCls = 'wp-game__badge--maximum';
-    if (s.score === 0) badgeCls = 'wp-game__badge--zero';
-    var badgeLabel = s.score + ' player' + (s.score === 1 ? '' : 's');
-
-    /* Player pills — sort by position order (QB→RB→WR→TE→K→DEF),
-       then alpha by name to keep tie order stable. Matches the rest of the app. */
     var posOrderArr = (typeof POS_ORDER !== 'undefined') ? POS_ORDER : ['QB','RB','WR','TE','K','DEF'];
     var pills = s.players.slice().sort(function(a,b){
       var ap = (a.entry.pos || '').toUpperCase();
@@ -6088,7 +6316,7 @@ initThemeToggle();
       return (a.entry.name || '').localeCompare(b.entry.name || '');
     });
 
-    var pillsHtml = pills.map(function(p){
+    return pills.map(function(p){
       var countText = '';
       if (state.view === 'maximum' && p.role === 'conflict'){
         countText = '<span class="wp-pill__count">' + p.meCount + '/' + p.oppCount + '</span>';
@@ -6102,22 +6330,72 @@ initThemeToggle();
         countText +
       '</span>';
     }).join('');
+  }
 
-    var metaBits = [statusLine];
-    if (g.network) metaBits.push('<span class="wp-network">' + esc(g.network) + '</span>');
+  /* ── Spotlight: the slot leader. Saturated coral if it's also the
+       Game of the Week; soft coral-200 runner-up styling otherwise. ── */
+  function renderSpotlight(g, scored, isWeekLeader){
+    var s = scored || { score: 0, players: [] };
+    var isFinal = g.status === 'post';
+    var isLive = g.status === 'in';
 
-    var awayLogo = teamLogoSpan(g.away);
-    var homeLogo = teamLogoSpan(g.home);
+    var statusText;
+    if (isLive) statusText = '<span class="wp-spotlight__live">● ' + esc(g.detail || 'Live') + '</span>';
+    else if (isFinal) statusText = 'Final';
+    else statusText = esc(kickoffLabel(g));
 
-    return '<article class="wp-game' + (s.score===0?' wp-game--zero':'') + '" data-wp-game="' + esc(g.id) + '">' +
-      '<div class="wp-game__head">' +
-        '<div class="wp-game__matchup">' + awayLogo + esc(g.away) + ' <span class="wp-game__at">@</span> ' + homeLogo + esc(g.home) + '</div>' +
-        (scoreLabel || '<span class="wp-game__badge ' + badgeCls + '">' + esc(badgeLabel) + '</span>') +
+    var scoreText = '';
+    if ((isLive || isFinal) && g.awayScore != null && g.homeScore != null){
+      scoreText = esc(g.away) + ' ' + g.awayScore + ' — ' + g.homeScore + ' ' + esc(g.home);
+    }
+
+    var metaBits = [statusText];
+    if (g.network) metaBits.push(esc(g.network));
+    if (scoreText) metaBits.push(scoreText);
+
+    var pillsHtml = pillsHtmlFor(s, isFinal);
+    var cls = 'wp-spotlight' + (isWeekLeader ? '' : ' wp-spotlight--runner-up');
+    var topLabel = isWeekLeader ? 'Top of the week' : 'Top of this slot';
+
+    return '<article class="' + cls + '" data-wp-game="' + esc(g.id) + '">' +
+      '<div class="wp-spotlight__head">' +
+        '<span class="wp-spotlight__crown">' + esc(topLabel) + '</span>' +
+        '<span class="wp-spotlight__count">' + s.score + ' player' + (s.score === 1 ? '' : 's') + '</span>' +
       '</div>' +
-      (scoreLabel ? '<div class="wp-game__head"><span></span><span class="wp-game__badge ' + badgeCls + '">' + esc(badgeLabel) + '</span></div>' : '') +
-      '<div class="wp-game__meta">' + metaBits.join(' · ') + '</div>' +
-      (pillsHtml ? '<div class="wp-pills" style="margin-top:10px;">' + pillsHtml + '</div>' : '') +
+      '<div class="wp-spotlight__match">' + esc(g.away) + ' <span class="wp-spotlight__at">@</span> ' + esc(g.home) + '</div>' +
+      '<div class="wp-spotlight__meta">' + metaBits.join(' · ') + '</div>' +
+      (pillsHtml ? '<div class="wp-spotlight__pills">' + pillsHtml + '</div>' : '') +
     '</article>';
+  }
+
+  /* ── Strip row: compact non-leader games in the slot. ───────── */
+  function renderStripRow(g, scored, rank){
+    var s = scored || { score: 0, players: [] };
+    var isFinal = g.status === 'post';
+    var isLive = g.status === 'in';
+
+    var statusText;
+    if (isLive) statusText = '● ' + esc(g.detail || 'Live');
+    else if (isFinal) statusText = 'Final';
+    else statusText = esc(kickoffLabel(g));
+
+    var subBits = [statusText];
+    if (g.network) subBits.push(esc(g.network));
+    if ((isLive || isFinal) && g.awayScore != null && g.homeScore != null){
+      subBits.push(esc(g.away) + ' ' + g.awayScore + '–' + g.homeScore + ' ' + esc(g.home));
+    }
+
+    var countCls = s.score === 0 ? 'wp-strip__count wp-strip__count--zero' : 'wp-strip__count';
+    var countLabel = s.score === 0 ? '—' : (s.score + (s.score === 1 ? ' player' : ' players'));
+
+    return '<button type="button" class="wp-strip__row" data-wp-game="' + esc(g.id) + '">' +
+      '<span class="wp-strip__rank">#' + rank + '</span>' +
+      '<span class="wp-strip__main">' +
+        '<span class="wp-strip__match">' + esc(g.away) + ' <span class="wp-strip__at">@</span> ' + esc(g.home) + '</span>' +
+        '<span class="wp-strip__sub">' + subBits.join(' · ') + '</span>' +
+      '</span>' +
+      '<span class="' + countCls + '">' + esc(countLabel) + '</span>' +
+    '</button>';
   }
 
   function teamLogoSpan(/* abbr */){
@@ -6239,6 +6517,19 @@ initThemeToggle();
       try { localStorage.setItem(WP_BENCH_KEY, state.includeBench ? '1' : '0'); } catch(err){}
       document.querySelectorAll('[data-wp-bench]').forEach(function(b){
         var on = (b.getAttribute('data-wp-bench') === (state.includeBench ? 'all' : 'starters'));
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      renderWatchView();
+      return;
+    }
+    /* Must Watch toggle — session-only, never written to localStorage. */
+    var mw = e.target.closest('[data-wp-mustwatch]');
+    if (mw){
+      var newMode = mw.getAttribute('data-wp-mustwatch'); // 'all' | 'must'
+      state.mustWatch = (newMode === 'must');
+      document.querySelectorAll('[data-wp-mustwatch]').forEach(function(b){
+        var on = b.getAttribute('data-wp-mustwatch') === newMode;
         b.classList.toggle('active', on);
         b.setAttribute('aria-selected', on ? 'true' : 'false');
       });
