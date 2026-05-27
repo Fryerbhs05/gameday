@@ -1638,32 +1638,48 @@
     .exp-drawer__not-rostered.is-open { display: block; }
 
     /* ── Watch Priority view ──────────────────────────────────── */
-    #view-watch { display: none; max-width: var(--max-width); margin: 0 auto; padding: 28px var(--gutter) 80px; }
+    /* The Watch Priority view is pinned to the LIGHT brand theme regardless
+       of OS color scheme — every component is statement-styled around fixed
+       cream + navy + coral. body.wp-active forces the page chrome to cream
+       so dark-mode body navy doesn't frame the cream panels. */
+    body.wp-active { background: #F5EFE4 !important; color: #2C2C2A; }
+    body.wp-active .site-header { background: #F5EFE4 !important; border-bottom-color: #D8D2C4 !important; }
+    #view-watch {
+      display: none;
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 28px var(--gutter) 80px;
+      background: #F5EFE4;
+      color: #2C2C2A;
+      min-height: 100vh;
+    }
     .wp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
-    .wp-head__title h2 { font: 600 22px/1.1 var(--font-sans); margin: 0 0 4px; color: var(--ink-900); letter-spacing: -0.02em; }
-    .wp-head__title p { font: 400 13px/1.4 var(--font-sans); color: var(--ink-500); margin: 0; max-width: 56ch; }
+    .wp-head__title h2 { font: 600 22px/1.1 var(--font-sans); margin: 0 0 4px; color: #15181C; letter-spacing: -0.02em; }
+    .wp-head__title p { font: 400 13px/1.4 var(--font-sans); color: #5F5E5A; margin: 0; max-width: 56ch; }
     .wp-head__controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .wp-view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--paper); }
-    .wp-view-toggle button { background: transparent; border: 0; padding: 9px 14px; color: var(--ink-500); cursor: pointer; font: 500 12px/1 var(--font-sans); transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
-    .wp-view-toggle button + button { border-left: 1px solid var(--line); }
-    .wp-view-toggle button:hover:not(.active) { background: var(--paper-deep); }
-    .wp-view-toggle button.active { color: var(--paper); background: var(--ink-900); }
-    .wp-view-toggle[data-view="cheer"] button.active { background: var(--cheer); }
-    .wp-view-toggle[data-view="hate"] button.active { background: var(--enemy); }
-    .wp-bench-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--paper); }
-    .wp-bench-toggle button { background: transparent; border: 0; padding: 9px 12px; color: var(--ink-500); cursor: pointer; font: 500 11px/1 var(--font-sans); }
-    .wp-bench-toggle button + button { border-left: 1px solid var(--line); }
-    .wp-bench-toggle button.active { color: var(--paper); background: var(--ink-900); }
-    .wp-slot { margin: 0 0 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--paper); overflow: hidden; }
+    .wp-view-toggle { display: inline-flex; border: 1px solid #D8D2C4; border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: #F5EFE4; }
+    .wp-view-toggle button { background: transparent; border: 0; padding: 9px 14px; color: #5F5E5A; cursor: pointer; font: 500 12px/1 var(--font-sans); transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+    .wp-view-toggle button + button { border-left: 1px solid #D8D2C4; }
+    .wp-view-toggle button:hover:not(.active) { background: #EDE5D4; }
+    .wp-view-toggle button.active { color: #F5EFE4; background: #15181C; }
+    .wp-view-toggle[data-view="cheer"] button.active { background: #3D8B5C; }
+    .wp-view-toggle[data-view="hate"] button.active { background: #A33D2E; }
+    .wp-bench-toggle { display: inline-flex; border: 1px solid #D8D2C4; border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: #F5EFE4; }
+    .wp-bench-toggle button { background: transparent; border: 0; padding: 9px 12px; color: #5F5E5A; cursor: pointer; font: 500 11px/1 var(--font-sans); }
+    .wp-bench-toggle button + button { border-left: 1px solid #D8D2C4; }
+    .wp-bench-toggle button.active { color: #F5EFE4; background: #15181C; }
+    /* Slot panels — fixed brand colors so they keep the cream-paper look
+       in both light and dark mode (matches the approved preview). */
+    .wp-slot { margin: 0 0 14px; border: 1px solid #D8D2C4; border-radius: var(--radius-lg); background: #F5EFE4; overflow: hidden; }
     .wp-slot__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; cursor: pointer; user-select: none; }
-    .wp-slot__head:hover { background: var(--paper-deep); }
-    .wp-slot__title { font: 600 13px/1.2 var(--font-sans); color: var(--ink-900); letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
-    .wp-slot__caret { display: inline-block; transition: transform var(--duration-fast) var(--ease-out); color: var(--ink-500); font-size: 12px; }
+    .wp-slot__head:hover { background: #EDE5D4; }
+    .wp-slot__title { font: 600 13px/1.2 var(--font-sans); color: #15181C; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+    .wp-slot__caret { display: inline-block; transition: transform var(--duration-fast) var(--ease-out); color: #5F5E5A; font-size: 12px; }
     .wp-slot.is-collapsed .wp-slot__caret { transform: rotate(-90deg); }
-    .wp-slot__meta { font: 500 11px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .04em; text-transform: uppercase; }
-    .wp-slot__body { border-top: 1px solid var(--line-soft); padding: 8px 12px 12px; display: grid; gap: 10px; }
+    .wp-slot__meta { font: 500 11px/1 var(--font-mono); color: #5F5E5A; letter-spacing: .04em; text-transform: uppercase; }
+    .wp-slot__body { border-top: 1px solid #E5DFD0; padding: 8px 12px 12px; display: grid; gap: 10px; background: #F5EFE4; }
     .wp-slot.is-collapsed .wp-slot__body { display: none; }
-    .wp-slot__empty { padding: 18px 4px; font: 400 13px/1.5 var(--font-sans); color: var(--ink-500); text-align: center; }
+    .wp-slot__empty { padding: 18px 4px; font: 400 13px/1.5 var(--font-sans); color: #5F5E5A; text-align: center; }
     .wp-game { border: 1px solid var(--line-soft); border-radius: var(--radius-md); background: var(--paper-soft); padding: 12px 14px; cursor: pointer; transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
     .wp-game:hover { background: var(--paper-deep); border-color: var(--line); }
     .wp-game--zero { opacity: 0.55; }
@@ -1693,13 +1709,13 @@
     .wp-pill.is-final { opacity: 0.55; }
 
     /* ── Must Watch toggle (filter scope) ─────────────────────── */
-    .wp-mustwatch-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--paper); }
-    .wp-mustwatch-toggle button { background: transparent; border: 0; padding: 9px 12px; color: var(--ink-500); cursor: pointer; font: 500 11px/1 var(--font-sans); display: inline-flex; align-items: center; gap: 6px; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
-    .wp-mustwatch-toggle button + button { border-left: 1px solid var(--line); }
-    .wp-mustwatch-toggle button:hover:not(.active) { background: var(--paper-deep); }
-    .wp-mustwatch-toggle button.active { color: var(--paper); background: var(--ink-900); }
-    .wp-mw-count { font: 600 9px/1 var(--font-mono); background: var(--paper-deep); color: var(--ink-700); padding: 3px 5px; border-radius: 999px; letter-spacing: .04em; }
-    .wp-mustwatch-toggle button.active .wp-mw-count { background: rgba(255,255,255,0.22); color: var(--paper); }
+    .wp-mustwatch-toggle { display: inline-flex; border: 1px solid #D8D2C4; border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: #F5EFE4; }
+    .wp-mustwatch-toggle button { background: transparent; border: 0; padding: 9px 12px; color: #5F5E5A; cursor: pointer; font: 500 11px/1 var(--font-sans); display: inline-flex; align-items: center; gap: 6px; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+    .wp-mustwatch-toggle button + button { border-left: 1px solid #D8D2C4; }
+    .wp-mustwatch-toggle button:hover:not(.active) { background: #EDE5D4; }
+    .wp-mustwatch-toggle button.active { color: #F5EFE4; background: #15181C; }
+    .wp-mw-count { font: 600 9px/1 var(--font-mono); background: #EDE5D4; color: #2C2C2A; padding: 3px 5px; border-radius: 999px; letter-spacing: .04em; }
+    .wp-mustwatch-toggle button.active .wp-mw-count { background: rgba(255,255,255,0.22); color: #F5EFE4; }
 
     /* ── Slot head (spotlight + strip variant) ────────────────── */
     .wp-slot__crown { display: inline-block; width: 7px; height: 7px; background: var(--coral-500); border-radius: 50%; margin-right: 7px; vertical-align: middle; }
@@ -1708,62 +1724,66 @@
     /* The hero element of Watch Priority. Sits above the slot list and acts
        as the cross-slot priority tiebreaker. Styled to pop noticeably more
        than the spotlight panels — accent stripe, mono "GAME OF THE WEEK"
-       eyebrow, slightly larger matchup line, score badge with bigger number. */
+       eyebrow, slightly larger matchup line, score badge with bigger number.
+
+       NOTE: Watch Priority statement components use FIXED hex colors (not
+       theme-flipping CSS vars) so they look identical in light + dark mode.
+       If we used --ink-900 / --paper, dark mode would invert these and the
+       Game-of-the-Week banner would become cream-on-cream / unreadable. */
     .wp-week-watch {
       position: relative;
-      background: var(--ink-900);
-      color: var(--paper-soft);
+      background: #15181C;
+      color: #F5EFE4;
       border-radius: var(--radius-lg);
       padding: 16px 18px 16px 22px;
       margin: 0 0 16px;
       display: flex; align-items: center; justify-content: space-between; gap: 14px;
       overflow: hidden;
-      box-shadow: 0 1px 0 var(--line-soft), 0 6px 20px -10px rgba(0,0,0,0.25);
+      box-shadow: 0 6px 20px -10px rgba(0,0,0,0.45);
     }
     .wp-week-watch::before {
       content: '';
       position: absolute;
       left: 0; top: 0; bottom: 0;
       width: 5px;
-      background: linear-gradient(180deg, var(--coral-500) 0%, var(--coral-700) 100%);
+      background: linear-gradient(180deg, #D85A30 0%, #B0451F 100%);
     }
     .wp-week-watch__main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
     .wp-week-watch__eyebrow {
       font: 600 10px/1 var(--font-mono);
       letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: var(--coral-400, #E26538);
+      color: #E26538;
       display: inline-flex; align-items: center; gap: 7px;
     }
     .wp-week-watch__eyebrow::before {
       content: '';
       display: inline-block;
       width: 6px; height: 6px;
-      background: var(--coral-500);
+      background: #D85A30;
       border-radius: 50%;
       box-shadow: 0 0 0 3px rgba(216,90,48,0.22);
     }
-    .wp-week-watch__match { font: 700 18px/1.15 var(--font-sans); letter-spacing: -0.02em; margin: 2px 0 0; }
-    .wp-week-watch__meta { font: 500 11px/1.3 var(--font-mono); letter-spacing: 0.04em; color: var(--ink-300); }
+    .wp-week-watch__match { font: 700 18px/1.15 var(--font-sans); letter-spacing: -0.02em; margin: 2px 0 0; color: #F5EFE4; }
     .wp-week-watch__badge {
-      background: var(--coral-500);
-      color: var(--paper-soft);
+      background: #D85A30;
+      color: #F5EFE4;
       padding: 10px 14px;
       border-radius: var(--radius-md);
       text-align: center;
       min-width: 78px;
       flex-shrink: 0;
     }
-    .wp-week-watch__badge-num { font: 700 22px/1 var(--font-mono); letter-spacing: -0.02em; display: block; }
-    .wp-week-watch__badge-label { font: 600 9px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.88; margin-top: 5px; display: block; }
+    .wp-week-watch__badge-num { font: 700 22px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #F5EFE4; }
+    .wp-week-watch__badge-label { font: 600 9px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.88; margin-top: 5px; display: block; color: #F5EFE4; }
     .wp-week-watch__sub { font: 500 11px/1.3 var(--font-mono); letter-spacing: 0.05em; color: rgba(245,239,228,0.72); margin-top: 4px; }
-    .wp-week-watch__live { color: var(--coral-400, #E26538); font-weight: 600; }
+    .wp-week-watch__live { color: #E26538; font-weight: 600; }
     .wp-week-watch__at { color: rgba(245,239,228,0.55); font-weight: 500; padding: 0 4px; }
 
-    /* ── Spotlight panel (top of slot) ─────────────────────────── */
+    /* ── Spotlight panel (top of slot) — fixed brand colors ────── */
     .wp-spotlight {
-      background: var(--coral-500);
-      color: var(--paper-soft);
+      background: #D85A30;
+      color: #F5EFE4;
       border-radius: var(--radius-lg);
       padding: 14px 16px;
       margin: 0 0 8px;
@@ -1771,41 +1791,41 @@
       transition: filter var(--duration-fast) var(--ease-out);
     }
     .wp-spotlight:hover { filter: brightness(1.04); }
-    .wp-spotlight--runner-up { background: var(--coral-200); color: var(--coral-700); }
+    .wp-spotlight--runner-up { background: #F4C4B0; color: #B0451F; }
     .wp-spotlight__crown { font: 600 10px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; margin-bottom: 5px; }
-    .wp-spotlight__match { font: 700 17px/1.1 var(--font-sans); margin: 0 0 4px; letter-spacing: -0.02em; }
+    .wp-spotlight__match { font: 700 17px/1.1 var(--font-sans); margin: 0 0 4px; letter-spacing: -0.02em; color: inherit; }
     .wp-spotlight__meta { font: 500 11px/1.3 var(--font-mono); letter-spacing: 0.04em; opacity: 0.85; }
     .wp-spotlight__pills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
-    .wp-spotlight__pills .wp-pill { background: rgba(255,255,255,0.22); color: var(--paper-soft); border: 0; }
-    .wp-spotlight__pills .wp-pill--me-bench { background: transparent; color: var(--paper-soft); border: 1px dashed rgba(255,255,255,0.55); }
-    .wp-spotlight__pills .wp-pill--conflict { background: linear-gradient(95deg, #FFF 0 50%, var(--navy-700) 50% 100%); color: var(--coral-700); }
-    .wp-spotlight--runner-up .wp-spotlight__pills .wp-pill { background: rgba(176,69,31,0.18); color: var(--coral-700); }
-    .wp-spotlight--runner-up .wp-spotlight__pills .wp-pill--me-bench { background: transparent; color: var(--coral-700); border: 1px dashed var(--coral-500); }
-    .wp-spotlight--runner-up .wp-spotlight__pills .wp-pill--conflict { background: linear-gradient(95deg, var(--coral-500) 0 50%, var(--navy-700) 50% 100%); color: var(--paper-soft); }
+    .wp-spotlight__pills .wp-pill { background: rgba(255,255,255,0.22); color: #F5EFE4; border: 0; }
+    .wp-spotlight__pills .wp-pill--me-bench { background: transparent; color: #F5EFE4; border: 1px dashed rgba(255,255,255,0.55); }
+    .wp-spotlight__pills .wp-pill--conflict { background: linear-gradient(95deg, #FFF 0 50%, #1A3A52 50% 100%); color: #B0451F; }
+    .wp-spotlight--runner-up .wp-spotlight__pills .wp-pill { background: rgba(176,69,31,0.18); color: #B0451F; }
+    .wp-spotlight--runner-up .wp-spotlight__pills .wp-pill--me-bench { background: transparent; color: #B0451F; border: 1px dashed #D85A30; }
+    .wp-spotlight--runner-up .wp-spotlight__pills .wp-pill--conflict { background: linear-gradient(95deg, #D85A30 0 50%, #1A3A52 50% 100%); color: #F5EFE4; }
     .wp-spotlight__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
     .wp-spotlight__count {
       font: 600 10px/1 var(--font-mono);
       letter-spacing: 0.08em;
       text-transform: uppercase;
       background: rgba(255,255,255,0.18);
-      color: var(--paper-soft);
+      color: #F5EFE4;
       padding: 5px 9px;
       border-radius: 999px;
       white-space: nowrap;
     }
-    .wp-spotlight--runner-up .wp-spotlight__count { background: rgba(176,69,31,0.18); color: var(--coral-700); }
+    .wp-spotlight--runner-up .wp-spotlight__count { background: rgba(176,69,31,0.18); color: #B0451F; }
     .wp-spotlight__live { font-weight: 600; }
     .wp-spotlight__at { opacity: 0.7; font-weight: 500; padding: 0 3px; }
 
-    /* ── Strip (lower-priority games beneath spotlight) ───────── */
-    .wp-strip { background: var(--paper-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-md); overflow: hidden; }
+    /* ── Strip (lower-priority games beneath spotlight) — fixed brand colors ── */
+    .wp-strip { background: #FAF6EC; border: 1px solid #E5DFD0; border-radius: var(--radius-md); overflow: hidden; }
     .wp-strip__row {
       display: grid;
       grid-template-columns: 30px 1fr auto;
       gap: 12px;
       align-items: center;
       padding: 10px 14px;
-      border-bottom: 1px solid var(--line-soft);
+      border-bottom: 1px solid #E5DFD0;
       cursor: pointer;
       transition: background var(--duration-fast) var(--ease-out);
       width: 100%;
@@ -1818,34 +1838,30 @@
       text-align: left;
     }
     .wp-strip__row:last-child { border-bottom: 0; }
-    .wp-strip__row:hover { background: var(--paper-deep); }
+    .wp-strip__row:hover { background: #EDE5D4; }
     .wp-strip__row--zero { opacity: 0.55; cursor: default; }
-    .wp-strip__row--zero:hover { background: var(--paper-soft); }
-    .wp-strip__rank { font: 600 12px/1 var(--font-mono); color: var(--ink-300); letter-spacing: -0.02em; }
+    .wp-strip__row--zero:hover { background: #FAF6EC; }
+    .wp-strip__rank { font: 600 12px/1 var(--font-mono); color: #A8A6A0; letter-spacing: -0.02em; }
     .wp-strip__main { display: flex; flex-direction: column; gap: 3px; min-width: 0; text-align: left; }
-    .wp-strip__match { font: 600 13px/1.2 var(--font-sans); color: var(--ink-900); letter-spacing: -0.01em; }
-    .wp-strip__at { color: var(--ink-500); font-weight: 500; padding: 0 3px; }
-    .wp-strip__sub { font: 500 10px/1 var(--font-mono); color: var(--ink-500); letter-spacing: .04em; }
-    .wp-strip__count { font: 600 11px/1 var(--font-mono); color: var(--coral-700); background: var(--coral-200); padding: 6px 10px; border-radius: 999px; letter-spacing: .04em; white-space: nowrap; }
-    .wp-strip__count--zero { background: var(--paper-deep); color: var(--ink-300); }
-    .wp-strip__status { font: 500 10px/1 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
-    .wp-strip__status .wp-live { color: var(--coral-500); font-weight: 600; }
-    .wp-strip__status .wp-final { color: var(--ink-500); }
-    .wp-strip__score { font: 600 11px/1 var(--font-mono); color: var(--ink-700); padding: 3px 6px; border-radius: 6px; background: var(--paper-deep); letter-spacing: .04em; margin-left: 6px; }
+    .wp-strip__match { font: 600 13px/1.2 var(--font-sans); color: #15181C; letter-spacing: -0.01em; }
+    .wp-strip__at { color: #5F5E5A; font-weight: 500; padding: 0 3px; }
+    .wp-strip__sub { font: 500 10px/1 var(--font-mono); color: #5F5E5A; letter-spacing: .04em; }
+    .wp-strip__count { font: 600 11px/1 var(--font-mono); color: #B0451F; background: #F4C4B0; padding: 6px 10px; border-radius: 999px; letter-spacing: .04em; white-space: nowrap; }
+    .wp-strip__count--zero { background: #EDE5D4; color: #A8A6A0; }
 
-    /* ── Empty state for Must Watch with no qualifying games ───── */
+    /* ── Empty state for Must Watch with no qualifying games — fixed brand colors ── */
     .wp-empty {
-      background: var(--paper-soft);
-      border: 1px dashed var(--line);
+      background: #FAF6EC;
+      border: 1px dashed #D8D2C4;
       border-radius: var(--radius-md);
       padding: 26px 18px;
       text-align: center;
       font: 400 13px/1.5 var(--font-sans);
-      color: var(--ink-500);
+      color: #5F5E5A;
     }
-    .wp-empty b, .wp-empty strong { color: var(--ink-900); font-weight: 600; }
-    .wp-empty__head { font: 600 14px/1.3 var(--font-sans); color: var(--ink-900); margin: 0 0 6px; }
-    .wp-empty__sub { font: 400 12px/1.45 var(--font-sans); color: var(--ink-500); margin: 0; }
+    .wp-empty b, .wp-empty strong { color: #15181C; font-weight: 600; }
+    .wp-empty__head { font: 600 14px/1.3 var(--font-sans); color: #15181C; margin: 0 0 6px; }
+    .wp-empty__sub { font: 400 12px/1.45 var(--font-sans); color: #5F5E5A; margin: 0; }
 
     /* Drawer (reuses BottomSheet shell) */
     .wp-drawer__head { display: flex; align-items: center; gap: 12px; padding: 4px 0 10px; border-bottom: 1px solid var(--line-soft); margin-bottom: 12px; }
@@ -6483,6 +6499,9 @@ initThemeToggle();
     hideAllForWatch();
     var v = document.getElementById('view-watch');
     if (v) v.style.display = 'block';
+    /* Pin the whole page to the LIGHT brand theme while Watch Priority is open,
+       so the cream-paper panels aren't framed by dark-mode body navy. */
+    document.body.classList.add('wp-active');
     window.__conflictedWatchOpen = true;
     /* Use current dashboard activeSeason/activeWeek */
     var season = (typeof window.activeSeason !== 'undefined') ? window.activeSeason : (new Date()).getFullYear();
@@ -6596,6 +6615,7 @@ initThemeToggle();
       window.__conflictedWatchOpen = false;
       var v = document.getElementById('view-watch');
       if (v) v.style.display = 'none';
+      document.body.classList.remove('wp-active');
       return orig.apply(this, arguments);
     };
   });
