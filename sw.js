@@ -6,7 +6,7 @@
    for failed navigation requests.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v3';
+const CACHE_VERSION = 'conflicted-v5';
 const OFFLINE_URL = '/offline.html';
 
 /* Files cached at install so the offline page always works,

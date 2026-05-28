@@ -1699,12 +1699,12 @@
     .wp-game__meta .wp-network { color: #C9D2DB; }
     .wp-game__meta .wp-live { color: #F0997B; font-weight: 600; }
     .wp-game__meta .wp-final { color: #A8B5C2; }
-    /* Player-count chip — white pill with coral text, per Matt's spec. */
-    .wp-game__badge { font: 600 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 999px; letter-spacing: .03em; white-space: nowrap; background: #F5EFE4; color: #D85A30; }
-    .wp-game__badge--maximum { background: #F5EFE4; color: #993C1D; }
-    .wp-game__badge--cheer { background: #F5EFE4; color: #3D8B5C; }
-    .wp-game__badge--hate { background: #F5EFE4; color: #A33D2E; }
-    .wp-game__badge--zero { background: rgba(245,239,228,0.10); color: #A8B5C2; }
+    /* Player-count chip — dark navy pill with cream text. */
+    .wp-game__badge { font: 600 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 999px; letter-spacing: .03em; white-space: nowrap; background: #0F1B26; color: #F5EFE4; border: 1px solid #1A3A52; }
+    .wp-game__badge--maximum { background: #0F1B26; color: #F5EFE4; border-color: #1A3A52; }
+    .wp-game__badge--cheer { background: #0F1B26; color: #F5EFE4; border-color: #1A3A52; }
+    .wp-game__badge--hate { background: #0F1B26; color: #F5EFE4; border-color: #1A3A52; }
+    .wp-game__badge--zero { background: rgba(245,239,228,0.05); color: #A8B5C2; border-color: rgba(245,239,228,0.10); }
     .wp-pills { display: flex; flex-wrap: wrap; gap: 6px; }
     .wp-pill { font: 500 11px/1.2 var(--font-sans); padding: 4px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; max-width: 100%; }
     .wp-pill__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22ch; }
@@ -1858,34 +1858,33 @@
     .wp-week-watch__sub { font: 500 11px/1.3 var(--font-mono); letter-spacing: 0.05em; color: rgba(245,239,228,0.65); margin-top: 6px; text-transform: uppercase; }
     .wp-week-watch__live { color: #F0997B; font-weight: 600; }
     .wp-week-watch__at { color: rgba(245,239,228,0.55); font-weight: 500; padding: 0 6px; }
-    /* Player chip — white with coral text, matches the regular card badge system. */
+    /* Player chip — dark navy with cream text, matches the unified chip system. */
     .wp-week-watch__badge {
-      background: #F5EFE4;
+      background: #0F1B26;
       padding: 10px 14px;
       border-radius: var(--radius-md);
       text-align: center;
       min-width: 70px;
       flex-shrink: 0;
-      border: 1px solid rgba(216,90,48,0.30);
+      border: 1px solid #1A3A52;
     }
-    .wp-week-watch__badge-num { font: 700 22px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #D85A30; }
-    .wp-week-watch__badge-label { font: 600 9px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; margin-top: 5px; display: block; color: #D85A30; opacity: 0.85; }
+    .wp-week-watch__badge-num { font: 700 22px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #F5EFE4; }
+    .wp-week-watch__badge-label { font: 600 9px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; margin-top: 5px; display: block; color: #F5EFE4; opacity: 0.78; }
 
-    /* ── Spotlight panel (top of slot) — saturated coral for week leader,
-       soft cream for runner-up. Compressed padding for vertical density. */
+    /* ── Spotlight panel (top of slot) — UNIFIED with regular cards.
+       Same navy/cream look as .wp-game; the in-slot leader no longer gets
+       special coral treatment. Only the Game of the Week banner is unique. */
     .wp-spotlight {
-      background: #D85A30;
+      background: #122A40;
       color: #F5EFE4;
+      border: 1px solid #1A3A52;
       border-radius: var(--radius-md);
       padding: 10px 12px;
       margin: 0 0 6px;
       cursor: pointer;
-      transition: filter var(--duration-fast) var(--ease-out);
+      transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
     }
-    .wp-spotlight:hover { filter: brightness(1.04); }
-    /* Runner-up spotlight — navy panel (was cream) so it sits with the rest of
-       the non-GotW games on the dark navy theme. */
-    .wp-spotlight--runner-up { background: #122A40; color: #F5EFE4; border: 1px solid #1A3A52; }
+    .wp-spotlight:hover { background: #1A3A52; border-color: #234866; }
     .wp-spotlight__body { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .wp-spotlight__main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
     .wp-spotlight__match { font: 700 15px/1.1 var(--font-sans); margin: 0; letter-spacing: -0.02em; color: inherit; }
@@ -1897,28 +1896,20 @@
       text-transform: uppercase;
       opacity: 0.85;
     }
-    /* Boxy badge — mirrors the Game of the Week badge, scaled to spotlight size. */
+    /* Boxy badge — dark navy with cream text, matches the unified chip system. */
     .wp-spotlight__badge {
-      background: #0F2235;
+      background: #0F1B26;
       color: #F5EFE4;
       padding: 6px 10px;
       border-radius: var(--radius-md);
       text-align: center;
       min-width: 56px;
       flex-shrink: 0;
-      border: 1px solid rgba(245,239,228,0.18);
+      border: 1px solid #1A3A52;
     }
     .wp-spotlight__badge-num { font: 700 18px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #F5EFE4; }
     .wp-spotlight__badge-label { font: 600 8px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.78; margin-top: 3px; display: block; color: #F5EFE4; }
-    /* Runner-up spotlight (now navy): white player chip with coral text to match
-       the unified non-GotW card system. */
-    .wp-spotlight--runner-up .wp-spotlight__badge {
-      background: #F5EFE4;
-      border-color: rgba(245,239,228,0.6);
-    }
-    .wp-spotlight--runner-up .wp-spotlight__badge-num,
-    .wp-spotlight--runner-up .wp-spotlight__badge-label { color: #D85A30; }
-    .wp-spotlight__live { font-weight: 600; }
+    .wp-spotlight__live { font-weight: 600; color: #F0997B; }
     .wp-spotlight__at { opacity: 0.65; font-weight: 500; padding: 0 3px; }
 
     /* ── Strip (lower-priority games beneath spotlight) — navy panels ── */
@@ -1952,14 +1943,14 @@
     .wp-strip__sub { font: 500 10px/1 var(--font-mono); color: #A8B5C2; letter-spacing: .04em; }
     /* Mini boxy badge mirrors the GotW / spotlight badge family. */
     .wp-strip__badge {
-      background: #0F2235;
+      background: #0F1B26;
       color: #F5EFE4;
       padding: 4px 8px;
       border-radius: 6px;
       text-align: center;
       min-width: 42px;
       flex-shrink: 0;
-      border: 1px solid rgba(245,239,228,0.14);
+      border: 1px solid #1A3A52;
     }
     .wp-strip__badge-num { font: 700 14px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #F5EFE4; }
     .wp-strip__badge-label { font: 600 7px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.7; margin-top: 2px; display: block; color: #F5EFE4; }
@@ -6602,14 +6593,14 @@ initThemeToggle();
     if (g.network) metaBits.push(esc(g.network));
     if (scoreText) metaBits.push(scoreText);
 
-    var cls = 'wp-spotlight' + (isWeekLeader ? '' : ' wp-spotlight--runner-up');
-    var topLabel = isWeekLeader ? 'Top of the week' : 'Top of this slot';
+    /* Slot leader (in-slot) is now visually identical to every other card.
+       Only the Game of the Week banner at the very top of the page is unique.
+       The wp-spotlight class still wraps the slot leader so click handlers
+       and DOM hooks keep working — only the styling is unified. */
+    var cls = 'wp-spotlight';
     var badgeLabel = s.score === 1 ? 'Player' : 'Players';
 
     return '<article class="' + cls + '" data-wp-game="' + esc(g.id) + '" role="button" tabindex="0">' +
-      '<div class="wp-spotlight__head">' +
-        '<span class="wp-spotlight__crown">' + esc(topLabel) + '</span>' +
-      '</div>' +
       '<div class="wp-spotlight__body">' +
         '<div class="wp-spotlight__main">' +
           '<div class="wp-spotlight__match">' + esc(g.away) + ' <span class="wp-spotlight__at">@</span> ' + esc(g.home) + '</div>' +
