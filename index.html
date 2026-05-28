@@ -7084,21 +7084,14 @@ initThemeToggle();
         var newWeek = parseInt(this.value, 10);
         if (!newWeek || isNaN(newWeek)) return;
         console.log('[WP] week dropdown changed →', newWeek);
-        window.activeWeek = newWeek;
-        state.games = [];
-        state.gamesFetchKey = '';
-        state.gamesFetchedAt = 0;
-        try { renderWatchView(); } catch(e) {}
-        var season = (typeof window.activeSeason !== 'undefined') ? window.activeSeason : (new Date()).getFullYear();
-        fetchWeekGames(String(season), newWeek).then(function(){
-          renderWatchView();
-        });
-        /* Best-effort sync to dashboard state so other views stay in step.
-           Wrapped in try/catch — if it throws, we've already done the WP work. */
-        try {
-          if (typeof window.buildWeekSelect === 'function') window.buildWeekSelect(newWeek);
-          if (typeof window.updateNavUI === 'function') window.updateNavUI();
-        } catch(e) {}
+        /* CRITICAL: activeWeek/activeSeason are top-level `let` bindings, NOT
+           window properties — setting window.activeWeek does nothing useful.
+           The original changeWeekTo updates the let binding directly, so we
+           call it (via window.changeWeekTo — the wrapped version handles WP
+           state reset + fetch + re-render for us). */
+        if (typeof window.changeWeekTo === 'function'){
+          window.changeWeekTo(newWeek);
+        }
       });
     }
 
@@ -7108,20 +7101,9 @@ initThemeToggle();
         var newSeason = this.value;
         if (!newSeason) return;
         console.log('[WP] season dropdown changed →', newSeason);
-        window.activeSeason = newSeason;
-        /* Reset to week 1 when season changes (matches changeSeason behavior). */
-        window.activeWeek = 1;
-        state.games = [];
-        state.gamesFetchKey = '';
-        state.gamesFetchedAt = 0;
-        try { renderWatchView(); } catch(e) {}
-        fetchWeekGames(String(newSeason), 1).then(function(){
-          renderWatchView();
-        });
-        try {
-          if (typeof window.buildWeekSelect === 'function') window.buildWeekSelect(1);
-          if (typeof window.updateNavUI === 'function') window.updateNavUI();
-        } catch(e) {}
+        if (typeof window.changeSeason === 'function'){
+          window.changeSeason(newSeason);
+        }
       });
     }
   }
