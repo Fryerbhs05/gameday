@@ -1643,14 +1643,14 @@
        cards, cream text, coral accents. body.wp-active forces the page
        chrome (body + header) to navy so the dark Watch Priority panels
        blend with the surrounding chrome. */
-    body.wp-active { background: #0F2235 !important; color: #F5EFE4; }
-    body.wp-active .site-header { background: #0F2235 !important; border-bottom-color: #1A3A52 !important; }
+    body.wp-active { background: #0F1B26 !important; color: #F5EFE4; }
+    body.wp-active .site-header { background: #0F1B26 !important; border-bottom-color: #1A3A52 !important; }
     #view-watch {
       display: none;
       max-width: var(--max-width);
       margin: 0 auto;
       padding: 18px var(--gutter) 60px;
-      background: #0F2235;
+      background: #0F1B26;
       color: #F5EFE4;
       min-height: 100vh;
     }
@@ -1733,13 +1733,13 @@
     .wp-settings-btn {
       display: inline-flex; align-items: center; gap: 6px;
       border: 1px solid #1A3A52; border-radius: var(--radius-md);
-      background: #122A40; color: #F5EFE4;
+      background: transparent; color: #F5EFE4;
       font: 500 12px/1 var(--font-sans);
       padding: 9px 14px; cursor: pointer;
       transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
     }
-    .wp-settings-btn:hover { background: #1A3A52; color: #F5EFE4; }
-    .wp-settings-btn:active { background: #1A3A52; }
+    .wp-settings-btn:hover { background: rgba(255,255,255,0.04); color: #F5EFE4; }
+    .wp-settings-btn:active { background: rgba(255,255,255,0.08); }
     .wp-settings-btn svg { width: 12px; height: 12px; flex: 0 0 12px; }
 
     /* ── Filters drawer content (Watch Priority) ──────────────── */
@@ -1983,7 +1983,11 @@
       #view-watch { padding: 12px 12px 48px; }
       .wp-head { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 10px; }
       .wp-head__title h2 { font-size: 18px; }
-      .wp-head__controls { width: 100%; flex-direction: column; align-items: stretch; gap: 6px; }
+      /* Row 1 — context bar: selects left, settings right (mirrors Exposure) */
+      .wp-head__controls { width: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+      .wp-head__controls .exp-select-group { flex: 1 1 auto; }
+      .wp-head__controls .exp-select-group select.nav-select { flex: 1 1 auto; min-width: 0; }
+      .wp-head__controls .wp-settings-btn { display: inline-flex; flex: 0 0 auto; }
       .wp-view-toggle, .wp-bench-toggle, .wp-mustwatch-toggle { width: 100%; }
       .wp-view-toggle button, .wp-bench-toggle button, .wp-mustwatch-toggle button { flex: 1; justify-content: center; padding: 7px 8px; }
       .wp-pill__name { max-width: 18ch; }
@@ -6983,19 +6987,30 @@ initThemeToggle();
     fetchWeekGames(String(season), week).then(function(){ renderWatchView(); });
   }, 60000);
 
-  /* Hook week/season changes — force schedule re-fetch by clearing cache key.
-     state.games is intentionally NOT cleared here so the prior week's slots
-     remain visible during the brief gap before the new ESPN response lands;
-     fetchWeekGames will overwrite state.games once the new data arrives. */
+  /* Hook week/season changes — force a full schedule reload. We HARD-clear
+     state.games + cache key so the next render can't paint stale weekLeader
+     from the prior week (the bug Matt hit: NO @ DET showing as Game of the
+     Week on both week 1 and week 4 because old games persisted in state).
+     After clearing, we fire a fresh fetch and re-render once it lands. */
   ['changeWeekTo','changeSeason'].forEach(function(fn){
     var orig = window[fn];
     if (typeof orig !== 'function') return;
     window[fn] = function(){
-      state.gamesFetchKey = '';
+      var wasWatchOpen = !!window.__conflictedWatchOpen;
+      if (wasWatchOpen){
+        state.games = [];
+        state.gamesFetchKey = '';
+        state.gamesFetchedAt = 0;
+      }
       var r = orig.apply(this, arguments);
-      if (window.__conflictedWatchOpen){
+      if (wasWatchOpen){
+        /* Read AFTER orig runs — activeWeek/activeSeason are set synchronously
+           at the top of changeWeekTo/changeSeason before their first await. */
         var season = (typeof window.activeSeason !== 'undefined') ? window.activeSeason : (new Date()).getFullYear();
         var week = (typeof window.activeWeek !== 'undefined') ? window.activeWeek : 1;
+        /* Render immediately to clear the stale UI (empty state), then again
+           after the fetch resolves with the new week's games. */
+        try { renderWatchView(); } catch(e) {}
         fetchWeekGames(String(season), week).then(function(){ renderWatchView(); });
       }
       return r;
