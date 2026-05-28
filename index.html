@@ -2390,9 +2390,9 @@
     </div>
     <div class="wp-head__controls">
       <div class="exp-select-group">
-        <select class="nav-select week-select" id="wp-week-select" aria-label="Week" onchange="changeWeekTo(+this.value)"></select>
+        <select class="nav-select week-select" id="wp-week-select" aria-label="Week"></select>
         <span class="exp-select-group__divider" aria-hidden="true"></span>
-        <select class="nav-select" id="wp-season-select" aria-label="Season" onchange="changeSeason(this.value)"></select>
+        <select class="nav-select" id="wp-season-select" aria-label="Season"></select>
       </div>
       <button type="button" class="wp-settings-btn" id="wp-settings-btn" aria-label="Open filters" data-wp-settings-open="1">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 3h12M4 8h8M6 13h4"/></svg>
@@ -7065,6 +7065,82 @@ initThemeToggle();
       return r;
     };
   });
+
+  /* DIRECT WP DROPDOWN HANDLERS — bypass inline onchange / lexical-scope issues.
+     The inline `onchange="changeWeekTo(+this.value)"` on dashboard selects was
+     resolving via lexical scope to the original `async function changeWeekTo`
+     (not the wrapped window.changeWeekTo above), so the wrap's fetchWeekGames()
+     call never fired when the WP dropdown changed. Console logs confirmed:
+     dropdown shows Week 5 but every fetch uses week=1.
+     Fix: own the WP dropdown change events entirely with addEventListener,
+     update activeWeek/activeSeason directly on window, then fetch + render. */
+  function attachWpDropdownHandlers(){
+    var wpWeekSel = document.getElementById('wp-week-select');
+    var wpSeasonSel = document.getElementById('wp-season-select');
+
+    if (wpWeekSel && !wpWeekSel.__wpHandlerAttached){
+      wpWeekSel.__wpHandlerAttached = true;
+      wpWeekSel.addEventListener('change', function(){
+        var newWeek = parseInt(this.value, 10);
+        if (!newWeek || isNaN(newWeek)) return;
+        console.log('[WP] week dropdown changed →', newWeek);
+        window.activeWeek = newWeek;
+        state.games = [];
+        state.gamesFetchKey = '';
+        state.gamesFetchedAt = 0;
+        try { renderWatchView(); } catch(e) {}
+        var season = (typeof window.activeSeason !== 'undefined') ? window.activeSeason : (new Date()).getFullYear();
+        fetchWeekGames(String(season), newWeek).then(function(){
+          renderWatchView();
+        });
+        /* Best-effort sync to dashboard state so other views stay in step.
+           Wrapped in try/catch — if it throws, we've already done the WP work. */
+        try {
+          if (typeof window.buildWeekSelect === 'function') window.buildWeekSelect(newWeek);
+          if (typeof window.updateNavUI === 'function') window.updateNavUI();
+        } catch(e) {}
+      });
+    }
+
+    if (wpSeasonSel && !wpSeasonSel.__wpHandlerAttached){
+      wpSeasonSel.__wpHandlerAttached = true;
+      wpSeasonSel.addEventListener('change', function(){
+        var newSeason = this.value;
+        if (!newSeason) return;
+        console.log('[WP] season dropdown changed →', newSeason);
+        window.activeSeason = newSeason;
+        /* Reset to week 1 when season changes (matches changeSeason behavior). */
+        window.activeWeek = 1;
+        state.games = [];
+        state.gamesFetchKey = '';
+        state.gamesFetchedAt = 0;
+        try { renderWatchView(); } catch(e) {}
+        fetchWeekGames(String(newSeason), 1).then(function(){
+          renderWatchView();
+        });
+        try {
+          if (typeof window.buildWeekSelect === 'function') window.buildWeekSelect(1);
+          if (typeof window.updateNavUI === 'function') window.updateNavUI();
+        } catch(e) {}
+      });
+    }
+  }
+
+  /* Attach immediately if DOM is ready, otherwise wait. */
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', attachWpDropdownHandlers);
+  } else {
+    attachWpDropdownHandlers();
+  }
+
+  /* Also re-attempt attach whenever the WP view opens, in case the selects
+     were replaced/re-rendered. The __wpHandlerAttached guard prevents dupes. */
+  var _origShowWatch = showWatch;
+  showWatch = function(){
+    var r = _origShowWatch.apply(this, arguments);
+    try { attachWpDropdownHandlers(); } catch(e) {}
+    return r;
+  };
 
   /* Clear the watch-open flag whenever a known navigation path returns elsewhere. */
   ['showBoard','showSetup','showError','showExposure'].forEach(function(fn){
