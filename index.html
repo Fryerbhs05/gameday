@@ -1674,32 +1674,37 @@
        sits as text on the navy page; the spotlight + strip are the only
        filled surfaces. Keeps the page lean and the spotlight as the focal
        point. */
-    .wp-slot { margin: 0 0 10px; background: transparent; }
-    .wp-slot__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 2px 6px 2px; cursor: pointer; user-select: none; }
-    .wp-slot__head:hover { background: transparent; }
+    /* Slot panels — navy outlined section, mirrors Exposure page structure.
+       Each slot is a bordered card with the head inside (clickable to collapse). */
+    .wp-slot { margin: 0 0 10px; background: #0F1B26; border: 1px solid #1A3A52; border-radius: var(--radius-md); overflow: hidden; }
+    .wp-slot__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: pointer; user-select: none; background: transparent; border-bottom: 1px solid #1A3A52; }
+    .wp-slot.is-collapsed .wp-slot__head { border-bottom-color: transparent; }
+    .wp-slot__head:hover { background: rgba(255,255,255,0.02); }
     .wp-slot__title { font: 600 11px/1 var(--font-mono); color: #F5EFE4; letter-spacing: 0.10em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
     .wp-slot__caret { display: inline-block; transition: transform var(--duration-fast) var(--ease-out); color: #A8B5C2; font-size: 11px; }
     .wp-slot.is-collapsed .wp-slot__caret { transform: rotate(-90deg); }
     .wp-slot__meta { font: 500 10px/1 var(--font-mono); color: #A8B5C2; letter-spacing: .04em; text-transform: uppercase; }
-    .wp-slot__body { padding: 4px 0 2px; display: grid; gap: 6px; background: transparent; }
+    .wp-slot__body { padding: 10px 12px 12px; display: grid; gap: 8px; background: transparent; }
     .wp-slot.is-collapsed .wp-slot__body { display: none; }
     .wp-slot__empty { padding: 8px 4px; font: 400 12px/1.4 var(--font-sans); color: #A8B5C2; text-align: center; }
-    .wp-game { border: 1px solid var(--line-soft); border-radius: var(--radius-md); background: var(--paper-soft); padding: 12px 14px; cursor: pointer; transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
-    .wp-game:hover { background: var(--paper-deep); border-color: var(--line); }
+    /* Game cards — navy panel, cream text, white player-count chip with coral text. */
+    .wp-game { border: 1px solid #1A3A52; border-radius: var(--radius-md); background: #122A40; padding: 12px 14px; cursor: pointer; transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+    .wp-game:hover { background: #1A3A52; border-color: #234866; }
     .wp-game--zero { opacity: 0.55; }
     .wp-game__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-    .wp-game__matchup { font: 600 14px/1.2 var(--font-sans); color: var(--ink-900); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-    .wp-game__at { color: var(--ink-300); font-weight: 500; }
-    .wp-game__score { font: 600 12px/1 var(--font-mono); color: var(--ink-700); padding: 4px 7px; border-radius: 8px; background: var(--paper-deep); letter-spacing: .04em; }
-    .wp-game__meta { font: 500 11px/1.4 var(--font-mono); color: var(--ink-500); letter-spacing: .03em; text-transform: uppercase; display: flex; gap: 10px; flex-wrap: wrap; }
-    .wp-game__meta .wp-network { color: var(--ink-700); }
-    .wp-game__meta .wp-live { color: var(--coral-500); font-weight: 600; }
-    .wp-game__meta .wp-final { color: var(--ink-500); }
-    .wp-game__badge { font: 600 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 999px; letter-spacing: .03em; white-space: nowrap; }
-    .wp-game__badge--maximum { background: var(--coral-200); color: var(--coral-700); }
-    .wp-game__badge--cheer { background: var(--cheer-soft); color: var(--cheer); }
-    .wp-game__badge--hate { background: var(--enemy-soft); color: var(--enemy); }
-    .wp-game__badge--zero { background: var(--paper-deep); color: var(--ink-300); }
+    .wp-game__matchup { font: 600 14px/1.2 var(--font-sans); color: #F5EFE4; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .wp-game__at { color: #A8B5C2; font-weight: 500; }
+    .wp-game__score { font: 600 12px/1 var(--font-mono); color: #F5EFE4; padding: 4px 7px; border-radius: 8px; background: rgba(245,239,228,0.08); letter-spacing: .04em; }
+    .wp-game__meta { font: 500 11px/1.4 var(--font-mono); color: #A8B5C2; letter-spacing: .03em; text-transform: uppercase; display: flex; gap: 10px; flex-wrap: wrap; }
+    .wp-game__meta .wp-network { color: #C9D2DB; }
+    .wp-game__meta .wp-live { color: #F0997B; font-weight: 600; }
+    .wp-game__meta .wp-final { color: #A8B5C2; }
+    /* Player-count chip — white pill with coral text, per Matt's spec. */
+    .wp-game__badge { font: 600 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 999px; letter-spacing: .03em; white-space: nowrap; background: #F5EFE4; color: #D85A30; }
+    .wp-game__badge--maximum { background: #F5EFE4; color: #993C1D; }
+    .wp-game__badge--cheer { background: #F5EFE4; color: #3D8B5C; }
+    .wp-game__badge--hate { background: #F5EFE4; color: #A33D2E; }
+    .wp-game__badge--zero { background: rgba(245,239,228,0.10); color: #A8B5C2; }
     .wp-pills { display: flex; flex-wrap: wrap; gap: 6px; }
     .wp-pill { font: 500 11px/1.2 var(--font-sans); padding: 4px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; max-width: 100%; }
     .wp-pill__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22ch; }
@@ -1806,29 +1811,29 @@
     /* ── Slot head (spotlight + strip variant) ────────────────── */
     .wp-slot__crown { display: inline-block; width: 7px; height: 7px; background: var(--coral-500); border-radius: 50%; margin-right: 7px; vertical-align: middle; }
 
-    /* ── Game of the Week banner ──────────────────────────────── */
-    /* Game of the Week — the hero of Watch Priority. Coral-filled against the
-       navy page background so it pops as the headline. Cream text + dark
-       navy badge for contrast. Inverted from the prior "dark banner / coral
-       stripe" design now that the page chrome is navy. */
+    /* ── Game of the Week banner (Option C — Marquee stack) ───── */
+    /* Coral header strip above a navy body. Stands out structurally from the
+       regular navy game cards because it's a two-band layout, not a single row.
+       Player chip is white-on-coral to mirror the new card-chip system. */
     .wp-week-watch {
-      position: relative;
-      background: linear-gradient(135deg, #D85A30 0%, #B0451F 100%);
-      color: #F5EFE4;
+      background: #0F1B26;
+      border: 1px solid rgba(216,90,48,0.55);
       border-radius: var(--radius-lg);
-      padding: 12px 14px;
       margin: 0 0 12px;
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
       overflow: hidden;
-      box-shadow: 0 6px 20px -10px rgba(0,0,0,0.45);
+      box-shadow: 0 8px 24px -14px rgba(0,0,0,0.6);
     }
-    .wp-week-watch__main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .wp-week-watch__strip {
+      background: #D85A30;
+      padding: 8px 14px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
     .wp-week-watch__eyebrow {
       font: 600 10px/1 var(--font-mono);
-      letter-spacing: 0.18em;
+      letter-spacing: 0.22em;
       text-transform: uppercase;
-      color: #FAD8C7;
-      display: inline-flex; align-items: center; gap: 7px;
+      color: #F5EFE4;
+      display: inline-flex; align-items: center; gap: 8px;
     }
     .wp-week-watch__eyebrow::before {
       content: '';
@@ -1838,22 +1843,33 @@
       border-radius: 50%;
       box-shadow: 0 0 0 3px rgba(245,239,228,0.30);
     }
-    .wp-week-watch__match { font: 700 17px/1.15 var(--font-sans); letter-spacing: -0.02em; margin: 1px 0 0; color: #F5EFE4; }
+    .wp-week-watch__strip-meta {
+      font: 600 10px/1 var(--font-mono);
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(245,239,228,0.85);
+    }
+    .wp-week-watch__body {
+      padding: 14px 16px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    }
+    .wp-week-watch__main { min-width: 0; }
+    .wp-week-watch__match { font: 700 20px/1.1 var(--font-sans); letter-spacing: -0.02em; margin: 0; color: #F5EFE4; }
+    .wp-week-watch__sub { font: 500 11px/1.3 var(--font-mono); letter-spacing: 0.05em; color: rgba(245,239,228,0.65); margin-top: 6px; text-transform: uppercase; }
+    .wp-week-watch__live { color: #F0997B; font-weight: 600; }
+    .wp-week-watch__at { color: rgba(245,239,228,0.55); font-weight: 500; padding: 0 6px; }
+    /* Player chip — white with coral text, matches the regular card badge system. */
     .wp-week-watch__badge {
-      background: #0F2235;
-      color: #F5EFE4;
-      padding: 8px 12px;
+      background: #F5EFE4;
+      padding: 10px 14px;
       border-radius: var(--radius-md);
       text-align: center;
-      min-width: 68px;
+      min-width: 70px;
       flex-shrink: 0;
-      border: 1px solid rgba(245,239,228,0.18);
+      border: 1px solid rgba(216,90,48,0.30);
     }
-    .wp-week-watch__badge-num { font: 700 20px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #F5EFE4; }
-    .wp-week-watch__badge-label { font: 600 9px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.78; margin-top: 4px; display: block; color: #F5EFE4; }
-    .wp-week-watch__sub { font: 500 11px/1.3 var(--font-mono); letter-spacing: 0.05em; color: rgba(245,239,228,0.82); margin-top: 2px; }
-    .wp-week-watch__live { color: #FAD8C7; font-weight: 600; }
-    .wp-week-watch__at { color: rgba(245,239,228,0.65); font-weight: 500; padding: 0 4px; }
+    .wp-week-watch__badge-num { font: 700 22px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #D85A30; }
+    .wp-week-watch__badge-label { font: 600 9px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; margin-top: 5px; display: block; color: #D85A30; opacity: 0.85; }
 
     /* ── Spotlight panel (top of slot) — saturated coral for week leader,
        soft cream for runner-up. Compressed padding for vertical density. */
@@ -1867,7 +1883,9 @@
       transition: filter var(--duration-fast) var(--ease-out);
     }
     .wp-spotlight:hover { filter: brightness(1.04); }
-    .wp-spotlight--runner-up { background: #F5EFE4; color: #15181C; }
+    /* Runner-up spotlight — navy panel (was cream) so it sits with the rest of
+       the non-GotW games on the dark navy theme. */
+    .wp-spotlight--runner-up { background: #122A40; color: #F5EFE4; border: 1px solid #1A3A52; }
     .wp-spotlight__body { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .wp-spotlight__main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
     .wp-spotlight__match { font: 700 15px/1.1 var(--font-sans); margin: 0; letter-spacing: -0.02em; color: inherit; }
@@ -1892,11 +1910,14 @@
     }
     .wp-spotlight__badge-num { font: 700 18px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #F5EFE4; }
     .wp-spotlight__badge-label { font: 600 8px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.78; margin-top: 3px; display: block; color: #F5EFE4; }
-    /* Runner-up spotlight (cream): flip the badge to navy text on cream-ish surface for contrast. */
+    /* Runner-up spotlight (now navy): white player chip with coral text to match
+       the unified non-GotW card system. */
     .wp-spotlight--runner-up .wp-spotlight__badge {
-      background: #1A3A52;
-      border-color: rgba(15,34,53,0.25);
+      background: #F5EFE4;
+      border-color: rgba(245,239,228,0.6);
     }
+    .wp-spotlight--runner-up .wp-spotlight__badge-num,
+    .wp-spotlight--runner-up .wp-spotlight__badge-label { color: #D85A30; }
     .wp-spotlight__live { font-weight: 600; }
     .wp-spotlight__at { opacity: 0.65; font-weight: 500; padding: 0 3px; }
 
@@ -1991,12 +2012,15 @@
       .wp-view-toggle, .wp-bench-toggle, .wp-mustwatch-toggle { width: 100%; }
       .wp-view-toggle button, .wp-bench-toggle button, .wp-mustwatch-toggle button { flex: 1; justify-content: center; padding: 7px 8px; }
       .wp-pill__name { max-width: 18ch; }
-      /* Game of the Week — stays horizontal on mobile (compact) */
-      .wp-week-watch { padding: 10px 12px; gap: 10px; margin: 0 0 8px; }
-      .wp-week-watch__badge { padding: 6px 10px; min-width: 56px; }
-      .wp-week-watch__badge-num { font-size: 17px; }
-      .wp-week-watch__match { font-size: 15px; }
+      /* Game of the Week — Option C marquee, compact mobile sizing */
+      .wp-week-watch { margin: 0 0 8px; }
+      .wp-week-watch__strip { padding: 7px 12px; }
+      .wp-week-watch__body { padding: 12px 12px 12px; gap: 10px; }
+      .wp-week-watch__badge { padding: 8px 12px; min-width: 60px; }
+      .wp-week-watch__badge-num { font-size: 19px; }
+      .wp-week-watch__match { font-size: 17px; }
       .wp-week-watch__eyebrow { font-size: 9px; }
+      .wp-week-watch__strip-meta { font-size: 9px; }
       /* Tighter slot spacing */
       .wp-slot { margin-bottom: 6px; }
       .wp-slot__head { padding: 7px 10px; }
@@ -6393,15 +6417,24 @@ initThemeToggle();
       else wlStatus = esc(kickoffLabel(weekLeader));
       var wlSubBits = [esc(wlIdent.shortLabel || wlIdent.label), wlStatus];
       if (weekLeader.network) wlSubBits.push(esc(weekLeader.network));
+      /* Option C — Marquee stack: coral header strip + navy body + white chip.
+         Strip carries the eyebrow on the left and a contextual right-side
+         tag (week number). Body carries the matchup and the player chip. */
+      var wlWeekTag = 'Wk ' + ((typeof activeWeek !== 'undefined' && activeWeek) ? activeWeek : '');
       html += '<aside class="wp-week-watch" data-wp-week-leader="' + esc(weekLeader.id) + '">';
-      html +=   '<div class="wp-week-watch__main">';
+      html +=   '<div class="wp-week-watch__strip">';
       html +=     '<span class="wp-week-watch__eyebrow">Game of the week</span>';
-      html +=     '<div class="wp-week-watch__match">' + esc(weekLeader.away) + ' <span class="wp-week-watch__at">@</span> ' + esc(weekLeader.home) + '</div>';
-      html +=     '<div class="wp-week-watch__sub">' + wlSubBits.join(' · ') + '</div>';
+      html +=     '<span class="wp-week-watch__strip-meta">Top exposure · ' + esc(wlWeekTag) + '</span>';
       html +=   '</div>';
-      html +=   '<div class="wp-week-watch__badge">';
-      html +=     '<span class="wp-week-watch__badge-num">' + wlScored.score + '</span>';
-      html +=     '<span class="wp-week-watch__badge-label">' + (wlScored.score === 1 ? 'PLAYER' : 'PLAYERS') + '</span>';
+      html +=   '<div class="wp-week-watch__body">';
+      html +=     '<div class="wp-week-watch__main">';
+      html +=       '<div class="wp-week-watch__match">' + esc(weekLeader.away) + ' <span class="wp-week-watch__at">@</span> ' + esc(weekLeader.home) + '</div>';
+      html +=       '<div class="wp-week-watch__sub">' + wlSubBits.join(' · ') + '</div>';
+      html +=     '</div>';
+      html +=     '<div class="wp-week-watch__badge">';
+      html +=       '<span class="wp-week-watch__badge-num">' + wlScored.score + '</span>';
+      html +=       '<span class="wp-week-watch__badge-label">' + (wlScored.score === 1 ? 'PLAYER' : 'PLAYERS') + '</span>';
+      html +=     '</div>';
       html +=   '</div>';
       html += '</aside>';
     }
