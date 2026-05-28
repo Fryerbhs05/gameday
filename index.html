@@ -1721,6 +1721,28 @@
     .wp-mw-count { font: 600 9px/1 var(--font-mono); background: rgba(255,255,255,0.10); color: #F5EFE4; padding: 3px 5px; border-radius: 999px; letter-spacing: .04em; }
     .wp-mustwatch-toggle button.active .wp-mw-count { background: rgba(255,255,255,0.22); color: #F5EFE4; }
 
+    /* ── Week + Year selects (Watch Priority) ─────────────────── */
+    /* Same shape as .exp-select-group on the Exposure page, but recolored
+       for the navy header so the cream selects don't look like a foreign
+       light-mode rectangle dropped on a dark page. The select chevron is
+       inlined as a navy-cream SVG. */
+    .wp-select-group {
+      display: inline-flex; align-items: stretch;
+      border: 1px solid #1A3A52; border-radius: var(--radius-md);
+      background: #122A40; overflow: hidden;
+    }
+    .wp-select-group__divider { width: 1px; background: #1A3A52; align-self: stretch; }
+    .wp-select-group select.nav-select {
+      font: 500 12px/1 var(--font-sans); color: #F5EFE4;
+      background-color: transparent;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23A8B5C2'/%3E%3C/svg%3E");
+      background-position: right 6px center;
+      padding: 8px 22px 8px 12px;
+      cursor: pointer;
+    }
+    .wp-select-group select.nav-select:hover { color: #FFFFFF; }
+    .wp-select-group select.nav-select option { background: #0F2235; color: #F5EFE4; }
+
     /* ── Filters button (Watch Priority) ──────────────────────── */
     /* Mirrors .exp-settings-btn but in the navy/cream brand. Always shown on
        Watch Priority (not just mobile) — the three toggle groups live behind
@@ -2380,6 +2402,11 @@
       <p id="wp-subtitle">NFL games ranked by how many of your players are on the field.</p>
     </div>
     <div class="wp-head__controls">
+      <div class="wp-select-group">
+        <select class="nav-select week-select" id="wp-week-select" aria-label="Week" onchange="changeWeekTo(+this.value)"></select>
+        <span class="wp-select-group__divider" aria-hidden="true"></span>
+        <select class="nav-select" id="wp-season-select" aria-label="Season" onchange="changeSeason(this.value)"></select>
+      </div>
       <button type="button" class="wp-settings-btn" id="wp-settings-btn" aria-label="Open filters" data-wp-settings-open="1">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 3h12M4 8h8M6 13h4"/></svg>
         Filters
@@ -6214,6 +6241,36 @@ initThemeToggle();
     var data = getData();
     var slotsHost = document.getElementById('wp-slots');
     if (!slotsHost) return;
+
+    /* Week + Season selects — lazy-populate on first render, sync .value
+       every render. Reuses the global changeWeekTo / changeSeason handlers
+       (wired via inline onchange in the markup), so changing the week here
+       updates dashboard state too — Exposure does the same thing. */
+    var wpWeekSel = document.getElementById('wp-week-select');
+    var wpSeasonSel = document.getElementById('wp-season-select');
+    if (wpWeekSel && wpSeasonSel) {
+      var wk = (typeof activeWeek !== 'undefined' && activeWeek) ? activeWeek : (typeof liveWeek !== 'undefined' ? liveWeek : 1);
+      var sn = (typeof activeSeason !== 'undefined' && activeSeason) ? String(activeSeason) : (typeof liveSeason !== 'undefined' ? String(liveSeason) : String(new Date().getFullYear()));
+      if (!wpWeekSel.options.length) {
+        var maxW = (typeof MAX_WEEK !== 'undefined') ? MAX_WEEK : 18;
+        for (var w = 1; w <= maxW; w++) {
+          var ow = document.createElement('option');
+          ow.value = w; ow.textContent = 'Week ' + w;
+          wpWeekSel.appendChild(ow);
+        }
+      }
+      wpWeekSel.value = wk;
+      if (!wpSeasonSel.options.length) {
+        var firstYr = (typeof FIRST_YR !== 'undefined') ? FIRST_YR : 2019;
+        var thisYr = (typeof THIS_YR !== 'undefined') ? THIS_YR : new Date().getFullYear();
+        for (var yr = thisYr; yr >= firstYr; yr--) {
+          var oy = document.createElement('option');
+          oy.value = String(yr); oy.textContent = String(yr);
+          wpSeasonSel.appendChild(oy);
+        }
+      }
+      wpSeasonSel.value = sn;
+    }
 
     var index = buildPlayerIndex(data);
 
