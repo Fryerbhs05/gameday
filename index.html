@@ -5940,13 +5940,52 @@ initThemeToggle();
   var SCHEDULE_TTL = 60 * 1000;  // 60s — matches NFL game state cadence
   var WP_SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 
+  /* NFL week boundary = Tuesday → Monday (UTC days). Monday Night Football
+     is always the final game of an NFL week — using Mon as the back edge
+     never splits a week. Anchoring the front edge on Tuesday absorbs any
+     special early-week kickoff (Wed openers, Black Friday, etc.) into the
+     correct week. The Tuesday before NFL Week 1 is the day after Labor Day
+     (Labor Day = first Monday of September), so we anchor on that date.
+
+     We need a date-range query because ESPN's site scoreboard API ignores
+     ?week=N for the CURRENT/FUTURE season — it returns today's schedule
+     regardless of the requested week, causing the bug where the same game
+     (e.g. NO @ DET) appeared on weeks 1-5 of 2026. ESPN DOES respect
+     explicit YYYYMMDD-YYYYMMDD ranges across all seasons. */
+  function nflWeek1TuesdayUtc(season){
+    var yr = parseInt(season, 10);
+    // Find first Monday of September (Labor Day), then add one day for Tuesday.
+    var sep1 = new Date(Date.UTC(yr, 8, 1)); // Sept 1
+    var dow = sep1.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    var laborDayOffset = (dow === 1) ? 0 : (dow === 0 ? 1 : (8 - dow));
+    var laborDayDate = 1 + laborDayOffset;     // day-of-month for Labor Day
+    var week1TueDate = laborDayDate + 1;       // Tuesday after Labor Day
+    return Date.UTC(yr, 8, week1TueDate);
+  }
+  function yyyymmdd(utcMs){
+    var d = new Date(utcMs);
+    var y = d.getUTCFullYear();
+    var m = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+    var dd = d.getUTCDate().toString().padStart(2, '0');
+    return '' + y + m + dd;
+  }
+  function weekDateRange(season, week){
+    var anchor = nflWeek1TuesdayUtc(season);
+    var weekStart = anchor + (week - 1) * 7 * 24 * 60 * 60 * 1000; // Tuesday
+    var weekEnd   = weekStart + 6 * 24 * 60 * 60 * 1000;            // following Monday — MNF is always the week's final game
+    return yyyymmdd(weekStart) + '-' + yyyymmdd(weekEnd);
+  }
+
   function fetchWeekGames(season, week){
     var key = season + '-' + week;
     var now = Date.now();
     if (key === state.gamesFetchKey && state.games.length && (now - state.gamesFetchedAt) < SCHEDULE_TTL){
       return Promise.resolve(state.games);
     }
-    var url = WP_SCOREBOARD + '?dates=' + season + '&seasontype=2&week=' + week;
+    /* Use explicit date range so ESPN can't substitute current-week data
+       for a future-season query. limit=400 is generous — a week has ~16 games. */
+    var range = weekDateRange(season, week);
+    var url = WP_SCOREBOARD + '?dates=' + range + '&seasontype=2&limit=400';
     return fetch(url).then(function(r){ if (!r.ok) throw new Error('ESPN HTTP ' + r.status); return r.json(); }).then(function(j){
       var games = (j.events || []).map(parseEspnEvent).filter(Boolean);
       state.games = games;
