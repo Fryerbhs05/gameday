@@ -5980,14 +5980,24 @@ initThemeToggle();
     var key = season + '-' + week;
     var now = Date.now();
     if (key === state.gamesFetchKey && state.games.length && (now - state.gamesFetchedAt) < SCHEDULE_TTL){
+      console.log('[WP] cache hit for', key, '→', state.games.length, 'games');
       return Promise.resolve(state.games);
     }
     /* Use explicit date range so ESPN can't substitute current-week data
-       for a future-season query. limit=400 is generous — a week has ~16 games. */
+       for a future-season query. limit=400 is generous — a week has ~16 games.
+       Cache-buster `_ts` prevents any intermediate proxy from serving a
+       stale response keyed on the URL alone. */
     var range = weekDateRange(season, week);
-    var url = WP_SCOREBOARD + '?dates=' + range + '&seasontype=2&limit=400';
-    return fetch(url).then(function(r){ if (!r.ok) throw new Error('ESPN HTTP ' + r.status); return r.json(); }).then(function(j){
+    var url = WP_SCOREBOARD + '?dates=' + range + '&seasontype=2&limit=400&_ts=' + now;
+    console.log('[WP] fetching', season, 'week', week, '→', url);
+    return fetch(url, { cache: 'no-store' }).then(function(r){
+      if (!r.ok) throw new Error('ESPN HTTP ' + r.status);
+      return r.json();
+    }).then(function(j){
       var games = (j.events || []).map(parseEspnEvent).filter(Boolean);
+      console.log('[WP] got', games.length, 'games for', season, 'week', week,
+        games.length ? '— first:' : '',
+        games.length ? (games[0].away + '@' + games[0].home + ' ' + games[0].kickoffISO) : '');
       state.games = games;
       state.gamesFetchKey = key;
       state.gamesFetchedAt = now;
