@@ -2856,18 +2856,28 @@ function updateNavUI(){
   }
 }
 
-/* Order matchup scorecards by the user's league priority — top priority is
-   top-left (first in the array, which renderScoresStrip lays out left→right).
-   Applies to all views (historic / present / future). Leagues not present in
-   priorityOrder sink to the end; order is left untouched when the user has
-   declared all leagues equal (priorityEqual) or hasn't ranked yet. Stable so
-   ties keep their incoming order. */
+/* Order matchup scorecards in two tiers, top priority top-left (first in the
+   array, which renderScoresStrip lays out left→right):
+     Tier 1 — matchups with an active LIVE game, ordered by league priority.
+     Tier 2 — every remaining matchup (finals / upcoming / no-matchup),
+              ordered by league priority.
+   "Live" = leagueState LIVE, LOCKED_WIN, or LOCKED_LOSS — i.e. the week is
+   still in play and the games haven't gone final. Within each tier, leagues
+   not present in priorityOrder sink to the end; when the user has declared all
+   leagues equal (priorityEqual) or hasn't ranked yet, incoming order is kept.
+   The live/non-live split always applies. Stable so ties keep incoming order. */
 function sortContextsByPriority(contexts){
   if(!Array.isArray(contexts)||contexts.length<2)return contexts;
-  if(typeof priorityEqual!=='undefined'&&priorityEqual)return contexts;
-  if(typeof priorityOrder==='undefined'||!Array.isArray(priorityOrder)||!priorityOrder.length)return contexts;
+  const LIVE_STATES={LIVE:1,LOCKED_WIN:1,LOCKED_LOSS:1};
+  const isLive=c=>!!LIVE_STATES[c&&c.leagueState];
+  const usePriority=!(typeof priorityEqual!=='undefined'&&priorityEqual)
+    &&typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder)&&priorityOrder.length;
   const rank=name=>{const i=priorityOrder.indexOf(name);return i===-1?Number.MAX_SAFE_INTEGER:i;};
-  return contexts.slice().sort((a,b)=>rank(a.leagueName)-rank(b.leagueName));
+  return contexts.map((c,i)=>({c,i,live:isLive(c)})).sort((a,b)=>{
+    if(a.live!==b.live)return a.live?-1:1;                       // live tier first
+    if(usePriority){const r=rank(a.c.leagueName)-rank(b.c.leagueName);if(r)return r;}
+    return a.i-b.i;                                              // stable fallback
+  }).map(d=>d.c);
 }
 /* Projected-final bar (Option 3). Renders each side's projected total as a
    coral (you) / navy-blue (them) split — matching the site's team colors —
