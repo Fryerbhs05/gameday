@@ -703,7 +703,7 @@
     @media (max-width: 480px) {
       .scoreboard-wordmark { font-size: 18px; }
       .scoreboard-context { font-size: 12px; }
-      .scoreboard-frame { padding: 12px 12px 10px; }
+      .scoreboard-frame { padding: 10px 8px 8px; }
     }
 
     /* Score strip — the signature module with split motif */
@@ -713,6 +713,9 @@
       gap: 12px; margin-bottom: 0;
     }
     .scores-strip.visible { display: grid; }
+    @media (max-width: 480px) {
+      .scores-strip { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+    }
     .score-cell {
       background: var(--paper-soft); border: 1px solid var(--line);
       border-radius: var(--radius-md); padding: 14px 16px;
