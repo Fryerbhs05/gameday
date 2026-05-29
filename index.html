@@ -6464,8 +6464,8 @@ initThemeToggle();
 
       var metaPieces = [];
       if (state.mustWatch){
-        metaPieces.push('Top pick');
-        if (totalInvolved > 0) metaPieces.push(totalInvolved + ' player' + (totalInvolved===1?'':'s'));
+        if (totalInvolved > 0) metaPieces.push(totalInvolved + ' player' + (totalInvolved===1?'':'s') + ' in this time slot');
+        else metaPieces.push('0 players in this time slot');
       } else {
         metaPieces.push(s.games.length + ' game' + (s.games.length===1?'':'s'));
         if (totalInvolved > 0) metaPieces.push(totalInvolved + ' player' + (totalInvolved===1?'':'s'));
