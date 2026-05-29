@@ -1569,6 +1569,9 @@
       display: flex; align-items: center; justify-content: center;
       font: 500 13px/1 var(--font-sans); flex-shrink: 0;
     }
+    /* Opp-roster (negative) mode — keep the avatar in the navy "against" color
+       so it matches the rest of the for/against palette on this view. */
+    .exp-drawer__avatar.mode-negative { background: var(--navy-700); }
     .exp-drawer__name { font: 500 16px/1.1 var(--font-sans); margin: 0 0 4px; color: var(--ink-900); }
     .exp-drawer__pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
     .exp-drawer__close { margin-left: auto; background: transparent; border: 0; cursor: pointer; color: var(--ink-500); font: 500 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 4px; }
@@ -1970,6 +1973,39 @@
     .wp-drawer__name { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); }
     .wp-drawer__sub { font: 400 11px/1.2 var(--font-mono); color: var(--ink-500); display: block; margin-top: 3px; letter-spacing: .03em; }
     .wp-drawer__pills { display: flex; gap: 5px; flex-wrap: wrap; }
+
+    /* Ownership matrix — single-player drawer view.
+       Player on Y axis, My/Opp Rosters on X axis. X marker color matches the
+       for/against palette: coral for My, navy for Opp. */
+    .wp-ownership { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 4px; }
+    .wp-ownership th, .wp-ownership td { padding: 10px 8px; text-align: center; }
+    .wp-ownership thead th {
+      font: 600 11px/1.2 var(--font-mono); text-transform: uppercase;
+      letter-spacing: .05em; color: var(--ink-500);
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .wp-ownership__corner { width: 40%; }
+    .wp-ownership__col--me  { color: var(--coral-700); }
+    .wp-ownership__col--opp { color: var(--navy-700); }
+    .wp-ownership__row {
+      text-align: left; font: 500 13px/1.2 var(--font-sans);
+      color: var(--ink-900); padding-left: 0;
+    }
+    .wp-ownership__cell {
+      font-size: 22px; line-height: 1;
+      border-left: 1px solid var(--line-soft);
+    }
+    .wp-ownership__x { display: inline-block; font: 700 22px/1 var(--font-sans); }
+    .wp-ownership__x--me  { color: var(--coral-500); }
+    .wp-ownership__x--opp { color: var(--navy-700); }
+    .wp-ownership tbody tr { border-bottom: 1px solid var(--line-soft); }
+    .wp-ownership tbody tr:last-child { border-bottom: 0; }
+    .wp-ownership__player-row { cursor: pointer; transition: background var(--duration-fast) var(--ease-out); }
+    .wp-ownership__player-row:hover { background: var(--paper-deep); }
+    .wp-ownership__pos {
+      font: 500 10px/1 var(--font-mono); color: var(--ink-500);
+      letter-spacing: .04em; margin-left: 6px;
+    }
 
     @media (max-width: 640px) {
       #view-watch { padding: 12px 12px 48px; }
@@ -5491,9 +5527,10 @@ initThemeToggle();
         '</div>';
     }
 
+    var avatarModeCls = state.mode === 'negative' ? ' mode-negative' : '';
     return '<div class="exp-drawer" data-exp-drawer="' + esc(player.id) + '">' +
       '<div class="exp-drawer__head">' +
-        '<div class="exp-drawer__avatar">' + esc(initials) + '</div>' +
+        '<div class="exp-drawer__avatar' + avatarModeCls + '">' + esc(initials) + '</div>' +
         '<div style="min-width:0;">' +
           '<p class="exp-drawer__name">' + esc(player.full_name) + '</p>' +
           '<div class="exp-drawer__pill-row">' + headerPills + '</div>' +
@@ -5567,9 +5604,10 @@ initThemeToggle();
       ? annotated.map(playerRowHtml).join('')
       : '<p class="exp-drawer__empty">No players from this team are rostered in your leagues for the current view.</p>';
 
+    var teamAvatarModeCls = mode === 'negative' ? ' mode-negative' : '';
     return '<div class="exp-drawer" data-exp-drawer="team:' + esc(code) + '">' +
       '<div class="exp-drawer__head">' +
-        '<div class="exp-drawer__avatar">' + esc(initials) + '</div>' +
+        '<div class="exp-drawer__avatar' + teamAvatarModeCls + '">' + esc(initials) + '</div>' +
         '<div style="min-width:0;">' +
           '<p class="exp-drawer__name">' + esc(teamName) + '</p>' +
           '<div class="exp-drawer__pill-row">' +
@@ -6714,90 +6752,62 @@ initThemeToggle();
       scoreText = '<span class="wp-drawer__score">' + esc(game.away) + ' ' + game.awayScore + '–' + game.homeScore + ' ' + esc(game.home) + '</span>';
     }
 
-    /* Bucket players. A "conflict" player (meCount>0 AND oppCount>0)
-       lands in Conflicted. Otherwise they sort into the 4 standard
-       starter/bench buckets based on which sides they appear on. */
-    var conflicted = [];
-    var meStartArr = [];
-    var meBenchArr = [];
-    var oppStartArr = [];
-    var oppBenchArr = [];
-
-    (scored.players || []).forEach(function(p){
+    /* Roster-ownership matrix: every relevant player gets one row, with
+       My Rosters / Opp Rosters as the two columns. An X marks each side
+       the player appears on (starter + bench both count as ownership).
+       No league identifiers — presence only. */
+    var rows = (scored.players || []).map(function(p){
       var pe = p.entry;
-      var hasMeStart = pe.myStartLeagues.length > 0;
-      var hasMeBench = pe.myBenchLeagues.length > 0;
-      var hasOppStart = pe.oppStartLeagues.length > 0;
-      var hasOppBench = pe.oppBenchLeagues.length > 0;
-      var hasMe = hasMeStart || hasMeBench;
-      var hasOpp = hasOppStart || hasOppBench;
-      if (hasMe && hasOpp){
-        conflicted.push(p);
-        return;
-      }
-      if (hasMeStart) meStartArr.push(p);
-      else if (hasMeBench) meBenchArr.push(p);
-      else if (hasOppStart) oppStartArr.push(p);
-      else if (hasOppBench) oppBenchArr.push(p);
+      var onMy  = pe.myStartLeagues.length  + pe.myBenchLeagues.length  > 0;
+      var onOpp = pe.oppStartLeagues.length + pe.oppBenchLeagues.length > 0;
+      return { p: p, onMy: onMy, onOpp: onOpp };
     });
 
-    /* Sort each bucket by position then name for readability. */
+    /* Sort: conflicted first, then My-only, then Opp-only; within each
+       group by position then name. */
     var posOrderArr = (typeof POS_ORDER !== 'undefined') ? POS_ORDER : ['QB','RB','WR','TE','K','DEF'];
-    function sortBucket(arr){
-      arr.sort(function(a,b){
-        var ap = (a.entry.pos || '').toUpperCase();
-        var bp = (b.entry.pos || '').toUpperCase();
-        var ai = posOrderArr.indexOf(ap); if (ai === -1) ai = posOrderArr.length;
-        var bi = posOrderArr.indexOf(bp); if (bi === -1) bi = posOrderArr.length;
-        if (ai !== bi) return ai - bi;
-        return (a.entry.name || '').localeCompare(b.entry.name || '');
-      });
+    function groupRank(r){
+      if (r.onMy && r.onOpp) return 0;
+      if (r.onMy) return 1;
+      if (r.onOpp) return 2;
+      return 3;
     }
-    [conflicted, meStartArr, meBenchArr, oppStartArr, oppBenchArr].forEach(sortBucket);
+    rows.sort(function(a,b){
+      var ga = groupRank(a), gb = groupRank(b);
+      if (ga !== gb) return ga - gb;
+      var ap = (a.p.entry.pos || '').toUpperCase();
+      var bp = (b.p.entry.pos || '').toUpperCase();
+      var ai = posOrderArr.indexOf(ap); if (ai === -1) ai = posOrderArr.length;
+      var bi = posOrderArr.indexOf(bp); if (bi === -1) bi = posOrderArr.length;
+      if (ai !== bi) return ai - bi;
+      return (a.p.entry.name || '').localeCompare(b.p.entry.name || '');
+    });
 
-    /* Per-player row. The pill on the right encodes which side the
-       player sits on. Conflicted gets the split pill; everyone else
-       uses their primary side. */
-    function playerRow(p, sideClass){
-      var pe = p.entry;
-      var leagues = [];
-      if (pe.myStartLeagues.length) leagues.push('Start: ' + pe.myStartLeagues.join(', '));
-      if (pe.myBenchLeagues.length) leagues.push('Bench: ' + pe.myBenchLeagues.join(', '));
-      if (pe.oppStartLeagues.length) leagues.push('Opp start: ' + pe.oppStartLeagues.join(', '));
-      if (pe.oppBenchLeagues.length) leagues.push('Opp bench: ' + pe.oppBenchLeagues.join(', '));
-      var leagueLine = leagues.length ? '<span class="wp-drawer__leagues">' + esc(leagues.join(' · ')) + '</span>' : '';
-      return '<div class="wp-drawer__row wp-drawer__row--game" data-wp-player="' + esc(pe.id) + '">' +
-        '<span class="wp-pill ' + sideClass + '">' +
-          '<span class="wp-pill__pos">' + esc(pe.pos || '—') + '</span>' +
-          '<span class="wp-pill__name">' + esc(pe.name || '—') + '</span>' +
-        '</span>' +
-        leagueLine +
-      '</div>';
-    }
-
-    var sections = '';
-    if (conflicted.length){
-      sections += '<div class="wp-drawer__section"><p class="wp-drawer__section-h">Conflicted</p>' +
-        conflicted.map(function(p){ return playerRow(p, 'wp-pill--conflict'); }).join('') + '</div>';
-    }
-    if (meStartArr.length){
-      sections += '<div class="wp-drawer__section"><p class="wp-drawer__section-h">Your starter in</p>' +
-        meStartArr.map(function(p){ return playerRow(p, 'wp-pill--me-start'); }).join('') + '</div>';
-    }
-    if (meBenchArr.length){
-      sections += '<div class="wp-drawer__section"><p class="wp-drawer__section-h">On your bench in</p>' +
-        meBenchArr.map(function(p){ return playerRow(p, 'wp-pill--me-bench'); }).join('') + '</div>';
-    }
-    if (oppStartArr.length){
-      sections += '<div class="wp-drawer__section"><p class="wp-drawer__section-h">Opp starter in</p>' +
-        oppStartArr.map(function(p){ return playerRow(p, 'wp-pill--opp-start'); }).join('') + '</div>';
-    }
-    if (oppBenchArr.length){
-      sections += '<div class="wp-drawer__section"><p class="wp-drawer__section-h">Opp bench in</p>' +
-        oppBenchArr.map(function(p){ return playerRow(p, 'wp-pill--opp-bench'); }).join('') + '</div>';
-    }
-    if (!sections){
+    var sections;
+    if (!rows.length){
       sections = '<p class="wp-drawer__sub">No relevant players in this game for the current view.</p>';
+    } else {
+      var bodyRows = rows.map(function(r){
+        var pe = r.p.entry;
+        var nameCell = esc(pe.name || '—') +
+          ' <span class="wp-ownership__pos">' + esc(pe.pos || '—') + '</span>';
+        return '<tr class="wp-ownership__player-row" data-wp-player="' + esc(pe.id) + '">' +
+          '<th class="wp-ownership__row">' + nameCell + '</th>' +
+          '<td class="wp-ownership__cell">' + (r.onMy  ? '<span class="wp-ownership__x wp-ownership__x--me">×</span>'  : '') + '</td>' +
+          '<td class="wp-ownership__cell">' + (r.onOpp ? '<span class="wp-ownership__x wp-ownership__x--opp">×</span>' : '') + '</td>' +
+          '</tr>';
+      }).join('');
+      sections =
+        '<div class="wp-drawer__section">' +
+          '<table class="wp-ownership">' +
+            '<thead><tr>' +
+              '<th class="wp-ownership__corner"></th>' +
+              '<th class="wp-ownership__col wp-ownership__col--me">My Rosters</th>' +
+              '<th class="wp-ownership__col wp-ownership__col--opp">Opp Rosters</th>' +
+            '</tr></thead>' +
+            '<tbody>' + bodyRows + '</tbody>' +
+          '</table>' +
+        '</div>';
     }
 
     var subParts = [statusText];
