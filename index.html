@@ -676,11 +676,41 @@
     .nav-spacer { flex: 1; }
     .nav-ctx { font: 400 12px/1 var(--font-mono); color: var(--ink-500); }
 
+    /* Scoreboard frame — white-bordered container that wraps the header + score strip */
+    .scoreboard-frame {
+      border: 1px solid var(--paper);
+      border-radius: var(--radius-lg);
+      padding: 16px 16px 14px;
+      margin-bottom: 14px;
+      background: transparent;
+    }
+    .scoreboard-header {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 12px; padding-bottom: 10px; margin-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .scoreboard-wordmark {
+      display: inline-flex; align-items: baseline; gap: 0;
+      font: 700 22px/1 var(--font-sans);
+      letter-spacing: 0.06em;
+    }
+    .scoreboard-wordmark__a { color: var(--ink-900); }
+    .scoreboard-wordmark__b { color: var(--enemy); }
+    .scoreboard-context {
+      font: 400 13px/1 var(--font-mono); color: var(--ink-500);
+      white-space: nowrap;
+    }
+    @media (max-width: 480px) {
+      .scoreboard-wordmark { font-size: 18px; }
+      .scoreboard-context { font-size: 12px; }
+      .scoreboard-frame { padding: 12px 12px 10px; }
+    }
+
     /* Score strip — the signature module with split motif */
     .scores-strip {
       display: none;
       grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-      gap: 12px; margin-bottom: 14px;
+      gap: 12px; margin-bottom: 0;
     }
     .scores-strip.visible { display: grid; }
     .score-cell {
@@ -931,8 +961,6 @@
     .banner strong { color: var(--ink-900); font-weight: 700; }
     .banner-demo      { background: var(--split-soft);   border: 1px solid var(--split);   color: var(--ink-700); }
     .banner-offseason { background: var(--neutral-soft); border: 1px solid var(--ink-300); color: var(--ink-700); }
-    .banner-history   { background: var(--paper-deep);   border: 1px solid var(--navy-300); color: var(--ink-700); }
-    .banner-scoring   { background: var(--cheer-soft);   border: 1px solid var(--cheer);   color: var(--ink-700); }
     .banner-warn      { background: var(--enemy-soft);   border: 1px solid var(--enemy);   color: var(--ink-700); }
 
     /* No-data */
@@ -2255,9 +2283,13 @@
       <span class="t-stat-sm" id="board-refresh-time"></span>
       <span class="nav-ctx" id="nav-context-label" style="display:none"></span>
     </div>
-    <div class="banner banner-scoring"   id="banner-scoring"><div><strong>Live scoring active</strong> — allegiances are adjusted based on current scores and lead safety.</div></div>
-    <div class="banner banner-history"   id="banner-history"><div id="history-label"></div></div>
-    <div class="scores-strip" id="scores-strip"></div>
+    <div class="scoreboard-frame" id="scoreboard-frame">
+      <div class="scoreboard-header">
+        <div class="scoreboard-wordmark"><span class="scoreboard-wordmark__a">SCORE</span><span class="scoreboard-wordmark__b">BOARD</span></div>
+        <span class="scoreboard-context" id="scoreboard-context"></span>
+      </div>
+      <div class="scores-strip" id="scores-strip"></div>
+    </div>
     <div class="league-filters" id="league-filters">
       <span class="filter-label">Filter</span>
       <div id="filter-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
@@ -2776,9 +2808,12 @@ function updateNavUI(){
   document.getElementById('season-select').value=activeSeason;
   document.getElementById('nav-context-label').textContent=isLive?`Live · ${liveSeason}`:`${activeSeason} · Wk ${activeWeek}`;
   document.getElementById('week-label').textContent=`Week ${activeWeek} · ${activeSeason}`;
-  const hb=document.getElementById('banner-history');
-  if(!isDemoMode&&!isLive){hb.classList.add('visible');document.getElementById('history-label').innerHTML=isHistoricalWeek()?`<strong>Historical view</strong> — ${activeSeason}, Week ${activeWeek}. Scores are final.`:`<strong>Future week</strong> — no matchup data yet for Week ${activeWeek}, ${activeSeason}.`;}
-  else hb.classList.remove('visible');
+  const ctx=document.getElementById('scoreboard-context');
+  if(ctx){
+    let label=`Week ${activeWeek} · ${activeSeason}`;
+    if(!isDemoMode&&!isLive){label+=isHistoricalWeek()?' · Final':' · Upcoming';}
+    ctx.textContent=label;
+  }
 }
 
 function renderScoresStrip(contexts){
@@ -3351,7 +3386,6 @@ function renderBoard(data,username){
   updateNavUI();
   document.getElementById('banner-demo').classList.toggle('visible',isDemoMode);
   document.getElementById('banner-offseason').classList.toggle('visible',!isDemoMode&&!!offseasonMode);
-  document.getElementById('banner-scoring').classList.toggle('visible',!isDemoMode&&!!hasScoring&&!isHist);
   const partialBanner=document.getElementById('banner-partial');
   if(!isDemoMode&&partialError){document.getElementById('banner-partial-msg').textContent=partialError;partialBanner.classList.add('visible');}
   else{partialBanner.classList.remove('visible');}
