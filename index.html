@@ -1671,7 +1671,7 @@
     .wp-slot.is-collapsed .wp-slot__body { display: none; }
     .wp-slot__empty { padding: 8px 4px; font: 400 12px/1.4 var(--font-sans); color: #A8B5C2; text-align: center; }
     /* Game cards — navy panel, cream text, white player-count chip with coral text. */
-    .wp-game { border: 1px solid #1A3A52; border-radius: var(--radius-md); background: #122A40; padding: 12px 14px; cursor: pointer; transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+    .wp-game { border: 1px solid #1A3A52; border-radius: var(--radius-md); background: #122A40; padding: 12px 14px; transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
     .wp-game:hover { background: #1A3A52; border-color: #234866; }
     .wp-game--zero { opacity: 0.55; }
     .wp-game__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
@@ -1683,7 +1683,7 @@
     .wp-game__meta .wp-live { color: #F0997B; font-weight: 600; }
     .wp-game__meta .wp-final { color: #A8B5C2; }
     /* Player-count chip — dark navy pill with cream text. */
-    .wp-game__badge { font: 600 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 999px; letter-spacing: .03em; white-space: nowrap; background: #0F1B26; color: #F5EFE4; border: 1px solid #1A3A52; }
+    .wp-game__badge { font: 600 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 999px; letter-spacing: .03em; white-space: nowrap; background: #0F1B26; color: #F5EFE4; border: 1px solid #1A3A52; cursor: pointer; }
     .wp-game__badge--maximum { background: #0F1B26; color: #F5EFE4; border-color: #1A3A52; }
     .wp-game__badge--cheer { background: #0F1B26; color: #F5EFE4; border-color: #1A3A52; }
     .wp-game__badge--hate { background: #0F1B26; color: #F5EFE4; border-color: #1A3A52; }
@@ -1850,6 +1850,7 @@
       min-width: 70px;
       flex-shrink: 0;
       border: 1px solid #1A3A52;
+      cursor: pointer;
     }
     .wp-week-watch__badge-num { font: 700 22px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #F5EFE4; }
     .wp-week-watch__badge-label { font: 600 9px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; margin-top: 5px; display: block; color: #F5EFE4; opacity: 0.78; }
@@ -1864,7 +1865,6 @@
       border-radius: var(--radius-md);
       padding: 10px 12px;
       margin: 0 0 6px;
-      cursor: pointer;
       transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
     }
     .wp-spotlight:hover { background: #1A3A52; border-color: #234866; }
@@ -1889,6 +1889,7 @@
       min-width: 56px;
       flex-shrink: 0;
       border: 1px solid #1A3A52;
+      cursor: pointer;
     }
     .wp-spotlight__badge-num { font: 700 18px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #F5EFE4; }
     .wp-spotlight__badge-label { font: 600 8px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.78; margin-top: 3px; display: block; color: #F5EFE4; }
@@ -1904,7 +1905,6 @@
       align-items: center;
       padding: 7px 11px;
       border-bottom: 1px solid #234866;
-      cursor: pointer;
       transition: background var(--duration-fast) var(--ease-out);
       width: 100%;
       background: transparent;
@@ -7025,10 +7025,12 @@ initThemeToggle();
       openPlayerDrawer(pid);
       return;
     }
-    /* Game tap (spotlight or strip row) → game drawer */
-    var gm = e.target.closest('[data-wp-game]');
+    /* Game tap (spotlight, strip row, or Game-of-the-Week banner) → game drawer.
+       The GotW banner uses data-wp-week-leader since it predated data-wp-game;
+       both open the same drawer. */
+    var gm = e.target.closest('[data-wp-game], [data-wp-week-leader]');
     if (gm){
-      var gid = gm.getAttribute('data-wp-game');
+      var gid = gm.getAttribute('data-wp-game') || gm.getAttribute('data-wp-week-leader');
       openGameDrawer(gid);
       return;
     }
