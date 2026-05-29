@@ -676,14 +676,17 @@
     .nav-spacer { flex: 1; }
     .nav-ctx { font: 400 12px/1 var(--font-mono); color: var(--ink-500); }
 
-    /* Scoreboard frame — white-bordered container that wraps the header + score strip */
+    /* Scoreboard frame — white border in dark mode, navy in light mode */
     .scoreboard-frame {
-      border: 1px solid var(--paper);
+      border: 1px solid var(--navy-900);
       border-radius: var(--radius-lg);
       padding: 16px 16px 14px;
       margin-bottom: 14px;
       background: transparent;
     }
+    @media (prefers-color-scheme: dark) { .scoreboard-frame { border-color: #FFFFFF; } }
+    :root[data-theme="dark"] .scoreboard-frame { border-color: #FFFFFF; }
+    :root[data-theme="light"] .scoreboard-frame { border-color: var(--navy-900); }
     .scoreboard-header {
       display: flex; align-items: baseline; justify-content: space-between;
       gap: 12px; padding-bottom: 10px; margin-bottom: 12px;
