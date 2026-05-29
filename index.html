@@ -767,6 +767,39 @@
     .score-cell__state.loss   { color: var(--enemy); }
     .score-cell__state.final  { color: var(--neutral); }
     .score-cell__state.none   { color: var(--ink-500); }
+
+    /* ── Projected-final bar (Option 3) — your share vs. their share in the
+       site's team colors: coral (you) on the left, navy/blue (them) on the
+       right. A white tick marks the 50% centerline; the further your coral
+       fill crosses past it, the stronger your projected win. */
+    .score-cell__proj { margin-top: 10px; }
+    .score-cell__proj-label {
+      font: 500 9px/1 var(--font-mono); color: var(--ink-500);
+      letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px;
+    }
+    .score-cell__proj-bar {
+      position: relative; height: 7px; border-radius: var(--radius-pill);
+      background: var(--navy-700); overflow: visible;
+    }
+    .score-cell__proj-fill {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      background: var(--coral-500);
+      border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+      transition: width var(--duration-fast) var(--ease-out);
+    }
+    /* White centerline marker — sits at the 50% point and extends slightly
+       above and below the bar so it reads as a clear midpoint tick. */
+    .score-cell__proj-mid {
+      position: absolute; left: 50%; top: -3px; bottom: -3px;
+      width: 2px; transform: translateX(-1px);
+      background: #fff; border-radius: 1px; pointer-events: none;
+    }
+    .score-cell__proj-vals {
+      display: flex; justify-content: space-between;
+      font: 500 11px/1 var(--font-mono); margin-top: 5px;
+    }
+    .score-cell__proj-you { color: var(--coral-500); }
+    .score-cell__proj-opp { color: var(--navy-700); }
     /* Tappable matchup tiles — pointer cursor, subtle lift on hover, focus ring.
        Only applied to tiles with a real matchup (NO_MATCHUP tiles stay inert). */
     .score-cell.is-tappable {
@@ -2823,7 +2856,42 @@ function updateNavUI(){
   }
 }
 
+/* Order matchup scorecards by the user's league priority — top priority is
+   top-left (first in the array, which renderScoresStrip lays out left→right).
+   Applies to all views (historic / present / future). Leagues not present in
+   priorityOrder sink to the end; order is left untouched when the user has
+   declared all leagues equal (priorityEqual) or hasn't ranked yet. Stable so
+   ties keep their incoming order. */
+function sortContextsByPriority(contexts){
+  if(!Array.isArray(contexts)||contexts.length<2)return contexts;
+  if(typeof priorityEqual!=='undefined'&&priorityEqual)return contexts;
+  if(typeof priorityOrder==='undefined'||!Array.isArray(priorityOrder)||!priorityOrder.length)return contexts;
+  const rank=name=>{const i=priorityOrder.indexOf(name);return i===-1?Number.MAX_SAFE_INTEGER:i;};
+  return contexts.slice().sort((a,b)=>rank(a.leagueName)-rank(b.leagueName));
+}
+/* Projected-final bar (Option 3). Renders each side's projected total as a
+   coral (you) / navy-blue (them) split — matching the site's team colors —
+   with a white centerline tick. Shown only while a matchup is live or clinched
+   and real projection data exists; hidden for finals, no-matchup, and any
+   provider/week that returns no projections. */
+function applyScoreCellProj(cell, ctx, st){
+  const wrap=cell.querySelector('.score-cell__proj');
+  if(!wrap)return;
+  const myP=+ctx.myProjPts||0, oppP=+ctx.oppProjPts||0, total=myP+oppP;
+  const showState = st==='LIVE'||st==='LOCKED_WIN'||st==='LOCKED_LOSS';
+  if(!showState || total<=0){ wrap.hidden=true; return; }
+  wrap.hidden=false;
+  // Your share of the combined projection, clamped so neither color vanishes.
+  const pct=Math.max(4,Math.min(96,(myP/total)*100));
+  const fill=wrap.querySelector('.score-cell__proj-fill');
+  const youEl=wrap.querySelector('.score-cell__proj-you');
+  const oppEl=wrap.querySelector('.score-cell__proj-opp');
+  if(fill)fill.style.width=pct.toFixed(1)+'%';
+  if(youEl)youEl.textContent=myP.toFixed(1);
+  if(oppEl)oppEl.textContent=oppP.toFixed(1);
+}
 function renderScoresStrip(contexts){
+  contexts=sortContextsByPriority(contexts);
   const strip=document.getElementById('scores-strip');
   if(!strip._cellIndex)strip._cellIndex=new Map();
   const idx=strip._cellIndex;
@@ -2850,6 +2918,11 @@ function renderScoresStrip(contexts){
       <div class="score-cell__row"><span class="score-cell__label">You</span><span class="score-cell__points score-cell__points--you">${ctx.myPoints.toFixed(2)}</span></div>
       <div class="score-cell__row"><span class="score-cell__label">Opp</span><span class="score-cell__points score-cell__points--opp">${ctx.oppPoints.toFixed(2)}</span></div>
       <div class="score-cell__divider"></div>
+      <div class="score-cell__proj" hidden>
+        <div class="score-cell__proj-label">Projected Final</div>
+        <div class="score-cell__proj-bar"><div class="score-cell__proj-fill"></div><div class="score-cell__proj-mid"></div></div>
+        <div class="score-cell__proj-vals"><span class="score-cell__proj-you"></span><span class="score-cell__proj-opp"></span></div>
+      </div>
       <div class="score-cell__state ${stCls}">${stTxt}</div>`;
       idx.set(ctx.leagueName,cell);
     } else {
@@ -2861,6 +2934,7 @@ function renderScoresStrip(contexts){
       if(oppEl)oppEl.textContent=ctx.oppPoints.toFixed(2);
       if(stateEl){stateEl.className=`score-cell__state ${stCls}`;stateEl.textContent=stTxt;}
     }
+    applyScoreCellProj(cell, ctx, st);
     cell.dataset.status=dataStatus;
     /* Tappable affordances: pointer/hover, keyboard activation, ARIA. */
     if(tappable){
@@ -3620,7 +3694,7 @@ async function loadYahooLeague(yLeague, week, isHist) {
   const matchupActuallyValid = hasMatchup && myPlayers.length > 0 && (!opponentTeamKey || oppPlayers.length > 0);
   return {
     result: { leagueName: yLeague.name, myPlayers, oppPlayers, myBench, oppBench, hasMatchup: matchupActuallyValid, fmt, source: 'yahoo' },
-    ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myPP, oppPP, fmt, source: 'yahoo' },
+    ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myProjPts, oppProjPts, myPP, oppPP, fmt, source: 'yahoo' },
     debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: matchupActuallyValid, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
   };
 }
@@ -3798,10 +3872,10 @@ function getDemoData(){
   const L1='Dynasty Royale',L2='Redraft Chaos',L3='The Gridiron',L4='Devy Masters';
   [L1,L2,L3,L4].forEach((n,i)=>{colorMap[n]=LC_COLORS[i];});
   const contexts=[
-    {leagueName:L1,leagueState:'LIVE',myPoints:95.64,oppPoints:72.82,myPP:{},oppPP:{},fmt:'PPR'},
-    {leagueName:L2,leagueState:'LIVE',myPoints:68.40,oppPoints:82.14,myPP:{},oppPP:{},fmt:'Half'},
-    {leagueName:L3,leagueState:'LOCKED_WIN',myPoints:134.20,oppPoints:45.82,myPP:{},oppPP:{},fmt:'Std'},
-    {leagueName:L4,leagueState:'LOCKED_LOSS',myPoints:52.10,oppPoints:118.40,myPP:{},oppPP:{},fmt:'PPR'}
+    {leagueName:L1,leagueState:'LIVE',myPoints:95.64,oppPoints:72.82,myProjPts:118.4,oppProjPts:109.2,myPP:{},oppPP:{},fmt:'PPR'},
+    {leagueName:L2,leagueState:'LIVE',myPoints:68.40,oppPoints:82.14,myProjPts:121.3,oppProjPts:128.7,myPP:{},oppPP:{},fmt:'Half'},
+    {leagueName:L3,leagueState:'LOCKED_WIN',myPoints:134.20,oppPoints:45.82,myProjPts:151.0,oppProjPts:96.5,myPP:{},oppPP:{},fmt:'Std'},
+    {leagueName:L4,leagueState:'LOCKED_LOSS',myPoints:52.10,oppPoints:118.40,myProjPts:88.2,oppProjPts:142.6,myPP:{},oppPP:{},fmt:'PPR'}
   ];
   function p(id,name,pos,team,mine,against,lpts,sig,allDecided,injuryStatus=null,myBench=[],againstBench=[]){const sigResult={signal:sig,allDecided};const cls=classifyPlayer({myLeagues:mine,againstLeagues:against},sigResult);const badge=ctxBadge(sigResult,false);const leaguePoints={};(lpts||[]).forEach(d=>{leaguePoints[d.lg]={pts:d.pts,proj:d.proj??null,fmt:d.fmt};});return{id,full_name:name,position:pos,team,myLeagues:mine,againstLeagues:against,myBenchLeagues:myBench,againstBenchLeagues:againstBench,leaguePoints,contextBadge:badge,bucket:cls?.bucket,clinched:cls?.clinched||false,injuryStatus};}
   /* Bench-only players (not classified into cheer/conflicted/enemies, but appear in heat map when "Include bench" is on) */
@@ -4023,7 +4097,7 @@ function parseEspnLeague(data,season,week,isHist){
   );
 
   let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0;
-  let myPP={},oppPP={},leagueState='NO_MATCHUP';
+  let myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0;
 
   if(matchup){
     hasMatchup=true;
@@ -4061,6 +4135,7 @@ function parseEspnLeague(data,season,week,isHist){
        uses — keeps state-decision logic identical across providers. */
     const myProj=myStarters.reduce((s,e)=>s+(espnPlayerStat(e,week,1)||0),0);
     const oppProj=oppStarters.reduce((s,e)=>s+(espnPlayerStat(e,week,1)||0),0);
+    myProjPts=myProj;oppProjPts=oppProj;
     leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,myProj,oppProj);
   }else{
     /* No matchup for this week — common in off-season or pre-week-1.
@@ -4075,7 +4150,7 @@ function parseEspnLeague(data,season,week,isHist){
 
   return{
     lg:{leagueName,myPlayers,oppPlayers,myBench,oppBench,hasMatchup,fmt},
-    ctx:{leagueName,leagueState,myPoints,oppPoints,myPP,oppPP,fmt},
+    ctx:{leagueName,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,fmt},
     dbg:{name:leagueName,leagueId,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr:false}
   };
 }
@@ -4124,7 +4199,7 @@ const PROVIDERS={
         let matchups=[];try{const raw=await getMatchups(lg.league_id,week);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
         const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
         const oppMatchup=myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
-        let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP';
+        let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0;
         if(myMatchup){
           hasMatchup=true;
           const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
@@ -4141,7 +4216,8 @@ const PROVIDERS={
           const oppStartSet=new Set(oppStarters);
           oppBench=oppStarters.length?oppAll.filter(id=>!oppStartSet.has(id)):[];
           oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
-          leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,hasProj?projSum(myPlayers):0,hasProj?projSum(oppPlayers):0);
+          myProjPts=hasProj?projSum(myPlayers):0;oppProjPts=hasProj?projSum(oppPlayers):0;
+          leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,myProjPts,oppProjPts);
         }else{myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');}
         myPlayers=myPlayers.filter(id=>id&&id!=='0');
         oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
@@ -4150,7 +4226,7 @@ const PROVIDERS={
         /* Match Yahoo's stance: only call it a real matchup if both rosters
            actually loaded. Prevents "you vs empty" half-loads. */
         const matchupActuallyValid=hasMatchup&&myPlayers.length>0&&oppPlayers.length>0;
-        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myPP,oppPP,fmt,scoringRaw:lg.scoring_settings||null});
+        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,fmt,scoringRaw:lg.scoring_settings||null});
         debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:matchupActuallyValid,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
         /* roster_positions: ordered slot codes (QB, RB, ..., FLEX, BN, ...) that
            map 1:1 with myMatchup.starters index. Pass through so the matchup
