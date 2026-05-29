@@ -983,56 +983,6 @@
     .no-data-msg strong { color: var(--ink-900); font-weight: 500; }
     .no-data-hint { font: 400 12px/1.4 var(--font-sans); color: var(--ink-500); }
 
-    /* Debug */
-    .debug-panel {
-      background: var(--paper-soft); border: 1px solid var(--line);
-      border-radius: var(--radius-md); margin-bottom: 14px; overflow: hidden;
-    }
-    .debug-toggle {
-      width: 100%; background: none; border: none; padding: 10px 15px;
-      display: flex; align-items: center; gap: 8px; cursor: pointer;
-      color: var(--ink-500); font: 500 11px/1 var(--font-sans);
-      letter-spacing: 0.08em; text-transform: uppercase; text-align: left;
-    }
-    .debug-toggle:hover { background: var(--paper-deep); }
-    .debug-toggle .arrow { transition: transform var(--duration-base); margin-left: auto; }
-    .debug-toggle.open .arrow { transform: rotate(90deg); }
-    .debug-body { display: none; padding: 0 15px 12px; border-top: 1px solid var(--line); }
-    .debug-body.open { display: block; }
-    .debug-meta {
-      padding: 12px 0; border-bottom: 1px solid var(--line);
-      margin-bottom: 12px;
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-      gap: 10px;
-    }
-    .debug-leagues { display: flex; flex-direction: column; gap: 5px; }
-    .debug-league {
-      font: 400 11px/1.4 var(--font-mono);
-      background: var(--paper); border: 1px solid var(--line);
-      border-radius: var(--radius-sm); padding: 7px 12px;
-      display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-    }
-    .lg-name { color: var(--ink-900); font-weight: 500; flex: 1; min-width: 130px; display: flex; align-items: center; gap: 6px; }
-    .lg-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .lg-id { color: var(--ink-500); font-size: 10px; }
-    .debug-table-wrap { overflow-x: auto; }
-    .debug-table { width: 100%; border-collapse: collapse; font: 400 12px/1.4 var(--font-sans); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
-    .debug-table th { text-align: left; padding: 8px 10px; font: 500 10px/1 var(--font-sans); color: var(--ink-500); letter-spacing: 0.06em; text-transform: uppercase; background: var(--paper-soft); border-bottom: 1px solid var(--line); white-space: nowrap; }
-    .debug-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--ink-900); vertical-align: middle; }
-    .debug-table tr:last-child td { border-bottom: none; }
-    .debug-table tr:hover td { background: var(--paper-soft); }
-    .debug-table .lg-name-cell { display: flex; align-items: center; gap: 7px; font-weight: 500; min-width: 140px; }
-    .debug-table .lg-id-sub { display: block; color: var(--ink-500); font: 400 10px/1.2 var(--font-mono); margin-top: 2px; }
-    .debug-meta-item { display: flex; flex-direction: column; gap: 3px; padding: 6px 10px; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-sm); }
-    .debug-meta-label { font: 500 10px/1 var(--font-sans); color: var(--ink-500); letter-spacing: 0.06em; text-transform: uppercase; }
-    .debug-meta-value { font: 600 13px/1.2 var(--font-sans); color: var(--ink-900); }
-    .debug-meta-value.warn { color: var(--split); }
-    .debug-meta-value.ok { color: var(--cheer); }
-    .dpill { padding: 2px 7px; border-radius: var(--radius-sm); font-size: 10px; letter-spacing: 0.04em; border: 1px solid; }
-    .dp-ok   { background: var(--cheer-soft);   color: var(--cheer);   border-color: var(--cheer);   }
-    .dp-warn { background: var(--enemy-soft);   color: var(--enemy);   border-color: var(--enemy);   }
-    .dp-dim  { background: var(--neutral-soft); color: var(--ink-500); border-color: var(--ink-300); }
-
     /* Columns — colored bottom borders, namesake "Conflicted" gets the split treatment */
     .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 8px; }
     .column-header {
@@ -2165,6 +2115,11 @@
     <li role="presentation"><hr class="menu-drawer__divider" aria-hidden="true"></li>
     <li class="menu-drawer__section-label" role="presentation">Account</li>
     <li role="none">
+      <button class="menu-drawer__item" data-menu-action="settings" role="menuitem" type="button">
+        <span>Settings</span>
+      </button>
+    </li>
+    <li role="none">
       <button class="menu-drawer__item" data-menu-action="change-user" role="menuitem" type="button">
         <span>Change user</span>
       </button>
@@ -2334,38 +2289,38 @@
         <div id="enemy-list"></div>
       </div>
     </div>
-    <div class="settings-panel" id="settings-panel" style="display:none;margin-top:48px;margin-bottom:0">
-      <button class="settings-toggle" id="settings-toggle" onclick="toggleSettings()" type="button"><span>Settings</span><span class="arrow">▶</span></button>
-      <div class="settings-body" id="settings-body">
-        <div class="settings-row">
-          <div class="settings-row-meta">
-            <div class="settings-row-title">Appearance</div>
-            <div class="settings-row-sub">Conflicted defaults to dark mode. Flip this on for light mode.</div>
-          </div>
-          <button class="live-toggle" id="theme-toggle" onclick="toggleTheme()" type="button" aria-label="Toggle light mode"></button>
+  </div>
+</div>
+
+<!-- ══ SETTINGS VIEW (opens from hamburger → Settings) ═════════ -->
+<div id="view-settings" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
+  <div style="margin-bottom:20px;">
+    <h2 style="font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);margin:0 0 6px;">Settings</h2>
+    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">Appearance, league priority, and account.</p>
+  </div>
+  <div class="settings-panel" style="display:block;margin:0;">
+    <div class="settings-body" style="display:block;">
+      <div class="settings-row">
+        <div class="settings-row-meta">
+          <div class="settings-row-title">Appearance</div>
+          <div class="settings-row-sub">Conflicted defaults to dark mode. Flip this on for light mode.</div>
         </div>
-        <div class="settings-row">
-          <div class="settings-row-meta">
-            <div class="settings-row-title">League priority</div>
-            <div class="settings-row-sub" id="settings-priority-sub">Set the order that decides who Conflicted cheers for when leagues conflict.</div>
-            <ol class="settings-priority-list" id="settings-priority-list" style="display:none"></ol>
-          </div>
-          <button class="btn-secondary" onclick="reRankPriority()" type="button">Re-rank leagues</button>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-meta">
-            <div class="settings-row-title">Account</div>
-            <div class="settings-row-sub">Disconnect all providers and return to the connection screen.</div>
-          </div>
-          <button class="btn-secondary" onclick="handleChangeUser()" type="button">Change user</button>
-        </div>
+        <button class="live-toggle" id="theme-toggle" onclick="toggleTheme()" type="button" aria-label="Toggle light mode"></button>
       </div>
-    </div>
-    <div class="debug-panel" id="debug-panel" style="display:none;margin-top:14px;margin-bottom:0">
-      <button class="debug-toggle" id="debug-toggle" onclick="toggleDebug()"><span>API debug</span><span class="arrow">▶</span></button>
-      <div class="debug-body" id="debug-body">
-        <div class="debug-meta" id="debug-meta"></div>
-        <div class="debug-table-wrap"><table class="debug-table" id="debug-leagues-table"><thead><tr><th>League</th><th>Provider</th><th>Roster</th><th>Matchup</th><th>State</th><th>Scoring</th><th>Role</th></tr></thead><tbody id="debug-leagues"></tbody></table></div>
+      <div class="settings-row">
+        <div class="settings-row-meta">
+          <div class="settings-row-title">League priority</div>
+          <div class="settings-row-sub" id="settings-priority-sub">Set the order that decides who Conflicted cheers for when leagues conflict.</div>
+          <ol class="settings-priority-list" id="settings-priority-list" style="display:none"></ol>
+        </div>
+        <button class="btn-secondary" onclick="reRankPriority()" type="button">Re-rank leagues</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-meta">
+          <div class="settings-row-title">Account</div>
+          <div class="settings-row-sub">Disconnect all providers and return to the connection screen.</div>
+        </div>
+        <button class="btn-secondary" onclick="handleChangeUser()" type="button">Change user</button>
       </div>
     </div>
   </div>
@@ -2779,10 +2734,20 @@ function ctxBadge(sig,isHist){
 }
 
 function hideAll(){
-  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch','view-settings'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('week-label').style.display='none';
 }
+function showSettings(){
+  hideAll();
+  const v=document.getElementById('view-settings');
+  if(v)v.style.display='block';
+  /* Refresh both surfaces (canonical + legacy) and re-sync the theme toggle
+     since the new toggle element is now visible. */
+  try{updateSettingsPanel();}catch(e){}
+  try{initThemeToggle();}catch(e){}
+}
+window.showSettings = showSettings;
 function showSetup(){hideAll();isDemoMode=false;document.getElementById('setup-panel').style.display='flex';try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}}
 function showLoading(msg){hideAll();document.getElementById('loading-panel').style.display='flex';document.getElementById('loading-msg').textContent=msg||'Pulling your leagues.';}
 function setLoading(msg){document.getElementById('loading-msg').textContent=msg;}
@@ -3249,28 +3214,6 @@ function applyFilters(){
   updatePillCounts();
 }
 
-function toggleDebug(){document.getElementById('debug-toggle').classList.toggle('open');document.getElementById('debug-body').classList.toggle('open');}
-function renderDebug(info){
-  if(!info){document.getElementById('debug-panel').style.display='none';return;}
-  document.getElementById('debug-panel').style.display='block';
-  const metaItems=[
-    {label:'Season',value:info.season},
-    {label:'Week',value:info.week},
-    {label:'Leagues',value:info.leagues.length},
-    {label:'Historical',value:info.isHist?'Yes':'No',cls:info.isHist?'ok':''},
-    {label:'Projections',value:info.hasProj?'Loaded':'N/A',cls:info.hasProj?'ok':''}
-  ];
-  if(info.usedFallback)metaItems.push({label:'Notice',value:'⚠ Season fallback',cls:'warn'});
-  document.getElementById('debug-meta').innerHTML=metaItems.map(m=>`<div class="debug-meta-item"><span class="debug-meta-label">${m.label}</span><span class="debug-meta-value ${m.cls||''}">${m.value}</span></div>`).join('');
-  const c=document.getElementById('debug-leagues');c.innerHTML='';
-  info.leagues.forEach(lg=>{
-    const tr=document.createElement('tr');
-    const provider=(lg.provider||'—').toString().toUpperCase();
-    tr.innerHTML=`<td><div class="lg-name-cell"><span class="lg-dot" style="background:${lc(lg.name)}"></span><div>${lg.name}<span class="lg-id-sub">${lg.leagueId}</span></div></div></td><td><span class="dpill dp-dim">${provider}</span></td><td><span class="dpill ${lg.rosterFound?'dp-ok':'dp-warn'}">${lg.rosterFound?`${lg.myCount} players`:'Not found'}</span></td><td><span class="dpill ${lg.matchupFound?'dp-ok':'dp-dim'}">${lg.matchupFound?`vs opp · ${lg.oppCount}`:'No matchup'}</span></td><td><span class="dpill dp-dim">${lg.state||'—'}</span></td><td><span class="dpill dp-dim">${lg.scoringFmt}</span></td><td><span class="dpill ${lg.isCoMgr?'dp-ok':'dp-dim'}">${lg.isCoMgr?'Co-mgr':'Owner'}</span></td>`;
-    c.appendChild(tr);
-  });
-}
-
 const posClass=pos=>({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF',FLEX:'pos-FLEX','W/R':'pos-FLEX','REC FLEX':'pos-FLEX','SUPER FLEX':'pos-FLEX'}[pos]||'pos-default');
 
 /* slotLabel: turn a raw provider slot code (Yahoo "W/R/T", Sleeper "FLEX",
@@ -3401,7 +3344,6 @@ function renderBoard(data,username){
   const partialBanner=document.getElementById('banner-partial');
   if(!isDemoMode&&partialError){document.getElementById('banner-partial-msg').textContent=partialError;partialBanner.classList.add('visible');}
   else{partialBanner.classList.remove('visible');}
-  renderDebug(isDemoMode?null:debugInfo);
   /* Build "Synced HH:MM:SS AM" but wrap "Synced " and ":SS" so mobile CSS can hide them and keep the row on one line. */
   const _now=new Date();
   const _hm=_now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});           /* "02:16 PM" */
@@ -3411,7 +3353,7 @@ function renderBoard(data,username){
   const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
   document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;renderDebug(null);currentContexts=[];updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
   const showLiveToggle=!isDemoMode&&!isHist;
@@ -4748,38 +4690,34 @@ function closePriorityPanel(){
   else showSetup();
 }
 
-function toggleSettings(){
-  document.getElementById('settings-toggle').classList.toggle('open');
-  document.getElementById('settings-body').classList.toggle('open');
-}
 function reRankPriority(){
   showPriorityOnboarding(currentContexts,{fromSettings:true,returnTo:'board'});
 }
 function updateSettingsPanel(){
-  const panel=document.getElementById('settings-panel');
-  if(!panel)return;
-  if(isDemoMode){panel.style.display='none';return;}
-  panel.style.display='block';
-  const sub=document.getElementById('settings-priority-sub');
-  const list=document.getElementById('settings-priority-list');
-  list.innerHTML='';
-  list.style.display='none';
+  /* Populates the league-priority row inside #view-settings. Called whenever
+     contexts/priority change; the actual view visibility is handled by
+     showSettings()/hideAll(). */
   const multi=currentContexts.length>=2;
-  if(!multi){
-    /* Single-league (or zero) — keep the panel visible so the control is
-       always discoverable, but make clear there's nothing to rank yet. */
-    sub.textContent='League priority kicks in once you have two or more leagues connected.';
-    return;
-  }
-  if(priorityEqual){
-    sub.textContent='Currently weighting every league the same. Tap re-rank to change.';
-    renderSettingsPriorityList(list,priorityOrder,true);
-  }else if(isPrioritySet()&&priorityOrder.length){
-    sub.textContent='These leagues are weighted top-to-bottom when they conflict.';
-    renderSettingsPriorityList(list,priorityOrder,false);
-  }else{
-    sub.textContent='Set the order that decides who Conflicted cheers for when leagues conflict.';
-  }
+  [{sub:'settings-priority-sub',list:'settings-priority-list'}].forEach(t=>{
+    const sub=document.getElementById(t.sub);
+    const list=document.getElementById(t.list);
+    if(!sub||!list)return;
+    list.innerHTML='';
+    list.style.display='none';
+    if(!multi){
+      sub.textContent='League priority kicks in once you have two or more leagues connected.';
+      return;
+    }
+    if(priorityEqual){
+      sub.textContent='Currently weighting every league the same. Tap re-rank to change.';
+      renderSettingsPriorityList(list,priorityOrder,true);
+    }else if(isPrioritySet()&&priorityOrder.length){
+      sub.textContent='These leagues are weighted top-to-bottom when they conflict.';
+      renderSettingsPriorityList(list,priorityOrder,false);
+    }else{
+      sub.textContent='Set the order that decides who Conflicted cheers for when leagues conflict.';
+    }
+  });
 }
 function renderSettingsPriorityList(list,order,equal){
   if(!Array.isArray(order)||!order.length)return;
@@ -5933,7 +5871,7 @@ initThemeToggle();
   // refresh (called by loadData() on every week/season change). If included, it would
   // clear the exposure flag before renderBoard could see it, kicking the user off the
   // heat map onto the dashboard on every refresh.
-  ['showBoard','showSetup','showError'].forEach(function(fn){
+  ['showBoard','showSetup','showError','showSettings'].forEach(function(fn){
     var orig = window[fn];
     if (typeof orig !== 'function') return;
     window[fn] = function(){
@@ -7195,7 +7133,7 @@ initThemeToggle();
   };
 
   /* Clear the watch-open flag whenever a known navigation path returns elsewhere. */
-  ['showBoard','showSetup','showError','showExposure'].forEach(function(fn){
+  ['showBoard','showSetup','showError','showExposure','showSettings'].forEach(function(fn){
     var orig = window[fn];
     if (typeof orig !== 'function') return;
     window[fn] = function(){
@@ -7289,6 +7227,8 @@ initThemeToggle();
           if (typeof window.showExposure === 'function') window.showExposure();
         } else if (action === 'watch-priority') {
           if (typeof window.showWatch === 'function') window.showWatch();
+        } else if (action === 'settings') {
+          if (typeof window.showSettings === 'function') window.showSettings();
         } else if (action === 'change-user') {
           if (typeof window.handleChangeUser === 'function') window.handleChangeUser();
         }
