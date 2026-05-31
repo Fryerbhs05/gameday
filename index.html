@@ -3662,15 +3662,64 @@ function parseYahooRosterStats(json) {
   return pp;
 }
 function yahooScoringLabel(scoring_type) {
+  // NOTE: scoring_type (head/roto/points) is the league's MATCHUP type, not its
+  // scoring system. Kept for debug/fallback only — the pill uses the real
+  // PPR/Half/Std format from yahooScoringFmt() below.
   const t = (scoring_type || '').toLowerCase();
   if (t === 'head' || t === 'h2h') return 'H2H';
   if (t === 'roto') return 'Roto';
   if (t === 'points') return 'Points';
   return scoring_type || '';
 }
+function yahooScoringFmt(settingsJson) {
+  /* Derive PPR / Half / Std the same way the Sleeper path does (rec value), but
+     from Yahoo's league settings. Yahoo NFL stat_id 11 = Receptions; its
+     stat_modifiers value is the points-per-reception:
+        value >= 1   -> 'PPR'
+        value >= 0.5 -> 'Half'
+        else / absent-> 'Std'
+     Returns '' if settings couldn't be read, so callers can fall back. */
+  try {
+    const leagueArr = settingsJson?.fantasy_content?.league;
+    const settingsNode = Array.isArray(leagueArr) ? leagueArr[1]?.settings : null;
+    if (!settingsNode) return '';
+    // settings is usually a single-element array; flatten to one object.
+    const settings = Array.isArray(settingsNode) ? yhFlatten(settingsNode) : settingsNode;
+    const modWrap = settings?.stat_modifiers;
+    // stats lives at stat_modifiers.stats (array), but mirror the defensive
+    // shape-scan used elsewhere for Yahoo in case it arrives wrapped/flattened.
+    let stats = modWrap?.stats
+      || (Array.isArray(modWrap) ? yhFlatten(modWrap).stats : null)
+      || (modWrap && typeof modWrap === 'object' ? yhFlatten(modWrap).stats : null);
+    if (!stats) return '';
+    let recVal = null;
+    yhEach(stats, (sw) => {
+      const s = sw?.stat; if (!s) return;
+      if (String(s.stat_id) === '11') recVal = parseFloat(s.value);
+    });
+    // stats may be a plain array (numeric keys) — yhEach handles both, but if it
+    // arrived as a true array yhEach still works since arrays expose numeric keys.
+    if (recVal === null || isNaN(recVal)) return 'Std';
+    if (recVal >= 1) return 'PPR';
+    if (recVal >= 0.5) return 'Half';
+    return 'Std';
+  } catch (e) {
+    console.warn('yahooScoringFmt parse failed:', e.message);
+    return '';
+  }
+}
 async function loadYahooLeague(yLeague, week, isHist) {
-  const fmt = yahooScoringLabel(yLeague.scoring_type);
-  const standingsJson = await yhFetch('endpoint=standings&league_key=' + encodeURIComponent(yLeague.league_key));
+  // fmt is the real scoring format (PPR/Half/Std) read from league settings —
+  // NOT scoring_type, which is the matchup type (H2H/Roto/Points). Fetched in
+  // parallel with standings; if settings fail we fall back to '' (no misleading
+  // pill) and let synthesizeScoringFromFmt default ranks to Standard.
+  let fmt = '';
+  const [standingsJson, settingsJson] = await Promise.all([
+    yhFetch('endpoint=standings&league_key=' + encodeURIComponent(yLeague.league_key)),
+    yhFetch('endpoint=settings&league_key=' + encodeURIComponent(yLeague.league_key))
+      .catch(e => { console.warn('Yahoo settings failed for', yLeague.name, e.message); return null; })
+  ]);
+  fmt = (settingsJson && yahooScoringFmt(settingsJson)) || '';
   const { teams, myTeamKey } = parseYahooStandings(standingsJson);
   if (!myTeamKey) return { result: null, ctx: null, debug: { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: false, matchupFound: false, myCount: 0, oppCount: 0, state: '—', scoringFmt: fmt, isCoMgr: false }};
   const isCoMgr = teams.find(t => t.team_key === myTeamKey)?.isComanager || false;
