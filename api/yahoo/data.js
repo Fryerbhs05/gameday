@@ -8,6 +8,7 @@
 //   fetch('/api/yahoo/data?endpoint=leagues')             // current NFL season's leagues
 //   fetch('/api/yahoo/data?endpoint=leagues&season=2025') // 2025 NFL season's leagues
 //   fetch('/api/yahoo/data?endpoint=standings&league_key=nfl.l.12345')
+//   fetch('/api/yahoo/data?endpoint=settings&league_key=nfl.l.12345')  // stat_modifiers → PPR/Half/Std
 //   fetch('/api/yahoo/data?endpoint=scoreboard&league_key=nfl.l.12345&week=10')
 //   fetch('/api/yahoo/data?endpoint=roster&team_key=nfl.l.12345.t.6&week=10')
 
@@ -136,6 +137,14 @@ module.exports = async (req, res) => {
       url = `https://fantasysports.yahooapis.com/fantasy/v2/league/${encodeURIComponent(
         req.query.league_key
       )}/standings?format=json`;
+    } else if (endpoint === 'settings' && req.query.league_key) {
+      // League settings — includes stat_modifiers, from which we derive the
+      // real scoring format (PPR / Half / Std) via the receptions modifier.
+      // Note: scoring_type on the league meta (head/points/roto) is the MATCHUP
+      // type, not the scoring system, so it must be read from settings instead.
+      url = `https://fantasysports.yahooapis.com/fantasy/v2/league/${encodeURIComponent(
+        req.query.league_key
+      )}/settings?format=json`;
     } else if (endpoint === 'scoreboard' && req.query.league_key) {
       const weekParam = week ? `;week=${week}` : '';
       url = `https://fantasysports.yahooapis.com/fantasy/v2/league/${encodeURIComponent(
