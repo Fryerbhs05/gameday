@@ -776,6 +776,7 @@
     .score-cell__proj-label {
       font: 500 9px/1 var(--font-mono); color: var(--ink-500);
       letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px;
+      text-align: center;
     }
     .score-cell__proj-bar {
       position: relative; height: 7px; border-radius: var(--radius-pill);
@@ -2861,6 +2862,8 @@ function updateNavUI(){
      Tier 1 — matchups with an active LIVE game, ordered by league priority.
      Tier 2 — every remaining matchup (finals / upcoming / no-matchup),
               ordered by league priority.
+   Within each tier, matchups with a real projection (combined projected total
+   above zero) sort ahead of 0-to-0 projections before league priority applies.
    "Live" = leagueState LIVE, LOCKED_WIN, or LOCKED_LOSS — i.e. the week is
    still in play and the games haven't gone final. Within each tier, leagues
    not present in priorityOrder sink to the end; when the user has declared all
@@ -2870,11 +2873,15 @@ function sortContextsByPriority(contexts){
   if(!Array.isArray(contexts)||contexts.length<2)return contexts;
   const LIVE_STATES={LIVE:1,LOCKED_WIN:1,LOCKED_LOSS:1};
   const isLive=c=>!!LIVE_STATES[c&&c.leagueState];
+  // A matchup has a real projection only when its combined projected total is
+  // above zero — a 0-to-0 projection gets de-prioritized within its tier.
+  const hasProj=c=>((+(c&&c.myProjPts)||0)+(+(c&&c.oppProjPts)||0))>0;
   const usePriority=!(typeof priorityEqual!=='undefined'&&priorityEqual)
     &&typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder)&&priorityOrder.length;
   const rank=name=>{const i=priorityOrder.indexOf(name);return i===-1?Number.MAX_SAFE_INTEGER:i;};
-  return contexts.map((c,i)=>({c,i,live:isLive(c)})).sort((a,b)=>{
+  return contexts.map((c,i)=>({c,i,live:isLive(c),proj:hasProj(c)})).sort((a,b)=>{
     if(a.live!==b.live)return a.live?-1:1;                       // live tier first
+    if(a.proj!==b.proj)return a.proj?-1:1;                       // real projection before 0-to-0
     if(usePriority){const r=rank(a.c.leagueName)-rank(b.c.leagueName);if(r)return r;}
     return a.i-b.i;                                              // stable fallback
   }).map(d=>d.c);
