@@ -1828,67 +1828,6 @@
     /* ── Slot head (spotlight + strip variant) ────────────────── */
     .wp-slot__crown { display: inline-block; width: 7px; height: 7px; background: var(--coral-500); border-radius: 50%; margin-right: 7px; vertical-align: middle; }
 
-    /* ── Game of the Week banner (Option C — Marquee stack) ───── */
-    /* Coral header strip above a navy body. Stands out structurally from the
-       regular navy game cards because it's a two-band layout, not a single row.
-       Player chip is white-on-coral to mirror the new card-chip system. */
-    .wp-week-watch {
-      background: #0F1B26;
-      border: 1px solid rgba(216,90,48,0.55);
-      border-radius: var(--radius-lg);
-      margin: 0 0 12px;
-      overflow: hidden;
-      box-shadow: 0 8px 24px -14px rgba(0,0,0,0.6);
-    }
-    .wp-week-watch__strip {
-      background: #D85A30;
-      padding: 8px 14px;
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    }
-    .wp-week-watch__eyebrow {
-      font: 600 10px/1 var(--font-mono);
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: #F5EFE4;
-      display: inline-flex; align-items: center; gap: 8px;
-    }
-    .wp-week-watch__eyebrow::before {
-      content: '';
-      display: inline-block;
-      width: 6px; height: 6px;
-      background: #F5EFE4;
-      border-radius: 50%;
-      box-shadow: 0 0 0 3px rgba(245,239,228,0.30);
-    }
-    .wp-week-watch__strip-meta {
-      font: 600 10px/1 var(--font-mono);
-      letter-spacing: 0.10em;
-      text-transform: uppercase;
-      color: rgba(245,239,228,0.85);
-    }
-    .wp-week-watch__body {
-      padding: 14px 16px 16px;
-      display: flex; align-items: center; justify-content: space-between; gap: 14px;
-    }
-    .wp-week-watch__main { min-width: 0; }
-    .wp-week-watch__match { font: 700 20px/1.1 var(--font-sans); letter-spacing: -0.02em; margin: 0; color: #F5EFE4; }
-    .wp-week-watch__sub { font: 500 11px/1.3 var(--font-mono); letter-spacing: 0.05em; color: rgba(245,239,228,0.65); margin-top: 6px; text-transform: uppercase; }
-    .wp-week-watch__live { color: #F0997B; font-weight: 600; }
-    .wp-week-watch__at { color: rgba(245,239,228,0.55); font-weight: 500; padding: 0 6px; }
-    /* Player chip — dark navy with cream text, matches the unified chip system. */
-    .wp-week-watch__badge {
-      background: #0F1B26;
-      padding: 10px 14px;
-      border-radius: var(--radius-md);
-      text-align: center;
-      min-width: 70px;
-      flex-shrink: 0;
-      border: 1px solid #1A3A52;
-      cursor: pointer;
-    }
-    .wp-week-watch__badge-num { font: 700 22px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #F5EFE4; }
-    .wp-week-watch__badge-label { font: 600 9px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; margin-top: 5px; display: block; color: #F5EFE4; opacity: 0.78; }
-
     /* ── Spotlight panel (top of slot) — UNIFIED with regular cards.
        Same navy/cream look as .wp-game; the in-slot leader no longer gets
        special coral treatment. Only the Game of the Week banner is unique. */
@@ -1929,6 +1868,35 @@
     .wp-spotlight__badge-label { font: 600 8px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.78; margin-top: 3px; display: block; color: #F5EFE4; }
     .wp-spotlight__live { font-weight: 600; color: #F0997B; }
     .wp-spotlight__at { opacity: 0.65; font-weight: 500; padding: 0 3px; }
+
+    /* ── Game of the Week (in-slot) ──────────────────────────────
+       The leader's slot header turns coral (replacing the old top-of-page
+       marquee strip), the leader card gets a coral frame, and an inline
+       "Game of the Week" chip sits between the matchup and the player chip. */
+    .wp-slot--gotw .wp-slot__head { background: #D85A30; border-bottom-color: rgba(15,27,38,0.30); }
+    .wp-slot--gotw .wp-slot__head:hover { background: #C44E27; }
+    .wp-slot--gotw .wp-slot__title { color: #F5EFE4; }
+    .wp-slot--gotw .wp-slot__caret { color: rgba(245,239,228,0.85); }
+    .wp-slot--gotw .wp-slot__meta { color: rgba(245,239,228,0.85); }
+    /* Coral frame on the card — navy interior kept, coral border + soft glow. */
+    .wp-spotlight--gotw { border-color: #D85A30; box-shadow: 0 0 0 1px #D85A30, 0 8px 24px -16px rgba(216,90,48,0.55); }
+    .wp-spotlight--gotw:hover { border-color: #F0997B; box-shadow: 0 0 0 1px #F0997B, 0 8px 24px -14px rgba(216,90,48,0.55); }
+    /* Inline GotW chip — coral-accented, mirrors the boxy badge family. */
+    .wp-spotlight__gotw-chip {
+      flex-shrink: 0;
+      align-self: stretch;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center;
+      max-width: 76px;
+      padding: 6px 9px;
+      border-radius: var(--radius-md);
+      background: rgba(216,90,48,0.16);
+      border: 1px solid rgba(216,90,48,0.55);
+      color: #F0997B;
+      font: 600 9px/1.25 var(--font-mono);
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
 
     /* ── Strip (lower-priority games beneath spotlight) — navy panels ── */
     .wp-strip { background: #122A40; border: 1px solid #234866; border-radius: var(--radius-md); overflow: hidden; }
@@ -2057,15 +2025,8 @@
       .wp-view-toggle, .wp-bench-toggle, .wp-mustwatch-toggle { width: 100%; }
       .wp-view-toggle button, .wp-bench-toggle button, .wp-mustwatch-toggle button { flex: 1; justify-content: center; padding: 7px 8px; }
       .wp-pill__name { max-width: 18ch; }
-      /* Game of the Week — Option C marquee, compact mobile sizing */
-      .wp-week-watch { margin: 0 0 8px; }
-      .wp-week-watch__strip { padding: 7px 12px; }
-      .wp-week-watch__body { padding: 12px 12px 12px; gap: 10px; }
-      .wp-week-watch__badge { padding: 8px 12px; min-width: 60px; }
-      .wp-week-watch__badge-num { font-size: 19px; }
-      .wp-week-watch__match { font-size: 17px; }
-      .wp-week-watch__eyebrow { font-size: 9px; }
-      .wp-week-watch__strip-meta { font-size: 9px; }
+      /* Game of the Week chip — compact mobile sizing */
+      .wp-spotlight__gotw-chip { max-width: 64px; padding: 5px 7px; font-size: 8px; }
       /* Tighter slot spacing */
       .wp-slot { margin-bottom: 6px; }
       .wp-slot__head { padding: 7px 10px; }
@@ -6556,10 +6517,11 @@ initThemeToggle();
 
     var html = '';
 
-    /* ── Game of the Week banner now renders INSIDE its own time slot
-       (see renderWeekBanner, called from the slot loop below) instead of
-       being pinned to the top of the page. We keep weekLeader computed above
-       so the slot loop can flag which slot's top game is the week leader. ── */
+    /* ── Game of the Week is now flagged in-slot rather than pinned to the top
+       of the page: the slot loop below detects which slot's top game is the
+       week leader (slotIsWeekLeader) and styles that slot header coral + the
+       card with a coral frame and an inline chip. We keep weekLeader computed
+       above purely to drive that flag. ── */
 
     /* ── Slot sections (chronological master order) ── */
     var renderedSlotCount = 0;
@@ -6589,7 +6551,7 @@ initThemeToggle();
 
       var slotIsWeekLeader = !!(weekLeader && top && weekLeader.id === top.id);
 
-      html += '<section class="wp-slot' + (collapsed?' is-collapsed':'') + '" id="wp-slot-' + cssIdSafe(s.key) + '" data-wp-slot="' + esc(s.key) + '">';
+      html += '<section class="wp-slot' + (collapsed?' is-collapsed':'') + (slotIsWeekLeader?' wp-slot--gotw':'') + '" id="wp-slot-' + cssIdSafe(s.key) + '" data-wp-slot="' + esc(s.key) + '">';
       html +=   '<header class="wp-slot__head" data-wp-slot-toggle="' + esc(s.key) + '">';
       html +=     '<span class="wp-slot__title"><span class="wp-slot__caret">▾</span>' + esc(s.label) + '</span>';
       html +=     '<span class="wp-slot__meta">' + esc(metaPieces.join(' · ')) + '</span>';
@@ -6597,14 +6559,10 @@ initThemeToggle();
       html +=   '<div class="wp-slot__body">';
 
       if (top && topScored.score > 0){
-        /* If this slot holds the Game of the Week, render the coral two-band
-           marquee banner in place of the standard spotlight card. Otherwise
-           render the unified navy spotlight card. */
-        if (slotIsWeekLeader){
-          html += renderWeekBanner(top, topScored, s.label);
-        } else {
-          html += renderSpotlight(top, topScored, slotIsWeekLeader);
-        }
+        /* Standard spotlight card. When it's the Game of the Week, the card
+           gets a coral frame + an inline "Game of the Week" chip, and its
+           slot header is turned coral (see .wp-slot--gotw). */
+        html += renderSpotlight(top, topScored, slotIsWeekLeader);
 
         /* Strip: remaining games in this slot, all-games mode only. */
         if (!state.mustWatch && s.sortedGames.length > 1){
@@ -6709,49 +6667,9 @@ initThemeToggle();
     }).join('');
   }
 
-  /* ── Game of the Week marquee banner — rendered in place of the spotlight
-       for whichever slot holds the week leader. Coral header strip carries the
-       slot name (left) and the "Game of the week" tag (right); navy body holds
-       the matchup, status meta, and the player chip. Mirrors renderSpotlight's
-       meta so the two read consistently. ── */
-  function renderWeekBanner(g, scored, slotLabel){
-    var s = scored || { score: 0, players: [] };
-    var isLive = g.status === 'in';
-    var isFinal = g.status === 'post';
-
-    var statusText;
-    if (isLive) statusText = '<span class="wp-week-watch__live">● ' + esc(g.detail || 'Live') + '</span>';
-    else if (isFinal) statusText = 'Final';
-    else statusText = esc(kickoffLabel(g));
-
-    var subBits = [statusText];
-    if (g.network) subBits.push(esc(g.network));
-    if ((isLive || isFinal) && g.awayScore != null && g.homeScore != null){
-      subBits.push(esc(g.away) + ' ' + g.awayScore + ' — ' + g.homeScore + ' ' + esc(g.home));
-    }
-
-    var badgeLabel = s.score === 1 ? 'PLAYER' : 'PLAYERS';
-
-    return '<aside class="wp-week-watch" data-wp-week-leader="' + esc(g.id) + '" role="button" tabindex="0">' +
-      '<div class="wp-week-watch__strip">' +
-        '<span class="wp-week-watch__eyebrow">' + esc(slotLabel) + '</span>' +
-        '<span class="wp-week-watch__strip-meta">Game of the week</span>' +
-      '</div>' +
-      '<div class="wp-week-watch__body">' +
-        '<div class="wp-week-watch__main">' +
-          '<div class="wp-week-watch__match">' + esc(g.away) + ' <span class="wp-week-watch__at">@</span> ' + esc(g.home) + '</div>' +
-          '<div class="wp-week-watch__sub">' + subBits.join(' · ') + '</div>' +
-        '</div>' +
-        '<div class="wp-week-watch__badge">' +
-          '<span class="wp-week-watch__badge-num">' + s.score + '</span>' +
-          '<span class="wp-week-watch__badge-label">' + badgeLabel + '</span>' +
-        '</div>' +
-      '</div>' +
-    '</aside>';
-  }
-
-  /* ── Spotlight: the slot leader. Saturated coral if it's also the
-       Game of the Week; soft coral-200 runner-up styling otherwise. ── */
+  /* ── Spotlight: the slot leader. When it's also the Game of the Week it
+       gets a coral frame + an inline "Game of the Week" chip; otherwise it's
+       the unified navy card. ── */
   function renderSpotlight(g, scored, isWeekLeader){
     var s = scored || { score: 0, players: [] };
     var isFinal = g.status === 'post';
@@ -6771,12 +6689,15 @@ initThemeToggle();
     if (g.network) metaBits.push(esc(g.network));
     if (scoreText) metaBits.push(scoreText);
 
-    /* Slot leader (in-slot) is now visually identical to every other card.
-       Only the Game of the Week banner at the very top of the page is unique.
-       The wp-spotlight class still wraps the slot leader so click handlers
-       and DOM hooks keep working — only the styling is unified. */
-    var cls = 'wp-spotlight';
+    /* Non-leader slot cards are visually identical to every other card.
+       The Game of the Week card adds a coral frame (wp-spotlight--gotw) and an
+       inline "Game of the Week" chip between the matchup and the player count;
+       its slot header is also turned coral (see .wp-slot--gotw). */
+    var cls = 'wp-spotlight' + (isWeekLeader ? ' wp-spotlight--gotw' : '');
     var badgeLabel = s.score === 1 ? 'Player' : 'Players';
+    var gotwChip = isWeekLeader
+      ? '<div class="wp-spotlight__gotw-chip" aria-hidden="true">Game of the Week</div>'
+      : '';
 
     return '<article class="' + cls + '" data-wp-game="' + esc(g.id) + '" role="button" tabindex="0">' +
       '<div class="wp-spotlight__body">' +
@@ -6784,6 +6705,7 @@ initThemeToggle();
           '<div class="wp-spotlight__match">' + esc(g.away) + ' <span class="wp-spotlight__at">@</span> ' + esc(g.home) + '</div>' +
           '<div class="wp-spotlight__meta">' + metaBits.join(' · ') + '</div>' +
         '</div>' +
+        gotwChip +
         '<div class="wp-spotlight__badge" aria-hidden="true">' +
           '<span class="wp-spotlight__badge-num">' + s.score + '</span>' +
           '<span class="wp-spotlight__badge-label">' + badgeLabel + '</span>' +
