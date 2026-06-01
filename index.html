@@ -2450,6 +2450,13 @@ const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='g
 const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 let liveOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0;
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},activeFilters=new Set(),isAnyProviderLoaded=false;
+/* Live accessors for the active week/season `let` bindings. These are NOT on
+   window (a `let` never attaches to window), so any out-of-scope code — e.g. the
+   Watch Priority IIFE — MUST read them through these, never window.activeWeek.
+   Reading window.activeWeek directly returns undefined and silently pins the
+   schedule fetch to week 1 (the "games repeat every week" bug). */
+window.getActiveWeek=function(){return activeWeek;};
+window.getActiveSeason=function(){return activeSeason;};
 
 const SLEEPER_LS_KEY='gd_sleeper_username';
 const connectionState={
@@ -6948,9 +6955,10 @@ initThemeToggle();
        so the cream-paper panels aren't framed by dark-mode body navy. */
     document.body.classList.add('wp-active');
     window.__conflictedWatchOpen = true;
-    /* Use current dashboard activeSeason/activeWeek */
-    var season = (typeof window.activeSeason !== 'undefined') ? window.activeSeason : (new Date()).getFullYear();
-    var week = (typeof window.activeWeek !== 'undefined') ? window.activeWeek : 1;
+    /* Use current dashboard activeSeason/activeWeek — read the live `let`
+       bindings via accessors; window.activeWeek/activeSeason are undefined. */
+    var season = (typeof window.getActiveSeason === 'function') ? window.getActiveSeason() : (new Date()).getFullYear();
+    var week = (typeof window.getActiveWeek === 'function') ? window.getActiveWeek() : 1;
     /* Initial render with whatever cached games we have (likely empty first time) */
     renderWatchView();
     fetchWeekGames(String(season), week).then(function(){
@@ -7131,8 +7139,8 @@ initThemeToggle();
   /* Refetch schedule periodically while view is open. */
   setInterval(function(){
     if (!window.__conflictedWatchOpen) return;
-    var season = (typeof window.activeSeason !== 'undefined') ? window.activeSeason : (new Date()).getFullYear();
-    var week = (typeof window.activeWeek !== 'undefined') ? window.activeWeek : 1;
+    var season = (typeof window.getActiveSeason === 'function') ? window.getActiveSeason() : (new Date()).getFullYear();
+    var week = (typeof window.getActiveWeek === 'function') ? window.getActiveWeek() : 1;
     fetchWeekGames(String(season), week).then(function(){ renderWatchView(); });
   }, 60000);
 
@@ -7154,9 +7162,10 @@ initThemeToggle();
       var r = orig.apply(this, arguments);
       if (wasWatchOpen){
         /* Read AFTER orig runs — activeWeek/activeSeason are set synchronously
-           at the top of changeWeekTo/changeSeason before their first await. */
-        var season = (typeof window.activeSeason !== 'undefined') ? window.activeSeason : (new Date()).getFullYear();
-        var week = (typeof window.activeWeek !== 'undefined') ? window.activeWeek : 1;
+           at the top of changeWeekTo/changeSeason before their first await.
+           Read via accessors: window.activeWeek/activeSeason are undefined (`let`). */
+        var season = (typeof window.getActiveSeason === 'function') ? window.getActiveSeason() : (new Date()).getFullYear();
+        var week = (typeof window.getActiveWeek === 'function') ? window.getActiveWeek() : 1;
         /* Render immediately to clear the stale UI (empty state), then again
            after the fetch resolves with the new week's games. */
         try { renderWatchView(); } catch(e) {}
