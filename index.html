@@ -6556,37 +6556,10 @@ initThemeToggle();
 
     var html = '';
 
-    /* ── Game of the Week banner (only when there's a real leader with at least one player) ── */
-    if (weekLeader && weekLeaderScore > 0){
-      var wlScored = scoredByGameId[weekLeader.id] || { score: 0, players: [] };
-      var wlIdent = slotIdentityForGame(weekLeader);
-      var wlStatus;
-      if (weekLeader.status === 'in') wlStatus = '<span class="wp-week-watch__live">● ' + esc(weekLeader.detail || 'Live') + '</span>';
-      else if (weekLeader.status === 'post') wlStatus = 'Final';
-      else wlStatus = esc(kickoffLabel(weekLeader));
-      var wlSubBits = [esc(wlIdent.shortLabel || wlIdent.label), wlStatus];
-      if (weekLeader.network) wlSubBits.push(esc(weekLeader.network));
-      /* Option C — Marquee stack: coral header strip + navy body + white chip.
-         Strip carries the eyebrow on the left and a contextual right-side
-         tag (week number). Body carries the matchup and the player chip. */
-      var wlWeekTag = 'Wk ' + ((typeof activeWeek !== 'undefined' && activeWeek) ? activeWeek : '');
-      html += '<aside class="wp-week-watch" data-wp-week-leader="' + esc(weekLeader.id) + '">';
-      html +=   '<div class="wp-week-watch__strip">';
-      html +=     '<span class="wp-week-watch__eyebrow">Game of the week</span>';
-      html +=     '<span class="wp-week-watch__strip-meta">Top exposure · ' + esc(wlWeekTag) + '</span>';
-      html +=   '</div>';
-      html +=   '<div class="wp-week-watch__body">';
-      html +=     '<div class="wp-week-watch__main">';
-      html +=       '<div class="wp-week-watch__match">' + esc(weekLeader.away) + ' <span class="wp-week-watch__at">@</span> ' + esc(weekLeader.home) + '</div>';
-      html +=       '<div class="wp-week-watch__sub">' + wlSubBits.join(' · ') + '</div>';
-      html +=     '</div>';
-      html +=     '<div class="wp-week-watch__badge">';
-      html +=       '<span class="wp-week-watch__badge-num">' + wlScored.score + '</span>';
-      html +=       '<span class="wp-week-watch__badge-label">' + (wlScored.score === 1 ? 'PLAYER' : 'PLAYERS') + '</span>';
-      html +=     '</div>';
-      html +=   '</div>';
-      html += '</aside>';
-    }
+    /* ── Game of the Week banner now renders INSIDE its own time slot
+       (see renderWeekBanner, called from the slot loop below) instead of
+       being pinned to the top of the page. We keep weekLeader computed above
+       so the slot loop can flag which slot's top game is the week leader. ── */
 
     /* ── Slot sections (chronological master order) ── */
     var renderedSlotCount = 0;
@@ -6624,8 +6597,14 @@ initThemeToggle();
       html +=   '<div class="wp-slot__body">';
 
       if (top && topScored.score > 0){
-        /* Spotlight: saturated coral if this is also the week leader, soft if just slot leader. */
-        html += renderSpotlight(top, topScored, slotIsWeekLeader);
+        /* If this slot holds the Game of the Week, render the coral two-band
+           marquee banner in place of the standard spotlight card. Otherwise
+           render the unified navy spotlight card. */
+        if (slotIsWeekLeader){
+          html += renderWeekBanner(top, topScored, s.label);
+        } else {
+          html += renderSpotlight(top, topScored, slotIsWeekLeader);
+        }
 
         /* Strip: remaining games in this slot, all-games mode only. */
         if (!state.mustWatch && s.sortedGames.length > 1){
@@ -6728,6 +6707,47 @@ initThemeToggle();
         countText +
       '</span>';
     }).join('');
+  }
+
+  /* ── Game of the Week marquee banner — rendered in place of the spotlight
+       for whichever slot holds the week leader. Coral header strip carries the
+       slot name (left) and the "Game of the week" tag (right); navy body holds
+       the matchup, status meta, and the player chip. Mirrors renderSpotlight's
+       meta so the two read consistently. ── */
+  function renderWeekBanner(g, scored, slotLabel){
+    var s = scored || { score: 0, players: [] };
+    var isLive = g.status === 'in';
+    var isFinal = g.status === 'post';
+
+    var statusText;
+    if (isLive) statusText = '<span class="wp-week-watch__live">● ' + esc(g.detail || 'Live') + '</span>';
+    else if (isFinal) statusText = 'Final';
+    else statusText = esc(kickoffLabel(g));
+
+    var subBits = [statusText];
+    if (g.network) subBits.push(esc(g.network));
+    if ((isLive || isFinal) && g.awayScore != null && g.homeScore != null){
+      subBits.push(esc(g.away) + ' ' + g.awayScore + ' — ' + g.homeScore + ' ' + esc(g.home));
+    }
+
+    var badgeLabel = s.score === 1 ? 'PLAYER' : 'PLAYERS';
+
+    return '<aside class="wp-week-watch" data-wp-week-leader="' + esc(g.id) + '" role="button" tabindex="0">' +
+      '<div class="wp-week-watch__strip">' +
+        '<span class="wp-week-watch__eyebrow">' + esc(slotLabel) + '</span>' +
+        '<span class="wp-week-watch__strip-meta">Game of the week</span>' +
+      '</div>' +
+      '<div class="wp-week-watch__body">' +
+        '<div class="wp-week-watch__main">' +
+          '<div class="wp-week-watch__match">' + esc(g.away) + ' <span class="wp-week-watch__at">@</span> ' + esc(g.home) + '</div>' +
+          '<div class="wp-week-watch__sub">' + subBits.join(' · ') + '</div>' +
+        '</div>' +
+        '<div class="wp-week-watch__badge">' +
+          '<span class="wp-week-watch__badge-num">' + s.score + '</span>' +
+          '<span class="wp-week-watch__badge-label">' + badgeLabel + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</aside>';
   }
 
   /* ── Spotlight: the slot leader. Saturated coral if it's also the
