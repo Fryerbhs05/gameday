@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy &amp; Data — Conflicted</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --navy-900:#0F2235; --navy-700:#1A3A52; --navy-500:#2B6FA8;
+      --coral-500:#D85A30; --coral-700:#B0451F;
+      --paper:#F5EFE4; --paper-soft:#FAF6EC; --paper-deep:#EDE5D4;
+      --ink-900:#15181C; --ink-700:#2C2C2A; --ink-500:#5F5E5A;
+      --line:#D8D2C4;
+      --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      --font-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--paper); color:var(--ink-900);
+      font:400 16px/1.65 var(--font-sans);
+      -webkit-font-smoothing:antialiased;
+    }
+    .wrap{max-width:720px; margin:0 auto; padding:48px 24px 80px}
+    .brand{
+      font:700 20px/1 var(--font-sans); letter-spacing:-0.02em;
+      color:var(--navy-700); margin-bottom:4px;
+    }
+    .brand .split{color:var(--coral-500)}
+    .updated{font:500 12px/1 var(--font-mono); color:var(--ink-500); margin-bottom:32px}
+    h1{font:700 30px/1.15 var(--font-sans); letter-spacing:-0.02em; margin:0 0 8px}
+    h2{font:600 19px/1.3 var(--font-sans); margin:36px 0 10px; color:var(--navy-900)}
+    p{margin:0 0 14px; color:var(--ink-700)}
+    ul{margin:0 0 14px; padding-left:22px; color:var(--ink-700)}
+    li{margin-bottom:8px}
+    a{color:var(--navy-500)}
+    code{font:400 13px/1 var(--font-mono); background:var(--paper-deep); padding:2px 6px; border-radius:4px; color:var(--coral-700)}
+    .note{
+      background:var(--paper-soft); border:1px solid var(--line);
+      border-left:3px solid var(--coral-500); border-radius:8px;
+      padding:14px 18px; margin:18px 0; font-size:14px; color:var(--ink-700);
+    }
+    .back{display:inline-block; margin-top:32px; font:500 14px/1 var(--font-sans); color:var(--navy-500); text-decoration:none}
+    .back:hover{color:var(--coral-500)}
+    footer{margin-top:48px; padding-top:20px; border-top:1px solid var(--line); font-size:13px; color:var(--ink-500)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">Con<span class="split">flicted</span></div>
+    <div class="updated">Last updated: June 2, 2026</div>
+
+    <h1>Privacy &amp; Your Data</h1>
+    <p>Conflicted is a personal fantasy-football tracker that pulls your leagues together from ESPN, Yahoo, and Sleeper into one view. This page explains, in plain language, what we store and how to remove it.</p>
+
+    <div class="note">
+      Conflicted works without an account. Accounts are optional — you only have one if you choose to sign in by email. The sections about email and stored sessions apply only if you do.
+    </div>
+
+    <h2>What we store</h2>
+    <ul>
+      <li><strong>Without an account:</strong> your platform connections live in your own browser as encrypted, HttpOnly cookies. They never leave your device except to talk to the fantasy provider on your behalf. We don't have a copy.</li>
+      <li><strong>If you create an account:</strong> we store your <strong>email address</strong> (to sign you in) and, when you connect a platform, an <strong>encrypted copy of that platform's session</strong> so the connection follows you to your other devices.</li>
+    </ul>
+
+    <h2>How your credentials are protected</h2>
+    <p>We never receive or store your ESPN, Yahoo, or Sleeper password. For ESPN we store the session tokens you provide; for Yahoo we use official sign-in (OAuth). Any stored session is encrypted with AES-256-GCM <em>before</em> it touches our database, so the database only ever holds unreadable ciphertext.</p>
+
+    <h2>How we sign you in</h2>
+    <p>Accounts use a one-time "magic link" emailed to you. We store only a hashed, short-lived version of that link's token; it works once and expires in 15 minutes. We don't use passwords, and we don't sell or share your email.</p>
+
+    <h2>What we don't do</h2>
+    <ul>
+      <li>No advertising, no ad networks, no selling your data.</li>
+      <li>No tracking you across other websites.</li>
+      <li>No sharing your fantasy data with anyone.</li>
+    </ul>
+
+    <h2>Deleting your data</h2>
+    <p>You're in control. You can:</p>
+    <ul>
+      <li><strong>Disconnect a platform</strong> at any time from within the app — this removes that platform's stored session.</li>
+      <li><strong>Delete your entire account</strong> — this permanently erases your email and every stored session. From the app, choose “Delete account,” or email the address below and we'll do it for you.</li>
+    </ul>
+    <p>Account deletion is immediate and irreversible.</p>
+
+    <h2>Contact</h2>
+    <p>Questions or a deletion request? Email <a href="mailto:fryerm@net.elmhurst.edu">fryerm@net.elmhurst.edu</a>.</p>
+
+    <a class="back" href="/">&larr; Back to Conflicted</a>
+
+    <footer>
+      Conflicted is an independent project and is not affiliated with, endorsed by, or sponsored by ESPN, Yahoo, or Sleeper.
+    </footer>
+  </div>
+</body>
+</html>
