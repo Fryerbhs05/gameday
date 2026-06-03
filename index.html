@@ -2357,6 +2357,13 @@
         </div>
         <button class="btn-secondary" onclick="reRankPriority()" type="button">Re-rank leagues</button>
       </div>
+      <div class="settings-row" id="account-settings-row">
+        <div class="settings-row-meta">
+          <div class="settings-row-title">Conflicted account</div>
+          <div class="settings-row-sub" id="account-settings-sub">Sign in by email to use your connections on any device — no password.</div>
+        </div>
+        <button class="btn-secondary" id="account-settings-btn" onclick="openAccountModal()" type="button">Sign in</button>
+      </div>
       <div class="settings-row">
         <div class="settings-row-meta">
           <div class="settings-row-title">Account</div>
@@ -4543,6 +4550,130 @@ function showYahooToast(msg, isError){
   setTimeout(()=>{ t.remove(); }, 3200);
 }
 
+/* ── Conflicted account (magic-link sign-in) ─────────────────────────────
+   Optional email accounts. The backend stays inert until env vars are set,
+   so /api/account/me returns { enabled:false } and we simply hide the row. */
+function handleAccountRedirect(){
+  const p = new URLSearchParams(window.location.search);
+  const a = p.get('account');
+  if(!a) return;
+  const map = { connected:'Signed in', signed_out:'Signed out', link_invalid:'That sign-in link expired — request a new one.' };
+  if(map[a]) showYahooToast(map[a], a==='link_invalid');
+  p.delete('account');
+  const qs = p.toString();
+  window.history.replaceState({}, '', window.location.pathname + (qs?'?'+qs:'') + window.location.hash);
+}
+
+async function bootstrapAccount(){
+  handleAccountRedirect();
+  let info = { signedIn:false, enabled:false };
+  try{ const r = await fetch('/api/account/me',{credentials:'include'}); info = await r.json(); }
+  catch(e){ /* keep defaults */ }
+  window.__account = info;
+  const btn = document.getElementById('account-settings-btn');
+  const sub = document.getElementById('account-settings-sub');
+  if(!btn || !sub) return info;
+  if(!info.enabled){
+    sub.textContent = 'Accounts aren’t enabled yet.';
+    btn.style.display = 'none';
+    return info;
+  }
+  btn.style.display = '';
+  if(info.signedIn){
+    sub.textContent = 'Signed in as ' + (info.email || 'your account') + '. Your connections follow you across devices.';
+    btn.textContent = 'Manage';
+  }else{
+    sub.textContent = 'Sign in by email to use your connections on any device — no password.';
+    btn.textContent = 'Sign in';
+  }
+  return info;
+}
+
+/* Reuses the .espn-modal styling so it inherits the brand with no new CSS. */
+function openAccountModal(){
+  const existing = document.getElementById('account-modal-backdrop');
+  if(existing) existing.remove();
+  const acct = window.__account || {};
+  const signedIn = acct.signedIn;
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'account-modal-backdrop';
+  backdrop.className = 'espn-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="espn-modal" role="dialog" aria-modal="true" aria-labelledby="account-modal-title">
+      <h2 id="account-modal-title">${signedIn?'Your account':'Sign in'}</h2>
+      ${signedIn ? `
+        <p class="espn-modal-sub">Signed in as <strong>${acct.email||''}</strong>. Your connections follow you across devices.</p>
+        <div class="espn-modal-actions" style="justify-content:space-between">
+          <button type="button" class="espn-btn-cancel" id="account-delete">Delete account</button>
+          <div>
+            <button type="button" class="espn-btn-cancel" id="account-close">Close</button>
+            <button type="button" class="espn-btn-submit" id="account-logout">Sign out</button>
+          </div>
+        </div>
+        <div class="espn-modal-error" id="account-error"></div>
+      ` : `
+        <p class="espn-modal-sub">Sign in with your email to use your fantasy connections on any device. We'll email you a one-time link — no password.</p>
+        <div class="espn-field">
+          <label for="account-email">Email</label>
+          <input type="email" id="account-email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <div class="espn-modal-error" id="account-error"></div>
+        <div class="espn-modal-actions">
+          <button type="button" class="espn-btn-cancel" id="account-close">Cancel</button>
+          <button type="button" class="espn-btn-submit" id="account-submit">Email me a link</button>
+        </div>
+      `}
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  const close = ()=> backdrop.remove();
+  backdrop.addEventListener('click', e=>{ if(e.target===backdrop) close(); });
+  backdrop.querySelector('#account-close').addEventListener('click', close);
+  const errEl = backdrop.querySelector('#account-error');
+
+  if(signedIn){
+    backdrop.querySelector('#account-logout').addEventListener('click', async()=>{
+      await fetch('/api/account/me?action=logout',{method:'POST',credentials:'include'});
+      window.location.href = '/?account=signed_out';
+    });
+    backdrop.querySelector('#account-delete').addEventListener('click', async(e)=>{
+      if(!confirm('Permanently delete your account and all stored connections? This cannot be undone.')) return;
+      e.target.disabled = true; e.target.textContent = 'Deleting…';
+      const r = await fetch('/api/account/me?action=delete',{method:'POST',credentials:'include'});
+      if(r.ok){ window.location.href = '/?account=signed_out'; }
+      else { errEl.textContent = 'Could not delete account. Try again.'; e.target.disabled=false; e.target.textContent='Delete account'; }
+    });
+  } else {
+    const submit = backdrop.querySelector('#account-submit');
+    const send = async()=>{
+      const email = (backdrop.querySelector('#account-email').value||'').trim();
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ errEl.textContent='Enter a valid email address.'; return; }
+      submit.disabled = true; submit.textContent='Sending…'; errEl.textContent='';
+      try{
+        const r = await fetch('/api/auth/magic/request',{
+          method:'POST', credentials:'include',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({email})
+        });
+        if(r.ok){
+          backdrop.querySelector('.espn-modal').innerHTML =
+            `<h2>Check your email</h2><p class="espn-modal-sub">We sent a sign-in link to <strong>${email}</strong>. It works once and expires in 15 minutes.</p>
+             <div class="espn-modal-actions"><button type="button" class="espn-btn-submit" id="account-done">Done</button></div>`;
+          backdrop.querySelector('#account-done').addEventListener('click', close);
+        } else {
+          const j = await r.json().catch(()=>({}));
+          errEl.textContent = j.error || 'Could not send link. Try again.';
+          submit.disabled=false; submit.textContent='Email me a link';
+        }
+      }catch(e){ errEl.textContent='Network error.'; submit.disabled=false; submit.textContent='Email me a link'; }
+    };
+    submit.addEventListener('click', send);
+    backdrop.querySelector('#account-email').addEventListener('keydown', e=>{ if(e.key==='Enter') send(); });
+    setTimeout(()=>backdrop.querySelector('#account-email').focus(), 50);
+  }
+}
+
 function consumeYahooReturnParam(){
   const params = new URLSearchParams(window.location.search);
   const flag = params.get('yahoo');
@@ -4964,6 +5095,7 @@ initThemeToggle();
   const cameFromYahooOAuth=new URLSearchParams(window.location.search).get('yahoo')==='connected';
   consumeYahooReturnParam();
   consumeEspnReturnParam();
+  bootstrapAccount();
   Object.values(PROVIDERS).forEach(p=>{try{p.rehydrate&&p.rehydrate();}catch(e){console.warn(p.id+' rehydrate failed:',e.message);}});
   /* Run Yahoo + ESPN status checks in parallel so bootstrap doesn't pay the
      latency of two sequential round-trips before deciding what to render. */
