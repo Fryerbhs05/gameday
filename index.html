@@ -436,12 +436,15 @@
 
     .btn-yahoo {
       width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-      background: var(--navy-700); color: var(--paper);
+      /* Constant brand-navy + white text in BOTH themes. The --navy-* tokens
+         invert in dark mode (navy-700 → light blue) while --navy-900 doesn't,
+         which made the label vanish on hover; fixed values keep it readable. */
+      background: #1A3A52; color: #fff;
       border: none; border-radius: var(--radius-md); padding: 11px;
       font: 500 14px/1 var(--font-sans); cursor: pointer;
       transition: background var(--duration-fast) var(--ease-out);
     }
-    .btn-yahoo:hover { background: var(--navy-900); }
+    .btn-yahoo:hover { background: #0F2235; color: #fff; }
     .btn-yahoo-icon {
       display: inline-flex; align-items: center; justify-content: center;
       width: 18px; height: 18px; border-radius: var(--radius-sm);
@@ -452,12 +455,12 @@
     /* ESPN connect button — mirrors btn-yahoo so the two providers feel symmetrical */
     .btn-espn {
       width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-      background: var(--navy-700); color: var(--paper);
+      background: #1A3A52; color: #fff;
       border: none; border-radius: var(--radius-md); padding: 11px;
       font: 500 14px/1 var(--font-sans); cursor: pointer;
       transition: background var(--duration-fast) var(--ease-out);
     }
-    .btn-espn:hover { background: var(--navy-900); }
+    .btn-espn:hover { background: #0F2235; color: #fff; }
     .btn-espn-icon {
       display: inline-flex; align-items: center; justify-content: center;
       width: 18px; height: 18px; border-radius: var(--radius-sm);
@@ -4438,7 +4441,17 @@ const PROVIDERS={
       if(window.__wizardActive){ wizardConnectYahoo(); return {success:false,pending:true}; }
       window.location.href='/api/auth/yahoo';
     },
-    async disconnect(){window.location.href='/api/auth/logout';},
+    async disconnect(){
+      /* In the wizard, clear the Yahoo session WITHOUT a full-page redirect —
+         otherwise /api/auth/logout's 302 reboots the app and (if another league
+         is still connected) drops the user on the dashboard, out of the wizard. */
+      if(window.__wizardActive){
+        try{ await fetch('/api/auth/logout',{credentials:'include'}); }catch(e){}
+        connectionState.yahoo={connected:false,identity:null,displayName:null};
+        return;
+      }
+      window.location.href='/api/auth/logout';
+    },
     async loadLeagues(season,week,isHist){
       let leaguesJson;
       try{leaguesJson=await yhFetch('endpoint=leagues&season='+encodeURIComponent(season));}
