@@ -4160,7 +4160,13 @@ function espnPlayerStat(entry,week,sourceId){
 function parseEspnLeague(data,season,week,isHist){
   if(!data||!Array.isArray(data.teams))return null;
   const fmt=espnScoringFmt(data.settings);
-  const leagueName=data.settings?.name||`ESPN League ${data.id}`;
+  /* Real league name comes from settings.name (now requested via mSettings).
+     Fall back to the name discovered from the fan API (keyed by league id),
+     then to an id-based label only as a last resort. This name propagates to
+     every client-facing surface — scoreboard cards, matchup drawer, priority
+     screen — so fixing it here fixes it everywhere. */
+  const discoveredName=(connectionState&&connectionState.espn&&connectionState.espn.league_names)?connectionState.espn.league_names[String(data.id)]:null;
+  const leagueName=data.settings?.name||discoveredName||`ESPN League ${data.id}`;
   const leagueId=data.id;
 
   /* Identify "my" team. ESPN tags each team with owners[] which is an array
