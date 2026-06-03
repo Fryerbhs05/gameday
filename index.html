@@ -2472,6 +2472,13 @@ const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='g
 const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 let liveOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0;
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},activeFilters=new Set(),isAnyProviderLoaded=false;
+/* True when the NFL is between seasons: Sleeper's state returns week:0 /
+   season_type:"off", which forces liveWeek to a synthetic 1. There is no real
+   "current" matchup in that window. ESPN (unlike Sleeper/Yahoo) still serves a
+   carried-over schedule for an un-renewed league, so without this flag
+   parseEspnLeague matches matchupPeriodId===1 and renders a phantom
+   "<thisYear> Week 1" game. Read this binding directly — never window.* . */
+let liveOffseason=false;
 /* Live accessors for the active week/season `let` bindings. These are NOT on
    window (a `let` never attaches to window), so any out-of-scope code — e.g. the
    Watch Priority IIFE — MUST read them through these, never window.activeWeek.
@@ -3786,7 +3793,11 @@ async function loadData(){
   const _expoOpen=!!window.__conflictedExposureOpen;
   if(!_boardVisible && !_expoOpen) showLoading('Pulling your leagues.');
   const state=await getNFLState();
-  liveWeek=(state.week>=1&&state.week<=MAX_WEEK)?state.week:1;liveSeason=state.season;
+  const _hasLiveWeek=(state.week>=1&&state.week<=MAX_WEEK);
+  liveWeek=_hasLiveWeek?state.week:1;liveSeason=state.season;
+  /* No live week (week:0) or NFL is in its off-period → offseason. Used to stop
+     ESPN from rendering a phantom Week 1 from a stale/un-renewed-league schedule. */
+  liveOffseason=!_hasLiveWeek||state.season_type==='off';
   if(!isAnyProviderLoaded){activeWeek=liveWeek;activeSeason=liveSeason;}
   isAnyProviderLoaded=true;
   buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);
@@ -4150,7 +4161,14 @@ function parseEspnLeague(data,season,week,isHist){
   /* Pull this week's matchup from the schedule array. Each schedule entry has
      `home` + `away` blocks, both of which carry the per-week roster snapshot
      in `rosterForCurrentScoringPeriod`. */
-  const matchup=(data.schedule||[]).find(s=>
+  /* Offseason guard: when we're viewing the live (non-historical) week during
+     the NFL off-period, there is no real current matchup. ESPN still returns a
+     carried-over schedule for un-renewed leagues, so trusting matchupPeriodId
+     here would surface a phantom "<season> Week 1". Skip the lookup and let the
+     no-matchup branch below show the roster instead — this also lets
+     offseasonMode (every league !hasMatchup) resolve correctly. Historical
+     views (isHist) are unaffected and still render real past matchups. */
+  const matchup=(liveOffseason&&!isHist)?null:(data.schedule||[]).find(s=>
     s.matchupPeriodId===week&&(s.home?.teamId===myTeam.id||s.away?.teamId===myTeam.id)
   );
 
