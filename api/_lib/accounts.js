@@ -105,8 +105,13 @@ function readAccount(req) {
 // the browser — so row-level security is bypassed intentionally and the
 // schema can keep RLS on to block any anon/public access.
 async function sbFetch(path, opts = {}) {
-  const base = process.env.SUPABASE_URL.replace(/\/$/, '');
-  const key = process.env.SUPABASE_SERVICE_KEY;
+  // Normalize the base URL down to just scheme://host. This tolerates a pasted
+  // value with a trailing slash, stray whitespace/newline, or an accidental
+  // extra path like "/rest/v1" — any of which produce PostgREST's PGRST125
+  // "Invalid path specified in request URL".
+  let base = (process.env.SUPABASE_URL || '').trim();
+  try { base = new URL(base).origin; } catch (e) { base = base.replace(/\/+$/, ''); }
+  const key = (process.env.SUPABASE_SERVICE_KEY || '').trim();
   // Key-format handling — this matters:
   //   • Legacy keys (anon / service_role) ARE JWTs (start with "eyJ"). PostgREST
   //     reads the role from the JWT in the Authorization: Bearer header, so we
