@@ -393,6 +393,8 @@
     .wiz-nav .btn-primary { flex: 0 0 auto; min-width: 120px; }
     .wiz-note { font: 500 12px/1.45 var(--font-sans); color: var(--coral-500, #FF6B5A); min-height: 0; }
     .wiz-link { background: none; border: 0; color: var(--coral-500, #FF6B5A); font: 600 12px/1 var(--font-sans); cursor: pointer; padding: 0; text-decoration: underline; }
+    /* Keep the Sleeper username field from stretching the full card width on desktop. */
+    .wiz-step-body .signin-input-row { max-width: 360px; }
     .provider-card {
       background: var(--paper); border: 1px solid var(--line);
       border-radius: var(--radius-md); padding: 16px 16px;
@@ -4741,7 +4743,7 @@ function renderWizardStep(){
      </div>`;
   const body = document.getElementById('wiz-step-body');
   if(id==='yahoo' && window.__yahooPollActive && !connected){
-    body.innerHTML = `<div class="provider-mobile-note">A new tab opened for Yahoo sign-in. Approve it there, then come back — we'll detect it automatically.<br><button type="button" class="wiz-link" onclick="PROVIDERS.yahoo.checkStatus().then(s=>{if(s&&s.connected){window.__yahooPollActive=false;renderWizardStep();}})">Check now</button> &nbsp;·&nbsp; <button type="button" class="wiz-link" onclick="wizardConnectYahoo()">Open Yahoo again</button></div>`;
+    body.innerHTML = `<button type="button" class="btn-yahoo" onclick="wizardConnectYahoo()"><span class="btn-yahoo-icon">Y!</span><span>Check Yahoo Connection</span></button>`;
   } else {
     p.renderConnectCard(body);
   }
@@ -5196,7 +5198,6 @@ function openEspnConnectModal(){
         <div class="espn-field espn-smartpaste">
           <label for="espn-smart">Quick paste <span class="espn-field-tag">easiest</span></label>
           <textarea id="espn-smart" rows="2" placeholder="Paste the block of cookies you copied here — we'll fill in the fields below automatically." autocomplete="off"></textarea>
-          <div class="espn-field-hint">Paste the cookies you copied (we grab espn_s2 + SWID) and the fields below fill in for you.</div>
           <div class="espn-smart-status" id="espn-smart-status"></div>
         </div>
 
