@@ -99,6 +99,34 @@ module.exports = async (req, res) => {
       `yahoo_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
     ]);
 
+    // Wizard (new-tab) mode: the ".w" marker on the state means this tab was
+    // opened by the connect wizard. Show a small branded confirmation that closes
+    // itself, instead of reloading the whole app here. The wizard tab detects the
+    // connection by polling and advances on its own.
+    if (typeof state === 'string' && state.endsWith('.w')) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      res.status(200).send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yahoo connected</title>
+<style>
+  html,body{height:100%;margin:0}
+  body{display:flex;align-items:center;justify-content:center;background:#0F1B26;color:#F5EFE1;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
+  .box{text-align:center;max-width:340px;padding:28px}
+  .check{width:56px;height:56px;border-radius:50%;background:#2E7D5B;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:30px;color:#fff}
+  h1{font-size:20px;margin:0 0 8px}
+  p{font-size:14px;line-height:1.5;color:#C9C2B2;margin:0 0 18px}
+  button{background:#FF6B5A;color:#1a1208;border:0;border-radius:8px;padding:11px 20px;font-weight:600;font-size:14px;cursor:pointer}
+</style></head><body>
+  <div class="box">
+    <div class="check">&#10003;</div>
+    <h1>Yahoo connected</h1>
+    <p>You're all set. You can close this tab and return to Conflicted &mdash; it picks up automatically.</p>
+    <button onclick="window.close()">Close this tab</button>
+  </div>
+  <script>setTimeout(function(){try{window.close();}catch(e){}},1200);</script>
+</body></html>`);
+      return;
+    }
+
     res.writeHead(302, { Location: '/?yahoo=connected' });
     res.end();
   } catch (e) {

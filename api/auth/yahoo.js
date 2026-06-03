@@ -14,8 +14,13 @@ module.exports = (req, res) => {
     return;
   }
 
-  // Random state to tie the callback back to this request
-  const state = crypto.randomBytes(16).toString('hex');
+  // Random state to tie the callback back to this request. When the connect
+  // wizard opens this in a NEW TAB (?wizard=1), we append a ".w" marker to the
+  // state so the callback knows to show a "close this tab" page instead of
+  // reloading the whole app in that tab. The marker round-trips through Yahoo
+  // and is validated against the cookie exactly like the rest of the state.
+  const wiz = (req.query && (req.query.wizard === '1' || req.query.wizard === 'true')) ? '.w' : '';
+  const state = crypto.randomBytes(16).toString('hex') + wiz;
 
   res.setHeader(
     'Set-Cookie',

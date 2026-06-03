@@ -58,6 +58,10 @@ async function handleDelete(req, res) {
 }
 
 module.exports = async (req, res) => {
+  // Identity is per-cookie and must never be cached — otherwise a browser can
+  // re-render a stale account after the session cookie changes (e.g. clicking a
+  // magic link that switches accounts). Force a fresh read every time.
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   if (req.method === 'GET') return handleMe(req, res);
   if (req.method === 'POST') {
     const action = (req.query && req.query.action) || '';

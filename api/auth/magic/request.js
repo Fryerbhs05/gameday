@@ -28,6 +28,8 @@ async function readJsonBody(req) {
 
 // ── GET: verify the emailed token, sign the user in ──────────────
 async function handleVerify(req, res) {
+  // The verify response sets the account cookie — never let it be cached.
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   if (!A.accountsConfigured()) {
     res.status(503).send('Accounts are not enabled yet.');
     return;
