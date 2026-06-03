@@ -365,6 +365,10 @@
 
     /* Provider cards on the signin */
     .provider-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+    .provider-mobile-note { font-size: 12px; line-height: 1.45; color: var(--ink-500); background: rgba(0,0,0,0.04); border: 1px dashed var(--line, rgba(0,0,0,0.12)); border-radius: 8px; padding: 9px 10px; }
+    #identity-step .signin-field-row { display: flex; gap: 8px; }
+    #identity-step .signin-field-row .signin-input { flex: 1 1 0; min-width: 0; }
+    #identity-step .signin-input { width: 100%; box-sizing: border-box; }
     .provider-card {
       background: var(--paper); border: 1px solid var(--line);
       border-radius: var(--radius-md); padding: 16px 16px;
@@ -2235,11 +2239,25 @@
   <div class="lp-signin" style="padding-top:56px">
     <div class="signin-card">
       <h3>Get started</h3>
-      <p class="signin-card-sub">Connect at least one fantasy platform to load your leagues.</p>
+      <p class="signin-card-sub" id="getstarted-sub">Connect at least one fantasy platform to load your leagues.</p>
 
-      <div id="provider-card-grid" class="provider-card-grid"></div>
+      <!-- Identity step: shown first to new, signed-out users when accounts are enabled.
+           Captures name + email and creates the account before connecting platforms. -->
+      <div id="identity-step" style="display:none">
+        <div class="signin-field-row">
+          <input id="onb-first" class="signin-input" type="text" placeholder="First name" autocomplete="given-name" />
+          <input id="onb-last" class="signin-input" type="text" placeholder="Last name" autocomplete="family-name" />
+        </div>
+        <input id="onb-email" class="signin-input" type="email" placeholder="you@example.com" autocomplete="email" style="margin-top:8px" onkeydown="if(event.key==='Enter')submitIdentity()" />
+        <p class="provider-error" id="onb-error" style="display:none"></p>
+        <button id="onb-submit" class="btn-primary" style="margin-top:10px;width:100%" onclick="submitIdentity()">Save &amp; continue</button>
+      </div>
 
-      <button id="continue-btn" onclick="handleContinue()" disabled>Continue</button>
+      <!-- Connect step: the existing platform picker + Continue. -->
+      <div id="connect-step">
+        <div id="provider-card-grid" class="provider-card-grid"></div>
+        <button id="continue-btn" onclick="handleContinue()" disabled>Continue</button>
+      </div>
 
       <div class="or-row"><div class="or-line"></div><div class="or-txt">or try it first</div><div class="or-line"></div></div>
       <button class="btn-demo-full" onclick="handleDemo()">Try demo mode — 4 leagues, live scoring</button>
@@ -2499,6 +2517,16 @@ const connectionState={
 };
 function getConnectedProviders(){return Object.keys(PROVIDERS).filter(id=>connectionState[id]?.connected);}
 function isAnyProviderConnected(){return getConnectedProviders().length>0;}
+/* Mobile detection for the funnel: ESPN's cookie extraction needs desktop
+   DevTools, so on phones/tablets we don't show the paste modal at all and tell
+   the user to finish ESPN on a computer via the emailed link. Coarse pointer
+   covers most touch devices; UA sniff is the belt-and-suspenders fallback. */
+function isMobileDevice(){
+  try{
+    if(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches)return true;
+  }catch(e){}
+  return /iPhone|iPad|iPod|Android|Mobile/i.test(navigator.userAgent||'');
+}
 function getPrimaryDisplayName(){
   for(const id of Object.keys(PROVIDERS)){
     const s=connectionState[id];
@@ -4507,6 +4535,12 @@ const PROVIDERS={
           leagueLabel=names[lid]?names[lid]:`league ${lid}`;
         }
         rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>ESPN connected${leagueLabel?` <span style="color:var(--ink-500)">· ${leagueLabel}</span>`:''}</span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('espn')">Disconnect</button>`;
+      }else if(isMobileDevice()){
+        /* Skip-required on mobile: ESPN's cookie extraction needs a desktop. Show
+           an advisory instead of the (unusable-on-phone) paste modal. The link we
+           email at the end of onboarding lets them finish ESPN on a computer, and
+           it syncs back here. */
+        rootEl.innerHTML=`<div class="provider-mobile-note">ESPN needs a <strong>one-time setup on a computer</strong>. Finish here, then open the link we email you on a desktop to connect ESPN — it'll sync back to your phone automatically.</div>`;
       }else{
         rootEl.innerHTML=`<button class="btn-espn provider-connect-btn" onclick="handleProviderConnect('espn')"><span class="btn-espn-icon">E</span><span>Connect to ESPN</span></button>`;
       }
@@ -4529,6 +4563,87 @@ function renderSetupProviders(){
   });
   const cont=document.getElementById('continue-btn');
   if(cont)cont.disabled=!isAnyProviderConnected();
+  updateOnboardingGate();
+}
+
+/* ══ ONBOARDING IDENTITY GATE ═══════════════════════════════════════════
+   New, signed-out users see a name+email step BEFORE the platform picker.
+   Submitting it creates the account (server-side), so identity is captured
+   even if they drop off before connecting. The gate is skipped when:
+     • accounts aren't enabled (window.__account.enabled === false) → behave
+       exactly like the pre-accounts app, nothing breaks pre-activation;
+     • the user is already signed in (returning) → straight to connecting;
+     • they've already passed the gate this visit (window.__identityDone).
+   Returning *connected* users never reach the landing card at all (boot flow
+   sends them to the board), so this only ever fronts genuinely new users. */
+function onboardingGateActive(){
+  const acct = window.__account || {};
+  if(acct.enabled === false) return false;     // accounts off → no gate
+  if(acct.signedIn) return false;              // already signed in → connect directly
+  if(window.__identityDone) return false;      // passed it this visit
+  return true;
+}
+function updateOnboardingGate(){
+  const idStep = document.getElementById('identity-step');
+  const connStep = document.getElementById('connect-step');
+  const sub = document.getElementById('getstarted-sub');
+  if(!idStep || !connStep) return;
+  if(onboardingGateActive()){
+    idStep.style.display = '';
+    connStep.style.display = 'none';
+    if(sub) sub.textContent = 'Tell us who you are, then connect your leagues.';
+  }else{
+    idStep.style.display = 'none';
+    connStep.style.display = '';
+    if(sub) sub.textContent = 'Connect at least one fantasy platform to load your leagues.';
+  }
+}
+
+async function submitIdentity(){
+  const firstEl = document.getElementById('onb-first');
+  const lastEl = document.getElementById('onb-last');
+  const emailEl = document.getElementById('onb-email');
+  const errEl = document.getElementById('onb-error');
+  const btn = document.getElementById('onb-submit');
+  const first = (firstEl?.value || '').trim();
+  const last = (lastEl?.value || '').trim();
+  const email = (emailEl?.value || '').trim();
+  const showErr = (m)=>{ if(errEl){ errEl.textContent = m; errEl.style.display = 'block'; } };
+  if(errEl){ errEl.style.display='none'; errEl.textContent=''; }
+  if(!first){ showErr('Please enter your first name.'); firstEl?.focus(); return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ showErr('Enter a valid email address.'); emailEl?.focus(); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  try{
+    const r = await fetch('/api/auth/magic/request?mode=onboard',{
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email, first_name:first, last_name:last })
+    });
+    const j = await r.json().catch(()=>({}));
+    if(r.ok && j.mode === 'session'){
+      // Signed in on this device. Remember email so we can email a cross-device
+      // link once they've connected (handleContinue), and reveal the picker.
+      window.__account = { ...(window.__account||{}), signedIn:true, enabled:true, email: j.email || email };
+      window.__identityDone = true;
+      window.__onboardEmail = j.email || email;
+      window.__onboardedThisVisit = true;
+      updateOnboardingGate();
+      try{ renderSetupProviders(); }catch(e){}
+    }else if(r.ok && j.mode === 'link_sent'){
+      // Existing account with connections — we emailed a link instead of granting
+      // a session, to prevent takeover by typing someone else's email.
+      const card = document.getElementById('identity-step');
+      if(card){
+        card.innerHTML = `<div class="provider-mobile-note" style="border-style:solid">You already have a Conflicted account. We emailed a sign-in link to <strong>${email}</strong> — open it to pick up where you left off. It works once and expires in 15 minutes.</div>`;
+      }
+    }else{
+      showErr(j.error || 'Could not save. Please try again.');
+      if(btn){ btn.disabled=false; btn.textContent='Save & continue'; }
+    }
+  }catch(e){
+    showErr('Network error. Please try again.');
+    if(btn){ btn.disabled=false; btn.textContent='Save & continue'; }
+  }
 }
 
 async function handleProviderConnect(id){
@@ -4560,7 +4675,26 @@ async function handleContinue(){
   if(!isAnyProviderConnected())return;
   isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();
   await run();
+  maybeSendCrossDeviceLink();
   maybeShowSpecialGreeting();
+}
+
+/* After a freshly-onboarded user connects and continues, email them a one-time
+   link so they can open Conflicted on another device (this is the ESPN-on-mobile
+   fix: connect on desktop, finish on phone). Fires at most once per visit, and
+   only when they onboarded with a session this visit. */
+function maybeSendCrossDeviceLink(){
+  if(!window.__onboardedThisVisit || window.__crossDeviceLinkSent) return;
+  const email = window.__onboardEmail;
+  if(!email) return;
+  window.__crossDeviceLinkSent = true;
+  fetch('/api/auth/magic/request',{
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ email })
+  }).then(r=>{
+    if(r.ok) showYahooToast('We emailed you a link to use Conflicted on another device.');
+  }).catch(()=>{ /* non-critical; silent */ });
 }
 
 /* ══ SPECIAL-GREETING EASTER EGG ════════════════════════════════════════
@@ -4660,6 +4794,9 @@ async function bootstrapAccount(){
   try{ const r = await fetch('/api/account/me',{credentials:'include'}); info = await r.json(); }
   catch(e){ /* keep defaults */ }
   window.__account = info;
+  // The landing card may have rendered before this async call resolved; refresh
+  // the onboarding gate now that we know enabled/signedIn for real.
+  try{ updateOnboardingGate(); }catch(e){}
   const btn = document.getElementById('account-settings-btn');
   const sub = document.getElementById('account-settings-sub');
   if(!btn || !sub) return info;
