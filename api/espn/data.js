@@ -11,15 +11,29 @@
 //   /api/espn/data?endpoint=boxscore&season=2025&week=10       — full boxscores w/ per-player points
 //   /api/espn/data?endpoint=history                            — list seasons this league has data for
 //
-// All endpoints scope to the league_id stored in the encrypted session — the
-// user only ever sees their own connected league. Adding multi-league support
-// later means stashing an array in the session, not changing this file's auth.
+// The session stores the user's full set of league ids (session.lids; legacy
+// single session.lid still honoured). Pass ?league_id=<id> to pick which one to
+// read — it must be one of the stored ids. With no league_id we default to the
+// first. endpoint=discover re-runs fan-API discovery and self-heals the set.
 
 const crypto = require('crypto');
 
 // Optional accounts layer — inert unless Supabase env vars are configured.
 let A = null;
 try { A = require('../_lib/accounts'); } catch (e) { A = null; }
+
+// League auto-discovery (fan API). Used by the endpoint=discover action.
+let FAN = null;
+try { FAN = require('../_lib/espn-fan'); } catch (e) { FAN = null; }
+
+const ALGO_ENC = 'aes-256-gcm';
+function encryptBlob(plain, key) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv(ALGO_ENC, key, iv);
+  const enc = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, enc]).toString('base64url');
+}
 
 const ALGO = 'aes-256-gcm';
 
@@ -100,11 +114,62 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const leagueId = session.lid;
     const espnS2 = session.s2;
     const swid = session.sw;
 
+    // Full league set (array). Fall back to the legacy single id for sessions
+    // saved before multi-league. The requested league_id must belong to the set.
+    const lids = Array.isArray(session.lids) && session.lids.length
+      ? session.lids.map(String)
+      : (session.lid ? [String(session.lid)] : []);
+
     const endpoint = (req.query.endpoint || 'league').toString();
+
+    // ── discover: re-run fan-API discovery, refresh the stored set, return it ──
+    // Lets the client repopulate leagues without a re-paste, and self-heals a
+    // session whose discovery failed at save time. Re-seals the cookie (and the
+    // account blob) so the new set sticks.
+    if (endpoint === 'discover') {
+      if (!FAN) { res.status(200).json({ leagues: [], error: 'discovery unavailable' }); return; }
+      const d = await FAN.discoverLeagues(espnS2, swid);
+      const leagues = Array.isArray(d.leagues) ? d.leagues : [];
+      if (leagues.length) {
+        const newLids = [];
+        const lnames = {};
+        leagues.forEach((l) => {
+          const sid = String(l.leagueId);
+          if (/^[0-9]+$/.test(sid) && !newLids.includes(sid)) { newLids.push(sid); lnames[sid] = l.name; }
+        });
+        // Preserve any legacy/manual ids already in the session that the fan API
+        // didn't return (e.g. a league the user added by hand).
+        lids.forEach((id) => { if (!newLids.includes(id)) newLids.push(id); });
+        const refreshed = JSON.stringify({ ...session, lid: newLids[0], lids: newLids, lnames: { ...(session.lnames || {}), ...lnames } });
+        try {
+          const sealedNew = encryptBlob(refreshed, getKey());
+          res.setHeader('Set-Cookie', `espn_session=${sealedNew}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`);
+          if (A && A.accountsConfigured()) {
+            const acct = A.readAccount(req);
+            if (acct) await A.savePlatformSession(acct.uid, 'espn', sealedNew);
+          }
+        } catch (e) { console.error('discover re-seal failed (non-fatal):', e.message); }
+      }
+      res.status(200).json({ leagues, error: d.error || null });
+      return;
+    }
+
+    // Resolve which league this request reads. Default to the first stored id.
+    const requestedLid = req.query.league_id
+      ? String(req.query.league_id).replace(/[^0-9]/g, '')
+      : null;
+    if (requestedLid && !lids.includes(requestedLid)) {
+      res.status(403).json({ error: 'Requested league is not part of your connected ESPN set.' });
+      return;
+    }
+    const leagueId = requestedLid || lids[0];
+    if (!leagueId) {
+      res.status(409).json({ error: 'No ESPN league on file. Re-connect ESPN.' });
+      return;
+    }
     const season = req.query.season
       ? String(req.query.season).replace(/[^0-9]/g, '')
       : new Date().getFullYear().toString();

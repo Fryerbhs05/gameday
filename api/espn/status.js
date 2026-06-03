@@ -85,10 +85,16 @@ module.exports = async (req, res) => {
   }
   try {
     const session = JSON.parse(decrypt(sealed));
+    const league_ids = Array.isArray(session.lids) && session.lids.length
+      ? session.lids.map(String)
+      : (session.lid ? [String(session.lid)] : []);
     res.status(200).json({
       connected: true,
       swid: session.sw,
-      league_id: session.lid,
+      league_id: league_ids[0] || null,   // legacy single-id field
+      league_ids,                          // full set
+      league_names: session.lnames || {},  // id -> display name (best-effort)
+      league_count: league_ids.length,
       viaAccount
     });
   } catch (e) {

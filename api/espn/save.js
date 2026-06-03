@@ -18,6 +18,10 @@ const crypto = require('crypto');
 let A = null;
 try { A = require('../_lib/accounts'); } catch (e) { A = null; }
 
+// League auto-discovery via the fan API. Best-effort; failure is non-fatal.
+let FAN = null;
+try { FAN = require('../_lib/espn-fan'); } catch (e) { FAN = null; }
+
 const ALGO = 'aes-256-gcm';
 
 function getKey() {
@@ -80,10 +84,11 @@ module.exports = async (req, res) => {
       if (m) swid = m[1];
     }
 
-    // Lightweight validation. Don't be paranoid — we're storing what the user
-    // gave us; ESPN itself will reject bad cookies on the first data call.
-    if (!leagueId || !/^[0-9]+$/.test(leagueId)) {
-      res.status(400).json({ error: 'league_id is required and must be numeric' });
+    // league_id is now OPTIONAL — we auto-discover every league tied to the
+    // SWID via the fan API below. A manually-supplied id (Advanced fallback in
+    // the UI, used only if discovery comes back empty) must still be numeric.
+    if (leagueId && !/^[0-9]+$/.test(leagueId)) {
+      res.status(400).json({ error: 'league_id must be numeric' });
       return;
     }
     if (!espnS2 || espnS2.length < 50) {
@@ -98,8 +103,50 @@ module.exports = async (req, res) => {
     if (!swid.startsWith('{')) swid = `{${swid}`;
     if (!swid.endsWith('}')) swid = `${swid}}`;
 
+    // Auto-discover every football league on this SWID (best-effort). The same
+    // espn_s2/SWID read all of the user's leagues, so this is what gives ESPN
+    // the same "connect once, get everything" behaviour as Sleeper/Yahoo.
+    let discovered = [];
+    let discoverError = null;
+    if (FAN) {
+      try {
+        const d = await FAN.discoverLeagues(espnS2, swid);
+        discovered = Array.isArray(d.leagues) ? d.leagues : [];
+        discoverError = d.error || null;
+      } catch (e) {
+        discoverError = e.message || 'discovery threw';
+      }
+    }
+
+    // Merge discovered ids with any manually-supplied id (manual first so it
+    // wins the dedupe / shows first). lnames maps id -> display name for the UI.
+    const lids = [];
+    const lnames = {};
+    const pushLeague = (id, name) => {
+      const sid = String(id);
+      if (!sid || !/^[0-9]+$/.test(sid)) return;
+      if (!lids.includes(sid)) lids.push(sid);
+      if (name && !lnames[sid]) lnames[sid] = String(name);
+    };
+    if (leagueId) pushLeague(leagueId, null);
+    discovered.forEach((l) => pushLeague(l.leagueId, l.name));
+
+    // If discovery failed AND the user gave us nothing manual, we have no league
+    // to read — tell the client so the Advanced manual-id field can be offered.
+    if (!lids.length) {
+      res.status(422).json({
+        error:
+          'Connected, but no leagues were detected automatically. Enter a League ID manually to finish.',
+        discoverError,
+        needsManualLeague: true
+      });
+      return;
+    }
+
     const session = JSON.stringify({
-      lid: leagueId,
+      lid: lids[0],      // legacy single-league field, kept for back-compat
+      lids,              // full set of the user's league ids
+      lnames,            // id -> display name (best-effort, from fan API)
       s2: espnS2,
       sw: swid,
       // No expiry — espn_s2 rotates ~yearly and ESPN will 401 us when it does.
@@ -132,7 +179,14 @@ module.exports = async (req, res) => {
       console.error('espn/save account store failed (non-fatal):', e.message);
     }
 
-    res.status(200).json({ ok: true, league_id: leagueId, savedToAccount });
+    res.status(200).json({
+      ok: true,
+      league_id: lids[0],
+      league_ids: lids,
+      league_count: lids.length,
+      discoverError,
+      savedToAccount
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
