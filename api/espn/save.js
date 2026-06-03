@@ -13,6 +13,11 @@
 
 const crypto = require('crypto');
 
+// Optional accounts layer. require() is cheap and the helpers are inert unless
+// the Supabase env vars are set, so this never affects the cookie-only path.
+let A = null;
+try { A = require('../_lib/accounts'); } catch (e) { A = null; }
+
 const ALGO = 'aes-256-gcm';
 
 function getKey() {
@@ -55,9 +60,25 @@ module.exports = async (req, res) => {
     }
 
     const body = await readJsonBody(req);
-    const leagueId = String(body.league_id || '').trim();
-    const espnS2 = String(body.espn_s2 || '').trim();
+    let leagueId = String(body.league_id || '').trim();
+    let espnS2 = String(body.espn_s2 || '').trim();
     let swid = String(body.swid || body.SWID || '').trim();
+
+    // Server-side safety net mirroring the frontend smart-paste: if any field
+    // arrives as a URL or a raw cookie blob (older client, or a paste that
+    // slipped through validation), extract the real value here too.
+    if (!/^[0-9]+$/.test(leagueId)) {
+      const m = leagueId.match(/leagueId[=:]\s*(\d{2,})/i);
+      if (m) leagueId = m[1];
+    }
+    if (/espn_s2/i.test(espnS2)) {
+      const m = espnS2.match(/espn_s2\s*[=:]\s*["']?([^;\s"']+)/i);
+      if (m) espnS2 = m[1];
+    }
+    if (/SWID/i.test(swid)) {
+      const m = swid.match(/SWID\s*[=:]\s*["']?(\{?[0-9A-Fa-f-]{30,}\}?)/i);
+      if (m) swid = m[1];
+    }
 
     // Lightweight validation. Don't be paranoid — we're storing what the user
     // gave us; ESPN itself will reject bad cookies on the first data call.
@@ -93,7 +114,25 @@ module.exports = async (req, res) => {
       `espn_session=${sealed}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`
     );
 
-    res.status(200).json({ ok: true, league_id: leagueId });
+    // Account layer (additive, best-effort): if the user is signed in to a
+    // Conflicted account, ALSO stash this encrypted blob server-side keyed to
+    // their account. That's what lets the same ESPN connection "just work" on
+    // their phone later, without re-pasting cookies. Wrapped so any failure
+    // (or no accounts configured) never affects the cookie flow above.
+    let savedToAccount = false;
+    try {
+      if (A && A.accountsConfigured()) {
+        const acct = A.readAccount(req);
+        if (acct) {
+          await A.savePlatformSession(acct.uid, 'espn', sealed);
+          savedToAccount = true;
+        }
+      }
+    } catch (e) {
+      console.error('espn/save account store failed (non-fatal):', e.message);
+    }
+
+    res.status(200).json({ ok: true, league_id: leagueId, savedToAccount });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

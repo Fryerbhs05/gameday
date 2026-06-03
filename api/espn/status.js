@@ -7,6 +7,10 @@
 
 const crypto = require('crypto');
 
+// Optional accounts layer — inert unless Supabase env vars are configured.
+let A = null;
+try { A = require('../_lib/accounts'); } catch (e) { A = null; }
+
 const ALGO = 'aes-256-gcm';
 
 function getKey() {
@@ -37,18 +41,38 @@ function parseCookies(req) {
   return out;
 }
 
-module.exports = (req, res) => {
+module.exports = async (req, res) => {
   const cookies = parseCookies(req);
-  if (!cookies.espn_session) {
+
+  // Cookie first (today's path), then the account-stored blob as a fallback so
+  // a signed-in user shows "connected" on a device that never pasted cookies.
+  let sealed = cookies.espn_session || null;
+  let viaAccount = false;
+  if (!sealed) {
+    try {
+      if (A && A.accountsConfigured()) {
+        const acct = A.readAccount(req);
+        if (acct) {
+          sealed = await A.getPlatformSession(acct.uid, 'espn');
+          if (sealed) viaAccount = true;
+        }
+      }
+    } catch (e) {
+      console.error('espn/status account lookup failed (non-fatal):', e.message);
+    }
+  }
+
+  if (!sealed) {
     res.status(200).json({ connected: false });
     return;
   }
   try {
-    const session = JSON.parse(decrypt(cookies.espn_session));
+    const session = JSON.parse(decrypt(sealed));
     res.status(200).json({
       connected: true,
       swid: session.sw,
-      league_id: session.lid
+      league_id: session.lid,
+      viaAccount
     });
   } catch (e) {
     // Bad/old session — treat as disconnected

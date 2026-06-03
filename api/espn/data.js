@@ -17,6 +17,10 @@
 
 const crypto = require('crypto');
 
+// Optional accounts layer — inert unless Supabase env vars are configured.
+let A = null;
+try { A = require('../_lib/accounts'); } catch (e) { A = null; }
+
 const ALGO = 'aes-256-gcm';
 
 function getKey() {
@@ -64,7 +68,24 @@ function buildEspnUrl(leagueId, season, views, week) {
 module.exports = async (req, res) => {
   try {
     const cookies = parseCookies(req);
-    if (!cookies.espn_session) {
+
+    // Prefer the per-browser cookie (today's path). If it's absent — e.g. the
+    // user is on their phone where they never pasted cookies — fall back to the
+    // ESPN blob stored against their signed-in account. This is the payoff of
+    // the accounts layer: connect once on desktop, works everywhere after.
+    let sealed = cookies.espn_session || null;
+    if (!sealed) {
+      try {
+        if (A && A.accountsConfigured()) {
+          const acct = A.readAccount(req);
+          if (acct) sealed = await A.getPlatformSession(acct.uid, 'espn');
+        }
+      } catch (e) {
+        console.error('espn/data account lookup failed (non-fatal):', e.message);
+      }
+    }
+
+    if (!sealed) {
       res.status(401).json({
         error: 'Not authenticated. POST credentials to /api/espn/save first.'
       });
@@ -73,7 +94,7 @@ module.exports = async (req, res) => {
 
     let session;
     try {
-      session = JSON.parse(decrypt(cookies.espn_session));
+      session = JSON.parse(decrypt(sealed));
     } catch (e) {
       res.status(401).json({ error: 'Invalid ESPN session' });
       return;
