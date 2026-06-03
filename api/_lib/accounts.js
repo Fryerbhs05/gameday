@@ -222,7 +222,9 @@ async function deleteUserData(uid, email) {
 
 /* ── Email (Resend REST) ────────────────────────────────────────── */
 async function sendMagicLink(email, token) {
-  const link = `${appUrl()}/api/auth/magic/verify?token=${encodeURIComponent(token)}`;
+  // Verification is handled by the GET branch of /api/auth/magic/request
+  // (consolidated into one function to stay under Vercel Hobby's 12-fn limit).
+  const link = `${appUrl()}/api/auth/magic/request?token=${encodeURIComponent(token)}`;
   const from = process.env.MAGIC_FROM || 'Conflicted <login@conflicted-fantasy.vercel.app>';
   const html = `
     <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a2233">
