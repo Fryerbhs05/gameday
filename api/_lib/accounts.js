@@ -144,6 +144,16 @@ function normEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
+// Look up a user by email WITHOUT creating one. Returns { id, email } or null.
+// Used by the onboarding flow to decide new-vs-returning before deciding whether
+// to hand out a session or send a verification link.
+async function findUser(email) {
+  const e = normEmail(email);
+  if (!e) return null;
+  const rows = await sbFetch(`users?email=eq.${encodeURIComponent(e)}&select=id,email`);
+  return rows && rows[0] ? rows[0] : null;
+}
+
 // Get the user, creating them only if they don't exist yet. Returns { id, email }.
 // We look up first and insert only when missing — rather than an upsert — because
 // PostgREST's merge-duplicates resolves on the PRIMARY KEY by default, not the
@@ -221,9 +231,50 @@ async function deletePlatformSession(uid, platform) {
     { method: 'DELETE', headers: { Prefer: 'return=minimal' } }
   );
 }
+// True if the user has ANY stored platform session. The onboarding flow uses this
+// to decide whether an existing email is "real" (protect it behind a magic link)
+// or an abandoned/empty signup (safe to re-session and continue).
+async function userHasConnections(uid) {
+  if (!uid) return false;
+  const rows = await sbFetch(
+    `platform_sessions?user_id=eq.${uid}&select=platform&limit=1`
+  );
+  return Boolean(rows && rows.length);
+}
+
+/* ── User profiles (marketing / onboarding PII) ─────────────────── */
+// 1:1 with users (PK = user_id). Plaintext, non-credential fields. Cascade-deletes
+// with the user row. first_name/last_name come from onboarding; zip_code/birth_year/
+// marketing_consent are optional and collected later in Settings (Phase 3).
+async function upsertProfile(uid, fields = {}) {
+  if (!uid) return;
+  const allowed = ['first_name', 'last_name', 'zip_code', 'birth_year', 'marketing_consent'];
+  const row = { user_id: uid, updated_at: new Date().toISOString() };
+  for (const k of allowed) {
+    if (fields[k] !== undefined && fields[k] !== null && fields[k] !== '') row[k] = fields[k];
+  }
+  await sbFetch('user_profiles', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify([row])
+  });
+}
+async function getProfile(uid) {
+  if (!uid) return null;
+  const rows = await sbFetch(
+    `user_profiles?user_id=eq.${uid}&select=first_name,last_name,zip_code,birth_year,marketing_consent`
+  );
+  return rows && rows[0] ? rows[0] : null;
+}
 // Full account erasure (GDPR/CCPA "delete my data").
 async function deleteUserData(uid, email) {
   await sbFetch(`platform_sessions?user_id=eq.${uid}`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=minimal' }
+  }).catch(() => {});
+  // user_profiles / league_connections cascade on the users delete below, but we
+  // clear the profile explicitly too in case the FK is ever changed.
+  await sbFetch(`user_profiles?user_id=eq.${uid}`, {
     method: 'DELETE',
     headers: { Prefer: 'return=minimal' }
   }).catch(() => {});
@@ -285,12 +336,16 @@ module.exports = {
   clearAccountCookie,
   readAccount,
   normEmail,
+  findUser,
   upsertUser,
+  upsertProfile,
+  getProfile,
   saveMagicToken,
   consumeMagicToken,
   savePlatformSession,
   getPlatformSession,
   deletePlatformSession,
+  userHasConnections,
   deleteUserData,
   sendMagicLink
 };
