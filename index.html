@@ -2479,6 +2479,10 @@ let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSe
    parseEspnLeague matches matchupPeriodId===1 and renders a phantom
    "<thisYear> Week 1" game. Read this binding directly — never window.* . */
 let liveOffseason=false;
+/* One-shot guard: refresh the ESPN league set from the fan API once per page
+   load (upgrades pre-multi-league connections and picks up newly-joined
+   leagues). Only fires when ESPN is connected. */
+let espnDiscoverAttempted=false;
 /* Live accessors for the active week/season `let` bindings. These are NOT on
    window (a `let` never attaches to window), so any out-of-scope code — e.g. the
    Watch Priority IIFE — MUST read them through these, never window.activeWeek.
@@ -4400,15 +4404,36 @@ const PROVIDERS={
         if(r.ok){
           const j=await r.json();
           if(j.connected){
+            const ids=Array.isArray(j.league_ids)&&j.league_ids.length?j.league_ids.map(String):(j.league_id?[String(j.league_id)]:[]);
             connectionState.espn={
               connected:true, identity:'espn-session', displayName:'ESPN User',
-              swid:(j.swid||'').toLowerCase(), league_id:j.league_id||null
+              swid:(j.swid||'').toLowerCase(),
+              league_id:ids[0]||null, league_ids:ids, league_names:j.league_names||{}
             };
+            /* Once per load, ask the backend to (re)discover all leagues on this
+               SWID. This upgrades a legacy single-league session to the full set
+               and catches leagues joined since connecting. Best-effort. */
+            if(!espnDiscoverAttempted){
+              espnDiscoverAttempted=true;
+              try{
+                const dr=await fetch('/api/espn/data?endpoint=discover',{credentials:'include'});
+                if(dr.ok){
+                  const dj=await dr.json();
+                  if(Array.isArray(dj.leagues)&&dj.leagues.length){
+                    const dids=dj.leagues.map(l=>String(l.leagueId));
+                    const dnames={};dj.leagues.forEach(l=>{dnames[String(l.leagueId)]=l.name;});
+                    connectionState.espn.league_ids=dids;
+                    connectionState.espn.league_id=dids[0]||connectionState.espn.league_id;
+                    connectionState.espn.league_names={...connectionState.espn.league_names,...dnames};
+                  }
+                }
+              }catch(e){console.warn('espn discover refresh failed:',e.message);}
+            }
             return connectionState.espn;
           }
         }
       }catch(e){}
-      connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null};
+      connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null,league_ids:[],league_names:{}};
       return connectionState.espn;
     },
     async connect(){
@@ -4418,41 +4443,63 @@ const PROVIDERS={
     },
     async disconnect(){
       try{await fetch('/api/espn/disconnect',{method:'POST',credentials:'include'});}catch(e){}
-      connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null};
+      connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null,league_ids:[],league_names:{}};
     },
     async loadLeagues(season,week,isHist){
       if(!connectionState.espn.connected)return{results:[],contexts:[],debugLeagues:[]};
-      try{
-        const url=`/api/espn/data?endpoint=boxscore&season=${encodeURIComponent(season)}&week=${encodeURIComponent(week)}`;
-        const r=await fetch(url,{credentials:'include'});
-        if(r?.status===401){
-          /* Backend cleared session — surface re-connect state */
-          connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null};
-          return{results:[],contexts:[],debugLeagues:[]};
-        }
-        if(!r?.ok){console.warn('ESPN data fetch failed:',r?.status);return{results:[],contexts:[],debugLeagues:[]};}
-        const data=await r.json();
-        const parsed=parseEspnLeague(data,season,week,isHist);
-        if(!parsed)return{results:[],contexts:[],debugLeagues:[]};
-        /* Stash the real league name so renderConnectCard can display it */
-        if(parsed.lg.leagueName)connectionState.espn.league_name=parsed.lg.leagueName;
-        renderSetupProviders();
-        return{
-          results:[{...parsed.lg,provider:'espn'}],
-          contexts:[parsed.ctx],
-          debugLeagues:[{...parsed.dbg,provider:'espn'}]
-        };
-      }catch(e){
-        console.warn('ESPN loadLeagues failed:',e.message);
+      /* Multi-league: the same espn_s2/SWID reads every league the user is in,
+         so we loop the discovered set and fetch each one for this season/week —
+         exactly how the Sleeper provider returns all of a user's leagues. */
+      const ids=(connectionState.espn.league_ids&&connectionState.espn.league_ids.length)
+        ? connectionState.espn.league_ids
+        : (connectionState.espn.league_id?[connectionState.espn.league_id]:[]);
+      if(!ids.length)return{results:[],contexts:[],debugLeagues:[]};
+      let authCleared=false;
+      const perLeague=await Promise.all(ids.map(async(lid)=>{
+        try{
+          const url=`/api/espn/data?endpoint=boxscore&season=${encodeURIComponent(season)}&week=${encodeURIComponent(week)}&league_id=${encodeURIComponent(lid)}`;
+          const r=await fetch(url,{credentials:'include'});
+          if(r?.status===401){authCleared=true;return null;}
+          /* 404 = league didn't exist this season (un-renewed / before user joined);
+             403 = stale id no longer in the set. Both: skip quietly. */
+          if(r?.status===404||r?.status===403)return null;
+          if(!r?.ok){console.warn(`ESPN data fetch failed (league ${lid}):`,r?.status);return null;}
+          const data=await r.json();
+          const parsed=parseEspnLeague(data,season,week,isHist);
+          if(!parsed)return null;
+          /* Cache the resolved league name for the connect card */
+          if(parsed.lg.leagueName){connectionState.espn.league_names=connectionState.espn.league_names||{};connectionState.espn.league_names[lid]=parsed.lg.leagueName;}
+          return{
+            result:{...parsed.lg,provider:'espn',espnLeagueId:lid},
+            context:parsed.ctx,
+            debug:{...parsed.dbg,provider:'espn'}
+          };
+        }catch(e){console.warn(`ESPN loadLeagues failed (league ${lid}):`,e.message);return null;}
+      }));
+      if(authCleared){
+        connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null,league_ids:[],league_names:{}};
         return{results:[],contexts:[],debugLeagues:[]};
       }
+      const ok=perLeague.filter(Boolean);
+      renderSetupProviders();
+      return{
+        results:ok.map(x=>x.result),
+        contexts:ok.map(x=>x.context),
+        debugLeagues:ok.map(x=>x.debug)
+      };
     },
     persist(){}, rehydrate(){},
     renderConnectCard(rootEl){
       if(connectionState.espn.connected){
-        const lid=connectionState.espn.league_id;
-        const lname=connectionState.espn.league_name;
-        const leagueLabel=lname?lname:(lid?`league ${lid}`:'');
+        const ids=connectionState.espn.league_ids||[];
+        const names=connectionState.espn.league_names||{};
+        let leagueLabel='';
+        if(ids.length>1){
+          leagueLabel=`${ids.length} leagues`;
+        }else if(ids.length===1){
+          const lid=ids[0];
+          leagueLabel=names[lid]?names[lid]:`league ${lid}`;
+        }
         rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>ESPN connected${leagueLabel?` <span style="color:var(--ink-500)">· ${leagueLabel}</span>`:''}</span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('espn')">Disconnect</button>`;
       }else{
         rootEl.innerHTML=`<button class="btn-espn provider-connect-btn" onclick="handleProviderConnect('espn')"><span class="btn-espn-icon">E</span><span>Connect to ESPN</span></button>`;
@@ -4789,36 +4836,27 @@ function openEspnConnectModal(){
     backdrop.innerHTML=`
       <div class="espn-modal" role="dialog" aria-modal="true" aria-labelledby="espn-modal-title">
         <h2 id="espn-modal-title">Connect ESPN</h2>
-        <p class="espn-modal-sub">ESPN doesn't offer a public sign-in flow, so connecting takes a few extra steps. We never see your ESPN password — just two session cookies you copy from your own browser.</p>
+        <p class="espn-modal-sub">ESPN doesn't offer a public sign-in flow, so we use two session cookies you copy from your own browser. We never see your ESPN password — and we'll automatically pull in <strong>every</strong> league on your account.</p>
 
-        <button type="button" class="espn-help-toggle" id="espn-help-toggle">How do I find these? &#9662;</button>
+        <button type="button" class="espn-help-toggle" id="espn-help-toggle">How do I find these cookies? &#9662;</button>
         <div class="espn-help-body" id="espn-help-body" style="display:none">
-          <strong>1. League ID</strong>
+          <strong>espn_s2 and SWID cookies</strong>
           <ol>
-            <li>Go to <code>fantasy.espn.com</code> and open your league</li>
-            <li>Look at the URL — the number after <code>leagueId=</code> is your League ID</li>
-          </ol>
-          <strong>2. espn_s2 and SWID cookies</strong>
-          <ol>
-            <li>Stay on your league page, right-click anywhere &rarr; <em>Inspect</em></li>
+            <li>Open <code>fantasy.espn.com</code> and sign in, then right-click anywhere &rarr; <em>Inspect</em></li>
             <li>In DevTools, click the <strong>Application</strong> tab (or <strong>Storage</strong> in Safari)</li>
             <li>In the left sidebar: <strong>Cookies</strong> &rarr; <code>https://fantasy.espn.com</code></li>
             <li>Find rows named <code>espn_s2</code> (long string) and <code>SWID</code> (in <code>{braces}</code>) — copy each value</li>
           </ol>
+          <p class="espn-field-hint" style="margin-top:6px">No need to find a League ID — we detect your leagues from the cookies.</p>
         </div>
 
         <div class="espn-field espn-smartpaste">
           <label for="espn-smart">Quick paste <span class="espn-field-tag">easiest</span></label>
-          <textarea id="espn-smart" rows="2" placeholder="Paste your league URL and/or your copied cookies here — we'll fill in the fields below automatically." autocomplete="off"></textarea>
-          <div class="espn-field-hint">Paste your ESPN league link (we grab the League ID) and/or the block of cookies you copied (we grab espn_s2 + SWID). The fields below fill in for you.</div>
+          <textarea id="espn-smart" rows="2" placeholder="Paste the block of cookies you copied here — we'll fill in the fields below automatically." autocomplete="off"></textarea>
+          <div class="espn-field-hint">Paste the cookies you copied (we grab espn_s2 + SWID) and the fields below fill in for you.</div>
           <div class="espn-smart-status" id="espn-smart-status"></div>
         </div>
 
-        <div class="espn-field">
-          <label for="espn-league-id">League ID</label>
-          <input type="text" id="espn-league-id" inputmode="numeric" placeholder="e.g. 224435" autocomplete="off" />
-          <div class="espn-field-hint">The number from the URL — usually 6&ndash;10 digits. You can paste the whole league URL here too.</div>
-        </div>
         <div class="espn-field">
           <label for="espn-s2">espn_s2 cookie</label>
           <textarea id="espn-s2" rows="3" placeholder="AECt8QAtN7m%2FK..." autocomplete="off"></textarea>
@@ -4828,6 +4866,13 @@ function openEspnConnectModal(){
           <label for="espn-swid">SWID cookie</label>
           <input type="text" id="espn-swid" placeholder="{F4529D57-2118-...}" autocomplete="off" />
           <div class="espn-field-hint">Including the curly braces.</div>
+        </div>
+
+        <button type="button" class="espn-help-toggle" id="espn-adv-toggle" style="display:none">Add a League ID manually &#9662;</button>
+        <div class="espn-field" id="espn-adv-field" style="display:none">
+          <label for="espn-league-id">League ID <span class="espn-field-tag">optional</span></label>
+          <input type="text" id="espn-league-id" inputmode="numeric" placeholder="e.g. 224435" autocomplete="off" />
+          <div class="espn-field-hint">Only needed if we couldn't auto-detect your leagues. The number after <code>leagueId=</code> in your league URL — you can paste the whole URL here too.</div>
         </div>
 
         <div class="espn-modal-error" id="espn-modal-error"></div>
@@ -4860,17 +4905,24 @@ function openEspnConnectModal(){
       body.style.display=isOpen?'none':'block';
     });
 
-    /* Smart paste: parse a URL / cookie blob and fill whatever we can find.
-       Fires on input so it works for paste, typing, and drag-drop alike. */
+    /* Reveal the optional manual-League-ID field (Advanced fallback). */
+    const showAdvanced=()=>{
+      document.getElementById('espn-adv-field').style.display='block';
+      document.getElementById('espn-adv-toggle').style.display='none';
+    };
+    document.getElementById('espn-adv-toggle').addEventListener('click',showAdvanced);
+
+    /* Smart paste: parse a cookie blob (and a stray League ID) and fill what we
+       find. Fires on input so it works for paste, typing, and drag-drop alike. */
     const applySmart=(raw)=>{
       const got=parseEspnPaste(raw);
       const filled=[];
-      if(got.leagueId){document.getElementById('espn-league-id').value=got.leagueId;filled.push('League ID');}
+      if(got.leagueId){document.getElementById('espn-league-id').value=got.leagueId;showAdvanced();filled.push('League ID');}
       if(got.espnS2){document.getElementById('espn-s2').value=got.espnS2;filled.push('espn_s2');}
       if(got.swid){document.getElementById('espn-swid').value=got.swid;filled.push('SWID');}
       const status=document.getElementById('espn-smart-status');
       if(filled.length){status.textContent='✓ Filled in: '+filled.join(', ');status.className='espn-smart-status ok';}
-      else if(raw.trim()){status.textContent="Couldn't spot a League ID or cookies in that — you can type them in below.";status.className='espn-smart-status warn';}
+      else if(raw.trim()){status.textContent="Couldn't spot your cookies in that — paste the espn_s2 and SWID values into the fields below.";status.className='espn-smart-status warn';}
       else{status.textContent='';status.className='espn-smart-status';}
     };
     document.getElementById('espn-smart').addEventListener('input',(e)=>applySmart(e.target.value));
@@ -4894,31 +4946,43 @@ function openEspnConnectModal(){
 
       /* Last-chance extraction: if anything still looks like a URL or a cookie
          blob slipped through, pull the real value out before validating. */
-      if(!/^[0-9]+$/.test(leagueId)){const g=parseEspnPaste(leagueId);if(g.leagueId)leagueId=g.leagueId;}
+      if(leagueId&&!/^[0-9]+$/.test(leagueId)){const g=parseEspnPaste(leagueId);if(g.leagueId)leagueId=g.leagueId;}
       if(/espn_s2/i.test(espnS2)){const g=parseEspnPaste(espnS2);if(g.espnS2)espnS2=g.espnS2;}
       if(/SWID/i.test(swid)){const g=parseEspnPaste(swid);if(g.swid)swid=g.swid;}
 
-      if(!/^[0-9]+$/.test(leagueId)){errEl.textContent='League ID must be all digits.';return;}
+      /* League ID is optional now — we auto-detect leagues from the cookies.
+         Only validate it if the user supplied one via the Advanced field. */
+      if(leagueId&&!/^[0-9]+$/.test(leagueId)){errEl.textContent='League ID must be all digits.';return;}
       if(espnS2.length<50){errEl.textContent='espn_s2 looks too short — should be 100+ characters.';return;}
       if(!swid){errEl.textContent='SWID is required.';return;}
 
       submitBtn.disabled=true; submitBtn.textContent='Connecting…';
       try{
+        const body={espn_s2:espnS2,swid};
+        if(leagueId)body.league_id=leagueId;
         const r=await fetch('/api/espn/save',{
           method:'POST', credentials:'include',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({league_id:leagueId,espn_s2:espnS2,swid})
+          body:JSON.stringify(body)
         });
         if(!r.ok){
           const j=await r.json().catch(()=>({}));
-          errEl.textContent=j.error||`Failed (HTTP ${r.status}).`;
+          /* 422 = cookies valid but no leagues auto-detected. Reveal the manual
+             League ID field so the user can finish. */
+          if(r.status===422||j.needsManualLeague){
+            showAdvanced();
+            errEl.textContent=j.error||'We couldn’t detect your leagues automatically. Add a League ID below to finish.';
+          }else{
+            errEl.textContent=j.error||`Failed (HTTP ${r.status}).`;
+          }
           submitBtn.disabled=false; submitBtn.textContent='Connect';
           return;
         }
-        /* Save succeeded — pull SWID + league_id back out via status so the
-           parser knows which team is "mine" without needing a re-paste. */
+        /* Save succeeded — pull SWID + the detected league set back out via
+           status so the parser knows which team is "mine" without a re-paste. */
         await PROVIDERS.espn.checkStatus();
-        showYahooToast('ESPN connected');
+        const n=(connectionState.espn.league_ids||[]).length;
+        showYahooToast(n>1?`ESPN connected · ${n} leagues`:'ESPN connected');
         cleanup({success:true});
       }catch(e){
         errEl.textContent=e.message||'Network error.';
@@ -4926,8 +4990,8 @@ function openEspnConnectModal(){
       }
     });
 
-    /* Autofocus the first empty field for fast paste */
-    setTimeout(()=>{document.getElementById('espn-league-id').focus();},50);
+    /* Autofocus the quick-paste box for fast cookie paste */
+    setTimeout(()=>{document.getElementById('espn-smart').focus();},50);
   });
 }
 
