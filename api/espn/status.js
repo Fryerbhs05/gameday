@@ -47,18 +47,35 @@ module.exports = async (req, res) => {
   // Cookie first (today's path), then the account-stored blob as a fallback so
   // a signed-in user shows "connected" on a device that never pasted cookies.
   let sealed = cookies.espn_session || null;
+  const fromCookie = !!sealed;
   let viaAccount = false;
-  if (!sealed) {
+
+  // Resolve the signed-in account once (if any) — used for both fallback and
+  // auto-migration below.
+  let acct = null;
+  if (A && A.accountsConfigured()) {
+    try { acct = A.readAccount(req); } catch (e) { acct = null; }
+  }
+
+  if (!sealed && acct) {
     try {
-      if (A && A.accountsConfigured()) {
-        const acct = A.readAccount(req);
-        if (acct) {
-          sealed = await A.getPlatformSession(acct.uid, 'espn');
-          if (sealed) viaAccount = true;
-        }
-      }
+      sealed = await A.getPlatformSession(acct.uid, 'espn');
+      if (sealed) viaAccount = true;
     } catch (e) {
       console.error('espn/status account lookup failed (non-fatal):', e.message);
+    }
+  }
+
+  // Auto-migrate: a signed-in user whose ESPN is connected in THIS browser
+  // (cookie) gets that session mirrored into their account, so it follows them
+  // to other devices with no cookie re-paste. Idempotent upsert, best-effort —
+  // this is what makes a pre-existing desktop connection "just appear" on mobile
+  // the moment the user signs in on desktop and loads the app.
+  if (fromCookie && acct) {
+    try {
+      await A.savePlatformSession(acct.uid, 'espn', sealed);
+    } catch (e) {
+      console.error('espn/status account auto-migrate failed (non-fatal):', e.message);
     }
   }
 
