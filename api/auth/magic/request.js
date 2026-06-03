@@ -69,7 +69,9 @@ async function handleRequest(req, res) {
     res.status(200).json({ ok: true, sent: true });
   } catch (e) {
     console.error('magic request error:', e.message);
-    res.status(500).json({ error: 'Could not send sign-in link. Please try again.' });
+    // TEMP DEBUG (remove after sign-in confirmed working): surface the real
+    // underlying error to the client so failures are visible without log access.
+    res.status(500).json({ error: 'Could not send sign-in link. [debug: ' + e.message + ']' });
   }
 }
 
