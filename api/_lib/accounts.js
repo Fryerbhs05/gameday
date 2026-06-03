@@ -144,18 +144,22 @@ function normEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
-// Create the user if missing, return the row { id, email }.
+// Get the user, creating them only if they don't exist yet. Returns { id, email }.
+// We look up first and insert only when missing — rather than an upsert — because
+// PostgREST's merge-duplicates resolves on the PRIMARY KEY by default, not the
+// `email` unique constraint, so a repeat sign-in (existing email, no id) would
+// hit a duplicate-key error. Select-then-insert sidesteps that entirely.
 async function upsertUser(email) {
   const e = normEmail(email);
+  const existing = await sbFetch(`users?email=eq.${encodeURIComponent(e)}&select=id,email`);
+  if (existing && existing[0]) return existing[0];
   const rows = await sbFetch('users', {
     method: 'POST',
-    headers: {
-      Prefer: 'resolution=merge-duplicates,return=representation'
-    },
+    headers: { Prefer: 'return=representation' },
     body: JSON.stringify([{ email: e }])
   });
   if (rows && rows[0]) return rows[0];
-  // merge-duplicates with return=minimal can yield null — fetch it back.
+  // Rare insert/insert race: the row now exists — read it back.
   const found = await sbFetch(`users?email=eq.${encodeURIComponent(e)}&select=id,email`);
   return found && found[0];
 }
