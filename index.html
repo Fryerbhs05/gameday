@@ -479,6 +479,21 @@
     .espn-field-hint {
       font: 400 11px/1.4 var(--font-sans); color: var(--ink-500); margin-top: 4px;
     }
+    .espn-smartpaste {
+      background: var(--paper-deep); border: 1px dashed var(--line);
+      border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 18px;
+    }
+    .espn-field-tag {
+      display: inline-block; vertical-align: middle; margin-left: 6px;
+      background: var(--navy-500); color: var(--paper);
+      font: 600 9px/1 var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase;
+      padding: 3px 6px; border-radius: 10px;
+    }
+    .espn-smart-status {
+      font: 500 11px/1.4 var(--font-sans); margin-top: 6px; min-height: 14px;
+    }
+    .espn-smart-status.ok { color: var(--ally, #2e7d57); }
+    .espn-smart-status.warn { color: var(--ink-500); }
     .espn-help-toggle {
       background: none; border: none; color: var(--navy-500);
       font: 500 13px/1 var(--font-sans); cursor: pointer; padding: 0;
@@ -4568,6 +4583,32 @@ function consumeEspnReturnParam(){
    {success:true} after a successful POST to /api/espn/save, or {success:false}
    on cancel/error. The modal is built inline (no React, matches the rest of
    the single-file app) and removed from the DOM on close. */
+/* Pull ESPN identifiers out of whatever the user pastes — a league URL, a
+   blob of copied cookies, or both at once. Everything is best-effort: we only
+   return the pieces we can confidently find, and never overwrite a field the
+   user already typed unless we found a better value. */
+function parseEspnPaste(text){
+  const out={leagueId:null,espnS2:null,swid:null};
+  if(!text)return out;
+  const s=String(text);
+  /* League ID — from ?leagueId=12345 in a URL, or a leading bare number. */
+  let m=s.match(/leagueId[=:]\s*(\d{2,})/i);
+  if(m)out.leagueId=m[1];
+  /* espn_s2 — "espn_s2=VALUE" up to the next ; whitespace or quote. ESPN's
+     value is long and %-encoded; we keep it exactly as pasted. */
+  m=s.match(/espn_s2\s*[=:]\s*["']?([^;\s"']+)/i);
+  if(m)out.espnS2=m[1];
+  /* SWID — canonical form is {GUID}. Accept with or without braces. */
+  m=s.match(/SWID\s*[=:]\s*["']?(\{?[0-9A-Fa-f-]{30,}\}?)/i);
+  if(m){
+    let v=m[1];
+    if(!v.startsWith('{'))v='{'+v;
+    if(!v.endsWith('}'))v=v+'}';
+    out.swid=v;
+  }
+  return out;
+}
+
 function openEspnConnectModal(){
   return new Promise((resolve)=>{
     /* Tear down any pre-existing modal so reopening doesn't stack DOM nodes */
@@ -4598,10 +4639,17 @@ function openEspnConnectModal(){
           </ol>
         </div>
 
+        <div class="espn-field espn-smartpaste">
+          <label for="espn-smart">Quick paste <span class="espn-field-tag">easiest</span></label>
+          <textarea id="espn-smart" rows="2" placeholder="Paste your league URL and/or your copied cookies here — we'll fill in the fields below automatically." autocomplete="off"></textarea>
+          <div class="espn-field-hint">Paste your ESPN league link (we grab the League ID) and/or the block of cookies you copied (we grab espn_s2 + SWID). The fields below fill in for you.</div>
+          <div class="espn-smart-status" id="espn-smart-status"></div>
+        </div>
+
         <div class="espn-field">
           <label for="espn-league-id">League ID</label>
           <input type="text" id="espn-league-id" inputmode="numeric" placeholder="e.g. 224435" autocomplete="off" />
-          <div class="espn-field-hint">The number from the URL — usually 6&ndash;10 digits.</div>
+          <div class="espn-field-hint">The number from the URL — usually 6&ndash;10 digits. You can paste the whole league URL here too.</div>
         </div>
         <div class="espn-field">
           <label for="espn-s2">espn_s2 cookie</label>
@@ -4644,14 +4692,43 @@ function openEspnConnectModal(){
       body.style.display=isOpen?'none':'block';
     });
 
+    /* Smart paste: parse a URL / cookie blob and fill whatever we can find.
+       Fires on input so it works for paste, typing, and drag-drop alike. */
+    const applySmart=(raw)=>{
+      const got=parseEspnPaste(raw);
+      const filled=[];
+      if(got.leagueId){document.getElementById('espn-league-id').value=got.leagueId;filled.push('League ID');}
+      if(got.espnS2){document.getElementById('espn-s2').value=got.espnS2;filled.push('espn_s2');}
+      if(got.swid){document.getElementById('espn-swid').value=got.swid;filled.push('SWID');}
+      const status=document.getElementById('espn-smart-status');
+      if(filled.length){status.textContent='✓ Filled in: '+filled.join(', ');status.className='espn-smart-status ok';}
+      else if(raw.trim()){status.textContent="Couldn't spot a League ID or cookies in that — you can type them in below.";status.className='espn-smart-status warn';}
+      else{status.textContent='';status.className='espn-smart-status';}
+    };
+    document.getElementById('espn-smart').addEventListener('input',(e)=>applySmart(e.target.value));
+    /* If someone pastes a full URL straight into the League ID box, grab the id. */
+    document.getElementById('espn-league-id').addEventListener('input',(e)=>{
+      const v=e.target.value;
+      if(/leagueId[=:]/i.test(v)){
+        const got=parseEspnPaste(v);
+        if(got.leagueId)e.target.value=got.leagueId;
+      }
+    });
+
     document.getElementById('espn-submit').addEventListener('click',async()=>{
       const submitBtn=document.getElementById('espn-submit');
       const errEl=document.getElementById('espn-modal-error');
       errEl.textContent='';
 
-      const leagueId=(document.getElementById('espn-league-id').value||'').trim();
-      const espnS2=(document.getElementById('espn-s2').value||'').trim();
-      const swid=(document.getElementById('espn-swid').value||'').trim();
+      let leagueId=(document.getElementById('espn-league-id').value||'').trim();
+      let espnS2=(document.getElementById('espn-s2').value||'').trim();
+      let swid=(document.getElementById('espn-swid').value||'').trim();
+
+      /* Last-chance extraction: if anything still looks like a URL or a cookie
+         blob slipped through, pull the real value out before validating. */
+      if(!/^[0-9]+$/.test(leagueId)){const g=parseEspnPaste(leagueId);if(g.leagueId)leagueId=g.leagueId;}
+      if(/espn_s2/i.test(espnS2)){const g=parseEspnPaste(espnS2);if(g.espnS2)espnS2=g.espnS2;}
+      if(/SWID/i.test(swid)){const g=parseEspnPaste(swid);if(g.swid)swid=g.swid;}
 
       if(!/^[0-9]+$/.test(leagueId)){errEl.textContent='League ID must be all digits.';return;}
       if(espnS2.length<50){errEl.textContent='espn_s2 looks too short — should be 100+ characters.';return;}
