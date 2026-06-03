@@ -4709,7 +4709,12 @@ function renderWizardStep(){
   const p = PROVIDERS[id];
   const connected = !!(connectionState[id] && connectionState[id].connected);
   const last = (i+1 >= q.length);
-  const primaryLabel = last ? 'Finish' : (connected ? 'Next' : 'Skip for now');
+  // Once connected, the forward action is the emphasized (primary) one. When NOT
+  // connected, the forward action is just a skip — keep it quiet (ghost), so it
+  // never competes with the actual Connect button for attention.
+  const nextBtn = connected
+    ? `<button class="btn-primary" id="wiz-next">${last?'Finish':'Next'}</button>`
+    : `<button class="btn-ghost wiz-skip" id="wiz-next">${last?'Skip &amp; finish':'Skip'}</button>`;
   root.innerHTML =
     `<div class="wiz-progress">Step ${i+1} of ${q.length}</div>
      <div class="wiz-step">
@@ -4717,13 +4722,13 @@ function renderWizardStep(){
        <div class="wiz-step-body" id="wiz-step-body"></div>
        <div class="wiz-nav">
          <button class="btn-ghost" id="wiz-back"${i===0?' disabled':''}>Back</button>
-         <button class="btn-primary" id="wiz-next">${primaryLabel}</button>
+         ${nextBtn}
        </div>
        <div class="wiz-note" id="wiz-note"></div>
      </div>`;
   const body = document.getElementById('wiz-step-body');
   if(id==='yahoo' && window.__yahooPollActive && !connected){
-    body.innerHTML = `<div class="provider-mobile-note">A new tab opened for Yahoo sign-in. Approve it there, then come back — we'll detect it automatically. <button type="button" class="wiz-link" onclick="PROVIDERS.yahoo.checkStatus().then(s=>{if(s&&s.connected){window.__yahooPollActive=false;renderWizardStep();}})">Check now</button></div>`;
+    body.innerHTML = `<div class="provider-mobile-note">A new tab opened for Yahoo sign-in. Approve it there, then come back — we'll detect it automatically.<br><button type="button" class="wiz-link" onclick="PROVIDERS.yahoo.checkStatus().then(s=>{if(s&&s.connected){window.__yahooPollActive=false;renderWizardStep();}})">Check now</button> &nbsp;·&nbsp; <button type="button" class="wiz-link" onclick="wizardConnectYahoo()">Open Yahoo again</button></div>`;
   } else {
     p.renderConnectCard(body);
   }
