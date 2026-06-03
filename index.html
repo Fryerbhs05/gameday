@@ -369,6 +369,30 @@
     #identity-step .signin-field-row { display: flex; gap: 8px; }
     #identity-step .signin-field-row .signin-input { flex: 1 1 0; min-width: 0; }
     #identity-step .signin-input { width: 100%; box-sizing: border-box; }
+    /* ── Connect wizard ── */
+    .wiz-select-label { font: 600 13px/1.4 var(--font-sans); color: var(--ink-700); margin: 0 0 10px; }
+    .wiz-pick-grid { display: flex; flex-direction: column; gap: 8px; }
+    .wiz-pick {
+      display: flex; align-items: center; gap: 10px; width: 100%;
+      background: var(--paper); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer;
+      text-align: left; transition: border-color var(--duration-base) var(--ease-out), background var(--duration-base) var(--ease-out);
+    }
+    .wiz-pick:hover { border-color: var(--ink-500); }
+    .wiz-pick.selected { border-color: var(--cheer); background: var(--cheer-soft); }
+    .wiz-pick-name { flex: 1; font: 700 14px/1 var(--font-sans); color: var(--ink-900); display: flex; align-items: center; gap: 8px; }
+    .wiz-pick-tag { font: 600 10px/1 var(--font-sans); color: var(--ink-500); border: 1px solid var(--line); border-radius: 999px; padding: 3px 7px; letter-spacing: .02em; }
+    .wiz-pick-check { color: var(--cheer); font-weight: 700; font-size: 15px; width: 16px; text-align: center; }
+    .wiz-progress { font: 600 11px/1 var(--font-sans); color: var(--ink-500); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 10px; }
+    .wiz-step { display: flex; flex-direction: column; gap: 12px; }
+    .wiz-step-head { display: flex; align-items: center; gap: 10px; }
+    .wiz-step-title { font: 700 14px/1.2 var(--font-sans); color: var(--ink-900); }
+    .wiz-ok { color: var(--cheer); font-weight: 700; font-size: 12px; }
+    .wiz-step-body { display: flex; flex-direction: column; gap: 10px; }
+    .wiz-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
+    .wiz-nav .btn-primary { flex: 0 0 auto; min-width: 120px; }
+    .wiz-note { font: 500 12px/1.45 var(--font-sans); color: var(--coral-500, #FF6B5A); min-height: 0; }
+    .wiz-link { background: none; border: 0; color: var(--coral-500, #FF6B5A); font: 600 12px/1 var(--font-sans); cursor: pointer; padding: 0; text-decoration: underline; }
     .provider-card {
       background: var(--paper); border: 1px solid var(--line);
       border-radius: var(--radius-md); padding: 16px 16px;
@@ -2253,10 +2277,14 @@
         <button id="onb-submit" class="btn-primary" style="margin-top:10px;width:100%" onclick="submitIdentity()">Save &amp; continue</button>
       </div>
 
-      <!-- Connect step: the existing platform picker + Continue. -->
+      <!-- Connect step: 1×1 wizard renders here. The legacy grid below is a
+           hidden fallback used only if the wizard fails to initialize. -->
       <div id="connect-step">
-        <div id="provider-card-grid" class="provider-card-grid"></div>
-        <button id="continue-btn" onclick="handleContinue()" disabled>Continue</button>
+        <div id="wizard-root"></div>
+        <div id="legacy-connect" style="display:none">
+          <div id="provider-card-grid" class="provider-card-grid"></div>
+          <button id="continue-btn" onclick="handleContinue()" disabled>Continue</button>
+        </div>
       </div>
 
       <div class="or-row"><div class="or-line"></div><div class="or-txt">or try it first</div><div class="or-line"></div></div>
@@ -2843,7 +2871,7 @@ function showSettings(){
   try{initThemeToggle();}catch(e){}
 }
 window.showSettings = showSettings;
-function showSetup(){hideAll();isDemoMode=false;document.getElementById('setup-panel').style.display='flex';try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}}
+function showSetup(){hideAll();isDemoMode=false;document.getElementById('setup-panel').style.display='flex';try{window.__wizardActive=false;if(typeof stopYahooPoll==='function')stopYahooPoll();}catch(e){}try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}}
 function showLoading(msg){hideAll();document.getElementById('loading-panel').style.display='flex';document.getElementById('loading-msg').textContent=msg||'Pulling your leagues.';}
 function setLoading(msg){document.getElementById('loading-msg').textContent=msg;}
 function showError(msg){hideAll();document.getElementById('error-panel').style.display='flex';document.getElementById('error-msg').textContent=msg;}
@@ -4403,7 +4431,13 @@ const PROVIDERS={
       connectionState.yahoo={connected:false,identity:null,displayName:null};
       return connectionState.yahoo;
     },
-    async connect(){window.location.href='/api/auth/yahoo';},
+    async connect(){
+      /* In the connect wizard we open Yahoo OAuth in a NEW TAB so the wizard
+         survives the redirect, then poll for completion. Outside the wizard,
+         keep the original full-page redirect. */
+      if(window.__wizardActive){ wizardConnectYahoo(); return {success:false,pending:true}; }
+      window.location.href='/api/auth/yahoo';
+    },
     async disconnect(){window.location.href='/api/auth/logout';},
     async loadLeagues(season,week,isHist){
       let leaguesJson;
@@ -4595,8 +4629,149 @@ function updateOnboardingGate(){
   }else{
     idStep.style.display = 'none';
     connStep.style.display = '';
-    if(sub) sub.textContent = 'Connect at least one fantasy platform to load your leagues.';
+    if(sub) sub.textContent = 'Pick your platforms, then connect them one at a time.';
+    ensureWizard();
   }
+}
+
+/* ══ CONNECT WIZARD ═════════════════════════════════════════════════════
+   Replaces the all-at-once platform grid with a guided flow:
+     1) pick which platforms to connect (multi-select),
+     2) connect each selected one in sequence (Back / Skip / Next),
+     3) finish → dashboard.
+   Reuses each provider's renderConnectCard() for the actual connect UI, so the
+   Sleeper/ESPN/Yahoo connectors are untouched. Yahoo opens in a new tab and we
+   poll for completion. Falls back to the legacy grid if anything throws. */
+function ensureWizard(){
+  const panel = document.getElementById('setup-panel');
+  if(!panel || panel.style.display === 'none') return; // only when setup is visible
+  if(window.__wizardActive) return;                    // already running; don't reset
+  try{ startWizard(); }
+  catch(e){ console.warn('wizard init failed, using legacy grid:', e.message); showLegacyConnect(); }
+}
+function showLegacyConnect(){
+  window.__wizardActive = false;
+  const root = document.getElementById('wizard-root');
+  const legacy = document.getElementById('legacy-connect');
+  if(root) root.style.display = 'none';
+  if(legacy) legacy.style.display = '';
+  try{ renderSetupProviders(); }catch(e){}
+}
+function startWizard(){
+  window.__wizardActive = true;
+  window.__wizQueue = null;
+  window.__wizIdx = 0;
+  window.__wizSelected = new Set();
+  // Pre-select anything already connected (e.g. returning mid-flow).
+  Object.keys(PROVIDERS).forEach(id=>{ if(connectionState[id] && connectionState[id].connected) window.__wizSelected.add(id); });
+  const root = document.getElementById('wizard-root');
+  if(root) root.style.display = '';
+  renderWizardSelection();
+}
+function renderWizardSelection(){
+  const root = document.getElementById('wizard-root'); if(!root) return;
+  const mobile = isMobileDevice();
+  const cards = Object.values(PROVIDERS).map(p=>{
+    const sel = window.__wizSelected.has(p.id);
+    const tag = (p.id==='espn' && mobile) ? '<span class="wiz-pick-tag">desktop setup</span>' : '';
+    return `<button type="button" class="wiz-pick${sel?' selected':''}" onclick="toggleWizardPick('${p.id}')">
+      <span class="provider-icon" style="background:${p.accentColor}">${p.displayName.charAt(0)}</span>
+      <span class="wiz-pick-name">${p.displayName}${tag}</span>
+      <span class="wiz-pick-check">${sel?'&#10003;':''}</span>
+    </button>`;
+  }).join('');
+  root.innerHTML =
+    `<p class="wiz-select-label">Which leagues do you want to connect?</p>
+     <div class="wiz-pick-grid">${cards}</div>
+     <button class="btn-primary" id="wiz-begin" style="width:100%;margin-top:12px"${window.__wizSelected.size?'':' disabled'}>Continue</button>`;
+  const begin = document.getElementById('wiz-begin');
+  if(begin) begin.onclick = wizardBegin;
+}
+function toggleWizardPick(id){
+  const s = window.__wizSelected;
+  if(s.has(id)) s.delete(id); else s.add(id);
+  renderWizardSelection();
+}
+function wizardBegin(){
+  const order = ['sleeper','yahoo','espn'];
+  window.__wizQueue = order.filter(id=>window.__wizSelected.has(id));
+  window.__wizIdx = 0;
+  if(!window.__wizQueue.length) return;
+  renderWizardStep();
+}
+function renderWizardStep(){
+  const root = document.getElementById('wizard-root'); if(!root) return;
+  const q = window.__wizQueue || [];
+  const i = window.__wizIdx || 0;
+  if(!q.length){ renderWizardSelection(); return; }
+  if(i >= q.length){ finishWizard(); return; }
+  const id = q[i];
+  const p = PROVIDERS[id];
+  const connected = !!(connectionState[id] && connectionState[id].connected);
+  const last = (i+1 >= q.length);
+  const primaryLabel = last ? 'Finish' : (connected ? 'Next' : 'Skip for now');
+  root.innerHTML =
+    `<div class="wiz-progress">Step ${i+1} of ${q.length}</div>
+     <div class="wiz-step">
+       <div class="wiz-step-head"><span class="provider-icon" style="background:${p.accentColor}">${p.displayName.charAt(0)}</span><span class="wiz-step-title">Connect ${p.displayName}${connected?' <span class="wiz-ok">&#10003; connected</span>':''}</span></div>
+       <div class="wiz-step-body" id="wiz-step-body"></div>
+       <div class="wiz-nav">
+         <button class="btn-ghost" id="wiz-back"${i===0?' disabled':''}>Back</button>
+         <button class="btn-primary" id="wiz-next">${primaryLabel}</button>
+       </div>
+       <div class="wiz-note" id="wiz-note"></div>
+     </div>`;
+  const body = document.getElementById('wiz-step-body');
+  if(id==='yahoo' && window.__yahooPollActive && !connected){
+    body.innerHTML = `<div class="provider-mobile-note">A new tab opened for Yahoo sign-in. Approve it there, then come back — we'll detect it automatically. <button type="button" class="wiz-link" onclick="PROVIDERS.yahoo.checkStatus().then(s=>{if(s&&s.connected){window.__yahooPollActive=false;renderWizardStep();}})">Check now</button></div>`;
+  } else {
+    p.renderConnectCard(body);
+  }
+  const back = document.getElementById('wiz-back');
+  const next = document.getElementById('wiz-next');
+  if(back) back.onclick = wizardBack;
+  if(next) next.onclick = wizardNext;
+}
+function wizardBack(){
+  stopYahooPoll();
+  let i = window.__wizIdx || 0;
+  if(i > 0){ window.__wizIdx = i-1; renderWizardStep(); }
+  else { renderWizardSelection(); }
+}
+function wizardNext(){
+  stopYahooPoll();
+  const q = window.__wizQueue || [];
+  let i = window.__wizIdx || 0;
+  if(i+1 < q.length){ window.__wizIdx = i+1; renderWizardStep(); }
+  else { finishWizard(); }
+}
+function finishWizard(){
+  if(!isAnyProviderConnected()){
+    const note = document.getElementById('wiz-note');
+    if(note) note.textContent = 'Connect at least one platform to continue — or use “Try demo mode” below.';
+    return;
+  }
+  stopYahooPoll();
+  window.__wizardActive = false;
+  handleContinue();
+}
+function wizardConnectYahoo(){
+  try{ window.open('/api/auth/yahoo?wizard=1','_blank'); }catch(e){}
+  window.__yahooPollActive = true;
+  renderWizardStep();
+  pollYahoo();
+}
+function pollYahoo(){
+  if(!window.__yahooPollActive) return;
+  PROVIDERS.yahoo.checkStatus().then(s=>{
+    if(!window.__yahooPollActive) return;
+    if(s && s.connected){ window.__yahooPollActive = false; renderWizardStep(); }
+    else { window.__yahooPollTimer = setTimeout(pollYahoo, 2000); }
+  }).catch(()=>{ if(window.__yahooPollActive) window.__yahooPollTimer = setTimeout(pollYahoo, 2500); });
+}
+function stopYahooPoll(){
+  window.__yahooPollActive = false;
+  if(window.__yahooPollTimer){ clearTimeout(window.__yahooPollTimer); window.__yahooPollTimer = null; }
 }
 
 async function submitIdentity(){
@@ -4654,20 +4829,27 @@ async function handleProviderConnect(id){
     if(err){err.style.display='none';err.textContent='';}
     const val=inp?.value?.trim()||'';
     const res=await p.connect(val);
-    if(res.success)renderSetupProviders();
+    if(res.success)refreshConnectUI();
     else if(err){err.textContent=res.error||'Could not connect.';err.style.display='block';}
   }else{
     /* Modal-based (ESPN) and OAuth-redirect (Yahoo) flows. Yahoo navigates
        away so the renderSetupProviders() call is effectively a no-op there;
        ESPN's modal resolves locally and we want the UI to update immediately. */
     const res=await p.connect();
-    if(!res||res.success!==false)renderSetupProviders();
+    if(!res||res.success!==false)refreshConnectUI();
   }
 }
 
 async function handleProviderDisconnect(id){
   const p=PROVIDERS[id];if(!p)return;
   await p.disconnect();
+  refreshConnectUI();
+}
+
+/* Re-render whichever connect UI is showing: the wizard step if active, else
+   the legacy grid. */
+function refreshConnectUI(){
+  if(window.__wizardActive){ try{ renderWizardStep(); return; }catch(e){} }
   renderSetupProviders();
 }
 
