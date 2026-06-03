@@ -107,14 +107,24 @@ function readAccount(req) {
 async function sbFetch(path, opts = {}) {
   const base = process.env.SUPABASE_URL.replace(/\/$/, '');
   const key = process.env.SUPABASE_SERVICE_KEY;
+  // Key-format handling — this matters:
+  //   • Legacy keys (anon / service_role) ARE JWTs (start with "eyJ"). PostgREST
+  //     reads the role from the JWT in the Authorization: Bearer header, so we
+  //     must send it there.
+  //   • New keys (sb_secret_ / sb_publishable_) are NOT JWTs. If we send one as
+  //     a Bearer token, PostgREST tries to verify it as a JWT, fails, and rejects
+  //     the request. For these we pass the key ONLY in the apikey header and let
+  //     Supabase's gateway map it to the right role.
+  const isJwt = /^eyJ/.test(key || '');
+  const headers = {
+    apikey: key,
+    'Content-Type': 'application/json',
+    ...(opts.headers || {})
+  };
+  if (isJwt) headers.Authorization = `Bearer ${key}`;
   const r = await fetch(`${base}/rest/v1/${path}`, {
     ...opts,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      ...(opts.headers || {})
-    }
+    headers
   });
   if (!r.ok) {
     const txt = await r.text().catch(() => '');
