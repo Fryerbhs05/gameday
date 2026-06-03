@@ -327,7 +327,7 @@
       border: 1px solid var(--line);
       border-radius: var(--radius-lg);
       padding: 32px 32px;
-      width: 760px;
+      width: 460px;
       max-width: 100%;
     }
     .signin-card h3 {
@@ -2292,8 +2292,10 @@
         </div>
       </div>
 
-      <div class="or-row"><div class="or-line"></div><div class="or-txt">or try it first</div><div class="or-line"></div></div>
-      <button class="btn-demo-full" onclick="handleDemo()">Try demo mode — 4 leagues, live scoring</button>
+      <div id="demo-tryfirst">
+        <div class="or-row"><div class="or-line"></div><div class="or-txt">or try it first</div><div class="or-line"></div></div>
+        <button class="btn-demo-full" onclick="handleDemo()">Try demo mode — 4 leagues, live scoring</button>
+      </div>
     </div>
   </div>
 
@@ -4641,6 +4643,7 @@ function updateOnboardingGate(){
     idStep.style.display = '';
     connStep.style.display = 'none';
     if(sub) sub.textContent = 'Tell us who you are, then connect your leagues.';
+    setDemoVisible(true);
   }else{
     idStep.style.display = 'none';
     connStep.style.display = '';
@@ -4670,7 +4673,14 @@ function showLegacyConnect(){
   const legacy = document.getElementById('legacy-connect');
   if(root) root.style.display = 'none';
   if(legacy) legacy.style.display = '';
+  setDemoVisible(true);
   try{ renderSetupProviders(); }catch(e){}
+}
+/* "Try demo mode" is the no-commitment escape on the picker; once the user is
+   actively connecting a platform (in the steps), hide it to keep the card focused. */
+function setDemoVisible(show){
+  const d = document.getElementById('demo-tryfirst');
+  if(d) d.style.display = show ? '' : 'none';
 }
 function startWizard(){
   window.__wizardActive = true;
@@ -4685,6 +4695,7 @@ function startWizard(){
 }
 function renderWizardSelection(){
   const root = document.getElementById('wizard-root'); if(!root) return;
+  setDemoVisible(true);
   const mobile = isMobileDevice();
   const cards = Object.values(PROVIDERS).map(p=>{
     const sel = window.__wizSelected.has(p.id);
@@ -4716,6 +4727,7 @@ function wizardBegin(){
 }
 function renderWizardStep(){
   const root = document.getElementById('wizard-root'); if(!root) return;
+  setDemoVisible(false);
   const q = window.__wizQueue || [];
   const i = window.__wizIdx || 0;
   if(!q.length){ renderWizardSelection(); return; }
