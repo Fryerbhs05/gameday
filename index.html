@@ -4097,6 +4097,17 @@ const ESPN_POSITIONS={1:'QB',2:'RB',3:'WR',4:'TE',5:'K',7:'P',9:'DT',10:'DE',11:
    (including FLEX/SUPERFLEX/individual position slots). */
 const ESPN_BENCH_SLOTS=new Set([20,21]);
 
+/* ESPN lineupSlotId → display label for the matchup-drawer POS pill. Labels are
+   already-final tokens that slotLabel() passes through unchanged. Slots 3 (RB/WR),
+   5 (WR/TE) and 23 (RB/WR/TE) all surface as FLEX; 7 (OP) is superflex. */
+const ESPN_SLOT_LABELS={0:'QB',1:'QB',2:'RB',3:'FLEX',4:'WR',5:'FLEX',6:'TE',7:'SUPER FLEX',16:'DEF',17:'K',18:'P',23:'FLEX'};
+/* Canonical ordering so YOU and OPP lineups zip slot-for-slot in the drawer.
+   ESPN returns each team's entries in an arbitrary order, which previously
+   paired e.g. your QB against the opponent's RB. Dedicated positions first,
+   then FLEX/superflex, then DEF/K. Unknown slots sort last. */
+const ESPN_SLOT_RANK={0:0,1:0,2:10,4:20,6:30,3:40,5:40,23:40,7:50,16:60,17:70,18:80};
+function espnSlotRank(slotId){const r=ESPN_SLOT_RANK[slotId];return r==null?90:r;}
+
 function espnScoringFmt(settings){
   /* ESPN's `scoringType` field is unreliable (not all leagues set it). The
      authoritative signal is the points-per-reception value in scoringItems[]
@@ -4120,8 +4131,12 @@ function espnPlayerObj(entry){
   const inj=p.injuryStatus;
   const unhealthy=['QUESTIONABLE','DOUBTFUL','OUT','INJURY_RESERVE','SUSPENSION','OUT_FOR_SEASON'];
   const injuryStatus=inj&&unhealthy.includes(inj)?inj.replace(/_/g,' '):null;
+  /* Lineup slot the player occupies this week (FLEX, QB, etc.). Drives the
+     center POS pill in the matchup drawer via resolveSlot → slotLabel. Null for
+     non-lineup contexts. */
+  const slot=ESPN_SLOT_LABELS[entry?.lineupSlotId]||null;
   return{
-    name, team, position, injuryStatus,
+    name, team, position, injuryStatus, slot,
     /* `player_key` is the field that ensure() and ptsKey() look at for non-string
        (object) players. Prefixing with 'espn:' guarantees no collisions with
        Yahoo's `nfl.p.12345` keys when both providers feed the same player map. */
@@ -4185,8 +4200,12 @@ function parseEspnLeague(data,season,week,isHist){
 
     const myRosterEntries=myEntry?.rosterForCurrentScoringPeriod?.entries||[];
     const oppRosterEntries=oppEntry?.rosterForCurrentScoringPeriod?.entries||[];
-    const myStarters=myRosterEntries.filter(e=>!ESPN_BENCH_SLOTS.has(e.lineupSlotId));
-    const oppStarters=oppRosterEntries.filter(e=>!ESPN_BENCH_SLOTS.has(e.lineupSlotId));
+    /* Sort both lineups into the same canonical slot order so the drawer pairs
+       YOU vs OPP slot-for-slot (QB↔QB, FLEX↔FLEX). ESPN returns entries in an
+       arbitrary order otherwise. Stable sort keeps ESPN's order within a slot. */
+    const bySlot=(a,b)=>espnSlotRank(a.lineupSlotId)-espnSlotRank(b.lineupSlotId);
+    const myStarters=myRosterEntries.filter(e=>!ESPN_BENCH_SLOTS.has(e.lineupSlotId)).sort(bySlot);
+    const oppStarters=oppRosterEntries.filter(e=>!ESPN_BENCH_SLOTS.has(e.lineupSlotId)).sort(bySlot);
     const myBenchEntries=myRosterEntries.filter(e=>ESPN_BENCH_SLOTS.has(e.lineupSlotId));
     const oppBenchEntries=oppRosterEntries.filter(e=>ESPN_BENCH_SLOTS.has(e.lineupSlotId));
 
