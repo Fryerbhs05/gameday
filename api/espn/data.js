@@ -199,8 +199,10 @@ module.exports = async (req, res) => {
         return;
       }
       // mBoxscore gives full per-player point breakdowns for each matchup.
-      // We bundle mTeam so the client gets team names in the same payload.
-      views = ['mBoxscore', 'mMatchupScore', 'mTeam', 'mRoster'];
+      // mTeam brings team names; mSettings brings the league's display name and
+      // scoring config (without it ESPN omits settings.name and the client falls
+      // back to "ESPN League <id>"). Bundled into one call — ESPN stacks views.
+      views = ['mBoxscore', 'mMatchupScore', 'mTeam', 'mRoster', 'mSettings'];
     } else if (endpoint === 'history') {
       // Lightweight call to validate auth + show what season we're on.
       views = ['mNav'];
