@@ -366,9 +366,11 @@
     /* Provider cards on the signin */
     .provider-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
     .provider-mobile-note { font-size: 12px; line-height: 1.45; color: var(--ink-500); background: rgba(0,0,0,0.04); border: 1px dashed var(--line, rgba(0,0,0,0.12)); border-radius: 8px; padding: 9px 10px; }
-    #identity-step .signin-field-row { display: flex; gap: 8px; }
-    #identity-step .signin-field-row .signin-input { flex: 1 1 0; min-width: 0; }
-    #identity-step .signin-input { width: 100%; box-sizing: border-box; }
+    .wiz-identity { margin-bottom: 18px; }
+    .wiz-identity .signin-field-row { display: flex; gap: 8px; }
+    .wiz-identity .signin-field-row .signin-input { flex: 1 1 0; min-width: 0; }
+    .wiz-identity .signin-input { width: 100%; box-sizing: border-box; }
+    .wiz-identity .signin-field-row + .signin-input { margin-top: 8px; }
     /* ── Connect wizard ── */
     .wiz-select-label { font: 600 13px/1.4 var(--font-sans); color: var(--ink-700); margin: 0 0 10px; }
     .wiz-pick-grid { display: flex; flex-direction: column; gap: 8px; }
@@ -2270,20 +2272,8 @@
       <h3>Get started</h3>
       <p class="signin-card-sub" id="getstarted-sub">Connect at least one fantasy platform to load your leagues.</p>
 
-      <!-- Identity step: shown first to new, signed-out users when accounts are enabled.
-           Captures name + email and creates the account before connecting platforms. -->
-      <div id="identity-step" style="display:none">
-        <div class="signin-field-row">
-          <input id="onb-first" class="signin-input" type="text" placeholder="First name" autocomplete="given-name" />
-          <input id="onb-last" class="signin-input" type="text" placeholder="Last name" autocomplete="family-name" />
-        </div>
-        <input id="onb-email" class="signin-input" type="email" placeholder="you@example.com" autocomplete="email" style="margin-top:8px" onkeydown="if(event.key==='Enter')submitIdentity()" />
-        <p class="provider-error" id="onb-error" style="display:none"></p>
-        <button id="onb-submit" class="btn-primary" style="margin-top:10px;width:100%" onclick="submitIdentity()">Save &amp; continue</button>
-      </div>
-
-      <!-- Connect step: 1×1 wizard renders here. The legacy grid below is a
-           hidden fallback used only if the wizard fails to initialize. -->
+      <!-- Connect wizard renders here: name/email + platform picker on one screen,
+           then the per-platform connect steps. Legacy grid is a hidden fallback. -->
       <div id="connect-step">
         <div id="wizard-root"></div>
         <div id="legacy-connect" style="display:none">
@@ -4617,38 +4607,33 @@ function renderSetupProviders(){
   updateOnboardingGate();
 }
 
-/* ══ ONBOARDING IDENTITY GATE ═══════════════════════════════════════════
-   New, signed-out users see a name+email step BEFORE the platform picker.
-   Submitting it creates the account (server-side), so identity is captured
-   even if they drop off before connecting. The gate is skipped when:
-     • accounts aren't enabled (window.__account.enabled === false) → behave
-       exactly like the pre-accounts app, nothing breaks pre-activation;
-     • the user is already signed in (returning) → straight to connecting;
-     • they've already passed the gate this visit (window.__identityDone).
-   Returning *connected* users never reach the landing card at all (boot flow
-   sends them to the board), so this only ever fronts genuinely new users. */
+/* ══ ONBOARDING IDENTITY ════════════════════════════════════════════════
+   New, signed-out users see name+email fields ALONGSIDE the platform picker on
+   one screen (so it's clear why we're asking). Submitting creates the account
+   (server-side) and then begins the connect steps. Identity is NOT asked when:
+     • accounts aren't enabled (window.__account.enabled === false) → behaves
+       exactly like the pre-accounts app;
+     • the user is already signed in (returning);
+     • they've already provided it this visit (window.__identityDone).
+   Returning *connected* users never reach the landing card (boot sends them to
+   the board), so identity only ever fronts genuinely new users. */
 function onboardingGateActive(){
   const acct = window.__account || {};
-  if(acct.enabled === false) return false;     // accounts off → no gate
-  if(acct.signedIn) return false;              // already signed in → connect directly
-  if(window.__identityDone) return false;      // passed it this visit
+  if(acct.enabled === false) return false;     // accounts off → no identity ask
+  if(acct.signedIn) return false;              // already signed in
+  if(window.__identityDone) return false;      // provided it this visit
   return true;
 }
 function updateOnboardingGate(){
-  const idStep = document.getElementById('identity-step');
   const connStep = document.getElementById('connect-step');
-  const sub = document.getElementById('getstarted-sub');
-  if(!idStep || !connStep) return;
-  if(onboardingGateActive()){
-    idStep.style.display = '';
-    connStep.style.display = 'none';
-    if(sub) sub.textContent = 'Tell us who you are, then connect your leagues.';
-    setDemoVisible(true);
-  }else{
-    idStep.style.display = 'none';
-    connStep.style.display = '';
-    if(sub) sub.textContent = 'Pick your platforms, then connect them one at a time.';
-    ensureWizard();
+  if(!connStep) return;
+  connStep.style.display = '';
+  ensureWizard();
+  // bootstrapAccount() may resolve after the first render; if the wizard is on
+  // the selection screen and the identity requirement flipped, re-render it.
+  if(window.__wizardActive && window.__wizView === 'select' &&
+     onboardingGateActive() !== window.__wizIdentityShown){
+    try{ renderWizardSelection(); }catch(e){}
   }
 }
 
@@ -4696,6 +4681,13 @@ function startWizard(){
 function renderWizardSelection(){
   const root = document.getElementById('wizard-root'); if(!root) return;
   setDemoVisible(true);
+  window.__wizView = 'select';
+  const needIdentity = onboardingGateActive();
+  window.__wizIdentityShown = needIdentity;
+  const sub = document.getElementById('getstarted-sub');
+  if(sub) sub.textContent = needIdentity
+    ? 'Add your details and pick your leagues — your email saves your setup so it follows you to any device.'
+    : 'Pick the platforms you want to connect.';
   const mobile = isMobileDevice();
   const cards = Object.values(PROVIDERS).map(p=>{
     const sel = window.__wizSelected.has(p.id);
@@ -4706,19 +4698,50 @@ function renderWizardSelection(){
       <span class="wiz-pick-check">${sel?'&#10003;':''}</span>
     </button>`;
   }).join('');
+  const identityHtml = needIdentity ? `
+    <div class="wiz-identity">
+      <div class="signin-field-row">
+        <input id="onb-first" class="signin-input" type="text" placeholder="First name" autocomplete="given-name" />
+        <input id="onb-last" class="signin-input" type="text" placeholder="Last name" autocomplete="family-name" />
+      </div>
+      <input id="onb-email" class="signin-input" type="email" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')wizardBegin()" />
+      <p class="provider-error" id="onb-error" style="display:none"></p>
+    </div>` : '';
   root.innerHTML =
+    identityHtml +
     `<p class="wiz-select-label">Which leagues do you want to connect?</p>
      <div class="wiz-pick-grid">${cards}</div>
-     <button class="btn-primary" id="wiz-begin" style="width:100%;margin-top:12px"${window.__wizSelected.size?'':' disabled'}>Continue</button>`;
+     <button class="btn-primary" id="wiz-begin" style="width:100%;margin-top:14px"${window.__wizSelected.size?'':' disabled'}>${needIdentity?'Save &amp; continue':'Continue'}</button>`;
   const begin = document.getElementById('wiz-begin');
   if(begin) begin.onclick = wizardBegin;
+  if(needIdentity && window.__onbDraft){
+    const f = document.getElementById('onb-first'); if(f) f.value = window.__onbDraft.first || '';
+    const l = document.getElementById('onb-last'); if(l) l.value = window.__onbDraft.last || '';
+    const e = document.getElementById('onb-email'); if(e) e.value = window.__onbDraft.email || '';
+  }
 }
 function toggleWizardPick(id){
+  captureOnbDraft();           // keep any typed name/email across the re-render
   const s = window.__wizSelected;
   if(s.has(id)) s.delete(id); else s.add(id);
   renderWizardSelection();
 }
-function wizardBegin(){
+/* Stash the in-progress identity fields so re-rendering the selection (e.g. when
+   the user toggles a platform) doesn't wipe what they've typed. */
+function captureOnbDraft(){
+  const f = document.getElementById('onb-first');
+  const l = document.getElementById('onb-last');
+  const e = document.getElementById('onb-email');
+  if(f || l || e){
+    window.__onbDraft = { first: f?f.value:'', last: l?l.value:'', email: e?e.value:'' };
+  }
+}
+async function wizardBegin(){
+  // When identity fields are present, create the account before connecting.
+  if(onboardingGateActive()){
+    const ok = await submitIdentityInline();
+    if(!ok) return;
+  }
   const order = ['sleeper','yahoo','espn'];
   window.__wizQueue = order.filter(id=>window.__wizSelected.has(id));
   window.__wizIdx = 0;
@@ -4728,6 +4751,7 @@ function wizardBegin(){
 function renderWizardStep(){
   const root = document.getElementById('wizard-root'); if(!root) return;
   setDemoVisible(false);
+  window.__wizView = 'step';
   const q = window.__wizQueue || [];
   const i = window.__wizIdx || 0;
   if(!q.length){ renderWizardSelection(); return; }
@@ -4806,19 +4830,22 @@ function stopYahooPoll(){
   if(window.__yahooPollTimer){ clearTimeout(window.__yahooPollTimer); window.__yahooPollTimer = null; }
 }
 
-async function submitIdentity(){
+/* Validate + create the account from the combined screen's fields. Returns true
+   on success (signed in on this device), false otherwise. The submit button is
+   the wizard's "Save & continue" (#wiz-begin). */
+async function submitIdentityInline(){
   const firstEl = document.getElementById('onb-first');
   const lastEl = document.getElementById('onb-last');
   const emailEl = document.getElementById('onb-email');
   const errEl = document.getElementById('onb-error');
-  const btn = document.getElementById('onb-submit');
-  const first = (firstEl?.value || '').trim();
-  const last = (lastEl?.value || '').trim();
-  const email = (emailEl?.value || '').trim();
+  const btn = document.getElementById('wiz-begin');
+  const first = (firstEl && firstEl.value || '').trim();
+  const last = (lastEl && lastEl.value || '').trim();
+  const email = (emailEl && emailEl.value || '').trim();
   const showErr = (m)=>{ if(errEl){ errEl.textContent = m; errEl.style.display = 'block'; } };
   if(errEl){ errEl.style.display='none'; errEl.textContent=''; }
-  if(!first){ showErr('Please enter your first name.'); firstEl?.focus(); return; }
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ showErr('Enter a valid email address.'); emailEl?.focus(); return; }
+  if(!first){ showErr('Please enter your first name.'); if(firstEl) firstEl.focus(); return false; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ showErr('Enter a valid email address.'); if(emailEl) emailEl.focus(); return false; }
   if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
   try{
     const r = await fetch('/api/auth/magic/request?mode=onboard',{
@@ -4829,27 +4856,30 @@ async function submitIdentity(){
     const j = await r.json().catch(()=>({}));
     if(r.ok && j.mode === 'session'){
       // Signed in on this device. Remember email so we can email a cross-device
-      // link once they've connected (handleContinue), and reveal the picker.
+      // link once they've connected (handleContinue).
       window.__account = { ...(window.__account||{}), signedIn:true, enabled:true, email: j.email || email };
       window.__identityDone = true;
       window.__onboardEmail = j.email || email;
       window.__onboardedThisVisit = true;
-      updateOnboardingGate();
-      try{ renderSetupProviders(); }catch(e){}
+      window.__onbDraft = null;
+      return true;
     }else if(r.ok && j.mode === 'link_sent'){
       // Existing account with connections — we emailed a link instead of granting
       // a session, to prevent takeover by typing someone else's email.
-      const card = document.getElementById('identity-step');
-      if(card){
-        card.innerHTML = `<div class="provider-mobile-note" style="border-style:solid">You already have a Conflicted account. We emailed a sign-in link to <strong>${email}</strong> — open it to pick up where you left off. It works once and expires in 15 minutes.</div>`;
+      const root = document.getElementById('wizard-root');
+      if(root){
+        root.innerHTML = `<div class="provider-mobile-note" style="border-style:solid">You already have a Conflicted account. We emailed a sign-in link to <strong>${email}</strong> — open it to pick up where you left off. It works once and expires in 15 minutes.</div>`;
       }
+      return false;
     }else{
       showErr(j.error || 'Could not save. Please try again.');
       if(btn){ btn.disabled=false; btn.textContent='Save & continue'; }
+      return false;
     }
   }catch(e){
     showErr('Network error. Please try again.');
     if(btn){ btn.disabled=false; btn.textContent='Save & continue'; }
+    return false;
   }
 }
 
