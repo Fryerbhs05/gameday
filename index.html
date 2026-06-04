@@ -4132,66 +4132,193 @@ async function loadData(){
 function getDemoData(){
   const L1='Dynasty Royale',L2='Redraft Chaos',L3='The Gridiron',L4='Devy Masters';
   [L1,L2,L3,L4].forEach((n,i)=>{colorMap[n]=LC_COLORS[i];});
-  const contexts=[
-    {leagueName:L1,leagueState:'LIVE',myPoints:95.64,oppPoints:72.82,myProjPts:118.4,oppProjPts:109.2,myPP:{},oppPP:{},fmt:'PPR'},
-    {leagueName:L2,leagueState:'LIVE',myPoints:68.40,oppPoints:82.14,myProjPts:121.3,oppProjPts:128.7,myPP:{},oppPP:{},fmt:'Half'},
-    {leagueName:L3,leagueState:'LOCKED_WIN',myPoints:134.20,oppPoints:45.82,myProjPts:151.0,oppProjPts:96.5,myPP:{},oppPP:{},fmt:'Std'},
-    {leagueName:L4,leagueState:'LOCKED_LOSS',myPoints:52.10,oppPoints:118.40,myProjPts:88.2,oppProjPts:142.6,myPP:{},oppPP:{},fmt:'PPR'}
+
+  /* ── Demo dataset ────────────────────────────────────────────────────────
+     Goal: look like a real multi-league user — full 10-man positional lineups
+     (QB · RB · RB · WR · WR · WR · TE · FLEX · K · DEF) on BOTH sides of every
+     matchup, real per-player scoring, and deliberate cross-league overlaps so
+     the cheer / conflicted / enemy buckets and the exposure heat map all have
+     believable content. Same player id is reused across leagues so a shared
+     star merges into ONE bucket entry (e.g. Jefferson = mine in L1, against me
+     in L2 → conflicted). Buckets are derived through the live classification
+     engine (calcSignal / classifyPlayer / ctxBadge) so the demo behaves
+     identically to connected data.
+
+     SLOT ORDER IS LOAD-BEARING: my[] and opp[] are index-paired in the matchup
+     drawer, so both sides must list the same slot sequence below. */
+  const ORDER=['QB','RB','RB','WR','WR','WR','TE','FLEX','K','DEF'];
+  // mk(id,name,pos,team,slot,pts,proj,inj) — proj is null on decided weeks.
+  const mk=(id,name,pos,team,slot,pts,proj=null,inj=null)=>({id,name,pos,team,slot,pts,proj,inj});
+
+  const LEAGUES=[
+    /* L1 — tight live game, narrow lead. PPR. */
+    { name:L1, fmt:'PPR', state:'LIVE',
+      my:[
+        mk('mahomes','Patrick Mahomes','QB','KC','QB',22.4,27.5),
+        mk('henry','Derrick Henry','RB','BAL','RB',18.2,17.0),
+        mk('bijan','Bijan Robinson','RB','ATL','RB',14.6,16.5),
+        mk('jefferson','Justin Jefferson','WR','MIN','WR',16.4,20.0),
+        mk('lamb','CeeDee Lamb','WR','DAL','WR',9.1,21.0),
+        mk('stbrown','Amon-Ra St. Brown','WR','DET','WR',12.3,15.5),
+        mk('kelce','Travis Kelce','TE','KC','TE',8.6,12.0),
+        mk('gibbs','Jahmyr Gibbs','RB','DET','FLEX',13.7,15.0),
+        mk('butker','Harrison Butker','K','KC','K',7.0,8.0),
+        mk('phidef','Eagles D/ST','DEF','PHI','DEF',9.0,8.0),
+      ],
+      opp:[
+        mk('allen','Josh Allen','QB','BUF','QB',19.8,26.0),
+        mk('saquon','Saquon Barkley','RB','PHI','RB',11.6,16.5),
+        mk('najee','Najee Harris','RB','LAC','RB',7.4,11.0),
+        mk('chase',"Ja'Marr Chase",'WR','CIN','WR',20.2,24.0),
+        mk('kupp','Cooper Kupp','WR','LAR','WR',6.3,14.0,'Questionable'),
+        mk('evans','Mike Evans','WR','TB','WR',10.1,13.0),
+        mk('laporta','Sam LaPorta','TE','DET','TE',6.8,10.0),
+        mk('pollard','Tony Pollard','RB','TEN','FLEX',8.4,12.0),
+        mk('tucker','Justin Tucker','K','BAL','K',6.0,8.0),
+        mk('pitdef','Steelers D/ST','DEF','PIT','DEF',5.0,7.0),
+      ],
+      myBench:[ mk('ridley','Calvin Ridley','WR','TEN','BN'), mk('stevenson','Rhamondre Stevenson','RB','NE','BN') ],
+      oppBench:[ mk('diontae','Diontae Johnson','WR','BAL','BN') ],
+    },
+    /* L2 — live game, trailing. Half-PPR. */
+    { name:L2, fmt:'Half', state:'LIVE',
+      my:[
+        mk('allen','Josh Allen','QB','BUF','QB',18.3,25.0),
+        mk('saquon','Saquon Barkley','RB','PHI','RB',10.4,15.5),
+        mk('kyren','Kyren Williams','RB','LAR','RB',12.1,13.5),
+        mk('tyreek','Tyreek Hill','WR','MIA','WR',9.6,18.0),
+        mk('london','Drake London','WR','ATL','WR',7.8,13.0),
+        mk('gwilson','Garrett Wilson','WR','NYJ','WR',6.2,12.5),
+        mk('mcbride','Trey McBride','TE','ARI','TE',8.9,11.0),
+        mk('achane',"De'Von Achane",'RB','MIA','FLEX',11.7,14.5),
+        mk('aubrey','Brandon Aubrey','K','DAL','K',8.0,8.5),
+        mk('bufdef','Bills D/ST','DEF','BUF','DEF',4.0,7.0),
+      ],
+      opp:[
+        mk('hurts','Jalen Hurts','QB','PHI','QB',24.1,26.5),
+        mk('jacobs','Josh Jacobs','RB','GB','RB',15.3,14.0),
+        mk('cook','James Cook','RB','BUF','RB',9.8,12.5),
+        mk('chase',"Ja'Marr Chase",'WR','CIN','WR',17.9,22.0),
+        mk('jefferson','Justin Jefferson','WR','MIN','WR',14.2,18.5),
+        mk('lamb','CeeDee Lamb','WR','DAL','WR',8.0,19.5),
+        mk('kittle','George Kittle','TE','SF','TE',12.4,11.5),
+        mk('stbrown','Amon-Ra St. Brown','WR','DET','FLEX',11.1,14.0),
+        mk('elliott','Jake Elliott','K','PHI','K',9.0,8.0),
+        mk('daldef','Cowboys D/ST','DEF','DAL','DEF',7.0,7.0),
+      ],
+      myBench:[ mk('rice','Rashee Rice','WR','KC','BN'), mk('mooney','Darnell Mooney','WR','ATL','BN') ],
+      oppBench:[ mk('waddle','Jaylen Waddle','WR','MIA','BN') ],
+    },
+    /* L3 — already clinched a blowout win. Standard scoring. */
+    { name:L3, fmt:'Std', state:'LOCKED_WIN',
+      my:[
+        mk('mahomes','Patrick Mahomes','QB','KC','QB',26.8),
+        mk('cmc','Christian McCaffrey','RB','SF','RB',24.6),
+        mk('jtaylor','Jonathan Taylor','RB','IND','RB',18.9),
+        mk('tyreek','Tyreek Hill','WR','MIA','WR',15.2),
+        mk('puka','Puka Nacua','WR','LAR','WR',13.4),
+        mk('ncollins','Nico Collins','WR','HOU','WR',11.7),
+        mk('andrews','Mark Andrews','TE','BAL','TE',9.3),
+        mk('breece','Breece Hall','RB','NYJ','FLEX',14.1),
+        mk('boswell','Chris Boswell','K','PIT','K',11.0),
+        mk('sfdef','49ers D/ST','DEF','SF','DEF',12.0),
+      ],
+      opp:[
+        mk('hurts','Jalen Hurts','QB','PHI','QB',8.2),
+        mk('ajones','Aaron Jones','RB','MIN','RB',5.1),
+        mk('hubbard','Chuba Hubbard','RB','CAR','RB',6.4),
+        mk('dkmetcalf','DK Metcalf','WR','SEA','WR',4.8),
+        mk('evans','Mike Evans','WR','TB','WR',3.2),
+        mk('djmoore','DJ Moore','WR','CHI','WR',6.0),
+        mk('hockenson','T.J. Hockenson','TE','MIN','TE',2.9,null,'Questionable'),
+        mk('waddle','Jaylen Waddle','WR','MIA','FLEX',5.5),
+        mk('sanders','Jason Sanders','K','MIA','K',4.0),
+        mk('jetsdef','Jets D/ST','DEF','NYJ','DEF',-0.3),
+      ],
+      myBench:[ mk('zflowers','Zay Flowers','WR','BAL','BN'), mk('dobbins','J.K. Dobbins','RB','DEN','BN') ],
+      oppBench:[ mk('pickens','George Pickens','WR','PIT','BN') ],
+    },
+    /* L4 — already locked into a loss, getting blown out. PPR. */
+    { name:L4, fmt:'PPR', state:'LOCKED_LOSS',
+      my:[
+        mk('stroud','C.J. Stroud','QB','HOU','QB',9.4),
+        mk('kwalker','Kenneth Walker III','RB','SEA','RB',6.8),
+        mk('mixon','Joe Mixon','RB','HOU','RB',5.2,null,'Questionable'),
+        mk('davante','Davante Adams','WR','NYJ','WR',7.1),
+        mk('tankdell','Tank Dell','WR','HOU','WR',4.6),
+        mk('diggs','Stefon Diggs','WR','NE','WR',6.3),
+        mk('bowers','Brock Bowers','TE','LV','TE',8.0),
+        mk('rice','Rashee Rice','WR','KC','FLEX',5.9),
+        mk('dicker','Cameron Dicker','K','LAC','K',6.0),
+        mk('houdef','Texans D/ST','DEF','HOU','DEF',3.0),
+      ],
+      opp:[
+        mk('lamar','Lamar Jackson','QB','BAL','QB',28.6),
+        mk('kamara','Alvin Kamara','RB','NO','RB',19.3),
+        mk('najee','Najee Harris','RB','LAC','RB',13.7),
+        mk('ajbrown','A.J. Brown','WR','PHI','WR',22.4),
+        mk('waddle','Jaylen Waddle','WR','MIA','WR',14.8),
+        mk('dkmetcalf','DK Metcalf','WR','SEA','WR',12.1),
+        mk('kittle','George Kittle','TE','SF','TE',15.6),
+        mk('kupp','Cooper Kupp','WR','LAR','FLEX',11.0),
+        mk('bass','Tyler Bass','K','BUF','K',10.0),
+        mk('baldef','Ravens D/ST','DEF','BAL','DEF',14.0),
+      ],
+      myBench:[ mk('odunze','Rome Odunze','WR','CHI','BN'), mk('mclaughlin','Chase McLaughlin','K','TB','BN') ],
+      oppBench:[ mk('tagovailoa','Tua Tagovailoa','QB','MIA','BN') ],
+    },
   ];
-  function p(id,name,pos,team,mine,against,lpts,sig,allDecided,injuryStatus=null,myBench=[],againstBench=[]){const sigResult={signal:sig,allDecided};const cls=classifyPlayer({myLeagues:mine,againstLeagues:against},sigResult);const badge=ctxBadge(sigResult,false);const leaguePoints={};(lpts||[]).forEach(d=>{leaguePoints[d.lg]={pts:d.pts,proj:d.proj??null,fmt:d.fmt};});return{id,full_name:name,position:pos,team,myLeagues:mine,againstLeagues:against,myBenchLeagues:myBench,againstBenchLeagues:againstBench,leaguePoints,contextBadge:badge,bucket:cls?.bucket,clinched:cls?.clinched||false,injuryStatus};}
-  /* Bench-only players (not classified into cheer/conflicted/enemies, but appear in heat map when "Include bench" is on) */
-  const benchOnly=[
-    p('d19','Rashee Rice','WR','KC',[],[],[],0,false,null,[L1,L2],[]),
-    p('d20','Najee Harris','RB','LAC',[],[],[],0,false,null,[L3],[L1]),
-    p('d21','Jaylen Waddle','WR','MIA',[],[],[],0,false,null,[],[L2,L4]),
-    p('d22','Tank Dell','WR','HOU',[],[],[],0,false,null,[L4],[]),
-  ];
-  const cheerFor=[
-      p('d1','Patrick Mahomes','QB','KC',[L1,L3],[],[{lg:L1,pts:22.44,proj:28.0,fmt:'PPR'},{lg:L3,pts:22.44,proj:28.0,fmt:'Std'}],2,false,null,[L2],[]),
-      p('d2','Davante Adams','WR','NO',[L1],[],[{lg:L1,pts:11.80,proj:16.0,fmt:'PPR'}],1,false,'Questionable'),
-      p('d3','Derrick Henry','RB','BAL',[L1],[],[{lg:L1,pts:14.20,proj:18.0,fmt:'PPR'}],1,false,null,[L3],[]),
-      p('d4','Tyreek Hill','WR','MIA',[L2,L3],[],[{lg:L2,pts:18.60,proj:22.0,fmt:'Half'},{lg:L3,pts:18.60,proj:22.0,fmt:'Std'}],2,false),
-      p('d7','Travis Kelce','TE','KC',[L1],[L4],[{lg:L1,pts:8.60,proj:14.0,fmt:'PPR'},{lg:L4,pts:8.60,proj:null,fmt:'PPR'}],1,false),
-      p('d8','Christian McCaffrey','RB','SF',[L3],[],[{lg:L3,pts:24.60,proj:null,fmt:'Std'}],0,true,'Out'),
-  ];
-  const conflicted=[
-      p('d9','Justin Jefferson','WR','MIN',[L1],[L2],[{lg:L1,pts:16.40,proj:20.0,fmt:'PPR'},{lg:L2,pts:16.40,proj:20.0,fmt:'Half'}],0,false,null,[L4],[]),
-      p('d10','Josh Allen','QB','BUF',[L2],[L1],[{lg:L2,pts:19.80,proj:26.0,fmt:'Half'},{lg:L1,pts:19.80,proj:26.0,fmt:'PPR'}],0,false,'Doubtful'),
-      p('d11','CeeDee Lamb','WR','DAL',[L1],[L2],[{lg:L1,pts:14.20,proj:22.0,fmt:'PPR'},{lg:L2,pts:14.20,proj:22.0,fmt:'Half'}],0,false),
-      p('d12','Saquon Barkley','RB','PHI',[L2],[L1],[{lg:L2,pts:11.60,proj:16.0,fmt:'Half'},{lg:L1,pts:11.60,proj:16.0,fmt:'PPR'}],0,false),
-  ];
-  const enemies=[
-      p('d13',"Ja'Marr Chase",'WR','CIN',[],[L1,L2],[{lg:L1,pts:20.20,proj:24.0,fmt:'PPR'},{lg:L2,pts:20.20,proj:24.0,fmt:'Half'}],-2,false,null,[],[L3]),
-      p('d14','Jalen Hurts','QB','PHI',[],[L2,L3],[{lg:L2,pts:21.40,proj:28.0,fmt:'Half'},{lg:L3,pts:21.40,proj:28.0,fmt:'Std'}],-2,false,'Injured Reserve'),
-      p('d15','Sam LaPorta','TE','DET',[],[L1],[{lg:L1,pts:6.80,proj:10.0,fmt:'PPR'}],-1,false,'Questionable'),
-      p('d16','Tony Pollard','RB','TEN',[],[L1],[{lg:L1,pts:8.40,proj:12.0,fmt:'PPR'}],-1,false),
-      p('d17','Cooper Kupp','WR','LAR',[],[L1,L2],[{lg:L1,pts:13.60,proj:16.0,fmt:'PPR'},{lg:L2,pts:13.60,proj:16.0,fmt:'Half'}],-2,false),
-      p('d18','Stefon Diggs','WR','HOU',[],[L4],[{lg:L4,pts:11.20,proj:null,fmt:'PPR'}],0,true),
-  ];
-  /* Build minimal per-league roster shapes so demo matchup drawers have content.
-     Mirrors the live shape: { leagueName, myPlayers, oppPlayers, myBench, oppBench,
-     hasMatchup, fmt }. Players are partial — id, full_name, position, team — enough
-     for the drawer to render. Bench is empty in demo for simplicity. */
-  function dp(id,name,pos,team){return{id,full_name:name,position:pos,team};}
-  const demoLeagues=[
-    {leagueName:L1,fmt:'PPR',hasMatchup:true,
-     myPlayers:[dp('d1','Patrick Mahomes','QB','KC'),dp('d2','Davante Adams','WR','NO'),dp('d3','Derrick Henry','RB','BAL'),dp('d7','Travis Kelce','TE','KC'),dp('d9','Justin Jefferson','WR','MIN'),dp('d11','CeeDee Lamb','WR','DAL')],
-     oppPlayers:[dp('d13',"Ja'Marr Chase",'WR','CIN'),dp('d10','Josh Allen','QB','BUF'),dp('d12','Saquon Barkley','RB','PHI'),dp('d15','Sam LaPorta','TE','DET'),dp('d16','Tony Pollard','RB','TEN'),dp('d17','Cooper Kupp','WR','LAR')],
-     myBench:[dp('d20','Najee Harris','RB','LAC')],oppBench:[]},
-    {leagueName:L2,fmt:'Half',hasMatchup:true,
-     myPlayers:[dp('d4','Tyreek Hill','WR','MIA'),dp('d10','Josh Allen','QB','BUF'),dp('d12','Saquon Barkley','RB','PHI')],
-     oppPlayers:[dp('d9','Justin Jefferson','WR','MIN'),dp('d11','CeeDee Lamb','WR','DAL'),dp('d13',"Ja'Marr Chase",'WR','CIN'),dp('d14','Jalen Hurts','QB','PHI'),dp('d17','Cooper Kupp','WR','LAR')],
-     myBench:[dp('d19','Rashee Rice','WR','KC')],oppBench:[dp('d21','Jaylen Waddle','WR','MIA')]},
-    {leagueName:L3,fmt:'Std',hasMatchup:true,
-     myPlayers:[dp('d1','Patrick Mahomes','QB','KC'),dp('d4','Tyreek Hill','WR','MIA'),dp('d8','Christian McCaffrey','RB','SF')],
-     oppPlayers:[dp('d14','Jalen Hurts','QB','PHI'),dp('d20','Najee Harris','RB','LAC')],
-     myBench:[dp('d3','Derrick Henry','RB','BAL')],oppBench:[]},
-    {leagueName:L4,fmt:'PPR',hasMatchup:true,
-     myPlayers:[dp('d18','Stefon Diggs','WR','HOU'),dp('d22','Tank Dell','WR','HOU')],
-     oppPlayers:[dp('d7','Travis Kelce','TE','KC'),dp('d14','Jalen Hurts','QB','PHI')],
-     myBench:[],oppBench:[dp('d21','Jaylen Waddle','WR','MIA')]}
-  ];
-  return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,leagues:demoLeagues,debugInfo:null,allRostered:[...cheerFor,...conflicted,...enemies,...benchOnly],cheerFor,conflicted,enemies};
+
+  /* Build contexts (score strip + matchup drawer), the normalized per-league
+     roster shapes the drawer consumes, and a player map for bucket derivation. */
+  const sum=(arr,k)=>arr.reduce((t,x)=>t+(x[k]||0),0);
+  const projSum=arr=>arr.every(x=>x.proj!=null)?+sum(arr,'proj').toFixed(1):null;
+  function toDP(x){return{id:x.id,player_key:x.id,full_name:x.name,position:x.pos,team:x.team,slot:x.slot};}
+
+  const contexts=[],demoLeagues=[];
+  const map=new Map();
+  function ensure(x){
+    if(!map.has(x.id))map.set(x.id,{id:x.id,full_name:x.name,position:x.pos,team:x.team,injuryStatus:null,sleeperId:null,myLeagues:[],againstLeagues:[],myBenchLeagues:[],againstBenchLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
+    const e=map.get(x.id);if(x.inj&&!e.injuryStatus)e.injuryStatus=x.inj;return e;
+  }
+
+  LEAGUES.forEach(lg=>{
+    const myPP={},oppPP={};
+    lg.my.forEach(x=>{myPP[x.id]=x.pts;});
+    lg.opp.forEach(x=>{oppPP[x.id]=x.pts;});
+    contexts.push({
+      leagueName:lg.name,leagueState:lg.state,fmt:lg.fmt,
+      myPoints:+sum(lg.my,'pts').toFixed(2),oppPoints:+sum(lg.opp,'pts').toFixed(2),
+      myProjPts:projSum(lg.my),oppProjPts:projSum(lg.opp),
+      myPP,oppPP
+    });
+    demoLeagues.push({
+      leagueName:lg.name,fmt:lg.fmt,hasMatchup:true,
+      myPlayers:lg.my.map(toDP),oppPlayers:lg.opp.map(toDP),
+      myBench:(lg.myBench||[]).map(toDP),oppBench:(lg.oppBench||[]).map(toDP),
+    });
+    // accumulate cross-league membership + per-league points for the buckets
+    lg.my.forEach(x=>{const e=ensure(x);if(!e.myLeagues.includes(lg.name))e.myLeagues.push(lg.name);e.leaguePoints[lg.name]={pts:x.pts,proj:x.proj??null,fmt:lg.fmt};});
+    lg.opp.forEach(x=>{const e=ensure(x);if(!e.againstLeagues.includes(lg.name))e.againstLeagues.push(lg.name);e.leaguePoints[lg.name]={pts:x.pts,proj:x.proj??null,fmt:lg.fmt};});
+    (lg.myBench||[]).forEach(x=>{const e=ensure(x);if(!e.myBenchLeagues.includes(lg.name))e.myBenchLeagues.push(lg.name);});
+    (lg.oppBench||[]).forEach(x=>{const e=ensure(x);if(!e.againstBenchLeagues.includes(lg.name))e.againstBenchLeagues.push(lg.name);});
+  });
+
+  // Derive buckets through the live classification engine.
+  const cheerFor=[],conflicted=[],enemies=[];
+  map.forEach(pl=>{
+    if(!pl.myLeagues.length&&!pl.againstLeagues.length)return; // bench-only → heat map only
+    const sig=calcSignal(pl,contexts);
+    const cls=classifyPlayer(pl,sig);
+    if(!cls)return;
+    pl.bucket=cls.bucket;pl.clinched=cls.clinched;
+    pl.contextBadge=ctxBadge(sig,false);
+    if(cls.bucket==='cheer')cheerFor.push(pl);
+    else if(cls.bucket==='conflicted')conflicted.push(pl);
+    else enemies.push(pl);
+  });
+
+  return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,leagues:demoLeagues,debugInfo:null,allRostered:Array.from(map.values()),cheerFor,conflicted,enemies};
 }
 
 async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
