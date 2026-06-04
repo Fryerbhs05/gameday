@@ -4549,8 +4549,8 @@ const PROVIDERS={
       if(connectionState.sleeper.connected){
         rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>Connected as <strong>${connectionState.sleeper.identity}</strong></span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('sleeper')">Disconnect</button>`;
       }else{
-        rootEl.innerHTML=`<div class="signin-input-row"><input type="text" class="signin-input provider-input" id="sleeper-input" placeholder="sleeper username" autocomplete="off" /><button class="btn-primary provider-connect-btn" onclick="handleProviderConnect('sleeper')">Connect</button></div><p class="provider-error" id="sleeper-error" style="display:none"></p>`;
-        setTimeout(()=>{const inp=document.getElementById('sleeper-input');if(inp)inp.addEventListener('keydown',e=>{if(e.key==='Enter')handleProviderConnect('sleeper');});},0);
+        rootEl.innerHTML=`<div class="signin-input-row"><input type="text" class="signin-input provider-input" id="sleeper-input" placeholder="sleeper username" autocomplete="off" /><button class="btn-primary provider-connect-btn" onclick="handleProviderConnect('sleeper',this)">Connect</button></div><p class="provider-error" id="sleeper-error" style="display:none"></p>`;
+        const sInp=rootEl.querySelector('.provider-input');if(sInp)sInp.addEventListener('keydown',e=>{if(e.key==='Enter')handleProviderConnect('sleeper',e.target);});
       }
     },
   },
@@ -5036,11 +5036,17 @@ async function submitIdentityInline(){
   }
 }
 
-async function handleProviderConnect(id){
+async function handleProviderConnect(id,el){
   const p=PROVIDERS[id];if(!p)return;
   if(p.connectionType==='username'){
-    const inp=document.getElementById(id+'-input');
-    const err=document.getElementById(id+'-error');
+    /* The same connect card is rendered into the setup grid, the wizard, AND the
+       Manage Connections panel — and hidden panels keep their DOM — so multiple
+       elements can share id="<id>-input". getElementById returns the FIRST (often
+       a hidden, empty one), making the button look dead. Scope the lookup to the
+       card that actually fired this, falling back to the id for older callers. */
+    const scope=el?el.closest('.provider-card-body, .wiz-step-body'):null;
+    const inp=(scope&&scope.querySelector('.provider-input'))||document.getElementById(id+'-input');
+    const err=(scope&&scope.querySelector('.provider-error'))||document.getElementById(id+'-error');
     if(err){err.style.display='none';err.textContent='';}
     const val=inp?.value?.trim()||'';
     const res=await p.connect(val);
