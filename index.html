@@ -4929,7 +4929,7 @@ function renderWizardStep(){
      </div>`;
   const body = document.getElementById('wiz-step-body');
   if(id==='yahoo' && window.__yahooPollActive && !connected){
-    body.innerHTML = `<button type="button" class="btn-yahoo" onclick="wizardConnectYahoo()"><span class="btn-yahoo-icon">Y!</span><span>Check Yahoo Connection</span></button>`;
+    body.innerHTML = `<button type="button" class="btn-yahoo" onclick="wizardConnectYahoo()"><span class="btn-yahoo-icon">Y!</span><span>Click HERE To Complete Yahoo Connection</span></button>`;
   } else {
     p.renderConnectCard(body);
   }
