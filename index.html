@@ -132,10 +132,15 @@
       max-width: var(--max-width); margin: 0 auto; padding: 0 var(--gutter);
       height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px;
     }
-    .site-header__brand { display: flex; align-items: center; }
+    /* Balanced three-section header: the left controls and the right nav each
+       take an equal flexible column, so the brand (fixed width, in the middle)
+       stays in the TRUE center regardless of whether the left slot holds the
+       40px hamburger or the wider Sign in button. */
+    .site-header__left { display: flex; align-items: center; flex: 1 1 0; min-width: 0; }
+    .site-header__brand { display: flex; align-items: center; flex: 0 0 auto; }
     .site-header__brand img,
     .site-header__brand svg { display: block; height: 42px; width: auto; aspect-ratio: 480 / 130; }
-    .site-header__nav { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .site-header__nav { display: flex; align-items: center; gap: 12px; flex: 1 1 0; min-width: 0; justify-content: flex-end; }
     .site-header__week {
       font: 500 11px/1 var(--font-mono); color: var(--ink-500);
       letter-spacing: 0.08em; text-transform: uppercase;
@@ -158,12 +163,12 @@
     .site-header__signin {
       display: none; align-items: center; justify-content: center;
       height: 40px; padding: 0 16px; margin-right: 8px;
-      background: var(--navy-700); color: var(--paper);
-      border: 1px solid var(--navy-700); border-radius: var(--radius-md);
+      background: var(--navy-900); color: #fff;
+      border: 1px solid var(--navy-500); border-radius: var(--radius-md);
       font: 700 14px/1 var(--font-sans); cursor: pointer; flex-shrink: 0; white-space: nowrap;
-      transition: background var(--duration-fast) var(--ease-out), transform 80ms var(--ease-out);
+      transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), transform 80ms var(--ease-out);
     }
-    .site-header__signin:hover { background: var(--navy-900); border-color: var(--navy-900); }
+    .site-header__signin:hover { background: var(--navy-700); border-color: var(--navy-300); }
     .site-header__signin:active { transform: scale(0.97); }
 
     /* ── Slide-out drawer + overlay ──────────────────────────── */
@@ -2141,6 +2146,7 @@
 <!-- ── Header ─────────────────────────────────────────────────── -->
 <header class="site-header">
   <div class="site-header__inner">
+    <div class="site-header__left">
     <button class="site-header__menu-btn" id="menu-trigger" type="button" aria-label="Open menu" aria-controls="site-menu" aria-expanded="false">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <line x1="4" y1="7" x2="20" y2="7"/>
@@ -2149,6 +2155,7 @@
       </svg>
     </button>
     <button class="site-header__signin" id="header-signin" type="button" onclick="openSignInModal()" style="display:none">Sign in</button>
+    </div>
     <a class="site-header__brand" href="/" aria-label="Conflicted — home">
       <svg xmlns="http://www.w3.org/2000/svg" width="480" height="130" viewBox="0 0 480 130" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="brandTitle brandDesc">
         <title id="brandTitle">Conflicted</title>
