@@ -14,6 +14,10 @@
 
 const crypto = require('crypto');
 
+// Account layer — inert without env vars, safe to import unconditionally.
+let A = null;
+try { A = require('../_lib/accounts'); } catch (e) { A = null; }
+
 const ALGO = 'aes-256-gcm';
 
 function getKey() {
@@ -77,7 +81,27 @@ async function refreshAccessToken(refreshTok) {
 module.exports = async (req, res) => {
   try {
     const cookies = parseCookies(req);
-    if (!cookies.yahoo_session) {
+
+    // Resolve the signed-in account once (if any) — used for the read fallback,
+    // the self-heal write, and refresh writeback further down.
+    let acct = null;
+    try {
+      if (A && A.accountsConfigured()) acct = A.readAccount(req);
+    } catch (e) {
+      console.error('yahoo/data account lookup failed (non-fatal):', e.message);
+    }
+
+    // Prefer the per-browser cookie (today's path). If it's absent — e.g. the
+    // user is on a different device where they never ran the OAuth flow — fall
+    // back to the Yahoo blob stored against their signed-in account.
+    let sealed = cookies.yahoo_session || null;
+    const fromCookie = Boolean(sealed);
+    if (!sealed && acct) {
+      try { sealed = await A.getPlatformSession(acct.uid, 'yahoo'); }
+      catch (e) { console.error('yahoo/data account session read failed (non-fatal):', e.message); }
+    }
+
+    if (!sealed) {
       res
         .status(401)
         .json({ error: 'Not authenticated. Visit /api/auth/yahoo to log in.' });
@@ -86,10 +110,23 @@ module.exports = async (req, res) => {
 
     let session;
     try {
-      session = JSON.parse(decrypt(cookies.yahoo_session));
+      session = JSON.parse(decrypt(sealed));
     } catch (e) {
       res.status(401).json({ error: 'Invalid session' });
       return;
+    }
+
+    // Self-heal: if this request authenticated from the cookie but the account
+    // has no stored Yahoo blob yet (e.g. connected before account-sync shipped),
+    // back-fill it now so the connection follows the user to other devices
+    // without forcing a manual reconnect.
+    if (fromCookie && acct) {
+      try {
+        const stored = await A.getPlatformSession(acct.uid, 'yahoo');
+        if (!stored) await A.savePlatformSession(acct.uid, 'yahoo', sealed);
+      } catch (e) {
+        console.error('yahoo/data self-heal save failed (non-fatal):', e.message);
+      }
     }
 
     let accessToken = session.at;
@@ -105,11 +142,17 @@ module.exports = async (req, res) => {
           exp: Math.floor(Date.now() / 1000) + (fresh.expires_in || 3600),
           guid: session.guid
         };
-        const sealed = encrypt(JSON.stringify(newSession));
+        const resealed = encrypt(JSON.stringify(newSession));
         res.setHeader(
           'Set-Cookie',
-          `yahoo_session=${sealed}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`
+          `yahoo_session=${resealed}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`
         );
+        // Refresh writeback: persist the rotated token to the account too, or
+        // the stored refresh token goes stale and cross-device access breaks.
+        if (acct) {
+          try { await A.savePlatformSession(acct.uid, 'yahoo', resealed); }
+          catch (e) { console.error('yahoo/data refresh writeback failed (non-fatal):', e.message); }
+        }
       } catch (e) {
         res.status(401).json({ error: 'Session expired, please log in again' });
         return;
