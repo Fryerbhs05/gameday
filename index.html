@@ -4575,6 +4575,22 @@ function parseEspnLeague(data,season,week,isHist){
   };
 }
 
+/* Mirror the Sleeper username to the signed-in Conflicted account so it follows
+   the user across devices (Sleeper is username-only, no credentials). No-op when
+   accounts are off or nobody's signed in. Fire-and-forget — localStorage remains
+   the primary store and the source of truth on this device. */
+function syncSleeperToAccount(username){
+  try{
+    const acct=window.__account||{};
+    if(!acct.enabled||!acct.signedIn)return;
+    fetch('/api/account/me?action=sleeper',{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:username||''})
+    }).catch(()=>{});
+  }catch(e){}
+}
+
 const PROVIDERS={
   sleeper:{
     id:'sleeper', displayName:'Sleeper', accentColor:'#1A3A52', connectionType:'username',
@@ -4597,6 +4613,7 @@ const PROVIDERS={
     async disconnect(){
       connectionState.sleeper={connected:false,identity:null,displayName:null};
       try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+      syncSleeperToAccount('');
     },
     async loadLeagues(season,week,isHist){
       const username=connectionState.sleeper.identity;
@@ -4659,7 +4676,7 @@ const PROVIDERS={
       if(leagues?.length&&!valid.length)throw new Error('Found Sleeper leagues but could not read roster data.');
       return{results:valid,contexts,debugLeagues,projections,hasProj};
     },
-    persist(){try{localStorage.setItem(SLEEPER_LS_KEY,connectionState.sleeper.identity||'');}catch(e){}},
+    persist(){try{localStorage.setItem(SLEEPER_LS_KEY,connectionState.sleeper.identity||'');}catch(e){}syncSleeperToAccount(connectionState.sleeper.identity||'');},
     rehydrate(){
       try{
         const legacy=localStorage.getItem(USER_KEY);
@@ -5320,6 +5337,24 @@ async function bootstrapAccount(){
   try{ const r = await fetch('/api/account/me',{credentials:'include'}); info = await r.json(); }
   catch(e){ /* keep defaults */ }
   window.__account = info;
+  // Account-keyed rehydration: when signed in on a fresh device, pull the
+  // connections stored against the account so they show up without re-connecting.
+  // Sleeper's username comes back inline; Yahoo is validated by its own status
+  // check, which now falls back to the account-stored session server-side. The
+  // !connected guards mean a local (localStorage/cookie) connection always wins.
+  try{
+    if(info && info.signedIn){
+      if(info.sleeper && !connectionState.sleeper.connected){
+        connectionState.sleeper={connected:true,identity:info.sleeper,displayName:info.sleeper};
+        try{localStorage.setItem(SLEEPER_LS_KEY,info.sleeper);}catch(e){}
+      }
+      const plats=Array.isArray(info.platforms)?info.platforms:[];
+      if(plats.includes('yahoo') && !connectionState.yahoo.connected){
+        try{ await PROVIDERS.yahoo.checkStatus(); }catch(e){}
+      }
+      try{ refreshConnectUI(); }catch(e){}
+    }
+  }catch(e){}
   // The landing card may have rendered before this async call resolved; refresh
   // the onboarding gate now that we know enabled/signedIn for real.
   try{ updateOnboardingGate(); }catch(e){}
