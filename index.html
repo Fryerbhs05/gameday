@@ -379,11 +379,15 @@
        below 16px, and the zoom sticks between fields. Bumping the sign-in /
        sign-up / connect inputs to exactly 16px on mobile stops the auto-zoom
        without disabling pinch-zoom. Scoped to mobile so desktop sizing (14px /
-       13px) is unchanged. */
+       13px) is unchanged.
+       NOTE: the .espn-field selectors are qualified with .espn-modal so they
+       out-specify the base `.espn-field input { font: …13px }` rule that's
+       defined LATER in this stylesheet — without the bump, source order would
+       let the 13px win and the modal would keep zooming. */
     @media (max-width: 640px) {
       .signin-input,
-      .espn-field input,
-      .espn-field textarea { font-size: 16px; }
+      .espn-modal .espn-field input,
+      .espn-modal .espn-field textarea { font-size: 16px; }
     }
 
     /* Provider cards on the signin */
