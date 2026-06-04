@@ -5,6 +5,11 @@
 
 const crypto = require('crypto');
 
+// Account layer (magic-link sessions + account-keyed platform storage). Fully
+// inert when its env vars aren't set, so importing it is always safe.
+let A = null;
+try { A = require('../_lib/accounts'); } catch (e) { A = null; }
+
 const ALGO = 'aes-256-gcm';
 
 function getKey() {
@@ -91,6 +96,19 @@ module.exports = async (req, res) => {
     });
 
     const sealed = encrypt(session);
+
+    // If the user is signed into a Conflicted account, also store this Yahoo
+    // session against their account so it follows them to other devices — the
+    // same payoff ESPN already has. Non-fatal: the per-browser cookie below is
+    // the primary path and must succeed regardless.
+    try {
+      if (A && A.accountsConfigured()) {
+        const acct = A.readAccount(req);
+        if (acct) await A.savePlatformSession(acct.uid, 'yahoo', sealed);
+      }
+    } catch (e) {
+      console.error('yahoo callback account save failed (non-fatal):', e.message);
+    }
 
     res.setHeader('Set-Cookie', [
       // 30-day session cookie, HttpOnly so JavaScript can't read it
