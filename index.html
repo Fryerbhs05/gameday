@@ -5345,8 +5345,18 @@ async function bootstrapAccount(){
   try{
     if(info && info.signedIn){
       if(info.sleeper && !connectionState.sleeper.connected){
+        // Account has a Sleeper username → hydrate this (fresh) device from it.
         connectionState.sleeper={connected:true,identity:info.sleeper,displayName:info.sleeper};
         try{localStorage.setItem(SLEEPER_LS_KEY,info.sleeper);}catch(e){}
+      }else if(!info.sleeper){
+        // Self-heal: account has NO Sleeper stored, but this device has a local
+        // username (connected before sign-in, or before account-sync shipped).
+        // Push it up so it follows to other devices — the Sleeper analogue of
+        // the Yahoo self-heal in api/yahoo/data.js. Read localStorage directly:
+        // provider rehydrate() may not have populated connectionState yet.
+        let localSleeper='';
+        try{ localSleeper=localStorage.getItem(SLEEPER_LS_KEY)||localStorage.getItem(USER_KEY)||''; }catch(e){}
+        if(localSleeper){ syncSleeperToAccount(localSleeper); info.sleeper=localSleeper; }
       }
       const plats=Array.isArray(info.platforms)?info.platforms:[];
       if(plats.includes('yahoo') && !connectionState.yahoo.connected){
