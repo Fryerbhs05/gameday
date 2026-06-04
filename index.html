@@ -1311,7 +1311,6 @@
       border-radius: var(--radius-md); padding: 12px 14px;
       transition: border-color var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
     }
-    .priority-row.top { border-color: var(--coral-500); }
     .priority-row.dragging { opacity: 0.4; }
     .priority-row[draggable="true"] { cursor: grab; }
     .priority-row[draggable="true"]:active { cursor: grabbing; }
@@ -1332,14 +1331,14 @@
     .priority-row-detail .lg-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
     .priority-arrows { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
     .priority-arrow-btn {
-      background: var(--paper-soft); color: var(--ink-500);
-      border: 1px solid var(--line); border-radius: var(--radius-sm);
-      width: 26px; height: 20px; padding: 0;
-      font: 500 9px/1 var(--font-mono); cursor: pointer;
+      background: var(--paper-deep); color: var(--ink-700);
+      border: 1px solid var(--ink-300); border-radius: var(--radius-sm);
+      width: 30px; height: 24px; padding: 0;
+      font: 600 11px/1 var(--font-mono); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      transition: background var(--duration-fast) var(--ease-out);
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
     }
-    .priority-arrow-btn:hover:not(:disabled) { background: var(--paper-deep); color: var(--ink-700); }
+    .priority-arrow-btn:hover:not(:disabled) { background: var(--coral-500); color: #fff; border-color: var(--coral-500); }
     .priority-arrow-btn:disabled { opacity: 0.3; cursor: not-allowed; }
     .priority-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; flex-wrap: wrap; }
     .priority-actions .btn-primary { padding: 11px 22px; font-size: 14px; }
