@@ -48,6 +48,14 @@ async function handleMe(req, res) {
   } catch (e) {
     console.error('account/me platform check:', e.message);
   }
+  // TEMP DIAGNOSTIC (remove after cross-device Sleeper is confirmed): show what
+  // this account actually resolves to, so we can tell signed-in-but-empty from
+  // not-signed-in from a decode miss.
+  console.log('DIAG account/me GET', JSON.stringify({
+    uid: acct.uid ? String(acct.uid).slice(0, 8) : null,
+    platforms,
+    sleeper: sleeperUsername ? `len${sleeperUsername.length}` : null
+  }));
   res
     .status(200)
     .json({ signedIn: true, enabled: true, email: acct.email, platforms, sleeper: sleeperUsername });
@@ -97,6 +105,12 @@ async function handleSleeper(req, res) {
   try {
     const body = await readJsonBody(req);
     const username = String((body && body.username) || '').trim();
+    // TEMP DIAGNOSTIC (remove after confirmed): what did the client send us?
+    console.log('DIAG account/me POST sleeper', JSON.stringify({
+      uid: acct.uid ? String(acct.uid).slice(0, 8) : null,
+      op: username ? 'save' : 'clear',
+      usernameLen: username.length
+    }));
     if (username) {
       const blob = A.encrypt(JSON.stringify({ u: username }));
       await A.savePlatformSession(acct.uid, 'sleeper', blob);
