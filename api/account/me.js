@@ -1,11 +1,26 @@
 // api/account/me.js
 // Combined account endpoint (kept as ONE Vercel function to stay under the
 // Hobby plan's 12-function limit):
-//   GET  /api/account/me                  -> who am I + connected platforms
-//   POST /api/account/me?action=logout    -> clear the account cookie
-//   POST /api/account/me?action=delete    -> permanently delete account + data
+//   GET  /api/account/me                   -> who am I + connected platforms
+//   POST /api/account/me?action=logout     -> clear the account cookie
+//   POST /api/account/me?action=delete     -> permanently delete account + data
+//   POST /api/account/me?action=sleeper    -> save/clear the Sleeper username
+//        body { username } saves it; empty/missing username clears it.
 
 const A = require('../_lib/accounts');
+
+async function readJsonBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (typeof req.body === 'string') {
+    try { return JSON.parse(req.body); } catch { return {}; }
+  }
+  return await new Promise((resolve) => {
+    let data = '';
+    req.on('data', (c) => (data += c));
+    req.on('end', () => { try { resolve(data ? JSON.parse(data) : {}); } catch { resolve({}); } });
+    req.on('error', () => resolve({}));
+  });
+}
 
 // ── GET: identity + connected platforms ──────────────────────────
 async function handleMe(req, res) {
@@ -19,15 +34,23 @@ async function handleMe(req, res) {
     return;
   }
   let platforms = [];
+  let sleeperUsername = null;
   try {
-    const checks = await Promise.all(
-      ['espn', 'yahoo'].map(async (p) => ((await A.getPlatformSession(acct.uid, p)) ? p : null))
+    const blobs = await Promise.all(
+      ['espn', 'yahoo', 'sleeper'].map((p) => A.getPlatformSession(acct.uid, p))
     );
-    platforms = checks.filter(Boolean);
+    ['espn', 'yahoo', 'sleeper'].forEach((p, i) => { if (blobs[i]) platforms.push(p); });
+    // Sleeper's blob is just the (non-credential) username, encrypted for
+    // storage consistency. Decode it so the client can rehydrate the field.
+    if (blobs[2]) {
+      try { sleeperUsername = JSON.parse(A.decrypt(blobs[2])).u || null; } catch (e) { sleeperUsername = null; }
+    }
   } catch (e) {
     console.error('account/me platform check:', e.message);
   }
-  res.status(200).json({ signedIn: true, enabled: true, email: acct.email, platforms });
+  res
+    .status(200)
+    .json({ signedIn: true, enabled: true, email: acct.email, platforms, sleeper: sleeperUsername });
 }
 
 // ── POST ?action=logout: end session on this device ──────────────
@@ -57,6 +80,37 @@ async function handleDelete(req, res) {
   }
 }
 
+// ── POST ?action=sleeper: save/clear the Sleeper username for this account ──
+// Sleeper has no OAuth/credentials — the username alone identifies the user's
+// leagues — so we store just that. Encrypted for storage consistency with the
+// other platform blobs. An empty username clears the connection.
+async function handleSleeper(req, res) {
+  if (!A.accountsConfigured()) {
+    res.status(503).json({ error: 'Accounts are not enabled.' });
+    return;
+  }
+  const acct = A.readAccount(req);
+  if (!acct) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+  try {
+    const body = await readJsonBody(req);
+    const username = String((body && body.username) || '').trim();
+    if (username) {
+      const blob = A.encrypt(JSON.stringify({ u: username }));
+      await A.savePlatformSession(acct.uid, 'sleeper', blob);
+      res.status(200).json({ ok: true, sleeper: username });
+    } else {
+      await A.deletePlatformSession(acct.uid, 'sleeper');
+      res.status(200).json({ ok: true, sleeper: null });
+    }
+  } catch (e) {
+    console.error('account/sleeper error:', e.message);
+    res.status(500).json({ error: 'Could not save Sleeper connection.' });
+  }
+}
+
 module.exports = async (req, res) => {
   // Identity is per-cookie and must never be cached — otherwise a browser can
   // re-render a stale account after the session cookie changes (e.g. clicking a
@@ -67,6 +121,7 @@ module.exports = async (req, res) => {
     const action = (req.query && req.query.action) || '';
     if (action === 'logout') return handleLogout(req, res);
     if (action === 'delete') return handleDelete(req, res);
+    if (action === 'sleeper') return handleSleeper(req, res);
     res.status(400).json({ error: 'Unknown action' });
     return;
   }
