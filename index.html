@@ -419,6 +419,8 @@
     .provider-input { flex: 1; width: 100%; }
     .provider-connect-btn { white-space: nowrap; padding: 10px 16px; font-size: 13px; }
     .provider-soon-msg { font: 400 12px/1.5 var(--font-sans); color: var(--ink-500); margin-bottom: 4px; }
+    .conn-league-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+    .conn-league-chip { font: 500 11px/1 var(--font-sans); color: var(--ink-700); background: rgba(0,0,0,0.05); border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; }
     .btn-soon-disabled {
       width: 100%; background: var(--paper-deep); color: var(--ink-500);
       border: 1px dashed var(--line); border-radius: var(--radius-md);
@@ -2140,7 +2142,7 @@
     </a>
     <nav class="site-header__nav">
       <span class="site-header__week" id="week-label" style="display:none"></span>
-      <button class="btn-ghost" id="change-user-btn" onclick="handleChangeUser()" style="display:none">Change user</button>
+      <button class="btn-ghost" id="change-user-btn" onclick="showConnections()" style="display:none">Connections</button>
       <button class="btn-live" id="refresh-btn" onclick="handleRefresh()" style="display:none"><span class="dot-live"></span> LIVE</button>
     </nav>
   </div>
@@ -2197,8 +2199,8 @@
       </button>
     </li>
     <li role="none">
-      <button class="menu-drawer__item" data-menu-action="change-user" role="menuitem" type="button">
-        <span>Change user</span>
+      <button class="menu-drawer__item" data-menu-action="connections" role="menuitem" type="button">
+        <span>League connections</span>
       </button>
     </li>
     <li role="presentation"><hr class="menu-drawer__divider" aria-hidden="true"></li>
@@ -2409,12 +2411,37 @@
       </div>
       <div class="settings-row">
         <div class="settings-row-meta">
-          <div class="settings-row-title">Account</div>
-          <div class="settings-row-sub">Disconnect all providers and return to the connection screen.</div>
+          <div class="settings-row-title">League connections</div>
+          <div class="settings-row-sub">Add, re-connect, or remove the fantasy platforms Conflicted reads.</div>
         </div>
-        <button class="btn-secondary" onclick="handleChangeUser()" type="button">Change user</button>
+        <button class="btn-secondary" onclick="showConnections()" type="button">Manage</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ══ LEAGUE CONNECTIONS VIEW (hamburger → League connections) ═ -->
+<div id="view-connections" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
+  <div style="margin-bottom:20px;">
+    <h2 style="font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);margin:0 0 6px;">League connections</h2>
+    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">Connect, re-connect, or remove the platforms Conflicted reads your leagues from. Changes apply when you head back to the dashboard.</p>
+  </div>
+  <div id="connections-grid" class="provider-card-grid" style="margin-bottom:0;"></div>
+  <div id="connections-dirty-note" style="display:none;margin-top:18px;font:500 13px/1.5 var(--font-sans);color:var(--ink-700);background:var(--cheer-soft);border:1px solid var(--cheer);border-radius:var(--radius-md);padding:12px 14px;">
+    Your connections changed.
+    <button class="btn-secondary" style="margin-left:8px;" onclick="applyConnectionsAndView()" type="button">Reload dashboard</button>
+  </div>
+  <div style="margin-top:28px;border-top:1px solid var(--line);padding-top:18px;">
+    <div class="settings-row">
+      <div class="settings-row-meta">
+        <div class="settings-row-title">Start fresh</div>
+        <div class="settings-row-sub">Return to the setup screen to rebuild your connections from scratch.</div>
+      </div>
+      <button class="btn-secondary" onclick="handleChangeUser()" type="button">Return to setup</button>
+    </div>
+  </div>
+  <div style="margin-top:14px;">
+    <button class="btn-ghost" onclick="exitConnections()" type="button">← Back to dashboard</button>
   </div>
 </div>
 
@@ -2854,9 +2881,10 @@ function ctxBadge(sig,isHist){
 }
 
 function hideAll(){
-  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch','view-settings'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch','view-settings','view-connections'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('week-label').style.display='none';
+  window.__connectionsViewActive=false;
 }
 function showSettings(){
   hideAll();
@@ -2868,6 +2896,63 @@ function showSettings(){
   try{initThemeToggle();}catch(e){}
 }
 window.showSettings = showSettings;
+
+/* ══ LEAGUE CONNECTIONS ════════════════════════════════════════
+   A management surface for the three providers. Reuses each PROVIDERS
+   entry's renderConnectCard() (same connect/disconnect handlers as the
+   setup wizard), so connecting logic stays in one place. Replaces the
+   old destructive "Change user" reset with a non-destructive panel; the
+   legacy reset survives as the demoted "Return to setup" action. */
+function showConnections(){
+  hideAll();
+  const v=document.getElementById('view-connections');
+  if(v)v.style.display='block';
+  window.__connectionsViewActive=true;
+  try{renderConnectionsPanel();}catch(e){console.warn('renderConnectionsPanel failed:',e.message);}
+}
+window.showConnections=showConnections;
+function renderConnectionsPanel(){
+  const grid=document.getElementById('connections-grid'); if(!grid)return;
+  grid.innerHTML='';
+  Object.values(PROVIDERS).forEach(p=>{
+    const card=document.createElement('div');
+    card.className='provider-card'+(connectionState[p.id]?.connected?' connected':'');
+    const head=document.createElement('div');head.className='provider-card-header';
+    head.innerHTML=`<span class="provider-icon" style="background:${p.accentColor}">${p.displayName.charAt(0)}</span><span class="provider-card-title">${p.displayName}</span>`;
+    const body=document.createElement('div');body.className='provider-card-body';
+    p.renderConnectCard(body);
+    /* ESPN holds several leagues on one connection — list them so the user can see
+       exactly what's wired up before disconnecting. */
+    if(p.id==='espn'&&connectionState.espn?.connected){
+      const ids=connectionState.espn.league_ids||[];
+      const names=connectionState.espn.league_names||{};
+      if(ids.length){
+        const list=document.createElement('div');list.className='conn-league-list';
+        list.innerHTML=ids.map(id=>`<span class="conn-league-chip">${names[id]?names[id]:('League '+id)}</span>`).join('');
+        body.appendChild(list);
+      }
+    }
+    card.appendChild(head);card.appendChild(body);
+    grid.appendChild(card);
+  });
+  const note=document.getElementById('connections-dirty-note');
+  if(note)note.style.display=window.__connectionsDirty?'block':'none';
+}
+/* Connecting/disconnecting here marks the view dirty; we reload league data when
+   the user leaves so the board reflects the new provider set. */
+function applyConnectionsAndView(){
+  window.__connectionsDirty=false;window.__connectionsViewActive=false;
+  if(isAnyProviderConnected()){isDemoMode=false;colorMap={};activeFilters.clear();resetRenderIndexes();stopAutoRefresh();showLoading('Updating your leagues.');run();}
+  else showSetup();
+}
+function exitConnections(){
+  if(window.__connectionsDirty){applyConnectionsAndView();return;}
+  window.__connectionsViewActive=false;
+  goToDashboardOrSetup();
+}
+window.exitConnections=exitConnections;
+window.applyConnectionsAndView=applyConnectionsAndView;
+
 function showSetup(){hideAll();isDemoMode=false;document.getElementById('setup-panel').style.display='flex';try{window.__wizardActive=false;if(typeof stopYahooPoll==='function')stopYahooPoll();}catch(e){}try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}}
 function showLoading(msg){hideAll();document.getElementById('loading-panel').style.display='flex';document.getElementById('loading-msg').textContent=msg||'Pulling your leagues.';}
 function setLoading(msg){document.getElementById('loading-msg').textContent=msg;}
@@ -4439,7 +4524,7 @@ const PROVIDERS={
       /* In the wizard, clear the Yahoo session WITHOUT a full-page redirect —
          otherwise /api/auth/logout's 302 reboots the app and (if another league
          is still connected) drops the user on the dashboard, out of the wizard. */
-      if(window.__wizardActive){
+      if(window.__wizardActive||window.__connectionsViewActive){
         try{ await fetch('/api/auth/logout',{credentials:'include'}); }catch(e){}
         connectionState.yahoo={connected:false,identity:null,displayName:null};
         return;
@@ -4927,6 +5012,7 @@ async function handleProviderDisconnect(id){
 /* Re-render whichever connect UI is showing: the wizard step if active, else
    the legacy grid. */
 function refreshConnectUI(){
+  if(window.__connectionsViewActive){ window.__connectionsDirty=true; try{ renderConnectionsPanel(); return; }catch(e){} }
   if(window.__wizardActive){ try{ renderWizardStep(); return; }catch(e){} }
   renderSetupProviders();
 }
@@ -8042,8 +8128,8 @@ initThemeToggle();
           if (typeof window.showWatch === 'function') window.showWatch();
         } else if (action === 'settings') {
           if (typeof window.showSettings === 'function') window.showSettings();
-        } else if (action === 'change-user') {
-          if (typeof window.handleChangeUser === 'function') window.handleChangeUser();
+        } else if (action === 'connections') {
+          if (typeof window.showConnections === 'function') window.showConnections();
         }
         // Future routes — wire these up as each view ships:
         //   watch-priority, about, blog, contact
