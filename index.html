@@ -2434,10 +2434,10 @@
   <div style="margin-top:28px;border-top:1px solid var(--line);padding-top:18px;">
     <div class="settings-row">
       <div class="settings-row-meta">
-        <div class="settings-row-title">Start fresh</div>
-        <div class="settings-row-sub">Return to the setup screen to rebuild your connections from scratch.</div>
+        <div class="settings-row-title">Disconnect all leagues</div>
+        <div class="settings-row-sub">Signs out of Yahoo and ESPN and forgets your Sleeper username on this browser, then returns to setup.</div>
       </div>
-      <button class="btn-secondary" onclick="handleChangeUser()" type="button">Return to setup</button>
+      <button class="btn-secondary" onclick="handleDisconnectAll()" type="button">Disconnect all</button>
     </div>
   </div>
   <div style="margin-top:14px;">
@@ -2950,6 +2950,22 @@ function exitConnections(){
   window.__connectionsViewActive=false;
   goToDashboardOrSetup();
 }
+/* True teardown for this browser: run every provider's real disconnect() —
+   Sleeper clears its localStorage keys, ESPN POSTs /api/espn/disconnect to drop
+   its HttpOnly cookie, Yahoo hits /api/auth/logout to clear its session. We force
+   __connectionsViewActive so Yahoo takes the no-redirect logout path. Does NOT
+   sign out of your Conflicted account (email link) — that's separate, in Settings. */
+async function handleDisconnectAll(){
+  if(!confirm('Disconnect every league from this browser? You\'ll need to reconnect to load your leagues again.'))return;
+  window.__connectionsViewActive=true;
+  for(const id of Object.keys(PROVIDERS)){
+    try{ await PROVIDERS[id].disconnect(); }catch(e){ console.warn('disconnect failed:',id,e.message); }
+  }
+  isDemoMode=false;colorMap={};activeFilters.clear();resetRenderIndexes();stopAutoRefresh();
+  window.__connectionsDirty=false;window.__connectionsViewActive=false;
+  showSetup();
+}
+window.handleDisconnectAll=handleDisconnectAll;
 window.exitConnections=exitConnections;
 window.applyConnectionsAndView=applyConnectionsAndView;
 
