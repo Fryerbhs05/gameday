@@ -4704,11 +4704,8 @@ const PROVIDERS={
         const ids=connectionState.espn.league_ids||[];
         const names=connectionState.espn.league_names||{};
         let leagueLabel='';
-        if(ids.length>1){
-          leagueLabel=`${ids.length} leagues`;
-        }else if(ids.length===1){
-          const lid=ids[0];
-          leagueLabel=names[lid]?names[lid]:`league ${lid}`;
+        if(ids.length>=1){
+          leagueLabel=`${ids.length} league${ids.length===1?'':'s'}`;
         }
         rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>ESPN connected${leagueLabel?` <span style="color:var(--ink-500)">· ${leagueLabel}</span>`:''}</span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('espn')">Disconnect</button>`;
       }else if(isMobileDevice()){
