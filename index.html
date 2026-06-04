@@ -5484,13 +5484,14 @@ function updateHeaderAuthControls(showSignin){
 }
 window.updateHeaderAuthControls = updateHeaderAuthControls;
 
-/* Header "Sign in" entry (cold visitors). Collects name + email and posts to
+/* Header "Sign in" entry (cold visitors). Collects email only and posts to
    ?mode=onboard, which the backend branches:
      • brand-new email (or an account with no connections) → creates the account,
        signs them in on this device, and we drop them into the connect funnel;
      • existing account that already has connections → emails a one-time sign-in
        link instead (no session granted, so an address can't be hijacked).
-   Name is always captured so new accounts go through the setup funnel. */
+   Name is captured later in the wizard identity step (onb-first/onb-last), so we
+   don't ask for it here — keeping this form to a single field for conversion. */
 function openSignInModal(){
   const existing = document.getElementById('signin-modal-backdrop');
   if(existing) existing.remove();
@@ -5500,15 +5501,7 @@ function openSignInModal(){
   backdrop.innerHTML = `
     <div class="espn-modal" role="dialog" aria-modal="true" aria-labelledby="signin-modal-title">
       <h2 id="signin-modal-title">Sign in</h2>
-      <p class="espn-modal-sub">Enter your details to continue. New here? This creates your account. Already have one? We'll email you a one-time sign-in link.</p>
-      <div class="espn-field">
-        <label for="signin-first">First name</label>
-        <input type="text" id="signin-first" autocomplete="given-name" />
-      </div>
-      <div class="espn-field">
-        <label for="signin-last">Last name</label>
-        <input type="text" id="signin-last" autocomplete="family-name" />
-      </div>
+      <p class="espn-modal-sub">Enter your email to continue. New here? This creates your account. Already have one? We'll email you a one-time sign-in link — no password.</p>
       <div class="espn-field">
         <label for="signin-email">Email</label>
         <input type="email" id="signin-email" placeholder="you@example.com" autocomplete="email" />
@@ -5528,19 +5521,15 @@ function openSignInModal(){
   const submit = backdrop.querySelector('#signin-submit');
 
   const send = async()=>{
-    const first = (backdrop.querySelector('#signin-first').value||'').trim();
-    const last  = (backdrop.querySelector('#signin-last').value||'').trim();
     const email = (backdrop.querySelector('#signin-email').value||'').trim();
     errEl.textContent='';
-    if(!first){ errEl.textContent='Please enter your first name.'; return; }
-    if(!last){ errEl.textContent='Please enter your last name.'; return; }
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ errEl.textContent='Enter a valid email address.'; return; }
     submit.disabled=true; submit.textContent='Working…';
     try{
       const r = await fetch('/api/auth/magic/request?mode=onboard',{
         method:'POST', credentials:'include',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ email, first_name:first, last_name:last })
+        body: JSON.stringify({ email })
       });
       const j = await r.json().catch(()=>({}));
       if(r.ok && j.mode === 'session'){
@@ -5566,7 +5555,7 @@ function openSignInModal(){
   };
   submit.addEventListener('click', send);
   backdrop.querySelector('#signin-email').addEventListener('keydown', e=>{ if(e.key==='Enter') send(); });
-  setTimeout(()=>backdrop.querySelector('#signin-first').focus(), 50);
+  setTimeout(()=>backdrop.querySelector('#signin-email').focus(), 50);
 }
 window.openSignInModal = openSignInModal;
 
