@@ -4701,10 +4701,10 @@ function renderWizardSelection(){
   const identityHtml = needIdentity ? `
     <div class="wiz-identity">
       <div class="signin-field-row">
-        <input id="onb-first" class="signin-input" type="text" placeholder="First name" autocomplete="given-name" />
-        <input id="onb-last" class="signin-input" type="text" placeholder="Last name" autocomplete="family-name" />
+        <input id="onb-first" class="signin-input" type="text" placeholder="First name" autocomplete="given-name" oninput="updateWizBeginEnabled()" />
+        <input id="onb-last" class="signin-input" type="text" placeholder="Last name" autocomplete="family-name" oninput="updateWizBeginEnabled()" />
       </div>
-      <input id="onb-email" class="signin-input" type="email" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')wizardBegin()" />
+      <input id="onb-email" class="signin-input" type="email" placeholder="you@example.com" autocomplete="email" oninput="updateWizBeginEnabled()" onkeydown="if(event.key==='Enter')wizardBegin()" />
       <p class="provider-error" id="onb-error" style="display:none"></p>
     </div>` : '';
   root.innerHTML =
@@ -4719,6 +4719,21 @@ function renderWizardSelection(){
     const l = document.getElementById('onb-last'); if(l) l.value = window.__onbDraft.last || '';
     const e = document.getElementById('onb-email'); if(e) e.value = window.__onbDraft.email || '';
   }
+  updateWizBeginEnabled();
+}
+/* "Save & continue" is clickable only when a platform is picked AND — for new
+   users — first name, last name, and a valid email are all filled in. */
+function updateWizBeginEnabled(){
+  const begin = document.getElementById('wiz-begin');
+  if(!begin) return;
+  let ok = !!(window.__wizSelected && window.__wizSelected.size);
+  if(ok && onboardingGateActive()){
+    const f = (document.getElementById('onb-first') || {}).value || '';
+    const l = (document.getElementById('onb-last') || {}).value || '';
+    const e = (document.getElementById('onb-email') || {}).value || '';
+    ok = !!f.trim() && !!l.trim() && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.trim());
+  }
+  begin.disabled = !ok;
 }
 function toggleWizardPick(id){
   captureOnbDraft();           // keep any typed name/email across the re-render
@@ -4845,6 +4860,7 @@ async function submitIdentityInline(){
   const showErr = (m)=>{ if(errEl){ errEl.textContent = m; errEl.style.display = 'block'; } };
   if(errEl){ errEl.style.display='none'; errEl.textContent=''; }
   if(!first){ showErr('Please enter your first name.'); if(firstEl) firstEl.focus(); return false; }
+  if(!last){ showErr('Please enter your last name.'); if(lastEl) lastEl.focus(); return false; }
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ showErr('Enter a valid email address.'); if(emailEl) emailEl.focus(); return false; }
   if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
   try{
