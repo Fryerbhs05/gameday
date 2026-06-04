@@ -152,6 +152,19 @@
     .site-header__menu-btn:hover { background: var(--paper-deep); border-color: var(--line); }
     .site-header__menu-btn:active { transform: scale(0.96); }
     .site-header__menu-btn svg { width: 22px; height: 22px; display: block; }
+    /* Cold-visitor Sign in button — sits in the hamburger's slot when the
+       landing page is showing (the menu only leads to empty app views then).
+       Toggled against .site-header__menu-btn by updateHeaderAuthControls(). */
+    .site-header__signin {
+      display: none; align-items: center; justify-content: center;
+      height: 40px; padding: 0 16px; margin-right: 8px;
+      background: var(--navy-700); color: var(--paper);
+      border: 1px solid var(--navy-700); border-radius: var(--radius-md);
+      font: 700 14px/1 var(--font-sans); cursor: pointer; flex-shrink: 0; white-space: nowrap;
+      transition: background var(--duration-fast) var(--ease-out), transform 80ms var(--ease-out);
+    }
+    .site-header__signin:hover { background: var(--navy-900); border-color: var(--navy-900); }
+    .site-header__signin:active { transform: scale(0.97); }
 
     /* ── Slide-out drawer + overlay ──────────────────────────── */
     .menu-overlay {
@@ -2131,6 +2144,7 @@
         <line x1="4" y1="17" x2="20" y2="17"/>
       </svg>
     </button>
+    <button class="site-header__signin" id="header-signin" type="button" onclick="openSignInModal()" style="display:none">Sign in</button>
     <a class="site-header__brand" href="/" aria-label="Conflicted — home">
       <svg xmlns="http://www.w3.org/2000/svg" width="480" height="130" viewBox="0 0 480 130" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="brandTitle brandDesc">
         <title id="brandTitle">Conflicted</title>
@@ -2979,12 +2993,13 @@ window.handleDisconnectAll=handleDisconnectAll;
 window.exitConnections=exitConnections;
 window.applyConnectionsAndView=applyConnectionsAndView;
 
-function showSetup(){hideAll();isDemoMode=false;document.getElementById('setup-panel').style.display='flex';try{window.__wizardActive=false;if(typeof stopYahooPoll==='function')stopYahooPoll();}catch(e){}try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}}
+function showSetup(){hideAll();isDemoMode=false;document.getElementById('setup-panel').style.display='flex';try{window.__wizardActive=false;if(typeof stopYahooPoll==='function')stopYahooPoll();}catch(e){}try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}try{updateHeaderAuthControls(true);}catch(e){}}
 function showLoading(msg){hideAll();document.getElementById('loading-panel').style.display='flex';document.getElementById('loading-msg').textContent=msg||'Pulling your leagues.';}
 function setLoading(msg){document.getElementById('loading-msg').textContent=msg;}
 function showError(msg){hideAll();document.getElementById('error-panel').style.display='flex';document.getElementById('error-msg').textContent=msg;}
 function showBoard(){
   hideAll();document.getElementById('board').style.display='block';
+  try{updateHeaderAuthControls(false);}catch(e){}
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='inline-flex');
   document.getElementById('week-label').style.display='block';
   // Replay the card entrance animation on view-switches (priority/exposure → board).
@@ -5272,6 +5287,104 @@ function openAccountModal(){
     setTimeout(()=>backdrop.querySelector('#account-email').focus(), 50);
   }
 }
+
+/* Header auth control: on the landing/setup page the hamburger only opens empty
+   app views, so swap it for a direct Sign in button. Once a real view (board,
+   demo, exposure, watch) is showing, restore the hamburger. Landing/header only. */
+function updateHeaderAuthControls(showSignin){
+  const burger = document.getElementById('menu-trigger');
+  const signin = document.getElementById('header-signin');
+  if(!burger || !signin) return;
+  signin.style.display = showSignin ? 'inline-flex' : 'none';
+  burger.style.display = showSignin ? 'none' : 'inline-flex';
+}
+window.updateHeaderAuthControls = updateHeaderAuthControls;
+
+/* Header "Sign in" entry (cold visitors). Collects name + email and posts to
+   ?mode=onboard, which the backend branches:
+     • brand-new email (or an account with no connections) → creates the account,
+       signs them in on this device, and we drop them into the connect funnel;
+     • existing account that already has connections → emails a one-time sign-in
+       link instead (no session granted, so an address can't be hijacked).
+   Name is always captured so new accounts go through the setup funnel. */
+function openSignInModal(){
+  const existing = document.getElementById('signin-modal-backdrop');
+  if(existing) existing.remove();
+  const backdrop = document.createElement('div');
+  backdrop.id = 'signin-modal-backdrop';
+  backdrop.className = 'espn-modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="espn-modal" role="dialog" aria-modal="true" aria-labelledby="signin-modal-title">
+      <h2 id="signin-modal-title">Sign in</h2>
+      <p class="espn-modal-sub">Enter your details to continue. New here? This creates your account. Already have one? We'll email you a one-time sign-in link.</p>
+      <div class="espn-field">
+        <label for="signin-first">First name</label>
+        <input type="text" id="signin-first" autocomplete="given-name" />
+      </div>
+      <div class="espn-field">
+        <label for="signin-last">Last name</label>
+        <input type="text" id="signin-last" autocomplete="family-name" />
+      </div>
+      <div class="espn-field">
+        <label for="signin-email">Email</label>
+        <input type="email" id="signin-email" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="espn-modal-error" id="signin-modal-error"></div>
+      <div class="espn-modal-actions">
+        <button type="button" class="espn-btn-cancel" id="signin-cancel">Cancel</button>
+        <button type="button" class="espn-btn-submit" id="signin-submit">Continue</button>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+
+  const close = ()=> backdrop.remove();
+  const errEl = backdrop.querySelector('#signin-modal-error');
+  backdrop.addEventListener('click', e=>{ if(e.target===backdrop) close(); });
+  backdrop.querySelector('#signin-cancel').addEventListener('click', close);
+  const submit = backdrop.querySelector('#signin-submit');
+
+  const send = async()=>{
+    const first = (backdrop.querySelector('#signin-first').value||'').trim();
+    const last  = (backdrop.querySelector('#signin-last').value||'').trim();
+    const email = (backdrop.querySelector('#signin-email').value||'').trim();
+    errEl.textContent='';
+    if(!first){ errEl.textContent='Please enter your first name.'; return; }
+    if(!last){ errEl.textContent='Please enter your last name.'; return; }
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ errEl.textContent='Enter a valid email address.'; return; }
+    submit.disabled=true; submit.textContent='Working…';
+    try{
+      const r = await fetch('/api/auth/magic/request?mode=onboard',{
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email, first_name:first, last_name:last })
+      });
+      const j = await r.json().catch(()=>({}));
+      if(r.ok && j.mode === 'session'){
+        // New (or connectionless) account: signed in on this device. Mark the
+        // same flags the inline onboarding sets, then route into the connect funnel.
+        window.__account = { ...(window.__account||{}), signedIn:true, enabled:true, email: j.email || email };
+        window.__identityDone = true;
+        window.__onboardEmail = j.email || email;
+        window.__onboardedThisVisit = true;
+        close();
+        try{ showSetup(); ensureWizard(); }
+        catch(e){ window.location.href = '/?account=connected'; }
+      } else if(r.ok && j.mode === 'link_sent'){
+        backdrop.querySelector('.espn-modal').innerHTML =
+          `<h2>Check your email</h2><p class="espn-modal-sub">You already have a Conflicted account. We sent a sign-in link to <strong>${email}</strong>. It works once and expires in 15 minutes.</p>
+           <div class="espn-modal-actions"><button type="button" class="espn-btn-submit" id="signin-done">Done</button></div>`;
+        backdrop.querySelector('#signin-done').addEventListener('click', close);
+      } else {
+        errEl.textContent = j.error || 'Could not sign you in. Please try again.';
+        submit.disabled=false; submit.textContent='Continue';
+      }
+    }catch(e){ errEl.textContent='Network error. Please try again.'; submit.disabled=false; submit.textContent='Continue'; }
+  };
+  submit.addEventListener('click', send);
+  backdrop.querySelector('#signin-email').addEventListener('keydown', e=>{ if(e.key==='Enter') send(); });
+  setTimeout(()=>backdrop.querySelector('#signin-first').focus(), 50);
+}
+window.openSignInModal = openSignInModal;
 
 function consumeYahooReturnParam(){
   const params = new URLSearchParams(window.location.search);
