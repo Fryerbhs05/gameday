@@ -1306,7 +1306,7 @@
     .priority-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
     .priority-list.disabled { opacity: 0.45; pointer-events: none; }
     .priority-row {
-      display: flex; align-items: center; gap: 12px;
+      display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px;
       background: var(--paper); border: 1px solid var(--line);
       border-radius: var(--radius-md); padding: 12px 14px;
       transition: border-color var(--duration-fast) var(--ease-out), opacity var(--duration-fast) var(--ease-out);
@@ -2340,7 +2340,6 @@
     <div class="priority-card">
       <h2 id="priority-heading">Which league matters most?</h2>
       <p class="priority-card-sub">When two of your leagues disagree about a player — say, your QB helps one league but hurts another — Conflicted will weight the cheer toward your top-ranked league.</p>
-      <div class="priority-banner">We seeded this with your current order. Drag the handle or use the arrows to adjust.</div>
       <div class="priority-equal-row">
         <div class="priority-equal-label">
           <div class="priority-equal-title">Treat all leagues equally</div>
@@ -5721,7 +5720,6 @@ function renderPriorityList(){
     li.dataset.name=name;
     li.draggable=!priorityDraftEqual;
     li.innerHTML=`
-      <span class="priority-handle" aria-hidden="true">⋮⋮</span>
       <span class="priority-rank${isTop?' top':''}">${priorityDraftEqual?'—':'#'+(idx+1)}</span>
       <div class="priority-row-meta">
         <div class="priority-row-name"></div>
