@@ -6006,8 +6006,16 @@ initThemeToggle();
   const cameFromYahooOAuth=new URLSearchParams(window.location.search).get('yahoo')==='connected';
   consumeYahooReturnParam();
   consumeEspnReturnParam();
-  bootstrapAccount();
+  /* Local (localStorage) connections first, so the account hydration below sees
+     accurate connectionState for its local-wins guards. */
   Object.values(PROVIDERS).forEach(p=>{try{p.rehydrate&&p.rehydrate();}catch(e){console.warn(p.id+' rehydrate failed:',e.message);}});
+  /* AWAIT account hydration before the run()/showSetup() decision below. It must
+     finish first or an account-only connection (e.g. Sleeper synced from another
+     device, with nothing in this device's localStorage) won't be in
+     connectionState yet — so run() would render without it, or we'd wrongly fall
+     through to showSetup(). This was the "Sleeper doesn't appear on a new device"
+     bug: the write succeeded but this decision raced ahead of the read. */
+  await bootstrapAccount();
   /* Run Yahoo + ESPN status checks in parallel so bootstrap doesn't pay the
      latency of two sequential round-trips before deciding what to render. */
   await Promise.all([checkYahooStatus(),checkEspnStatus()]);
