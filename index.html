@@ -1111,6 +1111,32 @@
     .banner-offseason { background: var(--neutral-soft); border: 1px solid var(--ink-300); color: var(--ink-700); }
     .banner-warn      { background: var(--enemy-soft);   border: 1px solid var(--enemy);   color: var(--ink-700); }
 
+    /* Pinned demo ribbon — persistent "you're in demo, here's the exit" chrome.
+       Fixed bottom so it survives scrolling and every in-app view. Hardcoded
+       dark navy (not theme vars) so it reads identically in light + dark mode. */
+    #demo-ribbon {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 9000;
+      display: none; align-items: center; justify-content: center; gap: 14px;
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+      background: #14202B; border-top: 2px solid var(--coral-500);
+      box-shadow: 0 -6px 20px rgba(0,0,0,0.28);
+      font: 500 13px/1.3 var(--font-sans); color: #E6EDF3;
+    }
+    body.demo-active #demo-ribbon { display: flex; }
+    body.demo-active { padding-bottom: 64px; }
+    #demo-ribbon .dr-text { color: #AEBDCA; }
+    #demo-ribbon .dr-exit {
+      margin-left: 4px; background: #7AA8D1; color: #14202B;
+      border: 0; border-radius: var(--radius-md); cursor: pointer;
+      font: 600 13px/1 var(--font-sans); padding: 9px 16px;
+      transition: background 0.15s var(--ease-out);
+    }
+    #demo-ribbon .dr-exit:hover, #demo-ribbon .dr-exit:active { background: #5790C0; }
+    @media (max-width: 560px) {
+      #demo-ribbon { gap: 10px; padding-left: 12px; padding-right: 12px; }
+      #demo-ribbon .dr-text { display: none; }
+    }
+
     /* No-data */
     #no-data-state { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 60px 20px; text-align: center; }
     #no-data-state.visible { display: flex; }
@@ -2308,6 +2334,12 @@
   <div class="menu-drawer__foot">All your leagues, one place.</div>
 </aside>
 
+<!-- Pinned demo ribbon: persistent exit affordance while in demo mode -->
+<div id="demo-ribbon" role="status" aria-live="polite">
+  <span class="dr-text">Demo Mode — Exit Demo Mode To Connect Your Leagues</span>
+  <button class="dr-exit" type="button" onclick="exitDemo()">Exit Demo Mode</button>
+</div>
+
 <!-- ══ LANDING ═════════════════════════════════════════════════ -->
 <div id="setup-panel">
 
@@ -2430,7 +2462,6 @@
       <div class="filter-divider"></div>
       <span class="filter-count" id="filter-count"></span>
     </div>
-    <div class="banner banner-demo"      id="banner-demo"><div><strong>Demo mode</strong> — 4 fake leagues with live scoring context. Connect a platform to load real data.</div></div>
     <div class="banner banner-offseason" id="banner-offseason"><div><strong>Roster mode</strong> — no matchup data yet. Everyone defaults to your guys until lineups are set.</div></div>
     <div class="banner banner-warn"      id="banner-partial"><div id="banner-partial-msg"></div></div>
     <div id="no-data-state">
@@ -3933,7 +3964,7 @@ function renderBoard(data,username){
   const _alreadyOnBoard=!!(_boardEl && _boardEl.style.display && _boardEl.style.display!=='none');
   if(!_expoOpen && !_watchOpen && !_alreadyOnBoard){showBoard();}
   updateNavUI();
-  document.getElementById('banner-demo').classList.toggle('visible',isDemoMode);
+  (function(b){if(b)b.classList.toggle('visible',isDemoMode);})(document.getElementById('banner-demo'));
   document.getElementById('banner-offseason').classList.toggle('visible',!isDemoMode&&!!offseasonMode);
   const partialBanner=document.getElementById('banner-partial');
   if(!isDemoMode&&partialError){document.getElementById('banner-partial-msg').textContent=partialError;partialBanner.classList.add('visible');}
@@ -4620,7 +4651,17 @@ async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek
 async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};activeFilters.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
 async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(isAnyProviderConnected())await run();}
 
-function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');window.scrollTo(0,0);}
+/* Demo opens on the LIVE week/season (not a pinned historic week) so the nav
+   reads "Live · {season}" and the demo never looks like you've browsed back in
+   time. The demo dataset itself is week-agnostic. */
+window.inDemoMode=function(){return isDemoMode;};
+/* Keep the pinned demo ribbon (and its body padding) in lockstep with demo
+   state. isDemoMode flips in many code paths, so a lightweight interval is the
+   bulletproof sync; we also call it directly on the obvious transitions. */
+function syncDemoRibbon(){try{document.body.classList.toggle('demo-active',!!isDemoMode);}catch(e){}}
+function exitDemo(){handleChangeUser();syncDemoRibbon();}
+window.exitDemo=exitDemo;
+function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);}
 async function handleRefresh(){
   const btn=document.getElementById('refresh-btn');
   // Ignore re-clicks while a sync is already in flight — the .syncing class is
@@ -4646,7 +4687,10 @@ function flashSyncedFeedback(){
   el.classList.add('synced-flash');
   setTimeout(()=>el.classList.remove('synced-flash'),200);
 }
-async function handleChangeUser(){isDemoMode=false;colorMap={};activeFilters.clear();resetRenderIndexes();stopAutoRefresh();showSetup();}
+async function handleChangeUser(){isDemoMode=false;colorMap={};activeFilters.clear();resetRenderIndexes();stopAutoRefresh();showSetup();syncDemoRibbon();}
+/* Safety-net sync: guarantees the ribbon clears even on demo-exit paths that
+   don't route through handleDemo/handleChangeUser (e.g. connecting a league). */
+try{setInterval(syncDemoRibbon,400);}catch(e){}
 function resetRenderIndexes(){
   ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
     const el=document.getElementById(id);
@@ -8754,6 +8798,22 @@ initThemeToggle();
       drawer.querySelectorAll('[data-menu-action="connections"]').forEach(function(btn) {
         btn.classList.toggle('is-active', onConnections);
       });
+      // In demo mode the account-tier items aren't backed by a real account —
+      // show them but gray them out and block interaction.
+      var inDemo = (typeof window.inDemoMode === 'function') && window.inDemoMode();
+      ['account', 'settings', 'connections'].forEach(function(act) {
+        drawer.querySelectorAll('[data-menu-action="' + act + '"]').forEach(function(btn) {
+          btn.classList.toggle('is-disabled', inDemo);
+          if (inDemo) {
+            btn.setAttribute('aria-disabled', 'true');
+            btn.setAttribute('title', 'Connect a league to use this');
+            btn.classList.remove('is-active');
+          } else {
+            btn.removeAttribute('aria-disabled');
+            btn.removeAttribute('title');
+          }
+        });
+      });
     }
 
     trigger.addEventListener('click', function() {
@@ -8965,9 +9025,14 @@ initThemeToggle();
       hide();
     }
 
+    function isInDemo() {
+      return (typeof window.inDemoMode === 'function') && window.inDemoMode();
+    }
+
     function maybeShow() {
       if (!dashboardReady) return;
       if (!isOnDashboard()) return;
+      if (isInDemo()) return; // never prompt to install while in demo mode
       if (isIOS) { show(); return; }
       if (promptCaught) show();
     }
@@ -8975,6 +9040,7 @@ initThemeToggle();
     function startDwellTimer() {
       if (dashboardReady || dwellTimer) return;
       if (!isOnDashboard()) return;
+      if (isInDemo()) return; // don't arm the dwell timer during demo
       dwellTimer = setTimeout(function() {
         dashboardReady = true;
         maybeShow();
