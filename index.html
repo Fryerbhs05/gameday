@@ -11,9 +11,9 @@
   <meta property="og:site_name" content="Conflicted Sports" />
   <meta property="og:title" content="Conflicted Sports" />
   <meta property="og:description" content="Track every player across every fantasy league you run." />
-  <meta property="og:url" content="https://conflicted-fantasy.vercel.app/" />
-  <meta property="og:image" content="https://conflicted-fantasy.vercel.app/og-image.png" />
-  <meta property="og:image:secure_url" content="https://conflicted-fantasy.vercel.app/og-image.png" />
+  <meta property="og:url" content="https://conflictedapp.com/" />
+  <meta property="og:image" content="https://conflictedapp.com/og-image.png" />
+  <meta property="og:image:secure_url" content="https://conflictedapp.com/og-image.png" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -21,7 +21,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Conflicted Sports" />
   <meta name="twitter:description" content="Track every player across every fantasy league you run." />
-  <meta name="twitter:image" content="https://conflicted-fantasy.vercel.app/og-image.png" />
+  <meta name="twitter:image" content="https://conflictedapp.com/og-image.png" />
 
   <link rel="icon" type="image/svg+xml" href="brand-kit/logo/conflicted-favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -4369,7 +4369,7 @@ async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek
 async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};activeFilters.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
 async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(isAnyProviderConnected())await run();}
 
-function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');}
+function handleDemo(){isDemoMode=true;activeWeek=7;activeSeason='2025';colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(7);buildSeasonSelect('2025');updateNavUI();renderBoard(getDemoData(),'demo');window.scrollTo(0,0);}
 async function handleRefresh(){
   const btn=document.getElementById('refresh-btn');
   // Ignore re-clicks while a sync is already in flight — the .syncing class is
