@@ -1382,6 +1382,31 @@
     .settings-row-title { font: 500 13px/1.3 var(--font-sans); color: var(--ink-900); }
     .settings-row-sub { font: 400 11px/1.4 var(--font-sans); color: var(--ink-500); margin-top: 3px; }
     .settings-row .btn-secondary { padding: 7px 14px; font-size: 12px; flex-shrink: 0; }
+    /* Account view — read-only identity rows reuse the settings-row chrome.
+       The right side shows a value (string or count) instead of a control. */
+    .account-row-value {
+      font: 600 13px/1.3 var(--font-sans); color: var(--ink-900);
+      flex-shrink: 0; text-align: right; max-width: 60%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .account-row-value.muted { color: var(--ink-500); font-weight: 500; }
+    .account-row-count {
+      font: 600 14px/1 var(--font-mono); color: var(--coral-600, var(--coral-500));
+      background: var(--coral-200); border-radius: var(--radius-pill);
+      padding: 4px 11px; flex-shrink: 0;
+    }
+    .account-actions {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-top: 18px;
+    }
+    /* Delete = de-emphasized like the wizard "Skip" (btn-ghost), tinted danger. */
+    .btn-ghost-danger {
+      background: transparent; color: var(--ink-500);
+      font: 500 13px/1 var(--font-sans);
+      border: none; border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+    }
+    .btn-ghost-danger:hover { background: var(--enemy-soft, rgba(163,61,46,0.12)); color: var(--enemy, #A33D2E); }
     .settings-status {
       font: 400 11px/1.3 var(--font-mono); color: var(--ink-500);
       background: var(--paper); border: 1px solid var(--line);
@@ -2246,6 +2271,11 @@
     <li role="presentation"><hr class="menu-drawer__divider" aria-hidden="true"></li>
     <li class="menu-drawer__section-label" role="presentation">Account</li>
     <li role="none">
+      <button class="menu-drawer__item" data-menu-action="account" role="menuitem" type="button">
+        <span>Account</span>
+      </button>
+    </li>
+    <li role="none">
       <button class="menu-drawer__item" data-menu-action="settings" role="menuitem" type="button">
         <span>Settings</span>
       </button>
@@ -2430,11 +2460,74 @@
   </div>
 </div>
 
+<!-- ══ ACCOUNT VIEW (opens from hamburger → Account) ══════════ -->
+<div id="view-account" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
+  <div style="margin-bottom:20px;">
+    <h2 style="font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);margin:0 0 6px;">Account</h2>
+    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">Your Conflicted account and what's connected to it.</p>
+  </div>
+
+  <!-- Signed-in surface -->
+  <div id="account-signedin" style="display:none;">
+    <div class="settings-panel" style="display:block;margin:0;">
+      <div class="settings-body" style="display:block;">
+        <div class="settings-row">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Name</div>
+            <div class="settings-row-sub">The name you used at sign up.</div>
+          </div>
+          <div class="account-row-value" id="account-name-value">—</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Username</div>
+            <div class="settings-row-sub">Your Conflicted account email.</div>
+          </div>
+          <div class="account-row-value" id="account-email-value">—</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Platforms connected</div>
+            <div class="settings-row-sub">Fantasy services linked to your account.</div>
+          </div>
+          <div class="account-row-count" id="account-platforms-value">0</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Leagues connected</div>
+            <div class="settings-row-sub">Leagues Conflicted is reading across those platforms.</div>
+          </div>
+          <div class="account-row-count" id="account-leagues-value">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="account-actions">
+      <button class="btn-ghost-danger" id="account-delete-btn" type="button">Delete account</button>
+      <button class="btn-secondary" id="account-signout-btn" type="button">Sign out</button>
+    </div>
+  </div>
+
+  <!-- Signed-out surface -->
+  <div id="account-signedout" style="display:none;">
+    <div class="settings-panel" style="display:block;margin:0;">
+      <div class="settings-body" style="display:block;">
+        <div class="settings-row">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Conflicted account</div>
+            <div class="settings-row-sub" id="account-view-signedout-sub">Sign in by email to use your connections on any device — no password.</div>
+          </div>
+          <button class="btn-secondary" id="account-view-signin-btn" onclick="openAccountModal()" type="button">Sign in</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ SETTINGS VIEW (opens from hamburger → Settings) ═════════ -->
 <div id="view-settings" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
   <div style="margin-bottom:20px;">
     <h2 style="font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);margin:0 0 6px;">Settings</h2>
-    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">Appearance, league priority, and account.</p>
+    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">Appearance and league priority.</p>
   </div>
   <div class="settings-panel" style="display:block;margin:0;">
     <div class="settings-body" style="display:block;">
@@ -2452,20 +2545,6 @@
           <ol class="settings-priority-list" id="settings-priority-list" style="display:none"></ol>
         </div>
         <button class="btn-secondary" onclick="reRankPriority()" type="button">Re-rank leagues</button>
-      </div>
-      <div class="settings-row" id="account-settings-row">
-        <div class="settings-row-meta">
-          <div class="settings-row-title">Conflicted account</div>
-          <div class="settings-row-sub" id="account-settings-sub">Sign in by email to use your connections on any device — no password.</div>
-        </div>
-        <button class="btn-secondary" id="account-settings-btn" onclick="openAccountModal()" type="button">Sign in</button>
-      </div>
-      <div class="settings-row">
-        <div class="settings-row-meta">
-          <div class="settings-row-title">League connections</div>
-          <div class="settings-row-sub">Add, re-connect, or remove the fantasy platforms Conflicted reads.</div>
-        </div>
-        <button class="btn-secondary" onclick="showConnections()" type="button">Manage</button>
       </div>
     </div>
   </div>
@@ -2932,7 +3011,7 @@ function ctxBadge(sig,isHist){
 }
 
 function hideAll(){
-  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch','view-settings','view-connections'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch','view-settings','view-connections','view-account'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('week-label').style.display='none';
   window.__connectionsViewActive=false;
@@ -2947,6 +3026,96 @@ function showSettings(){
   try{initThemeToggle();}catch(e){}
 }
 window.showSettings = showSettings;
+
+/* ══ ACCOUNT VIEW ══════════════════════════════════════════════
+   Read-only identity surface: signup name, account email, and live
+   counts of connected platforms + leagues. Sign out / delete reuse the
+   same endpoints as the account modal. Counts are read from live client
+   state (connectionState + currentContexts) so they always match the
+   board; name/email come from window.__account (/api/account/me). */
+function showAccount(){
+  hideAll();
+  const v=document.getElementById('view-account');
+  if(v)v.style.display='block';
+  try{renderAccountPanel();}catch(e){console.warn('renderAccountPanel failed:',e.message);}
+}
+window.showAccount=showAccount;
+
+function renderAccountPanel(){
+  const acct=window.__account||{};
+  const signedIn=!!acct.signedIn;
+  const inEl=document.getElementById('account-signedin');
+  const outEl=document.getElementById('account-signedout');
+  if(inEl)inEl.style.display=signedIn?'block':'none';
+  if(outEl)outEl.style.display=signedIn?'none':'block';
+
+  if(!signedIn){
+    const sub=document.getElementById('account-view-signedout-sub');
+    if(sub)sub.textContent = acct.enabled===false
+      ? 'Accounts aren’t enabled yet.'
+      : 'Sign in by email to use your connections on any device — no password.';
+    const btn=document.getElementById('account-view-signin-btn');
+    if(btn)btn.style.display = acct.enabled===false ? 'none' : '';
+    return;
+  }
+
+  // Name: from the onboarding profile. Fall back gracefully for older accounts.
+  const nameEl=document.getElementById('account-name-value');
+  if(nameEl){
+    const nm=(acct.name||'').trim();
+    nameEl.textContent = nm || 'Not set';
+    nameEl.classList.toggle('muted', !nm);
+  }
+  const emailEl=document.getElementById('account-email-value');
+  if(emailEl)emailEl.textContent = acct.email || '—';
+
+  // Counts from live client state so they mirror exactly what's on the board.
+  let platformCount=0;
+  try{ platformCount=getConnectedProviders().length; }catch(e){}
+  let leagueCount=0;
+  try{ leagueCount=(window.currentContexts||[]).length; }catch(e){}
+  const pEl=document.getElementById('account-platforms-value');
+  if(pEl)pEl.textContent=String(platformCount);
+  const lEl=document.getElementById('account-leagues-value');
+  if(lEl)lEl.textContent=String(leagueCount);
+
+  // Wire actions once (guard against re-binding on every render).
+  const signout=document.getElementById('account-signout-btn');
+  if(signout && !signout.__wired){
+    signout.__wired=true;
+    signout.addEventListener('click', async()=>{
+      signout.disabled=true; signout.textContent='Signing out…';
+      try{ await fetch('/api/account/me?action=logout',{method:'POST',credentials:'include'}); }catch(e){}
+      /* Sleeper lives in localStorage (no cookie); clear it client-side too or its
+         leagues would linger after sign-out. Server keeps the account copy and
+         rehydrates on next sign-in. Mirrors the account modal's sign-out. */
+      try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+      window.location.href='/?account=signed_out';
+    });
+  }
+  const del=document.getElementById('account-delete-btn');
+  if(del && !del.__wired){
+    del.__wired=true;
+    del.addEventListener('click', async()=>{
+      if(!confirm('Permanently delete your account and all stored connections? This cannot be undone.')) return;
+      del.disabled=true; del.textContent='Deleting…';
+      try{
+        const r=await fetch('/api/account/me?action=delete',{method:'POST',credentials:'include'});
+        if(r.ok){
+          try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+          window.location.href='/?account=signed_out';
+        }else{
+          del.disabled=false; del.textContent='Delete account';
+          alert('Could not delete account. Please try again.');
+        }
+      }catch(e){
+        del.disabled=false; del.textContent='Delete account';
+        alert('Network error. Please try again.');
+      }
+    });
+  }
+}
+window.renderAccountPanel=renderAccountPanel;
 
 /* ══ LEAGUE CONNECTIONS ════════════════════════════════════════
    A management surface for the three providers. Reuses each PROVIDERS
@@ -8494,6 +8663,8 @@ initThemeToggle();
           if (typeof window.showExposure === 'function') window.showExposure();
         } else if (action === 'watch-priority') {
           if (typeof window.showWatch === 'function') window.showWatch();
+        } else if (action === 'account') {
+          if (typeof window.showAccount === 'function') window.showAccount();
         } else if (action === 'settings') {
           if (typeof window.showSettings === 'function') window.showSettings();
         } else if (action === 'connections') {
