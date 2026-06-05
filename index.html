@@ -7205,8 +7205,9 @@ initThemeToggle();
   try { var sv = localStorage.getItem(WP_VIEW_KEY); if (sv === 'maximum' || sv === 'cheer' || sv === 'hate') initialView = sv; } catch(e){}
   var initialBench = false;
   try { initialBench = localStorage.getItem(WP_BENCH_KEY) === '1'; } catch(e){}
+  // Collapse state is intentionally NOT restored from localStorage — every visit
+  // starts with all slots fully expanded, regardless of past manual folds.
   var initialCollapsed = {};
-  try { var sc = localStorage.getItem(WP_COLLAPSE_KEY); if (sc) initialCollapsed = JSON.parse(sc) || {}; } catch(e){}
 
   var state = {
     view: initialView,            // 'maximum' | 'cheer' | 'hate'
@@ -7573,11 +7574,12 @@ initThemeToggle();
     return games.every(function(g){ return g.status === 'post'; });
   }
   function slotIsCollapsed(slotKey, games){
-    if (state.collapsed[slotKey] != null) return !!state.collapsed[slotKey];  // manual override
-    return slotIsDone(games);  // auto-collapse when complete
+    if (state.collapsed[slotKey] != null) return !!state.collapsed[slotKey];  // in-session manual override only
+    return false;  // default: always expanded on load (no auto-collapse when complete)
   }
   function persistCollapsed(){
-    try { localStorage.setItem(WP_COLLAPSE_KEY, JSON.stringify(state.collapsed)); } catch(e){}
+    // No-op: collapse state is session-only and never persisted, so a manual
+    // fold/unfold does not carry over to the next page visit.
   }
 
   /* ── Render ─────────────────────────────────────────────────── */
