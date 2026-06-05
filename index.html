@@ -1401,12 +1401,13 @@
     }
     /* Delete = de-emphasized like the wizard "Skip" (btn-ghost), tinted danger. */
     .btn-ghost-danger {
-      background: transparent; color: var(--ink-500);
+      background: transparent; color: var(--danger, #A33D2E);
       font: 500 13px/1 var(--font-sans);
-      border: none; border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer;
+      border: 1px solid var(--danger, #A33D2E); border-radius: var(--radius-sm);
+      padding: 8px 12px; cursor: pointer;
       transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
     }
-    .btn-ghost-danger:hover { background: var(--enemy-soft, rgba(163,61,46,0.12)); color: var(--enemy, #A33D2E); }
+    .btn-ghost-danger:hover { background: var(--enemy-soft, rgba(163,61,46,0.12)); color: var(--danger, #A33D2E); }
     .settings-status {
       font: 400 11px/1.3 var(--font-mono); color: var(--ink-500);
       background: var(--paper); border: 1px solid var(--line);
