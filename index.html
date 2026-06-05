@@ -233,7 +233,7 @@
       transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
     }
     .menu-drawer__item:hover { background: var(--paper-deep); }
-    .menu-drawer__item.is-active { background: var(--coral-200); color: var(--coral-700); }
+    .menu-drawer__item.is-active { background: color-mix(in oklab, var(--navy-700) 12%, transparent); color: var(--navy-700); border: 1px solid color-mix(in oklab, var(--navy-500) 40%, transparent); }
     .menu-drawer__item.is-disabled { opacity: 0.45; cursor: not-allowed; }
     .menu-drawer__item.is-disabled:hover { background: transparent; }
     .menu-drawer__badge {
@@ -8729,9 +8729,15 @@ initThemeToggle();
       var board = document.getElementById('board');
       var expo = document.getElementById('view-exposure');
       var watch = document.getElementById('view-watch');
+      var account = document.getElementById('view-account');
+      var settings = document.getElementById('view-settings');
+      var connections = document.getElementById('view-connections');
       var onBoard = !!(board && board.style.display && board.style.display !== 'none');
       var onExpo = !!(expo && expo.style.display && expo.style.display !== 'none');
       var onWatch = !!(watch && watch.style.display && watch.style.display !== 'none');
+      var onAccount = !!(account && account.style.display && account.style.display !== 'none');
+      var onSettings = !!(settings && settings.style.display && settings.style.display !== 'none');
+      var onConnections = !!(connections && connections.style.display && connections.style.display !== 'none');
       drawer.querySelectorAll('[data-menu-action="dashboard"]').forEach(function(btn) {
         btn.classList.toggle('is-active', onBoard && !onExpo && !onWatch);
       });
@@ -8740,6 +8746,15 @@ initThemeToggle();
       });
       drawer.querySelectorAll('[data-menu-action="watch-priority"]').forEach(function(btn) {
         btn.classList.toggle('is-active', onWatch);
+      });
+      drawer.querySelectorAll('[data-menu-action="account"]').forEach(function(btn) {
+        btn.classList.toggle('is-active', onAccount);
+      });
+      drawer.querySelectorAll('[data-menu-action="settings"]').forEach(function(btn) {
+        btn.classList.toggle('is-active', onSettings);
+      });
+      drawer.querySelectorAll('[data-menu-action="connections"]').forEach(function(btn) {
+        btn.classList.toggle('is-active', onConnections);
       });
     }
 
