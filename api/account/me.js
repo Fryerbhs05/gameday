@@ -140,6 +140,46 @@ async function handleSleeper(req, res) {
   }
 }
 
+// ── POST ?action=profile: set the signup name when it's still blank ──
+// Accounts created via the quick "Sign in" button skip the onboarding name
+// step, so this lets the user fill it in from the Account view. By design it
+// only FILLS A BLANK name — if a name already exists we leave it untouched
+// (the UI only exposes this when the name is empty, and this guards the API too).
+async function handleProfile(req, res) {
+  if (!A.accountsConfigured()) {
+    res.status(503).json({ error: 'Accounts are not enabled.' });
+    return;
+  }
+  const acct = A.readAccount(req);
+  if (!acct) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+  try {
+    // Don't clobber an existing name — insert only if currently blank.
+    const existing = await A.getProfile(acct.uid);
+    const hasName = existing && (existing.first_name || existing.last_name);
+    if (hasName) {
+      const full = [existing.first_name, existing.last_name].filter(Boolean).join(' ').trim();
+      res.status(409).json({ error: 'Name already set.', name: full || null });
+      return;
+    }
+    const body = await readJsonBody(req);
+    const first_name = String((body && body.first_name) || '').trim().slice(0, 80);
+    const last_name = String((body && body.last_name) || '').trim().slice(0, 80);
+    if (!first_name && !last_name) {
+      res.status(400).json({ error: 'Enter a name.' });
+      return;
+    }
+    await A.upsertProfile(acct.uid, { first_name, last_name });
+    const name = [first_name, last_name].filter(Boolean).join(' ').trim() || null;
+    res.status(200).json({ ok: true, name });
+  } catch (e) {
+    console.error('account/profile error:', e.message);
+    res.status(500).json({ error: 'Could not save your name. Please try again.' });
+  }
+}
+
 module.exports = async (req, res) => {
   // Identity is per-cookie and must never be cached — otherwise a browser can
   // re-render a stale account after the session cookie changes (e.g. clicking a
@@ -151,6 +191,7 @@ module.exports = async (req, res) => {
     if (action === 'logout') return handleLogout(req, res);
     if (action === 'delete') return handleDelete(req, res);
     if (action === 'sleeper') return handleSleeper(req, res);
+    if (action === 'profile') return handleProfile(req, res);
     res.status(400).json({ error: 'Unknown action' });
     return;
   }
