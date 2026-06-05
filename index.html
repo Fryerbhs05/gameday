@@ -126,6 +126,7 @@
     /* "Synced HH:MM:SS" pill — green flash on LIVE-button refresh, then fades
        back to the static look. .synced-flash snaps on (no transition), removing
        the class lets the base rule's transition fade it back out over ~1.3s. */
+    .board-foot { display: flex; justify-content: flex-end; margin-top: 16px; }
     #board-refresh-time {
       display: inline-block;
       padding: 3px 9px;
@@ -1089,6 +1090,57 @@
     .filter-divider { width: 1px; height: 16px; background: var(--line); }
     .filter-count { font: 400 11px/1.3 var(--font-mono); color: var(--ink-500); margin-left: auto; }
 
+    /* League-visibility Filters button (opens the bottom drawer) — lives inline
+       at the right edge of the Week/Season nav row. */
+    .league-filter-bar { display: none; margin: 0; }
+    .league-filter-bar.visible { display: inline-flex; }
+    .league-filter-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid var(--line); border-radius: var(--radius-md);
+      background: var(--paper); color: var(--ink-700);
+      font: 500 12px/1 var(--font-sans); padding: 6px 11px; cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+    }
+    .league-filter-btn:hover { background: var(--paper-deep); color: var(--ink-900); }
+    .league-filter-btn:active { background: var(--paper-deep); }
+    .league-filter-btn svg { width: 13px; height: 13px; flex: 0 0 13px; }
+    .league-filter-count {
+      display: none; font: 600 10px/1 var(--font-mono); letter-spacing: 0.02em;
+      color: var(--paper); background: var(--coral-500);
+      border-radius: var(--radius-pill); padding: 3px 6px;
+    }
+    .league-filter-count.visible { display: inline-block; }
+
+    /* League-visibility drawer body (rendered inside BottomSheet) */
+    .league-filter-sheet { padding: 4px 0 8px; }
+    .lf-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .lf-title { font: 600 15px/1 var(--font-sans); color: var(--ink-900); letter-spacing: 0.01em; }
+    .lf-close {
+      width: 30px; height: 30px; display: grid; place-items: center;
+      border: 0; background: transparent; color: var(--ink-500);
+      font-size: 22px; line-height: 1; cursor: pointer; border-radius: var(--radius-md);
+    }
+    .lf-close:hover { background: var(--paper-deep); color: var(--ink-900); }
+    .lf-live-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 14px 4px; margin: 4px 0 6px;
+      border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    }
+    .lf-live-label { font: 500 13px/1.35 var(--font-sans); color: var(--ink-700); }
+    .lf-cols-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 4px 8px;
+      font: 600 10px/1 var(--font-sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-500);
+    }
+    .lf-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 11px 4px; border-bottom: 1px solid var(--line);
+    }
+    .lf-row:last-child { border-bottom: 0; }
+    .lf-league { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
+    .lf-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 10px; }
+    .lf-name { font: 600 14px/1.2 var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
     /* View controls (live-only toggle) */
     .view-controls {
       display: none; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -1161,7 +1213,10 @@
     .no-data-hint { font: 400 12px/1.4 var(--font-sans); color: var(--ink-500); }
 
     /* Columns — colored bottom borders, namesake "Conflicted" gets the split treatment */
-    .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 8px; }
+    .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 8px; border: 1px solid var(--navy-900); border-radius: var(--radius-lg); padding: 16px; background: transparent; }
+    @media (prefers-color-scheme: dark) { .columns { border-color: var(--navy-300); } }
+    :root[data-theme="dark"] .columns { border-color: var(--navy-300); }
+    :root[data-theme="light"] .columns { border-color: var(--navy-900); }
     .column-header {
       display: flex; align-items: baseline; gap: 10px;
       padding: 0 4px 12px; border-bottom: 2px solid;
@@ -1298,7 +1353,7 @@
       .nav-controls #board-refresh-time { font-size: 11px; white-space: nowrap; padding: 4px 6px; }
       .nav-divider { display: none; }
       .nav-ctx { display: none; }
-      .columns { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+      .columns { grid-template-columns: minmax(0, 1fr); gap: 28px; padding: 14px 12px; }
       .filter-pill { font-size: 11px; padding: 4px 10px; }
       .filter-count { display: none; }
       .filter-divider { display: none; }
@@ -2461,8 +2516,13 @@
       <span class="nav-label">Season</span>
       <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
       <div class="nav-spacer"></div>
-      <span class="t-stat-sm" id="board-refresh-time"></span>
       <span class="nav-ctx" id="nav-context-label" style="display:none"></span>
+      <div class="league-filter-bar" id="league-filter-bar">
+        <button type="button" class="league-filter-btn" id="league-filter-btn" onclick="openLeagueFilterSheet()" aria-label="Open filters">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+          <span>Filters</span>
+        </button>
+      </div>
     </div>
     <div class="scoreboard-frame" id="scoreboard-frame">
       <div class="scoreboard-header">
@@ -2471,22 +2531,12 @@
       </div>
       <div class="scores-strip" id="scores-strip"></div>
     </div>
-    <div class="league-filters" id="league-filters">
-      <span class="filter-label">Filter</span>
-      <div id="filter-pills" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
-      <div class="filter-divider"></div>
-      <span class="filter-count" id="filter-count"></span>
-    </div>
     <div class="banner banner-offseason" id="banner-offseason"><div><strong>Roster mode</strong> — no matchup data yet. Everyone defaults to your guys until lineups are set.</div></div>
     <div class="banner banner-warn"      id="banner-partial"><div id="banner-partial-msg"></div></div>
     <div id="no-data-state">
       <div class="no-data-title">No league data</div>
       <div class="no-data-msg" id="no-data-msg"></div>
       <div class="no-data-hint">Use the season dropdown or week selector to try a different period.</div>
-    </div>
-    <div class="view-controls" id="view-controls">
-      <span class="view-controls__label">Show only players currently in a live game</span>
-      <button class="live-toggle" id="live-only-toggle" onclick="toggleLiveOnly()" type="button" aria-label="Toggle live-only view"></button>
     </div>
     <div class="columns" id="columns">
       <div class="column cheer">
@@ -2502,6 +2552,7 @@
         <div id="enemy-list"></div>
       </div>
     </div>
+    <div class="board-foot"><span class="t-stat-sm" id="board-refresh-time"></span></div>
   </div>
 </div>
 
@@ -2729,7 +2780,7 @@
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#2B6FA8','#D85A30','#3D8B5C','#B27F1A','#7AA8D1','#A33D2E','#5F5E5A','#0F2235'];
 const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 let liveOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0;
-let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},activeFilters=new Set(),isAnyProviderLoaded=false;
+let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},hiddenLeagues=new Set(),isAnyProviderLoaded=false,liveToggleAvailable=false,leagueNamesCache=[];
 /* True when the NFL is between seasons: Sleeper's state returns week:0 /
    season_type:"off", which forces liveWeek to a synthetic 1. There is no real
    "current" matchup in that window. ESPN (unlike Sleeper/Yahoo) still serves a
@@ -2806,7 +2857,7 @@ async function fetchNflGameStates(season,week){
 function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.team)==='in';}
 function loadLiveOnlyState(){try{liveOnly=localStorage.getItem(LIVE_ONLY_KEY)==='1';}catch(e){liveOnly=false;}}
 function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1':'0');}catch(e){}}
-function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();document.getElementById('live-only-toggle').classList.toggle('on',liveOnly);applyFilters();}
+function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();applyFilters();}
 
 /* ── Theme (light/dark) ───────────────────────────────────────
    Default = dark. User can opt into light via Settings → Appearance.
@@ -3290,7 +3341,7 @@ function renderConnectionsPanel(){
    the user leaves so the board reflects the new provider set. */
 function applyConnectionsAndView(){
   window.__connectionsDirty=false;window.__connectionsViewActive=false;
-  if(isAnyProviderConnected()){isDemoMode=false;colorMap={};activeFilters.clear();resetRenderIndexes();stopAutoRefresh();showLoading('Updating your leagues.');run();}
+  if(isAnyProviderConnected()){isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();showLoading('Updating your leagues.');run();}
   else showSetup();
 }
 function exitConnections(){
@@ -3309,7 +3360,7 @@ async function handleDisconnectAll(){
   for(const id of Object.keys(PROVIDERS)){
     try{ await PROVIDERS[id].disconnect(); }catch(e){ console.warn('disconnect failed:',id,e.message); }
   }
-  isDemoMode=false;colorMap={};activeFilters.clear();resetRenderIndexes();stopAutoRefresh();
+  isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();
   window.__connectionsDirty=false;window.__connectionsViewActive=false;
   showSetup();
 }
@@ -3795,60 +3846,106 @@ window.renderMatchupDrawer = renderMatchupDrawer;
   });
 })();
 
-let _lastFilterPillsKey='';
+let _lastLeagueDrawerKey='';
+/* Maintains the league list cache, the Filters-button visibility/badge, and
+   (when open) refreshes the league-visibility drawer. Kept the buildFilterPills
+   name so the single renderBoard caller is unchanged. League visibility lives
+   in `hiddenLeagues` (a blacklist) and intentionally never persists — it resets
+   to all-on each page load. */
 function buildFilterPills(names){
-  const fe=document.getElementById('league-filters'),ce=document.getElementById('filter-pills');
+  leagueNamesCache=names.slice();
+  // Drop hidden entries for leagues that no longer exist this week.
+  for(const lg of[...hiddenLeagues]){if(!names.includes(lg))hiddenLeagues.delete(lg);}
+  const bar=document.getElementById('league-filter-bar');
+  // Show the Filters button if there's anything to filter: 2+ leagues, or the
+  // live-only toggle is meaningful this week.
+  const showBtn=names.length>=2||liveToggleAvailable;
+  if(bar)bar.classList.toggle('visible',showBtn);
+  updateFilterButton();
   const key=names.join('|');
-  // Drop any active filter for a league that no longer exists. Preserve the rest
-  // so the user's selection survives 60s refreshes.
-  for(const lg of[...activeFilters]){if(!names.includes(lg))activeFilters.delete(lg);}
-  if(key===_lastFilterPillsKey){
-    // Pills DOM unchanged — just re-sync active/inactive classes from state.
-    document.querySelectorAll('#filter-pills .filter-pill').forEach(p=>{
-      const l=p.dataset.league;
-      if(l==='__all__'){p.classList.toggle('active',activeFilters.size===0);p.classList.toggle('inactive',activeFilters.size>0);}
-      else p.classList.toggle('inactive',activeFilters.size>0&&!activeFilters.has(l));
-    });
-    updateFilterCount();
-    return;
+  if(key!==_lastLeagueDrawerKey){
+    _lastLeagueDrawerKey=key;
+    // League roster changed under an open drawer — re-render its body in place.
+    if(window.BottomSheet&&window.BottomSheet.isOpen()&&window.BottomSheet.getOwner()==='league-filter'){
+      window.BottomSheet.setBody(renderLeagueFilterSheet());
+    }
   }
-  _lastFilterPillsKey=key;
-  ce.innerHTML='';
-  if(names.length<2){fe.classList.remove('visible');updateFilterCount();return;}fe.classList.add('visible');
-  const all=Object.assign(document.createElement('span'),{className:'filter-pill all-pill',textContent:'All'});
-  all.dataset.league='__all__';all.onclick=()=>toggleFilter('__all__',names);
-  all.classList.toggle('active',activeFilters.size===0);
-  all.classList.toggle('inactive',activeFilters.size>0);
-  ce.appendChild(all);
-  names.forEach(name=>{
-    const color=lc(name);const pill=document.createElement('span');pill.className='filter-pill';pill.textContent=name;pill.dataset.league=name;pill.style.cssText=`background:${color}1a;border-color:${color}55;color:${color}`;pill.onclick=()=>toggleFilter(name,names);
-    if(activeFilters.size>0&&!activeFilters.has(name))pill.classList.add('inactive');
-    ce.appendChild(pill);
-  });
-  updateFilterCount();
 }
-function toggleFilter(lg,all){
-  if(lg==='__all__')activeFilters.clear();else activeFilters.has(lg)?activeFilters.delete(lg):activeFilters.add(lg);
-  document.querySelectorAll('.filter-pill').forEach(p=>{const l=p.dataset.league;if(l==='__all__'){p.classList.toggle('active',activeFilters.size===0);p.classList.toggle('inactive',activeFilters.size>0);}else p.classList.toggle('inactive',activeFilters.size>0&&!activeFilters.has(l));});
-  applyFilters();updateFilterCount();
+/* Badge on the Filters button: shows "shown/total" only while some league is hidden. */
+function updateFilterButton(){
+  const badge=document.getElementById('league-filter-count');
+  if(!badge)return;
+  const total=leagueNamesCache.length;
+  const hiddenHere=[...hiddenLeagues].filter(l=>leagueNamesCache.includes(l)).length;
+  if(hiddenHere>0&&total){badge.textContent=`${total-hiddenHere}/${total}`;badge.classList.add('visible');}
+  else{badge.textContent='';badge.classList.remove('visible');}
 }
-function updateFilterCount(){document.getElementById('filter-count').textContent=activeFilters.size?`Filtering: ${[...activeFilters].join(', ')}`:''; }
+/* Full HTML for the bottom drawer: live-only toggle pinned at top, then a
+   two-column league name / on-off-toggle list. Returned as a string for
+   BottomSheet.open / setBody. League rows carry their index (not the raw name)
+   so names with quotes/spaces never break the attribute. */
+function renderLeagueFilterSheet(){
+  const names=leagueNamesCache;
+  let liveRow='';
+  if(liveToggleAvailable){
+    liveRow=`<div class="lf-live-row">`
+      +`<span class="lf-live-label">Show only players currently in a live game</span>`
+      +`<button class="live-toggle${liveOnly?' on':''}" data-lf-live="1" type="button" aria-label="Toggle live-only view"></button>`
+      +`</div>`;
+  }
+  let leagueSection='';
+  if(names.length>=2){
+    const rows=names.map((n,i)=>{
+      const color=lc(n);const on=!hiddenLeagues.has(n);
+      return `<div class="lf-row">`
+        +`<span class="lf-league"><span class="lf-dot" style="background:${color}"></span><span class="lf-name" style="color:${color}">${n}</span></span>`
+        +`<button class="live-toggle${on?' on':''}" data-lf-league="${i}" type="button" aria-label="Toggle ${n}"></button>`
+        +`</div>`;
+    }).join('');
+    leagueSection=`<div class="lf-cols-head"><span>League</span><span>Show</span></div>${rows}`;
+  }
+  return `<div class="league-filter-sheet">`
+    +`<div class="lf-head"><span class="lf-title">Filters</span><button class="lf-close" data-lf-close="1" type="button" aria-label="Close">&times;</button></div>`
+    +liveRow
+    +leagueSection
+    +`</div>`;
+}
+function openLeagueFilterSheet(){
+  if(!window.BottomSheet)return;
+  window.BottomSheet.open(renderLeagueFilterSheet(),{owner:'league-filter'});
+}
+/* Delegated handlers for the drawer's toggles — installed once. Each toggle
+   updates state, flips its own .on class, and re-applies filters live so the
+   board behind the sheet updates immediately. */
+document.addEventListener('click',function(e){
+  const liveBtn=e.target.closest('[data-lf-live]');
+  if(liveBtn){toggleLiveOnly();liveBtn.classList.toggle('on',liveOnly);return;}
+  const lgBtn=e.target.closest('[data-lf-league]');
+  if(lgBtn){
+    const name=leagueNamesCache[+lgBtn.getAttribute('data-lf-league')];
+    if(name==null)return;
+    if(hiddenLeagues.has(name))hiddenLeagues.delete(name);else hiddenLeagues.add(name);
+    lgBtn.classList.toggle('on',!hiddenLeagues.has(name));
+    applyFilters();updateFilterButton();return;
+  }
+  if(e.target.closest('[data-lf-close]')&&window.BottomSheet){window.BottomSheet.close();}
+});
 function applyFilters(){
-  /* Only apply the live-only filter when the toggle is actually visible
-     (hidden in historic / demo / no-data states). */
-  const vc=document.getElementById('view-controls');
-  const liveActive=liveOnly&&vc&&vc.classList.contains('visible');
+  /* live-only is only meaningful on the current/live week (not historic/demo/no-data). */
+  const liveActive=liveOnly&&liveToggleAvailable;
+  const anyHidden=hiddenLeagues.size>0;
   ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
     const list=document.getElementById(id);const cards=list.querySelectorAll('.player-card');
     cards.forEach(c=>{
-      const leagueOk=!activeFilters.size||c.dataset.leagues.split('|').some(lg=>activeFilters.has(lg));
+      // Card stays if at least one of its leagues is not hidden.
+      const leagueOk=!anyHidden||c.dataset.leagues.split('|').some(lg=>!hiddenLeagues.has(lg));
       const liveOk=!liveActive||c.dataset.live==='1';
       c.classList.toggle('filtered-out',!leagueOk||!liveOk);
     });
     let e=list.querySelector('.filter-empty');const vis=[...cards].filter(c=>!c.classList.contains('filtered-out')&&c.style.display!=='none');
     if(!vis.length&&cards.length){
       if(!e){e=document.createElement('div');e.className='empty-state filter-empty';list.appendChild(e);}
-      e.textContent=liveActive&&activeFilters.size?'No matching players are in live games right now.':liveActive?'No players in this bucket are in live games right now.':'No players match this filter.';
+      e.textContent=liveActive&&anyHidden?'No matching players are in live games right now.':liveActive?'No players in this bucket are in live games right now.':'No players match this filter.';
     }else if(e)e.remove();
   });
   updatePillCounts();
@@ -3993,12 +4090,10 @@ function renderBoard(data,username){
   const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
   document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';document.getElementById('league-filters').classList.remove('visible');document.getElementById('view-controls').classList.remove('visible');document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
-  const showLiveToggle=!isDemoMode&&!isHist;
-  document.getElementById('view-controls').classList.toggle('visible',showLiveToggle);
-  document.getElementById('live-only-toggle').classList.toggle('on',liveOnly&&showLiveToggle);
+  liveToggleAvailable=!isDemoMode&&!isHist;
   if(contexts?.length)renderScoresStrip(contexts);
   document.getElementById('count-cheer').textContent=cheerFor.length;
   document.getElementById('count-conflicted').textContent=conflicted.length;
@@ -4663,7 +4758,7 @@ function getDemoData(){
 
 async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
 async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
-async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};activeFilters.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
+async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};hiddenLeagues.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
 async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(isAnyProviderConnected())await run();}
 
 /* Demo opens on the LIVE week/season (not a pinned historic week) so the nav
@@ -4681,7 +4776,7 @@ function goToSignUp(){try{if(typeof window.closeSiteMenu==='function')window.clo
 window.goToSignUp=goToSignUp;
 function exitDemo(){try{if(typeof window.closeSiteMenu==='function')window.closeSiteMenu();}catch(e){}handleChangeUser();syncDemoRibbon();scrollToGetStarted();}
 window.exitDemo=exitDemo;
-function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);}
+function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};hiddenLeagues.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);}
 async function handleRefresh(){
   const btn=document.getElementById('refresh-btn');
   // Ignore re-clicks while a sync is already in flight — the .syncing class is
@@ -4707,7 +4802,7 @@ function flashSyncedFeedback(){
   el.classList.add('synced-flash');
   setTimeout(()=>el.classList.remove('synced-flash'),200);
 }
-async function handleChangeUser(){isDemoMode=false;colorMap={};activeFilters.clear();resetRenderIndexes();stopAutoRefresh();showSetup();syncDemoRibbon();}
+async function handleChangeUser(){isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();showSetup();syncDemoRibbon();}
 /* Safety-net sync: guarantees the ribbon clears even on demo-exit paths that
    don't route through handleDemo/handleChangeUser (e.g. connecting a league). */
 try{setInterval(syncDemoRibbon,400);}catch(e){}
@@ -4718,8 +4813,7 @@ function resetRenderIndexes(){
   });
   const strip=document.getElementById('scores-strip');
   if(strip){if(strip._cellIndex){strip._cellIndex.forEach(n=>n.remove());strip._cellIndex.clear();} strip.innerHTML='';}
-  _lastFilterPillsKey='';
-  const fp=document.getElementById('filter-pills');if(fp)fp.innerHTML='';
+  _lastLeagueDrawerKey='';
 }
 async function run(){
   try{
@@ -5591,7 +5685,7 @@ function refreshConnectUI(){
 
 async function handleContinue(){
   if(!isAnyProviderConnected())return;
-  isDemoMode=false;colorMap={};activeFilters.clear();stopAutoRefresh();
+  isDemoMode=false;colorMap={};hiddenLeagues.clear();stopAutoRefresh();
   await run();
   maybeSendCrossDeviceLink();
   maybeShowSpecialGreeting();
@@ -6360,7 +6454,6 @@ function renderSettingsPriorityList(list,order,equal){
 
 loadPriorityState();
 loadLiveOnlyState();
-document.getElementById('live-only-toggle').classList.toggle('on',liveOnly);
 initThemeToggle();
 
 (async()=>{
