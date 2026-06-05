@@ -550,7 +550,12 @@
       transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out);
     }
     .espn-modal-x:hover { background: var(--paper-deep); color: var(--ink-900); }
-    .espn-modal-rule { border: none; border-top: 1px solid var(--line); margin: 24px 0 20px; }
+    .espn-modal-or { display: flex; align-items: center; gap: 14px; margin: 30px 0 22px; }
+    .espn-modal-or__line { flex: 1; height: 1px; background: var(--ink-300); }
+    .espn-modal-or__txt {
+      font: 600 11px/1 var(--font-sans); color: var(--ink-500);
+      letter-spacing: 0.12em; text-transform: uppercase;
+    }
     .espn-modal h2 {
       font: 700 20px/1.2 var(--font-sans); color: var(--ink-900);
       margin-bottom: 4px;
@@ -5881,8 +5886,8 @@ function openSignInModal(){
       </div>
       <button type="button" class="espn-btn-submit" id="signin-submit" style="width:100%">Email me a sign-in link</button>
       <div class="espn-modal-error" id="signin-modal-error" style="min-height:0;margin-top:8px"></div>
-      <hr class="espn-modal-rule">
-      <h2 style="margin-bottom:14px">New to Conflicted?</h2>
+      <div class="espn-modal-or"><span class="espn-modal-or__line"></span><span class="espn-modal-or__txt">or</span><span class="espn-modal-or__line"></span></div>
+      <h2 style="margin-bottom:14px">Get started</h2>
       <button type="button" class="espn-btn-submit" id="signin-signup" style="width:100%;background:var(--coral-500)">Sign up</button>
     </div>`;
   document.body.appendChild(backdrop);
