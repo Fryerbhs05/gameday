@@ -3098,6 +3098,23 @@ function applyScoreCellProj(cell, ctx, st){
   if(youEl)youEl.textContent=myP.toFixed(1);
   if(oppEl)oppEl.textContent=oppP.toFixed(1);
 }
+/* Map a league context to its score-strip / drawer status display. The "● Live"
+   badge only appears when one of the matchup's starters is actually in an
+   in-progress NFL game (ctx.liveOnField) — or in demo mode. A LIVE league state
+   with nobody on the field is pregame or between game windows, so we show a calm
+   "Upcoming"/"In progress" label with no live dot instead. */
+function ctxDisplayState(ctx){
+  const st=(ctx&&ctx.leagueState)||'NO_MATCHUP';
+  if(st==='LIVE'&&!(isDemoMode||(ctx&&ctx.liveOnField))){
+    const total=((ctx&&ctx.myPoints)||0)+((ctx&&ctx.oppPoints)||0);
+    return {dataStatus:'',stTxt:total>0?'In progress':'Upcoming',stCls:'none'};
+  }
+  return {
+    dataStatus:{LIVE:'live',LOCKED_WIN:'winning',LOCKED_LOSS:'losing',FINAL_WIN:'winning',FINAL_LOSS:'losing',FINAL_TIE:'final',NO_MATCHUP:''}[st]||'',
+    stTxt:{LIVE:'● Live',LOCKED_WIN:'Clinched',LOCKED_LOSS:'Eliminated',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie',NO_MATCHUP:'No matchup'}[st]||'No matchup',
+    stCls:{LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final',NO_MATCHUP:'none'}[st]||'none'
+  };
+}
 function renderScoresStrip(contexts){
   contexts=sortContextsByPriority(contexts);
   const strip=document.getElementById('scores-strip');
@@ -3112,9 +3129,7 @@ function renderScoresStrip(contexts){
   for(const[name,node]of idx){if(!newNames.has(name)){node.remove();idx.delete(name);}}
   contexts.forEach(ctx=>{
     const color=lc(ctx.leagueName),st=ctx.leagueState;
-    const dataStatus={LIVE:'live',LOCKED_WIN:'winning',LOCKED_LOSS:'losing',FINAL_WIN:'winning',FINAL_LOSS:'losing',FINAL_TIE:'final',NO_MATCHUP:''}[st]||'';
-    const stTxt={LIVE:'● Live',LOCKED_WIN:'Clinched',LOCKED_LOSS:'Eliminated',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie',NO_MATCHUP:'No matchup'}[st]||'';
-    const stCls={LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final',NO_MATCHUP:'none'}[st]||'none';
+    const {dataStatus,stTxt,stCls}=ctxDisplayState(ctx);
     /* Tappable only when there's a real matchup. NO_MATCHUP tiles stay inert. */
     const tappable = st !== 'NO_MATCHUP';
     let cell=idx.get(ctx.leagueName);
@@ -3216,9 +3231,7 @@ function renderMatchupDrawer(ctx, lg){
   if (!ctx) return '<div class="matchup-drawer"><p class="matchup-drawer__empty">No matchup data.</p></div>';
   const escHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const st = ctx.leagueState || 'NO_MATCHUP';
-  const dataStatus = {LIVE:'live',LOCKED_WIN:'winning',LOCKED_LOSS:'losing',FINAL_WIN:'winning',FINAL_LOSS:'losing',FINAL_TIE:'final'}[st] || '';
-  const stTxt = {LIVE:'● Live',LOCKED_WIN:'Clinched',LOCKED_LOSS:'Eliminated',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie'}[st] || 'No matchup';
-  const stCls = {LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final'}[st] || 'none';
+  const {dataStatus,stTxt,stCls}=ctxDisplayState(ctx);
   const color = (typeof lc === 'function') ? lc(ctx.leagueName) : 'var(--ink-300)';
   const fmt = ctx.fmt || (lg && lg.fmt) || '';
   /* Per-player points come from ctx.myPP / ctx.oppPP (Sleeper/Yahoo/ESPN all normalize to this shape). */
@@ -4105,6 +4118,18 @@ async function loadData(){
       if(!e.againstBenchLeagues.includes(lg.leagueName))e.againstBenchLeagues.push(lg.leagueName);
     });
   });
+  /* Flag matchups that have a STARTER currently in an in-progress NFL game.
+     Drives the "● Live" badge (via ctxDisplayState) so it only shows when a game
+     is actually being played with one of the matchup's players on the field —
+     not pregame, not between game windows. Starter-only: myLeagues/againstLeagues
+     exclude bench, so a benched player's live game never lights up the badge. */
+  const liveLeagues=new Set();
+  map.forEach(p=>{
+    if(!isPlayerLive(p))return;
+    p.myLeagues.forEach(n=>liveLeagues.add(n));
+    p.againstLeagues.forEach(n=>liveLeagues.add(n));
+  });
+  leagueContexts.forEach(c=>{c.liveOnField=liveLeagues.has(c.leagueName);});
   const cheerFor=[],conflicted=[],enemies=[];
   map.forEach(p=>{
     // Bench-only players (no starter rostering on either side) belong in allRostered
