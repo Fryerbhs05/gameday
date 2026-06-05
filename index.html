@@ -3007,7 +3007,7 @@ function exitConnections(){
    __connectionsViewActive so Yahoo takes the no-redirect logout path. Does NOT
    sign out of your Conflicted account (email link) — that's separate, in Settings. */
 async function handleDisconnectAll(){
-  if(!confirm('Disconnect every league from this browser? You\'ll need to reconnect to load your leagues again.'))return;
+  if(!confirm('Disconnect every league from your account? If you\'re signed in this applies to all your devices. You\'ll need to reconnect to load your leagues again.'))return;
   window.__connectionsViewActive=true;
   for(const id of Object.keys(PROVIDERS)){
     try{ await PROVIDERS[id].disconnect(); }catch(e){ console.warn('disconnect failed:',id,e.message); }
@@ -5476,13 +5476,17 @@ function openAccountModal(){
   if(signedIn){
     backdrop.querySelector('#account-logout').addEventListener('click', async()=>{
       await fetch('/api/account/me?action=logout',{method:'POST',credentials:'include'});
+      /* Sleeper lives in localStorage (no cookie), so clear it client-side too,
+         or its leagues would linger after sign-out. The account copy is kept
+         server-side and rehydrates on the next sign-in via info.sleeper. */
+      try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
       window.location.href = '/?account=signed_out';
     });
     backdrop.querySelector('#account-delete').addEventListener('click', async(e)=>{
       if(!confirm('Permanently delete your account and all stored connections? This cannot be undone.')) return;
       e.target.disabled = true; e.target.textContent = 'Deleting…';
       const r = await fetch('/api/account/me?action=delete',{method:'POST',credentials:'include'});
-      if(r.ok){ window.location.href = '/?account=signed_out'; }
+      if(r.ok){ try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){} window.location.href = '/?account=signed_out'; }
       else { errEl.textContent = 'Could not delete account. Try again.'; e.target.disabled=false; e.target.textContent='Delete account'; }
     });
   } else {
