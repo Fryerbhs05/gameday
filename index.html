@@ -3073,12 +3073,21 @@ function renderAccountPanel(){
     return;
   }
 
-  // Name: from the onboarding profile. Fall back gracefully for older accounts.
+  // Name: from the onboarding profile. Accounts created via the quick "Sign in"
+  // button skip the name step, so when it's blank we offer an inline "Add name"
+  // button instead of just showing "Not set". (Insert-only: once set, plain text.)
   const nameEl=document.getElementById('account-name-value');
   if(nameEl){
     const nm=(acct.name||'').trim();
-    nameEl.textContent = nm || 'Not set';
-    nameEl.classList.toggle('muted', !nm);
+    if(nm){
+      nameEl.classList.remove('muted');
+      nameEl.textContent=nm;
+    }else{
+      nameEl.classList.remove('muted');
+      nameEl.innerHTML='<button class="btn-secondary" id="account-addname-btn" type="button">Add name</button>';
+      const addBtn=nameEl.querySelector('#account-addname-btn');
+      if(addBtn)addBtn.addEventListener('click',openAddNameModal);
+    }
   }
   const emailEl=document.getElementById('account-email-value');
   if(emailEl)emailEl.textContent = acct.email || '—';
@@ -3130,6 +3139,67 @@ function renderAccountPanel(){
   }
 }
 window.renderAccountPanel=renderAccountPanel;
+
+/* Add-name modal — only reachable from the Account view when the signup name is
+   blank (accounts made via the quick Sign-in button). Saves to the profile via
+   /api/account/me?action=profile, which fills the name only if still empty.
+   Reuses the espn-modal chrome so no new styles are needed. */
+function openAddNameModal(){
+  const existing=document.getElementById('addname-modal-backdrop'); if(existing) existing.remove();
+  const backdrop=document.createElement('div');
+  backdrop.id='addname-modal-backdrop';
+  backdrop.className='espn-modal-backdrop';
+  backdrop.innerHTML=`
+    <div class="espn-modal" role="dialog" aria-modal="true" aria-labelledby="addname-title">
+      <h2 id="addname-title">Add your name</h2>
+      <p class="espn-modal-sub">You signed in without a name. Add it here — it's just used to greet you.</p>
+      <div class="espn-field">
+        <label for="addname-first">First name</label>
+        <input type="text" id="addname-first" autocomplete="given-name" />
+      </div>
+      <div class="espn-field">
+        <label for="addname-last">Last name</label>
+        <input type="text" id="addname-last" autocomplete="family-name" />
+      </div>
+      <div class="espn-modal-error" id="addname-error"></div>
+      <div class="espn-modal-actions">
+        <button type="button" class="espn-btn-cancel" id="addname-cancel">Cancel</button>
+        <button type="button" class="espn-btn-submit" id="addname-submit">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+  const close=()=>backdrop.remove();
+  backdrop.addEventListener('click',e=>{ if(e.target===backdrop) close(); });
+  backdrop.querySelector('#addname-cancel').addEventListener('click',close);
+  const errEl=backdrop.querySelector('#addname-error');
+  const submit=backdrop.querySelector('#addname-submit');
+  const save=async()=>{
+    const first=(backdrop.querySelector('#addname-first').value||'').trim();
+    const last=(backdrop.querySelector('#addname-last').value||'').trim();
+    if(!first && !last){ errEl.textContent='Enter at least a first name.'; return; }
+    submit.disabled=true; submit.textContent='Saving…'; errEl.textContent='';
+    try{
+      const r=await fetch('/api/account/me?action=profile',{
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({first_name:first,last_name:last})
+      });
+      const j=await r.json().catch(()=>({}));
+      if(r.ok){
+        window.__account={...(window.__account||{}), name: j.name || [first,last].filter(Boolean).join(' ').trim()};
+        close();
+        try{ renderAccountPanel(); }catch(e){}
+      }else{
+        errEl.textContent=j.error||'Could not save. Please try again.';
+        submit.disabled=false; submit.textContent='Save';
+      }
+    }catch(e){ errEl.textContent='Network error. Please try again.'; submit.disabled=false; submit.textContent='Save'; }
+  };
+  submit.addEventListener('click',save);
+  backdrop.querySelector('#addname-last').addEventListener('keydown',e=>{ if(e.key==='Enter') save(); });
+  setTimeout(()=>{ const f=backdrop.querySelector('#addname-first'); if(f) f.focus(); },50);
+}
+window.openAddNameModal=openAddNameModal;
 
 /* ══ LEAGUE CONNECTIONS ════════════════════════════════════════
    A management surface for the three providers. Reuses each PROVIDERS
