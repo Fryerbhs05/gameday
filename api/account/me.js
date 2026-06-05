@@ -54,8 +54,22 @@ async function handleMe(req, res) {
 }
 
 // ── POST ?action=logout: end session on this device ──────────────
+// Cookie-clear strings for the per-browser platform sessions. Sign-out clears
+// these so leagues are HIDDEN while the user is signed out — but it does NOT
+// delete the account-stored copies, so they reappear automatically on the next
+// sign-in. (Disconnect is the one that deletes the stored copies; see
+// api/espn/disconnect.js + api/auth/logout.js.)
+const CLEAR_PLATFORM_COOKIES = [
+  `espn_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
+  `yahoo_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`,
+  `yahoo_oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
+];
+
 function handleLogout(req, res) {
-  res.setHeader('Set-Cookie', A.clearAccountCookie());
+  // Clear the account cookie AND the per-browser platform cookies so the user's
+  // leagues disappear on sign-out. Account-stored copies are untouched, so a
+  // later sign-in restores everything with nothing to re-enter.
+  res.setHeader('Set-Cookie', [A.clearAccountCookie(), ...CLEAR_PLATFORM_COOKIES]);
   res.status(200).json({ ok: true });
 }
 
@@ -72,7 +86,9 @@ async function handleDelete(req, res) {
   }
   try {
     await A.deleteUserData(acct.uid, acct.email);
-    res.setHeader('Set-Cookie', A.clearAccountCookie());
+    // Also clear the per-browser platform cookies — the stored copies are gone
+    // server-side, but the browser cookies would still auth directly otherwise.
+    res.setHeader('Set-Cookie', [A.clearAccountCookie(), ...CLEAR_PLATFORM_COOKIES]);
     res.status(200).json({ ok: true, deleted: true });
   } catch (e) {
     console.error('account/delete error:', e.message);
