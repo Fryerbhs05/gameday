@@ -801,10 +801,18 @@
       padding: 16px 16px 14px;
       margin-bottom: 14px;
       background: transparent;
+      transition: border-color 1.3s var(--ease-out);
     }
     @media (prefers-color-scheme: dark) { .scoreboard-frame { border-color: var(--navy-300); } }
     :root[data-theme="dark"] .scoreboard-frame { border-color: var(--navy-300); }
     :root[data-theme="light"] .scoreboard-frame { border-color: var(--navy-900); }
+    /* Green border flash on LIVE-button refresh (mirrors the synced timestamp) —
+       snaps to cheer, then the base transition fades it back to the frame color.
+       !important clears the theme-specific border-color rules while flashing. */
+    .scoreboard-frame.synced-flash, .columns.synced-flash {
+      border-color: var(--cheer) !important;
+      transition: none;
+    }
     .scoreboard-header {
       display: grid;
       grid-template-columns: 1fr auto 1fr;
@@ -1213,7 +1221,7 @@
     .no-data-hint { font: 400 12px/1.4 var(--font-sans); color: var(--ink-500); }
 
     /* Columns — colored bottom borders, namesake "Conflicted" gets the split treatment */
-    .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 8px; border: 1px solid var(--navy-900); border-radius: var(--radius-lg); padding: 16px; background: transparent; }
+    .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 8px; border: 1px solid var(--navy-900); border-radius: var(--radius-lg); padding: 16px; background: transparent; transition: border-color 1.3s var(--ease-out); }
     @media (prefers-color-scheme: dark) { .columns { border-color: var(--navy-300); } }
     :root[data-theme="dark"] .columns { border-color: var(--navy-300); }
     :root[data-theme="light"] .columns { border-color: var(--navy-900); }
@@ -4793,14 +4801,18 @@ async function handleRefresh(){
   }
 }
 function flashSyncedFeedback(){
-  const el=document.getElementById('board-refresh-time');
-  if(!el)return;
-  el.classList.remove('synced-flash');
-  // Force reflow so re-adding the class restarts the snap-on + fade-back cycle
-  // even if the user spams the LIVE button.
-  void el.offsetWidth;
-  el.classList.add('synced-flash');
-  setTimeout(()=>el.classList.remove('synced-flash'),200);
+  // Same green snap-on / fade-back applied to the timestamp pill and to both
+  // section frames (scoreboard + 3-bucket).
+  ['board-refresh-time','scoreboard-frame','columns'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.classList.remove('synced-flash');
+    // Force reflow so re-adding the class restarts the snap-on + fade-back cycle
+    // even if the user spams the LIVE button.
+    void el.offsetWidth;
+    el.classList.add('synced-flash');
+    setTimeout(()=>el.classList.remove('synced-flash'),200);
+  });
 }
 async function handleChangeUser(){isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();showSetup();syncDemoRibbon();}
 /* Safety-net sync: guarantees the ribbon clears even on demo-exit paths that
