@@ -2382,7 +2382,7 @@
   <div class="lp-divider"></div>
 
   <!-- Sign-in -->
-  <div class="lp-signin" style="padding-top:56px">
+  <div class="lp-signin" id="get-started-section" style="padding-top:56px">
     <div class="signin-card">
       <h3>Get started</h3>
       <p class="signin-card-sub" id="getstarted-sub">Connect at least one fantasy platform to load your leagues.</p>
@@ -4659,7 +4659,7 @@ window.inDemoMode=function(){return isDemoMode;};
    state. isDemoMode flips in many code paths, so a lightweight interval is the
    bulletproof sync; we also call it directly on the obvious transitions. */
 function syncDemoRibbon(){try{document.body.classList.toggle('demo-active',!!isDemoMode);}catch(e){}}
-function exitDemo(){try{if(typeof window.closeSiteMenu==='function')window.closeSiteMenu();}catch(e){}handleChangeUser();syncDemoRibbon();}
+function exitDemo(){try{if(typeof window.closeSiteMenu==='function')window.closeSiteMenu();}catch(e){}handleChangeUser();syncDemoRibbon();/* land on the Get started / connect section at the bottom of the home page */setTimeout(function(){var gs=document.getElementById('get-started-section');if(gs)gs.scrollIntoView({behavior:'smooth',block:'start'});},80);}
 window.exitDemo=exitDemo;
 function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);}
 async function handleRefresh(){
