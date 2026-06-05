@@ -48,9 +48,22 @@ async function handleMe(req, res) {
   } catch (e) {
     console.error('account/me platform check:', e.message);
   }
+  // Signup name lives in user_profiles (captured in the onboarding identity step).
+  // Surface it so the Account view can greet the user by name. Older accounts may
+  // have no profile row → name stays null and the client shows a graceful fallback.
+  let name = null;
+  try {
+    const profile = await A.getProfile(acct.uid);
+    if (profile) {
+      const full = [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim();
+      name = full || null;
+    }
+  } catch (e) {
+    console.error('account/me profile read:', e.message);
+  }
   res
     .status(200)
-    .json({ signedIn: true, enabled: true, email: acct.email, platforms, sleeper: sleeperUsername });
+    .json({ signedIn: true, enabled: true, email: acct.email, name, platforms, sleeper: sleeperUsername });
 }
 
 // ── POST ?action=logout: end session on this device ──────────────
