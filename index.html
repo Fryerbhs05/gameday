@@ -4659,7 +4659,7 @@ window.inDemoMode=function(){return isDemoMode;};
    state. isDemoMode flips in many code paths, so a lightweight interval is the
    bulletproof sync; we also call it directly on the obvious transitions. */
 function syncDemoRibbon(){try{document.body.classList.toggle('demo-active',!!isDemoMode);}catch(e){}}
-function exitDemo(){handleChangeUser();syncDemoRibbon();}
+function exitDemo(){try{if(typeof window.closeSiteMenu==='function')window.closeSiteMenu();}catch(e){}handleChangeUser();syncDemoRibbon();}
 window.exitDemo=exitDemo;
 function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);}
 async function handleRefresh(){
@@ -8766,6 +8766,7 @@ initThemeToggle();
       }, 300);
     }
     function isOpen() { return drawer.classList.contains('open'); }
+    window.closeSiteMenu = closeMenu;
 
     function syncActive() {
       var board = document.getElementById('board');
