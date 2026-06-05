@@ -535,12 +535,22 @@
     }
     @keyframes espn-fade-in { from { opacity: 0; } to { opacity: 1; } }
     .espn-modal {
+      position: relative;
       background: var(--paper); color: var(--ink-700);
       border-radius: var(--radius-lg); border: 1px solid var(--line);
       width: 100%; max-width: 540px; max-height: 92vh; overflow-y: auto;
       padding: 24px;
       box-shadow: 0 20px 60px rgba(15, 27, 38, 0.35);
     }
+    .espn-modal-x {
+      position: absolute; top: 12px; right: 12px;
+      width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+      background: transparent; border: none; border-radius: 8px;
+      color: var(--ink-500); font: 400 22px/1 var(--font-sans); cursor: pointer;
+      transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out);
+    }
+    .espn-modal-x:hover { background: var(--paper-deep); color: var(--ink-900); }
+    .espn-modal-rule { border: none; border-top: 1px solid var(--line); margin: 24px 0 20px; }
     .espn-modal h2 {
       font: 700 20px/1.2 var(--font-sans); color: var(--ink-900);
       margin-bottom: 4px;
@@ -5862,18 +5872,17 @@ function openSignInModal(){
   backdrop.className = 'espn-modal-backdrop';
   backdrop.innerHTML = `
     <div class="espn-modal" role="dialog" aria-modal="true" aria-labelledby="signin-modal-title">
+      <button type="button" class="espn-modal-x" id="signin-x" aria-label="Close">&times;</button>
       <h2 id="signin-modal-title">Sign in</h2>
       <p class="espn-modal-sub">Already have a Conflicted account? Enter your email and we'll send a one-time sign-in link — no password.</p>
       <div class="espn-field">
         <label for="signin-email">Email</label>
         <input type="email" id="signin-email" placeholder="you@example.com" autocomplete="email" />
       </div>
-      <div class="espn-modal-error" id="signin-modal-error"></div>
-      <div class="espn-modal-actions">
-        <button type="button" class="espn-btn-cancel" id="signin-cancel">Cancel</button>
-        <button type="button" class="espn-btn-submit" id="signin-submit">Email me a sign-in link</button>
-      </div>
-      <div class="or-row" style="margin-top:22px"><div class="or-line"></div><div class="or-txt">new to conflicted?</div><div class="or-line"></div></div>
+      <button type="button" class="espn-btn-submit" id="signin-submit" style="width:100%">Email me a sign-in link</button>
+      <div class="espn-modal-error" id="signin-modal-error" style="min-height:0;margin-top:8px"></div>
+      <hr class="espn-modal-rule">
+      <h2 style="margin-bottom:14px">New to Conflicted?</h2>
       <button type="button" class="espn-btn-submit" id="signin-signup" style="width:100%;background:var(--coral-500)">Sign up</button>
     </div>`;
   document.body.appendChild(backdrop);
@@ -5881,7 +5890,7 @@ function openSignInModal(){
   const close = ()=> backdrop.remove();
   const errEl = backdrop.querySelector('#signin-modal-error');
   backdrop.addEventListener('click', e=>{ if(e.target===backdrop) close(); });
-  backdrop.querySelector('#signin-cancel').addEventListener('click', close);
+  backdrop.querySelector('#signin-x').addEventListener('click', close);
 
   // Sign up → same destination as "Exit demo": the Get started / connect funnel.
   backdrop.querySelector('#signin-signup').addEventListener('click', ()=>{ close(); goToSignUp(); });
