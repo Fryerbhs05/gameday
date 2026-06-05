@@ -1391,13 +1391,13 @@
     }
     .account-row-value.muted { color: var(--ink-500); font-weight: 500; }
     .account-row-count {
-      font: 600 14px/1 var(--font-mono); color: var(--coral-600, var(--coral-500));
-      background: var(--coral-200); border-radius: var(--radius-pill);
+      font: 600 14px/1 var(--font-mono); color: #fff;
+      background: var(--navy-500); border-radius: var(--radius-pill);
       padding: 4px 11px; flex-shrink: 0;
     }
-    .account-actions {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 12px; margin-top: 18px;
+    .account-delete-row {
+      display: flex; justify-content: flex-end;
+      margin-top: 14px;
     }
     /* Delete = de-emphasized like the wizard "Skip" (btn-ghost), tinted danger. */
     .btn-ghost-danger {
@@ -2499,11 +2499,17 @@
           </div>
           <div class="account-row-count" id="account-leagues-value">0</div>
         </div>
+        <div class="settings-row">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Sign out</div>
+            <div class="settings-row-sub">Sign out of Conflicted on this device.</div>
+          </div>
+          <button class="btn-secondary" id="account-signout-btn" type="button">Sign out</button>
+        </div>
       </div>
     </div>
-    <div class="account-actions">
+    <div class="account-delete-row">
       <button class="btn-ghost-danger" id="account-delete-btn" type="button">Delete account</button>
-      <button class="btn-secondary" id="account-signout-btn" type="button">Sign out</button>
     </div>
   </div>
 
