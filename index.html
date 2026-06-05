@@ -4659,7 +4659,12 @@ window.inDemoMode=function(){return isDemoMode;};
    state. isDemoMode flips in many code paths, so a lightweight interval is the
    bulletproof sync; we also call it directly on the obvious transitions. */
 function syncDemoRibbon(){try{document.body.classList.toggle('demo-active',!!isDemoMode);}catch(e){}}
-function exitDemo(){try{if(typeof window.closeSiteMenu==='function')window.closeSiteMenu();}catch(e){}handleChangeUser();syncDemoRibbon();/* land on the Get started / connect section at the bottom of the home page */setTimeout(function(){var gs=document.getElementById('get-started-section');if(gs)gs.scrollIntoView({behavior:'smooth',block:'start'});},80);}
+/* Shared destination: the "Get started" / connect funnel at the bottom of the
+   home page. Used by both "Exit demo" and the sign-up path in the sign-in modal. */
+function scrollToGetStarted(){setTimeout(function(){var gs=document.getElementById('get-started-section');if(gs)gs.scrollIntoView({behavior:'smooth',block:'start'});},80);}
+function goToSignUp(){try{if(typeof window.closeSiteMenu==='function')window.closeSiteMenu();}catch(e){}try{showSetup();}catch(e){}scrollToGetStarted();}
+window.goToSignUp=goToSignUp;
+function exitDemo(){try{if(typeof window.closeSiteMenu==='function')window.closeSiteMenu();}catch(e){}handleChangeUser();syncDemoRibbon();scrollToGetStarted();}
 window.exitDemo=exitDemo;
 function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};activeFilters.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);}
 async function handleRefresh(){
@@ -5843,14 +5848,12 @@ function updateHeaderAuthControls(showSignin){
 }
 window.updateHeaderAuthControls = updateHeaderAuthControls;
 
-/* Header "Sign in" entry (cold visitors). Collects email only and posts to
-   ?mode=onboard, which the backend branches:
-     • brand-new email (or an account with no connections) → creates the account,
-       signs them in on this device, and we drop them into the connect funnel;
-     • existing account that already has connections → emails a one-time sign-in
-       link instead (no session granted, so an address can't be hijacked).
-   Name is captured later in the wizard identity step (onb-first/onb-last), so we
-   don't ask for it here — keeping this form to a single field for conversion. */
+/* Header "Sign in" entry. Two explicit paths:
+     • SIGN IN (existing users only) — emails a one-time magic link. mode=onboard
+       is deliberately omitted so this path never creates an account or grants a
+       session; it only works for people who already have one.
+     • SIGN UP (new users) — routes to the exact same place as "Exit demo": the
+       Get started / connect funnel at the bottom of the home page. */
 function openSignInModal(){
   const existing = document.getElementById('signin-modal-backdrop');
   if(existing) existing.remove();
@@ -5860,7 +5863,7 @@ function openSignInModal(){
   backdrop.innerHTML = `
     <div class="espn-modal" role="dialog" aria-modal="true" aria-labelledby="signin-modal-title">
       <h2 id="signin-modal-title">Sign in</h2>
-      <p class="espn-modal-sub">Enter your email to continue. New here? This creates your account. Already have one? We'll email you a one-time sign-in link — no password.</p>
+      <p class="espn-modal-sub">Already have a Conflicted account? Enter your email and we'll send a one-time sign-in link — no password.</p>
       <div class="espn-field">
         <label for="signin-email">Email</label>
         <input type="email" id="signin-email" placeholder="you@example.com" autocomplete="email" />
@@ -5868,8 +5871,10 @@ function openSignInModal(){
       <div class="espn-modal-error" id="signin-modal-error"></div>
       <div class="espn-modal-actions">
         <button type="button" class="espn-btn-cancel" id="signin-cancel">Cancel</button>
-        <button type="button" class="espn-btn-submit" id="signin-submit">Continue</button>
+        <button type="button" class="espn-btn-submit" id="signin-submit">Email me a sign-in link</button>
       </div>
+      <div class="or-row" style="margin-top:22px"><div class="or-line"></div><div class="or-txt">new to conflicted?</div><div class="or-line"></div></div>
+      <button type="button" class="espn-btn-submit" id="signin-signup" style="width:100%;background:var(--coral-500)">Sign up</button>
     </div>`;
   document.body.appendChild(backdrop);
 
@@ -5877,40 +5882,34 @@ function openSignInModal(){
   const errEl = backdrop.querySelector('#signin-modal-error');
   backdrop.addEventListener('click', e=>{ if(e.target===backdrop) close(); });
   backdrop.querySelector('#signin-cancel').addEventListener('click', close);
-  const submit = backdrop.querySelector('#signin-submit');
 
+  // Sign up → same destination as "Exit demo": the Get started / connect funnel.
+  backdrop.querySelector('#signin-signup').addEventListener('click', ()=>{ close(); goToSignUp(); });
+
+  // Sign in (existing users only): email a one-time magic link.
+  const submit = backdrop.querySelector('#signin-submit');
   const send = async()=>{
     const email = (backdrop.querySelector('#signin-email').value||'').trim();
     errEl.textContent='';
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ errEl.textContent='Enter a valid email address.'; return; }
-    submit.disabled=true; submit.textContent='Working…';
+    submit.disabled=true; submit.textContent='Sending…';
     try{
-      const r = await fetch('/api/auth/magic/request?mode=onboard',{
+      const r = await fetch('/api/auth/magic/request',{
         method:'POST', credentials:'include',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ email })
       });
-      const j = await r.json().catch(()=>({}));
-      if(r.ok && j.mode === 'session'){
-        // New (or connectionless) account: signed in on this device. Mark the
-        // same flags the inline onboarding sets, then route into the connect funnel.
-        window.__account = { ...(window.__account||{}), signedIn:true, enabled:true, email: j.email || email };
-        window.__identityDone = true;
-        window.__onboardEmail = j.email || email;
-        window.__onboardedThisVisit = true;
-        close();
-        try{ showSetup(); ensureWizard(); }
-        catch(e){ window.location.href = '/?account=connected'; }
-      } else if(r.ok && j.mode === 'link_sent'){
+      if(r.ok){
         backdrop.querySelector('.espn-modal').innerHTML =
-          `<h2>Check your email</h2><p class="espn-modal-sub">You already have a Conflicted account. We sent a sign-in link to <strong>${email}</strong>. It works once and expires in 15 minutes.</p>
+          `<h2>Check your email</h2><p class="espn-modal-sub">If an account exists for <strong>${email}</strong>, we've sent a one-time sign-in link. It works once and expires in 15 minutes.</p>
            <div class="espn-modal-actions"><button type="button" class="espn-btn-submit" id="signin-done">Done</button></div>`;
         backdrop.querySelector('#signin-done').addEventListener('click', close);
       } else {
-        errEl.textContent = j.error || 'Could not sign you in. Please try again.';
-        submit.disabled=false; submit.textContent='Continue';
+        const j = await r.json().catch(()=>({}));
+        errEl.textContent = j.error || 'Could not send link. Please try again.';
+        submit.disabled=false; submit.textContent='Email me a sign-in link';
       }
-    }catch(e){ errEl.textContent='Network error. Please try again.'; submit.disabled=false; submit.textContent='Continue'; }
+    }catch(e){ errEl.textContent='Network error. Please try again.'; submit.disabled=false; submit.textContent='Email me a sign-in link'; }
   };
   submit.addEventListener('click', send);
   backdrop.querySelector('#signin-email').addEventListener('keydown', e=>{ if(e.key==='Enter') send(); });
