@@ -1244,13 +1244,15 @@
     .column.enemy      .col-count { color: var(--enemy); }
     .col-title {
       font: 700 18px/1.2 var(--font-sans); letter-spacing: -0.01em;
+      white-space: nowrap; flex-shrink: 0;
     }
     .column.cheer      .col-title { color: var(--cheer); }
     .column.conflicted .col-title { color: var(--split); }
     .column.enemy      .col-title { color: var(--enemy); }
     .col-subtitle {
-      font: 500 11px/1 var(--font-sans); color: var(--ink-500);
+      font: 500 11px/1.3 var(--font-sans); color: var(--ink-500);
       letter-spacing: 0.08em; text-transform: uppercase; margin-left: auto;
+      text-align: right;
     }
 
     /* Player cards */
@@ -2476,7 +2478,7 @@
       </div>
 
       <div id="demo-tryfirst">
-        <div class="or-row"><div class="or-line"></div><div class="or-txt">or try it first</div><div class="or-line"></div></div>
+        <div class="espn-modal-or"><span class="espn-modal-or__line"></span><span class="espn-modal-or__txt">or</span><span class="espn-modal-or__line"></span></div>
         <button class="btn-demo-full" onclick="handleDemo()">Try demo mode — 4 leagues, live scoring</button>
       </div>
     </div>
