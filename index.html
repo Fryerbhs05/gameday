@@ -1212,6 +1212,36 @@
       #demo-ribbon .dr-text { display: none; }
     }
 
+    /* Pinned experiment ribbon — same chrome as the demo ribbon, but an amber
+       accent so it's instantly distinguishable from demo mode. Unlocks via a
+       secret code in the sign-in box; persists across reloads until exited. */
+    #experiment-ribbon {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 9000;
+      display: none; align-items: center; justify-content: center; gap: 14px;
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+      background: #14202B; border-top: 2px solid #E0A82E;
+      box-shadow: 0 -6px 20px rgba(0,0,0,0.28);
+      font: 500 13px/1.3 var(--font-sans); color: #E6EDF3;
+    }
+    body.experiment-active #experiment-ribbon { display: flex; }
+    body.experiment-active { padding-bottom: 64px; }
+    #experiment-ribbon .xr-text { color: #E2C792; }
+    #experiment-ribbon .xr-exit {
+      margin-left: 4px; background: #E0A82E; color: #14202B;
+      border: 0; border-radius: var(--radius-md); cursor: pointer;
+      font: 600 13px/1 var(--font-sans); padding: 9px 16px;
+      transition: background 0.15s var(--ease-out);
+    }
+    #experiment-ribbon .xr-exit:hover, #experiment-ribbon .xr-exit:active { background: #CC9526; }
+    @media (max-width: 560px) {
+      #experiment-ribbon { gap: 10px; padding-left: 12px; padding-right: 12px; }
+      #experiment-ribbon .xr-text { display: none; }
+    }
+    /* Convenience hook: anything tagged .exp-only stays hidden unless experiment
+       mode is active. Lets you gate experimental UI in pure markup/CSS, no JS. */
+    .exp-only { display: none !important; }
+    body.experiment-active .exp-only { display: revert !important; }
+
     /* No-data */
     #no-data-state { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 60px 20px; text-align: center; }
     #no-data-state.visible { display: flex; }
@@ -2418,6 +2448,12 @@
 <div id="demo-ribbon" role="status" aria-live="polite">
   <span class="dr-text">Demo Mode — Exit Demo Mode To Connect Your Leagues</span>
   <button class="dr-exit" type="button" onclick="exitDemo()">Exit Demo Mode</button>
+</div>
+
+<!-- Pinned experiment ribbon: persistent exit affordance while experimental features are unlocked -->
+<div id="experiment-ribbon" role="status" aria-live="polite">
+  <span class="xr-text">Experimental Mode — testing unreleased features</span>
+  <button class="xr-exit" type="button" onclick="exitExperiment()">Exit Experiment</button>
 </div>
 
 <!-- ══ LANDING ═════════════════════════════════════════════════ -->
@@ -4786,6 +4822,38 @@ function goToSignUp(){try{if(typeof window.closeSiteMenu==='function')window.clo
 window.goToSignUp=goToSignUp;
 function exitDemo(){try{if(typeof window.closeSiteMenu==='function')window.closeSiteMenu();}catch(e){}handleChangeUser();syncDemoRibbon();scrollToGetStarted();}
 window.exitDemo=exitDemo;
+
+/* ── Experimental mode ───────────────────────────────────────────────────────
+   Unlocked by typing the secret code below into the sign-in box (the email
+   field). Flips a persistent flag so unreleased features can ship to prod but
+   stay invisible until unlocked. Mirrors the demo-ribbon exit chrome.
+   To change the unlock code, edit EXPERIMENT_CODE and re-upload index.html. */
+const EXPERIMENT_CODE='TestMode2026';
+const EXPERIMENT_LS_KEY='conflicted_experiment';
+let isExperimentMode=false;
+/* True when experimental features should be visible. Gate any experimental UI
+   with: if(window.experimentEnabled()){ ... }  — or tag markup with class
+   "exp-only" for a pure-CSS gate. */
+window.experimentEnabled=function(){return isExperimentMode;};
+function syncExperimentRibbon(){try{document.body.classList.toggle('experiment-active',!!isExperimentMode);}catch(e){}}
+function loadExperimentState(){try{isExperimentMode=localStorage.getItem(EXPERIMENT_LS_KEY)==='1';}catch(e){isExperimentMode=false;}syncExperimentRibbon();}
+function enableExperimentMode(){isExperimentMode=true;try{localStorage.setItem(EXPERIMENT_LS_KEY,'1');}catch(e){}syncExperimentRibbon();
+  /* Reload so any experimental UI that gates at boot/render time appears cleanly,
+     mirroring the exit path. The flag is already persisted, so it survives. */
+  try{location.reload();}catch(e){}}
+function exitExperiment(){isExperimentMode=false;try{localStorage.removeItem(EXPERIMENT_LS_KEY);}catch(e){}syncExperimentRibbon();
+  /* Reload so any experimental UI that was rendered tears down cleanly, exactly
+     as it would for a normal (locked) visitor. */
+  try{location.reload();}catch(e){}}
+window.exitExperiment=exitExperiment;
+/* Returns true if the sign-in value was the unlock code (and acts on it). The
+   sign-in handler calls this before its email validation so the code never
+   gets sent to the magic-link endpoint. */
+function tryExperimentUnlock(v){
+  if((v||'').trim().toLowerCase()!==EXPERIMENT_CODE.toLowerCase())return false;
+  enableExperimentMode();
+  return true;
+}
 function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};hiddenLeagues.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);}
 async function handleRefresh(){
   const btn=document.getElementById('refresh-btn');
@@ -4820,6 +4888,8 @@ async function handleChangeUser(){isDemoMode=false;colorMap={};hiddenLeagues.cle
 /* Safety-net sync: guarantees the ribbon clears even on demo-exit paths that
    don't route through handleDemo/handleChangeUser (e.g. connecting a league). */
 try{setInterval(syncDemoRibbon,400);}catch(e){}
+/* Same bulletproof sync for the experiment ribbon. */
+try{setInterval(syncExperimentRibbon,400);}catch(e){}
 function resetRenderIndexes(){
   ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
     const el=document.getElementById(id);
@@ -6013,6 +6083,9 @@ function openSignInModal(){
   const send = async()=>{
     const email = (backdrop.querySelector('#signin-email').value||'').trim();
     errEl.textContent='';
+    // Secret unlock: if the field holds the experiment code, flip experimental
+    // mode and bail before any magic-link request goes out.
+    if(tryExperimentUnlock(email)){ close(); window.scrollTo(0,0); return; }
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ errEl.textContent='Enter a valid email address.'; return; }
     submit.disabled=true; submit.textContent='Sending…';
     try{
@@ -6468,6 +6541,7 @@ function renderSettingsPriorityList(list,order,equal){
 
 loadPriorityState();
 loadLiveOnlyState();
+loadExperimentState();
 initThemeToggle();
 
 (async()=>{
