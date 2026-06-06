@@ -9480,10 +9480,11 @@ initThemeToggle();
   }
 
   /* Phases 2-4 per player: hero card → league split → merge to net card. */
-  function runPlayer(ev,cx,slotW,done){
+  function runPlayer(ev,cx,cy,slotW,rowBudget,done){
     var vh=window.innerHeight, o=overlay();
-    var heroW=220, heroScale=Math.min(1,(slotW-16)/heroW), hx=cx-heroW/2;
-    var heroY=vh*0.34, riseStartY=vh+40;
+    var heroW=220, vCap=(rowBudget-14)/150;
+    var heroScale=Math.min(1,(slotW-16)/heroW,vCap), hx=cx-heroW/2;
+    var heroY=cy, riseStartY=vh+40;
     /* Phase 2 — hero card */
     var hero=document.createElement('div'); hero.className='ia-hero'; hero.style.transformOrigin='top center';
     hero.innerHTML='<div class="ia-hero__delta">'+fmt(ev.delta)+'</div><div class="ia-hero__name">'+esc(ev.name)+'</div>';
@@ -9497,8 +9498,8 @@ initThemeToggle();
       hero.style.transform='translate('+hx+'px,'+(heroY-12)+'px) scale('+(heroScale*0.82)+')'; hero.style.opacity='0';
       after(360,function(){if(hero.parentNode)hero.remove();});
       var N=ev.legs.length, baseCW=heroW, gap=10;
-      var scale=Math.min(1,(slotW-16)/(N*baseCW+(N-1)*gap));
-      var cw=baseCW*scale, sgap=gap*scale, groupW=N*cw+(N-1)*sgap, x0=cx-groupW/2, cardY=vh*0.34;
+      var scale=Math.min(1,(slotW-16)/(N*baseCW+(N-1)*gap),vCap);
+      var cw=baseCW*scale, sgap=gap*scale, groupW=N*cw+(N-1)*sgap, x0=cx-groupW/2, cardY=cy;
       var cards=[];
       ev.legs.forEach(function(l,i){
         var c=document.createElement('div'); c.className='ia-lcard '+(l.side==='mine'?'mine':'opp'); c.style.transformOrigin='top left';
@@ -9545,12 +9546,20 @@ initThemeToggle();
     running=true; paused=false;
     var o=overlay(); if(!o){running=false;return;}
     o.classList.add('active');
-    var vw=window.innerWidth, maxConc=vw>=520?3:2;
+    /* Players from the same tick stack VERTICALLY (one row each, e.g. QB + WR on
+       a TD pass); within a row the league cards fan out horizontally by count. */
+    var vw=window.innerWidth, vh=window.innerHeight, maxConc=3;
     var show=events.slice(0,maxConc), rest=events.slice(maxConc);
     if(rest.length)queue.unshift(rest);
+    var P=show.length;
+    var rowSpacing=Math.min(vh*0.5/P, 200);
+    var startY=vh*0.42-(rowSpacing*P)/2;
     runSplash(function(){
-      var P=show.length, slotW=vw/P, pending=P;
-      show.forEach(function(ev,si){runPlayer(ev,slotW*(si+0.5),slotW,function(){if(--pending<=0){running=false;drain();}});});
+      var pending=P;
+      show.forEach(function(ev,ri){
+        var cy=startY+rowSpacing*(ri+0.5);
+        runPlayer(ev, vw/2, cy, vw, rowSpacing, function(){if(--pending<=0){running=false;drain();}});
+      });
     });
   }
 
