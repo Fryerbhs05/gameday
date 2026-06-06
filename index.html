@@ -4255,7 +4255,7 @@ function renderBoard(data,username){
     });
   }
   renderList('cheer-list',cheerFor);renderList('conflicted-list',conflicted);renderList('enemy-list',enemies);
-  try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek});}catch(e){}
+  try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek,contexts:contexts});}catch(e){}
   applyFilters();
   currentContexts=Array.isArray(contexts)?contexts.slice():[];
   currentLeagues=Array.isArray(data.leagues)?data.leagues.slice():[];
@@ -9426,6 +9426,31 @@ initThemeToggle();
   function clearTimers(){timers.forEach(function(t){clearTimeout(t);});timers=[];}
   function after(ms,fn){var t=setTimeout(fn,ms);timers.push(t);return t;}
 
+  /* ── Impact model: league-weighted win-probability swing ──────────────────
+     net = Σ over starting-leagues of  weight × (winProb_after − winProb_before)
+     winProb = Φ(margin / σ);  margin = yourProjFinal − oppProjFinal
+     σ = max(1.5, √(β·R));  R = remaining projected pts (both teams) = the "clock"
+     No projection for a league → margin-only fallback w/ wide fixed σ (never
+     treat missing proj as clinched). Magnitude → animation intensity.
+     v1 of the REAL calc; per-player "beat-your-projection" refinement is a TODO. */
+  var BETA=4, NET_FULL=1.2;
+  function ncdf(z){var t=1/(1+0.2316419*Math.abs(z));var d=0.3989423*Math.exp(-z*z/2);var p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
+  function leagueWeightByName(name){var idx=(typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder))?priorityOrder.indexOf(name):-1;var rank=idx<0?99:idx+1;return rank===1?5:(rank<=4?5-rank:1);}
+  function marginSigmaFromCtx(ctx){
+    ctx=ctx||{};
+    var myP=+ctx.myPoints||0, oppP=+ctx.oppPoints||0, myPr=+ctx.myProjPts||0, oppPr=+ctx.oppProjPts||0;
+    if((myPr+oppPr)>0){var R=Math.max(0,myPr-myP)+Math.max(0,oppPr-oppP);return {margin:myPr-oppPr,sigma:Math.max(1.5,Math.sqrt(BETA*R))};}
+    return {margin:myP-oppP, sigma:25}; /* no projection → margin-only, wide σ */
+  }
+  function computeEventNet(legs){
+    var net=0;
+    legs.forEach(function(l){
+      var s=(l.side==='mine')?1:-1, m=(l.margin||0), sg=(l.sigma||25), w=(l.weight==null?1:l.weight);
+      net+=w*(ncdf((m+s*(l.delta||0))/sg)-ncdf(m/sg));
+    });
+    return {net:net, intensity:Math.max(0,Math.min(1,Math.abs(net)/NET_FULL))};
+  }
+
   function skipAll(){
     clearTimers(); paused=false;
     nodes.forEach(function(n){if(n&&n.parentNode)n.parentNode.removeChild(n);}); nodes=[];
@@ -9488,23 +9513,26 @@ initThemeToggle();
         var stackX=cx-cw/2;
         cards.forEach(function(cd){cd.el.style.transition='transform 0.45s cubic-bezier(.5,0,.6,1),opacity 0.3s ease';cd.el.style.transform='translate('+stackX+'px,'+cardY+'px) scale('+scale+')';});
         after(420,function(){
-          var net=ev.net, pos=net>=0;
-          var txt=net>0?'helps you win':net===0?'points are points':'hurts your chances';
+          var net=ev.net||0, EPSN=0.005, pos=net>=0;
+          var inten=(ev.intensity==null?Math.max(0,Math.min(1,Math.abs(net)/NET_FULL)):ev.intensity);
+          var txt=net>EPSN?'helps you win':net<-EPSN?'hurts your chances':'points are points';
+          var restScale=heroScale*(1+inten*0.10), glow=pos?'46,160,110':'224,80,76';
           var nhx=cx-heroW/2, nhy=heroY;
           var fin=document.createElement('div'); fin.className='ia-hero '+(pos?'net-pos':'net-neg'); fin.style.transformOrigin='top center';
           fin.innerHTML='<div class="ia-hero__delta">'+fmt(ev.delta)+'</div><div class="ia-hero__name">'+esc(ev.name)+'</div><div class="ia-hero__net">'+txt+'</div>';
-          fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+(heroScale*0.5)+')'; fin.style.opacity='0';
+          fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+(restScale*0.5)+')'; fin.style.opacity='0';
           o.appendChild(fin); nodes.push(fin);
           announce(esc(ev.name)+' '+txt);
           requestAnimationFrame(function(){requestAnimationFrame(function(){
-            fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+(heroScale*1.12)+')'; fin.style.opacity='1';
+            fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+(restScale*1.12)+')'; fin.style.opacity='1';
+            fin.style.boxShadow='0 0 '+Math.round(10+inten*36)+'px rgba('+glow+','+(0.22+inten*0.5).toFixed(2)+')';
             cards.forEach(function(cd){cd.el.style.opacity='0';});
           });});
-          after(200,function(){fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+heroScale+')';});
+          after(200,function(){fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+restScale+')';});
           after(260,function(){cards.forEach(function(cd){if(cd.el.parentNode)cd.el.parentNode.removeChild(cd.el);});});
           after(2200,function(){
             fin.style.transition='transform 0.55s ease,opacity 0.55s ease';
-            fin.style.transform='translate('+nhx+'px,'+(nhy-200)+'px) scale('+heroScale+')'; fin.style.opacity='0';
+            fin.style.transform='translate('+nhx+'px,'+(nhy-200)+'px) scale('+restScale+')'; fin.style.opacity='0';
             after(580,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
           });
         });
@@ -9546,6 +9574,7 @@ initThemeToggle();
     try{
       var ctx=((meta&&meta.season)||'')+'|'+((meta&&meta.week)||'');
       var isHist=!!(meta&&meta.isHist);
+      var ctxMap={}; ((meta&&meta.contexts)||[]).forEach(function(c){if(c&&c.leagueName)ctxMap[c.leagueName]=c;});
       var cur={}, events=[];
       (players||[]).forEach(function(p){
         var id=String(p.id), lp=p.leaguePoints||{};
@@ -9558,9 +9587,10 @@ initThemeToggle();
         legs.forEach(function(l){var key=l.league+'|'+l.side,was=(psnap[key]!=null?psnap[key]:l.pts);l.delta=l.pts-was;if(Math.abs(l.delta)>Math.abs(repDelta))repDelta=l.delta;});
         var fire=(repDelta>EPS)||(repDelta<-EPS&&Math.abs(repDelta)>=0.5);
         if(!fire)return;
-        var dir=repDelta>=0?1:-1, net=0;
-        legs.forEach(function(l){net+=(l.side==='mine'?1:-1)*dir;});
-        events.push({id:id,name:p.full_name||'Player',pos:p.position||'',legs:legs,net:net,delta:repDelta});
+        /* Real model: weight by league priority, win-prob swing per matchup. */
+        legs.forEach(function(l){l.weight=leagueWeightByName(l.league);var ms=marginSigmaFromCtx(ctxMap[l.league]);l.margin=ms.margin;l.sigma=ms.sigma;});
+        var r=computeEventNet(legs);
+        events.push({id:id,name:p.full_name||'Player',pos:p.position||'',legs:legs,net:r.net,intensity:r.intensity,delta:repDelta});
       });
       prev=cur; prevCtx=ctx;
       if(isHist)return;
@@ -9596,11 +9626,25 @@ initThemeToggle();
     [{name:'Derrick Henry',pos:'RB',delta:6.0,dist:[[DR,'mine'],[RC,'opp']]}],
     [{name:'Justin Jefferson',pos:'WR',delta:-0.6,dist:[[DR,'opp'],[RC,'mine'],[GG,'opp']]}]
   ];
+  /* Test legs run through the SAME win-prob model. Synthetic matchup context per
+     leg: optional 3rd tuple element {m:margin, r:remainingPts}; default a mid-game
+     coin-flip (m=0, r=100). Weight by a fixed demo priority (DR>RC>GG>DM). */
+  var DEMO_PRI=[DR,RC,GG,DM];
+  /* Fixed per-league matchup context for the test slate: m=your projected margin,
+     r=remaining projected pts. DR close w/ lots left, RC trailing mid-game,
+     GG near-clinched blowout (tiny r), DM trailing. Lets the test show real
+     win-prob variation + the clinched/intensity behavior. */
+  var DEMO_CTX={}; DEMO_CTX[DR]={m:4,r:135}; DEMO_CTX[RC]={m:-9,r:75}; DEMO_CTX[GG]={m:21,r:26}; DEMO_CTX[DM]={m:-11,r:90};
+  function testWeight(name){var i=DEMO_PRI.indexOf(name);var rank=i<0?99:i+1;return rank===1?5:(rank<=4?5-rank:1);}
   function buildEvents(batch){
     return batch.map(function(pl,i){
-      var legs=pl.dist.map(function(d){return {league:d[0],side:d[1],delta:pl.delta};});
-      var dir=pl.delta>=0?1:-1, net=0; legs.forEach(function(l){net+=(l.side==='mine'?1:-1)*dir;});
-      return {id:'test_'+i+'_'+pl.name,name:pl.name,pos:pl.pos,legs:legs,net:net,delta:pl.delta};
+      var legs=pl.dist.map(function(d){
+        var base=DEMO_CTX[d[0]]||{m:0,r:100}, o=d[2]||{};
+        var R=(o.r==null?base.r:o.r), m=(o.m==null?base.m:o.m);
+        return {league:d[0],side:d[1],delta:pl.delta,weight:testWeight(d[0]),margin:m,sigma:Math.max(1.5,Math.sqrt(BETA*R))};
+      });
+      var r=computeEventNet(legs);
+      return {id:'test_'+i+'_'+pl.name,name:pl.name,pos:pl.pos,legs:legs,net:r.net,intensity:r.intensity,delta:pl.delta};
     });
   }
   var tIdx=0, tTimer=null, tLooping=false;
