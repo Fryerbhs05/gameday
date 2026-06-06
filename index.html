@@ -1233,6 +1233,13 @@
       transition: background 0.15s var(--ease-out);
     }
     #experiment-ribbon .xr-exit:hover, #experiment-ribbon .xr-exit:active { background: #CC9526; }
+    #experiment-ribbon .xr-link {
+      background: transparent; color: #E2C792;
+      border: 1px solid #E0A82E; border-radius: var(--radius-md); cursor: pointer;
+      font: 600 13px/1 var(--font-sans); padding: 8px 14px;
+      transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out);
+    }
+    #experiment-ribbon .xr-link:hover, #experiment-ribbon .xr-link:active { background: #E0A82E; color: #14202B; }
     @media (max-width: 560px) {
       #experiment-ribbon { gap: 10px; padding-left: 12px; padding-right: 12px; }
       #experiment-ribbon .xr-text { display: none; }
@@ -2453,6 +2460,7 @@
 <!-- Pinned experiment ribbon: persistent exit affordance while experimental features are unlocked -->
 <div id="experiment-ribbon" role="status" aria-live="polite">
   <span class="xr-text">Experimental Mode — testing unreleased features</span>
+  <button class="xr-link" type="button" onclick="goToDashboardOrSetup();window.scrollTo(0,0);">Dashboard</button>
   <button class="xr-exit" type="button" onclick="exitExperiment()">Exit Experiment</button>
 </div>
 
