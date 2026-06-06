@@ -2460,7 +2460,7 @@
 <!-- Pinned experiment ribbon: persistent exit affordance while experimental features are unlocked -->
 <div id="experiment-ribbon" role="status" aria-live="polite">
   <span class="xr-text">Experimental Mode — testing unreleased features</span>
-  <button class="xr-link" type="button" onclick="goToDashboardOrSetup();window.scrollTo(0,0);">Dashboard</button>
+  <button class="xr-link" type="button" onclick="experimentGoDashboard()">Dashboard</button>
   <button class="xr-exit" type="button" onclick="exitExperiment()">Exit Experiment</button>
 </div>
 
@@ -4862,6 +4862,25 @@ function tryExperimentUnlock(v){
   enableExperimentMode();
   return true;
 }
+/* TestMode dashboard shortcut. With leagues connected it just shows the real
+   board. With nothing connected, the normal "go to dashboard" path falls back
+   to the setup/Home screen — useless for testing — so here we populate the
+   board with the demo dataset as a preview. We deliberately do NOT set
+   isDemoMode (so the demo ribbon doesn't stack on the experiment ribbon); this
+   is purely a populated board to test experimental UI against. */
+function experimentGoDashboard(){
+  try{
+    if(isAnyProviderConnected()||isDemoMode){
+      goToDashboardOrSetup();
+    }else{
+      activeWeek=liveWeek;activeSeason=liveSeason;
+      buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();
+      renderBoard(getDemoData(),'preview');
+    }
+  }catch(e){console.warn('experimentGoDashboard failed:',e.message);}
+  window.scrollTo(0,0);
+}
+window.experimentGoDashboard=experimentGoDashboard;
 function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};hiddenLeagues.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);}
 async function handleRefresh(){
   const btn=document.getElementById('refresh-btn');
