@@ -1249,6 +1249,42 @@
     .exp-only { display: none !important; }
     body.experiment-active .exp-only { display: revert !important; }
 
+    /* ── Impact animation (experiment) — conflicted scoring fly-up ──
+       Per-league cards rise coral(=mine)/navy(=opp), collide, merge into a
+       net card: cheer-green helps you, enemy-red hurts you, tie leans green.
+       Ephemeral v1. Only painted while board is the active view + experiment on. */
+    #impact-overlay { position: fixed; inset: 0; z-index: 150; pointer-events: none; overflow: hidden; display: none; }
+    body.experiment-active #impact-overlay.active { display: block; }
+    #ia-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .ia-card {
+      position: absolute; left: 0; top: 0; width: 120px; height: 152px;
+      border-radius: var(--radius-lg); border: 2px solid var(--neutral);
+      background: var(--paper-soft); display: flex; flex-direction: column;
+      align-items: center; box-sizing: border-box; overflow: hidden;
+      pointer-events: auto; cursor: pointer; will-change: transform, opacity;
+      transition: transform 0.55s cubic-bezier(.2,.8,.25,1), opacity 0.35s ease;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+    }
+    .ia-card__bar { height: 6px; width: 100%; flex-shrink: 0; background: var(--neutral); }
+    .ia-card__body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 8px; gap: 3px; }
+    .ia-card__lg { font: 600 10px/1.15 var(--font-sans); color: var(--ink-700); text-align: center; }
+    .ia-card__pos { font: 600 10px/1 var(--font-mono); color: var(--ink-500); }
+    .ia-card__name { font: 600 12px/1.15 var(--font-sans); color: var(--ink-900); text-align: center; }
+    .ia-card__sub { font: 700 11px/1.2 var(--font-mono); text-align: center; }
+    .ia-card.mine { border-color: var(--coral-500); } .ia-card.mine .ia-card__bar { background: var(--coral-500); } .ia-card.mine .ia-card__sub { color: var(--coral-500); }
+    .ia-card.opp  { border-color: var(--navy-500);  } .ia-card.opp  .ia-card__bar { background: var(--navy-500);  } .ia-card.opp  .ia-card__sub { color: var(--navy-500);  }
+    .ia-card.net-pos { border-color: var(--cheer); background: var(--cheer-soft); } .ia-card.net-pos .ia-card__bar { background: var(--cheer); } .ia-card.net-pos .ia-card__sub { color: var(--cheer); }
+    .ia-card.net-neg { border-color: var(--enemy); background: var(--enemy-soft); } .ia-card.net-neg .ia-card__bar { background: var(--enemy); } .ia-card.net-neg .ia-card__sub { color: var(--enemy); }
+    .ia-breakdown {
+      position: absolute; z-index: 2; background: var(--paper); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 10px 12px; font: 500 12px/1.4 var(--font-sans);
+      color: var(--ink-900); box-shadow: 0 10px 30px rgba(0,0,0,0.32); max-width: 220px; pointer-events: auto;
+    }
+    .ia-breakdown .ia-bd-row { display: flex; justify-content: space-between; gap: 14px; padding: 2px 0; }
+    .ia-breakdown .ia-bd-mine { color: var(--coral-500); }
+    .ia-breakdown .ia-bd-opp  { color: var(--navy-500); }
+    @media (prefers-reduced-motion: reduce) { #impact-overlay { display: none !important; } }
+
     /* No-data */
     #no-data-state { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 60px 20px; text-align: center; }
     #no-data-state.visible { display: flex; }
@@ -2610,6 +2646,9 @@
   </div>
 </div>
 
+<!-- ══ IMPACT ANIMATION OVERLAY (experiment) ══════════════════ -->
+<div id="impact-overlay" aria-hidden="true"><div id="ia-live" role="status" aria-live="polite"></div></div>
+
 <!-- ══ ACCOUNT VIEW (opens from hamburger → Account) ══════════ -->
 <div id="view-account" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
   <div style="margin-bottom:20px;">
@@ -2705,6 +2744,13 @@
           <ol class="settings-priority-list" id="settings-priority-list" style="display:none"></ol>
         </div>
         <button class="btn-secondary" onclick="reRankPriority()" type="button">Re-rank leagues</button>
+      </div>
+      <div class="settings-row exp-only">
+        <div class="settings-row-meta">
+          <div class="settings-row-title">Impact animations <span style="font:600 10px/1 var(--font-mono);color:var(--coral-500);border:1px solid var(--coral-500);border-radius:var(--radius-pill);padding:2px 6px;margin-left:6px;vertical-align:1px;">EXPERIMENT</span></div>
+          <div class="settings-row-sub">When a conflicted player scores, fly their cards up and smash them into a net-impact card. Plays live on the dashboard.</div>
+        </div>
+        <button class="live-toggle" id="impact-anim-toggle" onclick="toggleImpactAnim()" type="button" aria-label="Toggle impact animations"></button>
       </div>
     </div>
   </div>
@@ -4186,6 +4232,7 @@ function renderBoard(data,username){
     });
   }
   renderList('cheer-list',cheerFor);renderList('conflicted-list',conflicted);renderList('enemy-list',enemies);
+  try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek});}catch(e){}
   applyFilters();
   currentContexts=Array.isArray(contexts)?contexts.slice():[];
   currentLeagues=Array.isArray(data.leagues)?data.leagues.slice():[];
@@ -9331,5 +9378,167 @@ initThemeToggle();
   })();
 </script>
 
+<script>
+/* ── Impact animation (experiment-gated) ───────────────────────────────────
+   Conflicted player scores → per-league cards rise (coral = my roster,
+   navy = opponent), collide, and merge into a single net card
+   (cheer-green = helps you win, enemy-red = hurts you, tie → green).
+   EPHEMERAL v1: nothing persists. Net is roster-count, sign-aware so an
+   enemy's fumble reads correctly. MUST upgrade to win-probability +
+   league-priority weighting before this ships live. */
+(function(){
+  var EPS=0.01, PREF_KEY='conflicted_impact_anim';
+  var prev=null, prevCtx=null, queue=[], running=false, paused=false, timers=[], nodes=[];
+
+  function reduced(){try{return window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}}
+  function prefOn(){try{return localStorage.getItem(PREF_KEY)!=='0';}catch(e){return true;}}
+  function expOn(){return typeof window.experimentEnabled==='function'&&window.experimentEnabled();}
+  function demo(){return typeof window.inDemoMode==='function'&&window.inDemoMode();}
+  function boardVisible(){return (typeof isDashboardVisible==='function')?isDashboardVisible():true;}
+  function canAnimate(){return expOn()&&prefOn()&&!reduced()&&!demo()&&boardVisible()&&!document.hidden;}
+  function overlay(){return document.getElementById('impact-overlay');}
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function fmt(d){d=Number(d)||0;return (d>=0?'+':'')+d.toFixed(1);}
+  function announce(t){var el=document.getElementById('ia-live');if(el)el.textContent=t;}
+  function clearTimers(){timers.forEach(function(t){clearTimeout(t);});timers=[];}
+  function after(ms,fn){var t=setTimeout(fn,ms);timers.push(t);return t;}
+
+  function skipAll(){
+    clearTimers(); paused=false;
+    nodes.forEach(function(n){if(n&&n.parentNode)n.parentNode.removeChild(n);}); nodes=[];
+    var bd=document.getElementById('ia-breakdown'); if(bd)bd.remove();
+    var o=overlay(); if(o){o.style.pointerEvents='none';}
+    running=false; drain();
+  }
+
+  function drain(){
+    var o=overlay();
+    if(running)return;
+    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(o){o.classList.remove('active');o.style.pointerEvents='none';}return;}
+    var batch=queue.shift(); runBatch(batch);
+  }
+
+  function onCardTap(ev,card){
+    paused=true; clearTimers();
+    var o=overlay(); if(!o)return;
+    var bd=document.getElementById('ia-breakdown'); if(bd)bd.remove();
+    bd=document.createElement('div'); bd.id='ia-breakdown'; bd.className='ia-breakdown';
+    var html='<div style="font-weight:700;margin-bottom:6px;">'+esc(ev.name)+(ev.pos?' · '+esc(ev.pos):'')+'</div>';
+    ev.legs.forEach(function(l){html+='<div class="ia-bd-row"><span class="'+(l.side==='mine'?'ia-bd-mine':'ia-bd-opp')+'">'+esc(l.league)+' · '+(l.side==='mine'?'mine':'opp')+'</span><span>'+fmt(l.delta)+'</span></div>';});
+    html+='<div class="ia-bd-row" style="border-top:1px solid var(--line);margin-top:4px;padding-top:6px;font-weight:700;"><span>net</span><span>'+(ev.net>0?'helps you':ev.net<0?'hurts you':'even → green')+'</span></div>';
+    html+='<div style="margin-top:6px;font:500 11px/1.3 var(--font-sans);color:var(--ink-500);">tap to dismiss</div>';
+    bd.innerHTML=html;
+    var r=card.getBoundingClientRect();
+    bd.style.left=Math.min(window.innerWidth-230,Math.max(10,r.left))+'px';
+    bd.style.top=Math.max(10,r.top-6)+'px';
+    o.appendChild(bd);
+    o.style.pointerEvents='auto';
+    timers.push(setTimeout(skipAll,10000));
+  }
+
+  function runPlayer(ev,cx,slotW,done){
+    var vh=window.innerHeight, o=overlay();
+    var N=ev.legs.length, baseCW=120, gap=8;
+    var scale=Math.min(1,(slotW-16)/(N*baseCW+(N-1)*gap));
+    var cw=baseCW*scale, sgap=gap*scale, groupW=N*cw+(N-1)*sgap, x0=cx-groupW/2;
+    var collideY=vh*0.40, riseStartY=vh+30;
+    var cards=[];
+    ev.legs.forEach(function(l,i){
+      var c=document.createElement('div');
+      c.className='ia-card '+(l.side==='mine'?'mine':'opp');
+      c.style.transformOrigin='top left';
+      c.innerHTML='<div class="ia-card__bar"></div><div class="ia-card__body"><div class="ia-card__lg">'+esc(l.league)+'</div><div class="ia-card__pos">'+esc(ev.pos)+'</div><div class="ia-card__name">'+esc(ev.name)+'</div><div class="ia-card__sub">'+(l.side==='mine'?'my roster':'opp')+' '+fmt(l.delta)+'</div></div>';
+      var x=x0+i*(cw+sgap);
+      c.style.transform='translate('+x+'px,'+riseStartY+'px) scale('+scale+')';
+      c.addEventListener('click',function(e){e.stopPropagation();onCardTap(ev,c);});
+      o.appendChild(c); nodes.push(c); cards.push({el:c,x:x});
+    });
+    requestAnimationFrame(function(){requestAnimationFrame(function(){
+      cards.forEach(function(cd){cd.el.style.transform='translate('+cd.x+'px,'+collideY+'px) scale('+scale+')';});
+    });});
+    after(1500,function(){
+      var stackX=cx-cw/2;
+      cards.forEach(function(cd){cd.el.style.transition='transform 0.45s cubic-bezier(.5,0,.6,1),opacity 0.3s ease';cd.el.style.transform='translate('+stackX+'px,'+collideY+'px) scale('+scale+')';});
+      after(420,function(){
+        var ns=Math.min(1,(slotW-16)/(baseCW+12)), ncw=baseCW*ns;
+        var nx=cx-ncw/2, ny=collideY, pos=ev.net>=0;
+        var txt=ev.net>0?'helps you win':ev.net===0?'points are points':'hurts your chances';
+        var fin=document.createElement('div');
+        fin.className='ia-card '+(pos?'net-pos':'net-neg');
+        fin.style.transformOrigin='top left';
+        fin.innerHTML='<div class="ia-card__bar"></div><div class="ia-card__body"><div class="ia-card__lg">net impact</div><div class="ia-card__pos">'+esc(ev.pos)+'</div><div class="ia-card__name">'+esc(ev.name)+'</div><div class="ia-card__sub">'+txt+'</div></div>';
+        fin.style.transform='translate('+nx+'px,'+ny+'px) scale('+(ns*0.5)+')'; fin.style.opacity='0';
+        fin.addEventListener('click',function(e){e.stopPropagation();onCardTap(ev,fin);});
+        o.appendChild(fin); nodes.push(fin);
+        announce(esc(ev.name)+' '+txt);
+        requestAnimationFrame(function(){requestAnimationFrame(function(){
+          fin.style.transform='translate('+nx+'px,'+ny+'px) scale('+(ns*1.12)+')'; fin.style.opacity='1';
+          cards.forEach(function(cd){cd.el.style.opacity='0';});
+        });});
+        after(200,function(){fin.style.transform='translate('+nx+'px,'+ny+'px) scale('+ns+')';});
+        after(260,function(){cards.forEach(function(cd){if(cd.el.parentNode)cd.el.parentNode.removeChild(cd.el);});});
+        after(2200,function(){
+          fin.style.transition='transform 0.55s ease,opacity 0.55s ease';
+          fin.style.transform='translate('+nx+'px,'+(ny-200)+'px) scale('+ns+')'; fin.style.opacity='0';
+          after(580,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
+        });
+      });
+    });
+  }
+
+  function runBatch(events){
+    running=true; paused=false;
+    var o=overlay(); if(!o){running=false;return;}
+    o.classList.add('active');
+    var vw=window.innerWidth, maxConc=vw>=520?3:2;
+    var show=events.slice(0,maxConc), rest=events.slice(maxConc);
+    if(rest.length)queue.unshift(rest);
+    var P=show.length, slotW=vw/P, pending=P;
+    show.forEach(function(ev,si){runPlayer(ev,slotW*(si+0.5),slotW,function(){if(--pending<=0){running=false;drain();}});});
+  }
+
+  /* Detector — called from renderBoard() with the conflicted bucket each refresh.
+     Fires on any positive scoring delta; a negative (stat correction) only fires
+     if it moves >= 0.5 pts. First snapshot (or a week/season change) records
+     silently. Multiple players firing in the same refresh tick surface together. */
+  window.__detectImpacts=function(players,meta){
+    try{
+      var ctx=((meta&&meta.season)||'')+'|'+((meta&&meta.week)||'');
+      var isHist=!!(meta&&meta.isHist);
+      var cur={}, events=[];
+      (players||[]).forEach(function(p){
+        var id=String(p.id), lp=p.leaguePoints||{};
+        var legs=[];
+        (p.myLeagues||[]).forEach(function(ln){if(lp[ln])legs.push({league:ln,side:'mine',pts:Number(lp[ln].pts)||0});});
+        (p.againstLeagues||[]).forEach(function(ln){if(lp[ln])legs.push({league:ln,side:'opp',pts:Number(lp[ln].pts)||0});});
+        var snap={}; legs.forEach(function(l){snap[l.league+'|'+l.side]=l.pts;}); cur[id]=snap;
+        if(!prev||prevCtx!==ctx)return;
+        var psnap=prev[id]||{}, repDelta=0;
+        legs.forEach(function(l){var key=l.league+'|'+l.side,was=(psnap[key]!=null?psnap[key]:l.pts);l.delta=l.pts-was;if(Math.abs(l.delta)>Math.abs(repDelta))repDelta=l.delta;});
+        var fire=(repDelta>EPS)||(repDelta<-EPS&&Math.abs(repDelta)>=0.5);
+        if(!fire)return;
+        var dir=repDelta>=0?1:-1, net=0;
+        legs.forEach(function(l){net+=(l.side==='mine'?1:-1)*dir;});
+        events.push({id:id,name:p.full_name||'Player',pos:p.position||'',legs:legs,net:net});
+      });
+      prev=cur; prevCtx=ctx;
+      if(isHist)return;
+      if(events.length&&canAnimate()){queue.push(events);drain();}
+    }catch(e){}
+  };
+
+  /* Settings toggle */
+  function syncToggle(){var t=document.getElementById('impact-anim-toggle');if(t)t.classList.toggle('on',prefOn());}
+  window.__syncImpactToggle=syncToggle;
+  window.toggleImpactAnim=function(){try{localStorage.setItem(PREF_KEY,prefOn()?'0':'1');}catch(e){}syncToggle();if(!prefOn())skipAll();};
+
+  /* Tapping the overlay backdrop (only clickable while paused) dismisses. */
+  document.addEventListener('DOMContentLoaded',function(){
+    syncToggle();
+    var o=overlay(); if(o)o.addEventListener('click',function(){if(paused)skipAll();});
+  });
+  document.addEventListener('visibilitychange',function(){if(document.hidden&&running)skipAll();});
+})();
+</script>
 </body>
 </html>
