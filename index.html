@@ -1284,6 +1284,11 @@
     .ia-breakdown .ia-bd-mine { color: var(--coral-500); }
     .ia-breakdown .ia-bd-opp  { color: var(--navy-500); }
     @media (prefers-reduced-motion: reduce) { #impact-overlay { display: none !important; } }
+    /* Experiment-only test harness control (offseason review — no live scoring) */
+    #impact-test-ctl { position: fixed; bottom: 74px; right: 12px; z-index: 9001; display: none; flex-direction: column; gap: 6px; align-items: flex-end; }
+    body.experiment-active #impact-test-ctl { display: flex; }
+    #impact-test-ctl button { font: 700 12px/1 var(--font-mono); padding: 8px 12px; border-radius: var(--radius-pill); border: 1px solid var(--coral-500); background: var(--paper); color: var(--coral-500); cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+    #impact-test-ctl button.on-loop { background: var(--coral-500); color: var(--paper); }
 
     /* No-data */
     #no-data-state { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 60px 20px; text-align: center; }
@@ -2648,6 +2653,10 @@
 
 <!-- ══ IMPACT ANIMATION OVERLAY (experiment) ══════════════════ -->
 <div id="impact-overlay" aria-hidden="true"><div id="ia-live" role="status" aria-live="polite"></div></div>
+<div id="impact-test-ctl" aria-label="Impact animation test harness">
+  <button type="button" onclick="window.__impactTest&&window.__impactTest.next()">▶ Next play</button>
+  <button type="button" id="impact-test-loop-btn" onclick="window.__impactTestLoopToggle&&window.__impactTestLoopToggle(this)">↻ Loop 25s</button>
+</div>
 
 <!-- ══ ACCOUNT VIEW (opens from hamburger → Account) ══════════ -->
 <div id="view-account" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
@@ -9388,14 +9397,14 @@ initThemeToggle();
    league-priority weighting before this ships live. */
 (function(){
   var EPS=0.01, PREF_KEY='conflicted_impact_anim';
-  var prev=null, prevCtx=null, queue=[], running=false, paused=false, timers=[], nodes=[];
+  var prev=null, prevCtx=null, queue=[], running=false, paused=false, timers=[], nodes=[], testMode=false;
 
   function reduced(){try{return window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}}
   function prefOn(){try{return localStorage.getItem(PREF_KEY)!=='0';}catch(e){return true;}}
   function expOn(){return typeof window.experimentEnabled==='function'&&window.experimentEnabled();}
   function demo(){return typeof window.inDemoMode==='function'&&window.inDemoMode();}
   function boardVisible(){return (typeof isDashboardVisible==='function')?isDashboardVisible():true;}
-  function canAnimate(){return expOn()&&prefOn()&&!reduced()&&!demo()&&boardVisible()&&!document.hidden;}
+  function canAnimate(){if(reduced())return false;if(testMode)return expOn();return expOn()&&prefOn()&&!demo()&&boardVisible()&&!document.hidden;}
   function overlay(){return document.getElementById('impact-overlay');}
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function fmt(d){d=Number(d)||0;return (d>=0?'+':'')+d.toFixed(1);}
@@ -9414,7 +9423,7 @@ initThemeToggle();
   function drain(){
     var o=overlay();
     if(running)return;
-    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(o){o.classList.remove('active');o.style.pointerEvents='none';}return;}
+    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}return;}
     var batch=queue.shift(); runBatch(batch);
   }
 
@@ -9525,6 +9534,49 @@ initThemeToggle();
       if(isHist)return;
       if(events.length&&canAnimate()){queue.push(events);drain();}
     }catch(e){}
+  };
+
+  /* ── Test harness (experiment-only) ──────────────────────────────────────
+     Offseason has no live scoring, so this replays a scripted slate through the
+     exact same queue + animation path. Uses demo-mode player names and the four
+     demo leagues. testMode relaxes the live-data gates (still needs experiment
+     mode on + motion allowed). Includes a fumble (negative → flips), a tie
+     (→ green), a downward stat correction (>=0.5, fires), and a same-play
+     multi-player batch (Allen TD pass + St. Brown reception collide side by side). */
+  var DR='Dynasty Royale', RC='Redraft Chaos', GG='The Gridiron', DM='Devy Masters';
+  var TEST_PLAYS=[
+    [{name:'Bijan Robinson',pos:'RB',delta:6.0,dist:[[DR,'mine'],[RC,'opp'],[GG,'opp']]}],
+    [{name:'CeeDee Lamb',pos:'WR',delta:9.4,dist:[[DR,'mine'],[RC,'mine']]}],
+    [{name:'Tyreek Hill',pos:'WR',delta:2.8,dist:[[RC,'opp'],[GG,'mine'],[DM,'opp']]}],
+    [{name:'Saquon Barkley',pos:'RB',delta:-2.0,dist:[[DR,'opp'],[RC,'opp']]}],
+    [{name:'Justin Jefferson',pos:'WR',delta:5.4,dist:[[DR,'mine'],[RC,'opp']]}],
+    [{name:'Patrick Mahomes',pos:'QB',delta:4.0,dist:[[DR,'mine'],[RC,'opp'],[GG,'mine']]}],
+    [{name:'Christian McCaffrey',pos:'RB',delta:6.0,dist:[[DR,'opp'],[RC,'opp'],[GG,'opp']]}],
+    [{name:'Josh Allen',pos:'QB',delta:6.2,dist:[[DR,'opp'],[RC,'mine'],[GG,'mine']]},
+     {name:'Amon-Ra St. Brown',pos:'WR',delta:6.0,dist:[[DR,'mine'],[RC,'mine']]}],
+    [{name:"Ja'Marr Chase",pos:'WR',delta:-1.5,dist:[[GG,'mine'],[RC,'opp']]}],
+    [{name:'Travis Kelce',pos:'TE',delta:8.6,dist:[[DR,'opp'],[RC,'opp']]}],
+    [{name:'Jahmyr Gibbs',pos:'RB',delta:2.0,dist:[[DR,'mine'],[RC,'opp'],[GG,'opp']]}],
+    [{name:"Ja'Marr Chase",pos:'WR',delta:12.1,dist:[[DR,'mine'],[RC,'mine'],[GG,'opp']]}],
+    [{name:'Derrick Henry',pos:'RB',delta:6.0,dist:[[DR,'mine'],[RC,'opp']]}],
+    [{name:'Justin Jefferson',pos:'WR',delta:-0.6,dist:[[DR,'opp'],[RC,'mine'],[GG,'opp']]}]
+  ];
+  function buildEvents(batch){
+    return batch.map(function(pl,i){
+      var legs=pl.dist.map(function(d){return {league:d[0],side:d[1],delta:pl.delta};});
+      var dir=pl.delta>=0?1:-1, net=0; legs.forEach(function(l){net+=(l.side==='mine'?1:-1)*dir;});
+      return {id:'test_'+i+'_'+pl.name,name:pl.name,pos:pl.pos,legs:legs,net:net};
+    });
+  }
+  var tIdx=0, tTimer=null, tLooping=false;
+  function testNext(){ testMode=true; var p=TEST_PLAYS[tIdx%TEST_PLAYS.length]; tIdx++; queue.push(buildEvents(p)); drain(); }
+  window.__impactTest={ next:testNext,
+    loop:function(ms){ this.stop(); tLooping=true; testMode=true; testNext(); tTimer=setInterval(function(){ if(!running)testNext(); }, ms||25000); },
+    stop:function(){ tLooping=false; if(tTimer){clearInterval(tTimer);tTimer=null;} } };
+  window.__impactTestLoopToggle=function(btn){
+    if(!window.__impactTest)return;
+    if(tLooping){ window.__impactTest.stop(); if(btn){btn.textContent='↻ Loop 25s';btn.classList.remove('on-loop');} }
+    else { window.__impactTest.loop(25000); if(btn){btn.textContent='■ Stop loop';btn.classList.add('on-loop');} }
   };
 
   /* Settings toggle */
