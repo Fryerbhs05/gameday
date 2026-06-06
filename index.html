@@ -1271,7 +1271,7 @@
       position: absolute; left: 0; top: 0; width: 220px; min-height: 150px;
       border-radius: var(--radius-lg); border: 2px solid var(--neutral); background: var(--paper-soft);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 18px 16px; box-sizing: border-box; pointer-events: auto; cursor: pointer;
+      padding: 18px 16px; box-sizing: border-box; pointer-events: none;
       will-change: transform, opacity; transition: transform 0.55s cubic-bezier(.2,.8,.25,1), opacity 0.35s ease;
       box-shadow: 0 12px 34px rgba(0,0,0,0.30);
     }
@@ -1288,7 +1288,7 @@
       position: absolute; left: 0; top: 0; width: 220px; min-height: 150px;
       border-radius: var(--radius-lg); border: 2px solid var(--neutral); background: var(--paper-soft);
       display: flex; flex-direction: column; align-items: center; box-sizing: border-box; overflow: hidden;
-      pointer-events: auto; cursor: pointer; will-change: transform, opacity;
+      pointer-events: none; will-change: transform, opacity;
       transition: transform 0.55s cubic-bezier(.2,.8,.25,1), opacity 0.35s ease; box-shadow: 0 12px 34px rgba(0,0,0,0.30);
     }
     .ia-lcard__head { width: 100%; background: var(--paper-deep); border-bottom: 1px solid var(--line); font: 700 13px/1.2 var(--font-sans); color: var(--ink-900); text-align: center; padding: 8px; min-height: 34px; display: flex; align-items: center; justify-content: center; }
@@ -1297,14 +1297,6 @@
     .ia-lcard__name { font: 700 19px/1.12 var(--font-sans); color: var(--ink-900); text-align: center; margin-top: 6px; }
     .ia-lcard.mine { border-color: var(--coral-500); } .ia-lcard.mine .ia-lcard__delta { color: var(--coral-500); }
     .ia-lcard.opp  { border-color: var(--navy-500);  } .ia-lcard.opp  .ia-lcard__delta { color: var(--navy-500);  }
-    .ia-breakdown {
-      position: absolute; z-index: 2; background: var(--paper); border: 1px solid var(--line);
-      border-radius: var(--radius-md); padding: 10px 12px; font: 500 12px/1.4 var(--font-sans);
-      color: var(--ink-900); box-shadow: 0 10px 30px rgba(0,0,0,0.32); max-width: 220px; pointer-events: auto;
-    }
-    .ia-breakdown .ia-bd-row { display: flex; justify-content: space-between; gap: 14px; padding: 2px 0; }
-    .ia-breakdown .ia-bd-mine { color: var(--coral-500); }
-    .ia-breakdown .ia-bd-opp  { color: var(--navy-500); }
     @media (prefers-reduced-motion: reduce) { #impact-overlay { display: none !important; } }
     /* Experiment-only test harness control (offseason review — no live scoring) */
     #impact-test-ctl { position: fixed; bottom: 74px; right: 12px; z-index: 9001; display: none; flex-direction: column; gap: 6px; align-items: flex-end; }
@@ -9449,24 +9441,6 @@ initThemeToggle();
     var batch=queue.shift(); runBatch(batch);
   }
 
-  function onCardTap(ev,card){
-    paused=true; clearTimers();
-    var o=overlay(); if(!o)return;
-    var bd=document.getElementById('ia-breakdown'); if(bd)bd.remove();
-    bd=document.createElement('div'); bd.id='ia-breakdown'; bd.className='ia-breakdown';
-    var html='<div style="font-weight:700;margin-bottom:6px;">'+esc(ev.name)+'</div>';
-    ev.legs.forEach(function(l){html+='<div class="ia-bd-row"><span class="'+(l.side==='mine'?'ia-bd-mine':'ia-bd-opp')+'">'+esc(l.league)+' · '+(l.side==='mine'?'mine':'opp')+'</span><span>'+fmt(l.delta)+'</span></div>';});
-    html+='<div class="ia-bd-row" style="border-top:1px solid var(--line);margin-top:4px;padding-top:6px;font-weight:700;"><span>net</span><span>'+(ev.net>0?'helps you':ev.net<0?'hurts you':'even → green')+'</span></div>';
-    html+='<div style="margin-top:6px;font:500 11px/1.3 var(--font-sans);color:var(--ink-500);">tap to dismiss</div>';
-    bd.innerHTML=html;
-    var r=card.getBoundingClientRect();
-    bd.style.left=Math.min(window.innerWidth-230,Math.max(10,r.left))+'px';
-    bd.style.top=Math.max(10,r.top-6)+'px';
-    o.appendChild(bd);
-    o.style.pointerEvents='auto';
-    timers.push(setTimeout(skipAll,10000));
-  }
-
   /* Phase 1 — the big "CONFLICTED" moment (once per batch). */
   function runSplash(cb){
     var o=overlay(); if(!o){cb&&cb();return;}
@@ -9480,7 +9454,7 @@ initThemeToggle();
   }
 
   /* Phases 2-4 per player: hero card → league split → merge to net card. */
-  function runPlayer(ev,cx,cy,slotW,rowBudget,done){
+  function runPlayer(ev,cx,cy,slotW,rowBudget,leagueScale,done){
     var vh=window.innerHeight, o=overlay();
     var heroW=220, vCap=(rowBudget-14)/150;
     var heroScale=Math.min(1,(slotW-16)/heroW,vCap), hx=cx-heroW/2;
@@ -9489,7 +9463,6 @@ initThemeToggle();
     var hero=document.createElement('div'); hero.className='ia-hero'; hero.style.transformOrigin='top center';
     hero.innerHTML='<div class="ia-hero__delta">'+fmt(ev.delta)+'</div><div class="ia-hero__name">'+esc(ev.name)+'</div>';
     hero.style.transform='translate('+hx+'px,'+riseStartY+'px) scale('+heroScale+')';
-    hero.addEventListener('click',function(e){e.stopPropagation();onCardTap(ev,hero);});
     o.appendChild(hero); nodes.push(hero);
     requestAnimationFrame(function(){requestAnimationFrame(function(){hero.style.transform='translate('+hx+'px,'+heroY+'px) scale('+heroScale+')';});});
     /* Phase 3 — split into league cards */
@@ -9497,8 +9470,7 @@ initThemeToggle();
       hero.style.transition='transform 0.4s ease,opacity 0.35s ease';
       hero.style.transform='translate('+hx+'px,'+(heroY-12)+'px) scale('+(heroScale*0.82)+')'; hero.style.opacity='0';
       after(360,function(){if(hero.parentNode)hero.remove();});
-      var N=ev.legs.length, baseCW=heroW, gap=10;
-      var scale=Math.min(1,(slotW-16)/(N*baseCW+(N-1)*gap),vCap);
+      var N=ev.legs.length, baseCW=heroW, gap=10, scale=leagueScale;
       var cw=baseCW*scale, sgap=gap*scale, groupW=N*cw+(N-1)*sgap, x0=cx-groupW/2, cardY=cy;
       var cards=[];
       ev.legs.forEach(function(l,i){
@@ -9506,7 +9478,6 @@ initThemeToggle();
         c.innerHTML='<div class="ia-lcard__head">'+esc(l.league)+'</div><div class="ia-lcard__main"><div class="ia-lcard__delta">'+fmt(l.delta)+'</div><div class="ia-lcard__name">'+esc(ev.name)+'</div></div>';
         var x=x0+i*(cw+sgap);
         c.style.transform='translate('+(cx-cw/2)+'px,'+cardY+'px) scale('+(scale*0.4)+')'; c.style.opacity='0';
-        c.addEventListener('click',function(e){e.stopPropagation();onCardTap(ev,c);});
         o.appendChild(c); nodes.push(c); cards.push({el:c,x:x});
       });
       requestAnimationFrame(function(){requestAnimationFrame(function(){
@@ -9523,7 +9494,6 @@ initThemeToggle();
           var fin=document.createElement('div'); fin.className='ia-hero '+(pos?'net-pos':'net-neg'); fin.style.transformOrigin='top center';
           fin.innerHTML='<div class="ia-hero__delta">'+fmt(ev.delta)+'</div><div class="ia-hero__name">'+esc(ev.name)+'</div><div class="ia-hero__net">'+txt+'</div>';
           fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+(heroScale*0.5)+')'; fin.style.opacity='0';
-          fin.addEventListener('click',function(e){e.stopPropagation();onCardTap(ev,fin);});
           o.appendChild(fin); nodes.push(fin);
           announce(esc(ev.name)+' '+txt);
           requestAnimationFrame(function(){requestAnimationFrame(function(){
@@ -9554,11 +9524,16 @@ initThemeToggle();
     var P=show.length;
     var rowSpacing=Math.min(vh*0.5/P, 200);
     var startY=vh*0.42-(rowSpacing*P)/2;
+    /* Equal-size rule: every league card across the batch uses ONE scale — the
+       smallest, driven by whichever player is in the most leagues. */
+    var vCap=(rowSpacing-14)/150, heroW=220, gap=10, maxN=1;
+    show.forEach(function(e){if(e.legs.length>maxN)maxN=e.legs.length;});
+    var leagueScale=Math.min(1,(vw-16)/(maxN*heroW+(maxN-1)*gap),vCap);
     runSplash(function(){
       var pending=P;
       show.forEach(function(ev,ri){
         var cy=startY+rowSpacing*(ri+0.5);
-        runPlayer(ev, vw/2, cy, vw, rowSpacing, function(){if(--pending<=0){running=false;drain();}});
+        runPlayer(ev, vw/2, cy, vw, rowSpacing, leagueScale, function(){if(--pending<=0){running=false;drain();}});
       });
     });
   }
@@ -9645,10 +9620,7 @@ initThemeToggle();
   window.toggleImpactAnim=function(){try{localStorage.setItem(PREF_KEY,prefOn()?'0':'1');}catch(e){}syncToggle();if(!prefOn())skipAll();};
 
   /* Tapping the overlay backdrop (only clickable while paused) dismisses. */
-  document.addEventListener('DOMContentLoaded',function(){
-    syncToggle();
-    var o=overlay(); if(o)o.addEventListener('click',function(){if(paused)skipAll();});
-  });
+  document.addEventListener('DOMContentLoaded',syncToggle);
   document.addEventListener('visibilitychange',function(){if(document.hidden&&running)skipAll();});
 })();
 </script>
