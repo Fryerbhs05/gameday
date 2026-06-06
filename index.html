@@ -1249,32 +1249,55 @@
     .exp-only { display: none !important; }
     body.experiment-active .exp-only { display: revert !important; }
 
-    /* ── Impact animation (experiment) — conflicted scoring fly-up ──
-       Per-league cards rise coral(=mine)/navy(=opp), collide, merge into a
-       net card: cheer-green helps you, enemy-red hurts you, tie leans green.
+    /* ── Impact animation (experiment) — conflicted scoring sequence ──
+       1) CONFLICTED splash (screen flash + branded pop-out)
+       2) hero card: big point delta + big player name, no league data
+       3) per-league cards split out (league name header, coral=mine / navy=opp border)
+       4) merge into one net card: cheer-green helps you, enemy-red hurts you (tie→green).
        Ephemeral v1. Only painted while board is the active view + experiment on. */
     #impact-overlay { position: fixed; inset: 0; z-index: 150; pointer-events: none; overflow: hidden; display: none; }
     body.experiment-active #impact-overlay.active { display: block; }
     #ia-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-    .ia-card {
-      position: absolute; left: 0; top: 0; width: 120px; height: 152px;
-      border-radius: var(--radius-lg); border: 2px solid var(--neutral);
-      background: var(--paper-soft); display: flex; flex-direction: column;
-      align-items: center; box-sizing: border-box; overflow: hidden;
-      pointer-events: auto; cursor: pointer; will-change: transform, opacity;
-      transition: transform 0.55s cubic-bezier(.2,.8,.25,1), opacity 0.35s ease;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+    /* Phase 1 — splash */
+    .ia-flash { position: absolute; inset: 0; background: var(--coral-500); opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
+    .ia-flash.on { opacity: 0.16; }
+    .ia-splash { position: absolute; left: 50%; top: 38%; transform: translate(-50%,-50%) scale(0.6); opacity: 0; text-align: center; pointer-events: none; transition: transform 0.4s cubic-bezier(.2,.9,.25,1.2), opacity 0.3s ease; }
+    .ia-splash.in { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+    .ia-splash.out { transform: translate(-50%,-50%) scale(1.18); opacity: 0; }
+    .ia-splash__word { font: 800 46px/1 var(--font-sans); letter-spacing: -0.02em; color: var(--ink-900); }
+    .ia-splash__cut { color: var(--coral-500); margin: 0 1px; }
+    .ia-splash__sub { font: 700 12px/1 var(--font-mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-500); margin-top: 10px; }
+    /* Phases 2 & 4 — hero / net card */
+    .ia-hero {
+      position: absolute; left: 0; top: 0; width: 220px; min-height: 150px;
+      border-radius: var(--radius-lg); border: 2px solid var(--neutral); background: var(--paper-soft);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 18px 16px; box-sizing: border-box; pointer-events: auto; cursor: pointer;
+      will-change: transform, opacity; transition: transform 0.55s cubic-bezier(.2,.8,.25,1), opacity 0.35s ease;
+      box-shadow: 0 12px 34px rgba(0,0,0,0.30);
     }
-    .ia-card__bar { height: 6px; width: 100%; flex-shrink: 0; background: var(--neutral); }
-    .ia-card__body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 8px; gap: 3px; }
-    .ia-card__lg { font: 600 10px/1.15 var(--font-sans); color: var(--ink-700); text-align: center; }
-    .ia-card__pos { font: 600 10px/1 var(--font-mono); color: var(--ink-500); }
-    .ia-card__name { font: 600 12px/1.15 var(--font-sans); color: var(--ink-900); text-align: center; }
-    .ia-card__sub { font: 700 11px/1.2 var(--font-mono); text-align: center; }
-    .ia-card.mine { border-color: var(--coral-500); } .ia-card.mine .ia-card__bar { background: var(--coral-500); } .ia-card.mine .ia-card__sub { color: var(--coral-500); }
-    .ia-card.opp  { border-color: var(--navy-500);  } .ia-card.opp  .ia-card__bar { background: var(--navy-500);  } .ia-card.opp  .ia-card__sub { color: var(--navy-500);  }
-    .ia-card.net-pos { border-color: var(--cheer); background: var(--cheer-soft); } .ia-card.net-pos .ia-card__bar { background: var(--cheer); } .ia-card.net-pos .ia-card__sub { color: var(--cheer); }
-    .ia-card.net-neg { border-color: var(--enemy); background: var(--enemy-soft); } .ia-card.net-neg .ia-card__bar { background: var(--enemy); } .ia-card.net-neg .ia-card__sub { color: var(--enemy); }
+    .ia-hero__delta { font: 800 46px/1 var(--font-mono); color: var(--ink-900); }
+    .ia-hero__name { font: 700 20px/1.12 var(--font-sans); color: var(--ink-900); text-align: center; margin-top: 6px; }
+    .ia-hero__pos { font: 600 12px/1 var(--font-mono); color: var(--ink-500); margin-top: 4px; }
+    .ia-hero__net { font: 700 15px/1.2 var(--font-sans); margin-top: 8px; }
+    .ia-hero.net-pos { border-color: var(--cheer); background: var(--cheer-soft); }
+    .ia-hero.net-neg { border-color: var(--enemy); background: var(--enemy-soft); }
+    .ia-hero.net-pos .ia-hero__delta, .ia-hero.net-pos .ia-hero__net { color: var(--cheer); }
+    .ia-hero.net-neg .ia-hero__delta, .ia-hero.net-neg .ia-hero__net { color: var(--enemy); }
+    /* Phase 3 — league cards */
+    .ia-card {
+      position: absolute; left: 0; top: 0; width: 120px; height: 130px;
+      border-radius: var(--radius-lg); border: 2px solid var(--neutral); background: var(--paper-soft);
+      display: flex; flex-direction: column; align-items: center; box-sizing: border-box; overflow: hidden;
+      pointer-events: auto; cursor: pointer; will-change: transform, opacity;
+      transition: transform 0.55s cubic-bezier(.2,.8,.25,1), opacity 0.35s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.28);
+    }
+    .ia-card__head { width: 100%; background: var(--paper-deep); border-bottom: 1px solid var(--line); font: 700 11px/1.2 var(--font-sans); color: var(--ink-900); text-align: center; padding: 6px; min-height: 30px; display: flex; align-items: center; justify-content: center; }
+    .ia-card__body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 6px 8px; gap: 4px; }
+    .ia-card__name { font: 700 13px/1.15 var(--font-sans); color: var(--ink-900); text-align: center; }
+    .ia-card__sub { font: 700 17px/1 var(--font-mono); text-align: center; }
+    .ia-card.mine { border-color: var(--coral-500); } .ia-card.mine .ia-card__sub { color: var(--coral-500); }
+    .ia-card.opp  { border-color: var(--navy-500);  } .ia-card.opp  .ia-card__sub { color: var(--navy-500);  }
     .ia-breakdown {
       position: absolute; z-index: 2; background: var(--paper); border: 1px solid var(--line);
       border-radius: var(--radius-md); padding: 10px 12px; font: 500 12px/1.4 var(--font-sans);
@@ -9445,51 +9468,75 @@ initThemeToggle();
     timers.push(setTimeout(skipAll,10000));
   }
 
+  /* Phase 1 — the big "CONFLICTED" moment (once per batch). */
+  function runSplash(cb){
+    var o=overlay(); if(!o){cb&&cb();return;}
+    var flash=document.createElement('div'); flash.className='ia-flash'; o.appendChild(flash); nodes.push(flash);
+    var sp=document.createElement('div'); sp.className='ia-splash';
+    sp.innerHTML='<div class="ia-splash__word">con<span class="ia-splash__cut">|</span>flicted</div><div class="ia-splash__sub">conflicted player scored</div>';
+    o.appendChild(sp); nodes.push(sp);
+    requestAnimationFrame(function(){requestAnimationFrame(function(){flash.classList.add('on');sp.classList.add('in');});});
+    after(780,function(){sp.classList.add('out');flash.classList.remove('on');});
+    after(1060,function(){if(sp.parentNode)sp.remove();if(flash.parentNode)flash.remove();if(cb)cb();});
+  }
+
+  /* Phases 2-4 per player: hero card → league split → merge to net card. */
   function runPlayer(ev,cx,slotW,done){
     var vh=window.innerHeight, o=overlay();
-    var N=ev.legs.length, baseCW=120, gap=8;
-    var scale=Math.min(1,(slotW-16)/(N*baseCW+(N-1)*gap));
-    var cw=baseCW*scale, sgap=gap*scale, groupW=N*cw+(N-1)*sgap, x0=cx-groupW/2;
-    var collideY=vh*0.40, riseStartY=vh+30;
-    var cards=[];
-    ev.legs.forEach(function(l,i){
-      var c=document.createElement('div');
-      c.className='ia-card '+(l.side==='mine'?'mine':'opp');
-      c.style.transformOrigin='top left';
-      c.innerHTML='<div class="ia-card__bar"></div><div class="ia-card__body"><div class="ia-card__lg">'+esc(l.league)+'</div><div class="ia-card__pos">'+esc(ev.pos)+'</div><div class="ia-card__name">'+esc(ev.name)+'</div><div class="ia-card__sub">'+(l.side==='mine'?'my roster':'opp')+' '+fmt(l.delta)+'</div></div>';
-      var x=x0+i*(cw+sgap);
-      c.style.transform='translate('+x+'px,'+riseStartY+'px) scale('+scale+')';
-      c.addEventListener('click',function(e){e.stopPropagation();onCardTap(ev,c);});
-      o.appendChild(c); nodes.push(c); cards.push({el:c,x:x});
-    });
-    requestAnimationFrame(function(){requestAnimationFrame(function(){
-      cards.forEach(function(cd){cd.el.style.transform='translate('+cd.x+'px,'+collideY+'px) scale('+scale+')';});
-    });});
-    after(1500,function(){
-      var stackX=cx-cw/2;
-      cards.forEach(function(cd){cd.el.style.transition='transform 0.45s cubic-bezier(.5,0,.6,1),opacity 0.3s ease';cd.el.style.transform='translate('+stackX+'px,'+collideY+'px) scale('+scale+')';});
-      after(420,function(){
-        var ns=Math.min(1,(slotW-16)/(baseCW+12)), ncw=baseCW*ns;
-        var nx=cx-ncw/2, ny=collideY, pos=ev.net>=0;
-        var txt=ev.net>0?'helps you win':ev.net===0?'points are points':'hurts your chances';
-        var fin=document.createElement('div');
-        fin.className='ia-card '+(pos?'net-pos':'net-neg');
-        fin.style.transformOrigin='top left';
-        fin.innerHTML='<div class="ia-card__bar"></div><div class="ia-card__body"><div class="ia-card__lg">net impact</div><div class="ia-card__pos">'+esc(ev.pos)+'</div><div class="ia-card__name">'+esc(ev.name)+'</div><div class="ia-card__sub">'+txt+'</div></div>';
-        fin.style.transform='translate('+nx+'px,'+ny+'px) scale('+(ns*0.5)+')'; fin.style.opacity='0';
-        fin.addEventListener('click',function(e){e.stopPropagation();onCardTap(ev,fin);});
-        o.appendChild(fin); nodes.push(fin);
-        announce(esc(ev.name)+' '+txt);
-        requestAnimationFrame(function(){requestAnimationFrame(function(){
-          fin.style.transform='translate('+nx+'px,'+ny+'px) scale('+(ns*1.12)+')'; fin.style.opacity='1';
-          cards.forEach(function(cd){cd.el.style.opacity='0';});
-        });});
-        after(200,function(){fin.style.transform='translate('+nx+'px,'+ny+'px) scale('+ns+')';});
-        after(260,function(){cards.forEach(function(cd){if(cd.el.parentNode)cd.el.parentNode.removeChild(cd.el);});});
-        after(2200,function(){
-          fin.style.transition='transform 0.55s ease,opacity 0.55s ease';
-          fin.style.transform='translate('+nx+'px,'+(ny-200)+'px) scale('+ns+')'; fin.style.opacity='0';
-          after(580,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
+    var heroW=220, heroScale=Math.min(1,(slotW-16)/heroW), hx=cx-heroW/2;
+    var heroY=vh*0.34, riseStartY=vh+40;
+    /* Phase 2 — hero card */
+    var hero=document.createElement('div'); hero.className='ia-hero'; hero.style.transformOrigin='top center';
+    hero.innerHTML='<div class="ia-hero__delta">'+fmt(ev.delta)+'</div><div class="ia-hero__name">'+esc(ev.name)+'</div><div class="ia-hero__pos">'+esc(ev.pos)+'</div>';
+    hero.style.transform='translate('+hx+'px,'+riseStartY+'px) scale('+heroScale+')';
+    hero.addEventListener('click',function(e){e.stopPropagation();onCardTap(ev,hero);});
+    o.appendChild(hero); nodes.push(hero);
+    requestAnimationFrame(function(){requestAnimationFrame(function(){hero.style.transform='translate('+hx+'px,'+heroY+'px) scale('+heroScale+')';});});
+    /* Phase 3 — split into league cards */
+    after(1300,function(){
+      hero.style.transition='transform 0.4s ease,opacity 0.35s ease';
+      hero.style.transform='translate('+hx+'px,'+(heroY-12)+'px) scale('+(heroScale*0.82)+')'; hero.style.opacity='0';
+      after(360,function(){if(hero.parentNode)hero.remove();});
+      var N=ev.legs.length, baseCW=120, gap=8;
+      var scale=Math.min(1,(slotW-16)/(N*baseCW+(N-1)*gap));
+      var cw=baseCW*scale, sgap=gap*scale, groupW=N*cw+(N-1)*sgap, x0=cx-groupW/2, cardY=vh*0.40;
+      var cards=[];
+      ev.legs.forEach(function(l,i){
+        var c=document.createElement('div'); c.className='ia-card '+(l.side==='mine'?'mine':'opp'); c.style.transformOrigin='top left';
+        c.innerHTML='<div class="ia-card__head">'+esc(l.league)+'</div><div class="ia-card__body"><div class="ia-card__name">'+esc(ev.name)+'</div><div class="ia-card__sub">'+fmt(l.delta)+'</div></div>';
+        var x=x0+i*(cw+sgap);
+        c.style.transform='translate('+(cx-cw/2)+'px,'+cardY+'px) scale('+(scale*0.4)+')'; c.style.opacity='0';
+        c.addEventListener('click',function(e){e.stopPropagation();onCardTap(ev,c);});
+        o.appendChild(c); nodes.push(c); cards.push({el:c,x:x});
+      });
+      requestAnimationFrame(function(){requestAnimationFrame(function(){
+        cards.forEach(function(cd){cd.el.style.transform='translate('+cd.x+'px,'+cardY+'px) scale('+scale+')';cd.el.style.opacity='1';});
+      });});
+      /* Phase 4 — merge to net card */
+      after(1500,function(){
+        var stackX=cx-cw/2;
+        cards.forEach(function(cd){cd.el.style.transition='transform 0.45s cubic-bezier(.5,0,.6,1),opacity 0.3s ease';cd.el.style.transform='translate('+stackX+'px,'+cardY+'px) scale('+scale+')';});
+        after(420,function(){
+          var net=ev.net, pos=net>=0;
+          var txt=net>0?'helps you win':net===0?'points are points':'hurts your chances';
+          var nhx=cx-heroW/2, nhy=heroY;
+          var fin=document.createElement('div'); fin.className='ia-hero '+(pos?'net-pos':'net-neg'); fin.style.transformOrigin='top center';
+          fin.innerHTML='<div class="ia-hero__delta">'+fmt(ev.delta)+'</div><div class="ia-hero__name">'+esc(ev.name)+'</div><div class="ia-hero__net">'+txt+'</div>';
+          fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+(heroScale*0.5)+')'; fin.style.opacity='0';
+          fin.addEventListener('click',function(e){e.stopPropagation();onCardTap(ev,fin);});
+          o.appendChild(fin); nodes.push(fin);
+          announce(esc(ev.name)+' '+txt);
+          requestAnimationFrame(function(){requestAnimationFrame(function(){
+            fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+(heroScale*1.12)+')'; fin.style.opacity='1';
+            cards.forEach(function(cd){cd.el.style.opacity='0';});
+          });});
+          after(200,function(){fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+heroScale+')';});
+          after(260,function(){cards.forEach(function(cd){if(cd.el.parentNode)cd.el.parentNode.removeChild(cd.el);});});
+          after(2200,function(){
+            fin.style.transition='transform 0.55s ease,opacity 0.55s ease';
+            fin.style.transform='translate('+nhx+'px,'+(nhy-200)+'px) scale('+heroScale+')'; fin.style.opacity='0';
+            after(580,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
+          });
         });
       });
     });
@@ -9502,8 +9549,10 @@ initThemeToggle();
     var vw=window.innerWidth, maxConc=vw>=520?3:2;
     var show=events.slice(0,maxConc), rest=events.slice(maxConc);
     if(rest.length)queue.unshift(rest);
-    var P=show.length, slotW=vw/P, pending=P;
-    show.forEach(function(ev,si){runPlayer(ev,slotW*(si+0.5),slotW,function(){if(--pending<=0){running=false;drain();}});});
+    runSplash(function(){
+      var P=show.length, slotW=vw/P, pending=P;
+      show.forEach(function(ev,si){runPlayer(ev,slotW*(si+0.5),slotW,function(){if(--pending<=0){running=false;drain();}});});
+    });
   }
 
   /* Detector — called from renderBoard() with the conflicted bucket each refresh.
@@ -9528,7 +9577,7 @@ initThemeToggle();
         if(!fire)return;
         var dir=repDelta>=0?1:-1, net=0;
         legs.forEach(function(l){net+=(l.side==='mine'?1:-1)*dir;});
-        events.push({id:id,name:p.full_name||'Player',pos:p.position||'',legs:legs,net:net});
+        events.push({id:id,name:p.full_name||'Player',pos:p.position||'',legs:legs,net:net,delta:repDelta});
       });
       prev=cur; prevCtx=ctx;
       if(isHist)return;
@@ -9565,7 +9614,7 @@ initThemeToggle();
     return batch.map(function(pl,i){
       var legs=pl.dist.map(function(d){return {league:d[0],side:d[1],delta:pl.delta};});
       var dir=pl.delta>=0?1:-1, net=0; legs.forEach(function(l){net+=(l.side==='mine'?1:-1)*dir;});
-      return {id:'test_'+i+'_'+pl.name,name:pl.name,pos:pl.pos,legs:legs,net:net};
+      return {id:'test_'+i+'_'+pl.name,name:pl.name,pos:pl.pos,legs:legs,net:net,delta:pl.delta};
     });
   }
   var tIdx=0, tTimer=null, tLooping=false;
