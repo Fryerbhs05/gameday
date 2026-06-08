@@ -1564,6 +1564,32 @@
     }
     .priority-tier-select:focus { outline: none; border-color: var(--coral-500); box-shadow: 0 0 0 2px var(--coral-200); }
     .priority-tier-select:disabled { opacity: 0.4; cursor: not-allowed; }
+    /* ── About page ──────────────────────────────────────────────── */
+    .about-wrap { max-width: 740px; margin: 0 auto; }
+    .about-eyebrow { display: flex; align-items: center; gap: 10px; font: 600 11px/1 var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--coral-700); margin-bottom: 18px; }
+    .about-eyebrow::before { content: ''; width: 26px; height: 2px; background: var(--coral-500); }
+    .about-h1 { font: 800 40px/1.08 var(--font-sans); letter-spacing: -0.025em; color: var(--ink-900); margin: 0 0 20px; }
+    .about-h1 .cut { color: var(--coral-500); font-weight: 800; padding: 0 1px; }
+    .about-lede { font: 400 18px/1.6 var(--font-sans); color: var(--ink-700); margin: 0; }
+    .about-split-rule { height: 3px; border: 0; border-radius: 2px; margin: 38px 0; background: linear-gradient(90deg, var(--navy-500) 0 50%, var(--coral-500) 50% 100%); }
+    .about-section { margin: 30px 0; }
+    .about-kicker { font: 600 11px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-500); margin: 0 0 9px; }
+    .about-h2 { font: 700 22px/1.25 var(--font-sans); letter-spacing: -0.01em; color: var(--ink-900); margin: 0 0 12px; }
+    .about-p { font: 400 16px/1.7 var(--font-sans); color: var(--ink-700); margin: 0 0 14px; }
+    .about-p:last-child { margin-bottom: 0; }
+    .about-p b, .about-p strong { color: var(--ink-900); font-weight: 700; }
+    .about-principles { list-style: none; padding: 0; margin: 14px 0 0; display: flex; flex-direction: column; gap: 14px; }
+    .about-principle { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; font: 400 15px/1.6 var(--font-sans); color: var(--ink-700); }
+    .about-principle .pdot { width: 7px; height: 18px; border-radius: 2px; background: linear-gradient(180deg, var(--navy-500) 0 50%, var(--coral-500) 50% 100%); margin-top: 4px; flex-shrink: 0; }
+    .about-principle b { color: var(--ink-900); font-weight: 700; }
+    .about-foot { margin-top: 42px; padding-top: 22px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .about-tagline { font: 700 12px/1.3 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-500); }
+    .about-tagline .cut { color: var(--coral-500); }
+    @media (max-width: 640px) {
+      .about-h1 { font-size: 29px; }
+      .about-lede { font-size: 16px; }
+      .about-h2 { font-size: 19px; }
+    }
     .priority-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; flex-wrap: wrap; }
     .priority-actions .btn-primary { padding: 11px 22px; font-size: 14px; }
     @media (max-width: 640px) {
@@ -2493,9 +2519,8 @@
     <li role="presentation"><hr class="menu-drawer__divider" aria-hidden="true"></li>
     <li class="menu-drawer__section-label" role="presentation">Site</li>
     <li role="none">
-      <button class="menu-drawer__item is-disabled" data-menu-action="about" role="menuitem" type="button" aria-disabled="true" disabled>
+      <button class="menu-drawer__item" data-menu-action="about" role="menuitem" type="button">
         <span>About</span>
-        <span class="menu-drawer__badge">Soon</span>
       </button>
     </li>
     <li role="none">
@@ -2812,6 +2837,69 @@
   </div>
   <div style="margin-top:14px;">
     <button class="btn-ghost" onclick="exitConnections()" type="button">← Back to dashboard</button>
+  </div>
+</div>
+
+<!-- ══ ABOUT VIEW (hamburger → About) ══════════════════════════ -->
+<div id="view-about" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 90px;">
+  <div class="about-wrap">
+    <div class="about-eyebrow">About Conflicted</div>
+    <h1 class="about-h1">Fantasy football for the over<span class="cut">|</span>invested.</h1>
+    <p class="about-lede">You run three leagues. Maybe five. The same players keep turning up on both sides of your weekend, and somewhere along the way "who do I root for" stopped being a simple question. Conflicted answers it — every player, every league, in real time.</p>
+
+    <hr class="about-split-rule" aria-hidden="true" />
+
+    <section class="about-section">
+      <div class="about-kicker">Why it exists</div>
+      <h2 class="about-h2">The five-second blank stare</h2>
+      <p class="about-p">Justin Jefferson breaks a 60-yard touchdown. Half the room reacts. You don't — not yet — because you can't tell whether you're supposed to. He's your WR1 in the dynasty league, the enemy's flex in the money league, and riding a bench somewhere you've stopped checking. Good play? You genuinely cannot say. That blank stare, multiplied across every Sunday of the season, is the thing we built Conflicted to end.</p>
+    </section>
+
+    <section class="about-section">
+      <div class="about-kicker">What it does</div>
+      <h2 class="about-h2">The math you can't do in your head</h2>
+      <p class="about-p">Conflicted tracks every player across every league you run and keeps a running tally of which side they're on — your guys, the enemy's guys, and the ones who are on both. When a conflicted player does something, we settle the question you'd never settle fast enough on your own: across all of your leagues at once, did that just help you, or hurt you. Then we tell you, in the half-second you actually have to react.</p>
+    </section>
+
+    <section class="about-section">
+      <div class="about-kicker">How it works</div>
+      <h2 class="about-h2">Connect, sort, weigh, verdict</h2>
+      <p class="about-p">Connect your leagues — Yahoo, ESPN, Sleeper — and Conflicted pulls your rosters and live matchups. It sorts every player into camps and surfaces the ones with divided loyalty. When one of them scores, we weigh the play across all of your matchups at once: how close each game is, how much football is left to play, and — the part only you can set — which leagues you actually care about.</p>
+      <p class="about-p">Out of that comes one honest read: celebrate, or sulk. The exact formula is ours. What matters is that it reasons the way you would with a spreadsheet open and four minutes per play. You don't have four minutes. That's the point.</p>
+    </section>
+
+    <section class="about-section">
+      <div class="about-kicker">You decide what matters</div>
+      <h2 class="about-h2">Not all leagues are equal</h2>
+      <p class="about-p">And we don't pretend they are. You sort your leagues into priority tiers — the championship money league sits above the one you joined out of obligation — and the read bends accordingly. Winning the one that matters can outweigh losing two that don't. That isn't a flaw in how you experience fantasy. It's the entire emotional economy of it, and Conflicted is built around that rather than against it.</p>
+    </section>
+
+    <section class="about-section">
+      <div class="about-kicker">Who it's for</div>
+      <h2 class="about-h2">The over-invested</h2>
+      <p class="about-p">Conflicted is not for the person who runs one league with college friends and forgets to set a lineup. It's for the manager three, four, five leagues deep — a decade in, treating Sunday like an unpaid second job, quietly aware of how much head space this rents. We assume you know what RB1 means and have opinions about ADP. We respect that you're too far in to play casually, and we built the tool accordingly.</p>
+    </section>
+
+    <section class="about-section">
+      <div class="about-kicker">What we believe</div>
+      <h2 class="about-h2">A few principles</h2>
+      <ul class="about-principles">
+        <li class="about-principle"><span class="pdot" aria-hidden="true"></span><span><b>Your credentials stay yours.</b> Connect a platform, we hold a token, you cut it loose whenever you want. We don't store passwords.</span></li>
+        <li class="about-principle"><span class="pdot" aria-hidden="true"></span><span><b>A tool, not a sportsbook.</b> No neon, no "place your bets," no glowing dollar signs. We sit closer to a well-made financial app than a sports broadcast, on purpose.</span></li>
+        <li class="about-principle"><span class="pdot" aria-hidden="true"></span><span><b>It informs; it doesn't exclaim.</b> No "welcome back" confetti, no "powered by AI" badge. The product respects your attention and assumes your intelligence.</span></li>
+      </ul>
+    </section>
+
+    <section class="about-section">
+      <div class="about-kicker">The name</div>
+      <h2 class="about-h2">It's the honest part</h2>
+      <p class="about-p">Rooting for a player on Sunday and against him on Thursday is a genuinely strange way to spend a fall. Conflicted doesn't fix that — nothing can. It just makes sure that when the strangeness pays off, you know the instant it happens, and when it costs you, you find out fast enough to be appropriately annoyed.</p>
+    </section>
+
+    <div class="about-foot">
+      <span class="about-tagline">All your leagues<span class="cut"> · </span>one place.</span>
+      <button class="btn-ghost" onclick="goToDashboardOrSetup()" type="button">← Back to dashboard</button>
+    </div>
   </div>
 </div>
 
@@ -3251,11 +3339,18 @@ function ctxBadge(sig,isHist){
 }
 
 function hideAll(){
-  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch','view-settings','view-connections','view-account'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch','view-settings','view-connections','view-account','view-about'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('week-label').style.display='none';
   window.__connectionsViewActive=false;
 }
+function showAbout(){
+  hideAll();
+  const v=document.getElementById('view-about');
+  if(v)v.style.display='block';
+  window.scrollTo(0,0);
+}
+window.showAbout=showAbout;
 function showSettings(){
   hideAll();
   const v=document.getElementById('view-settings');
@@ -9100,6 +9195,9 @@ initThemeToggle();
       var onAccount = !!(account && account.style.display && account.style.display !== 'none');
       var onSettings = !!(settings && settings.style.display && settings.style.display !== 'none');
       var onConnections = !!(connections && connections.style.display && connections.style.display !== 'none');
+      var aboutEl = document.getElementById('view-about');
+      var onAbout = !!(aboutEl && aboutEl.style.display && aboutEl.style.display !== 'none');
+      drawer.querySelectorAll('[data-menu-action="about"]').forEach(function(btn){ btn.classList.toggle('is-active', onAbout); });
       drawer.querySelectorAll('[data-menu-action="dashboard"]').forEach(function(btn) {
         btn.classList.toggle('is-active', onBoard && !onExpo && !onWatch);
       });
@@ -9163,9 +9261,11 @@ initThemeToggle();
           if (typeof window.showSettings === 'function') window.showSettings();
         } else if (action === 'connections') {
           if (typeof window.showConnections === 'function') window.showConnections();
+        } else if (action === 'about') {
+          if (typeof window.showAbout === 'function') window.showAbout();
         }
         // Future routes — wire these up as each view ships:
-        //   watch-priority, about, blog, contact
+        //   blog, contact
       });
     });
   })();
