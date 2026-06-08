@@ -1556,6 +1556,14 @@
     }
     .priority-arrow-btn:hover:not(:disabled) { background: var(--coral-500); color: #fff; border-color: var(--coral-500); }
     .priority-arrow-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .priority-tier-select {
+      flex-shrink: 0; background: var(--paper-deep); color: var(--ink-900);
+      border: 1px solid var(--ink-300); border-radius: var(--radius-sm);
+      font: 600 13px/1 var(--font-sans); padding: 8px 10px; cursor: pointer;
+      min-width: 132px; appearance: auto;
+    }
+    .priority-tier-select:focus { outline: none; border-color: var(--coral-500); box-shadow: 0 0 0 2px var(--coral-200); }
+    .priority-tier-select:disabled { opacity: 0.4; cursor: not-allowed; }
     .priority-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; flex-wrap: wrap; }
     .priority-actions .btn-primary { padding: 11px 22px; font-size: 14px; }
     @media (max-width: 640px) {
@@ -2596,7 +2604,7 @@
     <div class="priority-eyebrow" id="priority-eyebrow">Set your league priority</div>
     <div class="priority-card">
       <h2 id="priority-heading">Which league matters most?</h2>
-      <p class="priority-card-sub">When two of your leagues disagree about a player — say, your QB helps one league but hurts another — Conflicted will weight the cheer toward your top-ranked league.</p>
+      <p class="priority-card-sub">When your leagues disagree about a player — say, your QB helps one but hurts another — Conflicted leans toward your higher-priority tiers. Assign each league a tier; leagues can share a tier, and the list reorders as you go.</p>
       <div class="priority-equal-row">
         <div class="priority-equal-label">
           <div class="priority-equal-title">Treat all leagues equally</div>
@@ -6446,12 +6454,14 @@ function openEspnConnectModal(){
 }
 
 /* ── League priority + Settings ──────────────────────────────── */
-const PRIORITY_SET_KEY='gd_priority_set',PRIORITY_ORDER_KEY='gd_priority_order',PRIORITY_EQUAL_KEY='gd_priority_equal';
+const PRIORITY_SET_KEY='gd_priority_set',PRIORITY_ORDER_KEY='gd_priority_order',PRIORITY_EQUAL_KEY='gd_priority_equal',PRIORITY_TIERS_KEY='gd_priority_tiers';
 let currentContexts=[];
 let currentLeagues=[]; // per-league rosters (myPlayers, oppPlayers, myBench, oppBench, hasMatchup, fmt) — used by the dashboard matchup drawer
 let priorityOrder=[];
+let priorityTiers={};        // { leagueName: tierNumber (1 = top) }
 let priorityEqual=false;
 let priorityDraftOrder=[];
+let priorityDraftTiers={};
 let priorityDraftEqual=false;
 let priorityReturnTo='board';
 
@@ -6461,22 +6471,54 @@ function loadPriorityState(){
     priorityOrder=raw?JSON.parse(raw):[];
     if(!Array.isArray(priorityOrder))priorityOrder=[];
   }catch(e){priorityOrder=[];}
+  try{
+    const t=localStorage.getItem(PRIORITY_TIERS_KEY);
+    priorityTiers=t?JSON.parse(t):{};
+    if(!priorityTiers||typeof priorityTiers!=='object')priorityTiers={};
+  }catch(e){priorityTiers={};}
   priorityEqual=localStorage.getItem(PRIORITY_EQUAL_KEY)==='true';
 }
 function savePriorityState(){
   try{
     localStorage.setItem(PRIORITY_ORDER_KEY,JSON.stringify(priorityOrder));
+    localStorage.setItem(PRIORITY_TIERS_KEY,JSON.stringify(priorityTiers));
     localStorage.setItem(PRIORITY_EQUAL_KEY,priorityEqual?'true':'false');
     localStorage.setItem(PRIORITY_SET_KEY,'true');
   }catch(e){console.warn('priority persist failed:',e.message);}
 }
 function isPrioritySet(){return localStorage.getItem(PRIORITY_SET_KEY)==='true';}
+/* Sort league names by tier (1 first), stable within a tier by current order. */
+function sortNamesByTier(names,tierMap){
+  return names.slice().sort((a,b)=>{
+    const ta=tierMap[a]||99, tb=tierMap[b]||99;
+    if(ta!==tb)return ta-tb;
+    return names.indexOf(a)-names.indexOf(b);
+  });
+}
+/* Ensure every connected league has a tier (never blank); drop stale ones.
+   Default new leagues to a distinct tier following their current order. */
+function reconcileTiers(names){
+  Object.keys(priorityTiers).forEach(n=>{if(!names.includes(n))delete priorityTiers[n];});
+  let maxT=0; names.forEach(n=>{const t=priorityTiers[n]; if(typeof t==='number'&&t>maxT)maxT=t;});
+  names.forEach(n=>{
+    if(priorityTiers[n]==null){
+      const idx=priorityOrder.indexOf(n);
+      priorityTiers[n]=(idx>=0?idx+1:(++maxT));
+    }
+  });
+  const N=Math.max(1,names.length);
+  names.forEach(n=>{priorityTiers[n]=Math.max(1,Math.min(N,priorityTiers[n]||1));});
+}
 function reconcilePriorityOrder(contexts){
   if(!Array.isArray(contexts))return;
   const names=contexts.map(c=>c.leagueName).filter(Boolean);
-  if(!priorityOrder.length){priorityOrder=names.slice();return;}
-  priorityOrder=priorityOrder.filter(n=>names.includes(n));
-  names.forEach(n=>{if(!priorityOrder.includes(n))priorityOrder.push(n);});
+  if(!priorityOrder.length){priorityOrder=names.slice();}
+  else{
+    priorityOrder=priorityOrder.filter(n=>names.includes(n));
+    names.forEach(n=>{if(!priorityOrder.includes(n))priorityOrder.push(n);});
+  }
+  reconcileTiers(names);
+  priorityOrder=sortNamesByTier(names,priorityTiers); /* order reflects tiers */
 }
 function shouldAutoLaunchPriority(contexts){
   if(!Array.isArray(contexts))return false;
@@ -6494,6 +6536,7 @@ function showPriorityOnboarding(contexts,opts){
   document.getElementById('priority-heading').textContent=isReRank?'Re-rank your leagues':'Which league matters most?';
   if(Array.isArray(contexts)&&contexts.length){currentContexts=contexts.slice();reconcilePriorityOrder(currentContexts);}
   priorityDraftOrder=priorityOrder.slice();
+  priorityDraftTiers=Object.assign({},priorityTiers);
   priorityDraftEqual=priorityEqual;
   hideAll();
   document.getElementById('priority-panel').style.display='flex';
@@ -6517,64 +6560,48 @@ function renderPriorityList(){
   const list=document.getElementById('priority-list');
   list.innerHTML='';
   list.classList.toggle('disabled',priorityDraftEqual);
-  const total=priorityDraftOrder.length;
-  priorityDraftOrder.forEach((name,idx)=>{
+  const names=currentContexts.map(c=>c.leagueName).filter(Boolean);
+  /* make sure every league has a draft tier (never blank) */
+  let maxT=0; names.forEach(n=>{const t=priorityDraftTiers[n]; if(typeof t==='number'&&t>maxT)maxT=t;});
+  names.forEach(n=>{ if(priorityDraftTiers[n]==null){const idx=priorityOrder.indexOf(n);priorityDraftTiers[n]=(idx>=0?idx+1:(++maxT));} });
+  const N=Math.max(1,names.length);
+  names.forEach(n=>{priorityDraftTiers[n]=Math.max(1,Math.min(N,priorityDraftTiers[n]||1));});
+  const ordered=sortNamesByTier(names,priorityDraftTiers);
+  ordered.forEach((name)=>{
     const ctx=currentContexts.find(c=>c.leagueName===name)||{leagueName:name};
     const detail=priorityRowDetail(ctx);
-    const isTop=idx===0&&!priorityDraftEqual;
+    const tier=priorityDraftTiers[name]||1;
+    const isTop=tier===1&&!priorityDraftEqual;
+    let opts='';
+    for(let t=1;t<=N;t++){opts+=`<option value="${t}"${t===tier?' selected':''}>Tier ${t} priority</option>`;}
     const li=document.createElement('li');
     li.className=`priority-row${isTop?' top':''}`;
     li.dataset.name=name;
-    li.draggable=!priorityDraftEqual;
     li.innerHTML=`
-      <span class="priority-rank${isTop?' top':''}">${priorityDraftEqual?'—':'#'+(idx+1)}</span>
       <div class="priority-row-meta">
         <div class="priority-row-name"></div>
         <div class="priority-row-detail"><span class="lg-dot" style="background:${detail.color}"></span><span class="dt"></span></div>
       </div>
-      <div class="priority-arrows">
-        <button class="priority-arrow-btn up" type="button" aria-label="Move up" ${idx===0||priorityDraftEqual?'disabled':''}>▲</button>
-        <button class="priority-arrow-btn dn" type="button" aria-label="Move down" ${idx===total-1||priorityDraftEqual?'disabled':''}>▼</button>
-      </div>
+      <select class="priority-tier-select" aria-label="Priority tier"${priorityDraftEqual?' disabled':''}>${opts}</select>
     `;
     li.querySelector('.priority-row-name').textContent=name;
     li.querySelector('.dt').textContent=detail.text;
-    li.querySelector('.up').addEventListener('click',()=>priorityMove(name,-1));
-    li.querySelector('.dn').addEventListener('click',()=>priorityMove(name,1));
-    li.addEventListener('dragstart',e=>{if(priorityDraftEqual){e.preventDefault();return;}priorityDragId=name;li.classList.add('dragging');try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',name);}catch(err){}});
-    li.addEventListener('dragend',()=>{li.classList.remove('dragging');priorityDragId=null;});
-    li.addEventListener('dragover',e=>{if(priorityDraftEqual||!priorityDragId)return;e.preventDefault();try{e.dataTransfer.dropEffect='move';}catch(err){}});
-    li.addEventListener('drop',e=>{
-      if(priorityDraftEqual||!priorityDragId||priorityDragId===name)return;
-      e.preventDefault();
-      const from=priorityDraftOrder.indexOf(priorityDragId);
-      const to=priorityDraftOrder.indexOf(name);
-      if(from<0||to<0)return;
-      priorityDraftOrder.splice(from,1);
-      priorityDraftOrder.splice(to,0,priorityDragId);
-      renderPriorityList();
-    });
+    const sel=li.querySelector('.priority-tier-select');
+    sel.addEventListener('change',function(){priorityDraftTiers[name]=parseInt(this.value,10)||1;renderPriorityList();});
     list.appendChild(li);
   });
 }
 let priorityDragId=null;
-
-function priorityMove(name,delta){
-  if(priorityDraftEqual)return;
-  const i=priorityDraftOrder.indexOf(name);
-  const j=i+delta;
-  if(i<0||j<0||j>=priorityDraftOrder.length)return;
-  [priorityDraftOrder[i],priorityDraftOrder[j]]=[priorityDraftOrder[j],priorityDraftOrder[i]];
-  renderPriorityList();
-}
 function priorityToggleEqual(){
   priorityDraftEqual=!priorityDraftEqual;
   document.getElementById('priority-equal-toggle').classList.toggle('on',priorityDraftEqual);
   renderPriorityList();
 }
 function priorityCommit(){
-  priorityOrder=priorityDraftOrder.slice();
+  priorityTiers=Object.assign({},priorityDraftTiers);
   priorityEqual=priorityDraftEqual;
+  const names=currentContexts.map(c=>c.leagueName).filter(Boolean);
+  priorityOrder=sortNamesByTier(names,priorityTiers);
   savePriorityState();
   closePriorityPanel();
 }
@@ -6622,12 +6649,13 @@ function updateSettingsPanel(){
 function renderSettingsPriorityList(list,order,equal){
   if(!Array.isArray(order)||!order.length)return;
   list.style.display='flex';
-  order.forEach((name,idx)=>{
-    const isTop=idx===0&&!equal;
+  order.forEach((name)=>{
+    const tier=(priorityTiers&&priorityTiers[name])||1;
+    const isTop=tier===1&&!equal;
     const li=document.createElement('li');
     li.className='spl-row'+(isTop?' top':'');
     li.innerHTML=`
-      <span class="spl-rank${isTop?' top':''}">${equal?'—':'#'+(idx+1)}</span>
+      <span class="spl-rank${isTop?' top':''}">${equal?'—':'T'+tier}</span>
       <span class="spl-dot" style="background:${lc(name)}"></span>
       <span class="spl-name"></span>
     `;
@@ -9443,10 +9471,15 @@ initThemeToggle();
   var IM_S0F=0.07, IM_SHARPWIN=0.30, IM_TOPUP=0.40, IM_CONSOLECAP=1.0, IM_SINK=0.35,
       IM_MOODSCALE=13, IM_OSCALE=0.7, IM_INT_DIV=1.4, IM_LOWER=3.0, IM_ELIM=0.04, IM_CLINCH=0.96;
   var IM_LAMBDA=1.7, IM_MINSCALE=Math.max(0.08,Math.min(0.75,1.05-0.85)), IM_WINFLOOR=0.75, IM_CONSOLE=0.95, IM_HOPEBUF=0.20;
-  var IM_TW={1:1.0, 2:0.5, 3:0.25};
+  function imTierWeight(t){return t<=1?1.0:(t===2?0.5:0.25);}
   function imSig(x){return 1/(1+Math.exp(-x));}
   function imClamp(v,a,b){return Math.max(a,Math.min(b,v));}
-  function imTierFromName(name){var idx=(typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder))?priorityOrder.indexOf(name):-1;var rank=idx<0?99:idx+1;return rank===1?1:(rank===2?2:3);}
+  function imTierFromName(name){
+    if(typeof priorityEqual!=='undefined'&&priorityEqual)return 1; /* all leagues equal */
+    if(typeof priorityTiers!=='undefined'&&priorityTiers&&priorityTiers[name]!=null)return priorityTiers[name];
+    var idx=(typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder))?priorityOrder.indexOf(name):-1;
+    var rank=idx<0?99:idx+1;return rank===1?1:(rank===2?2:3);
+  }
   function imTier1Felt(w){ if(w<=IM_ELIM||w>=IM_CLINCH) return w; return imClamp(0.5+(w-0.5)*(1-2*IM_HOPEBUF),0,1); }
   function imLabel(mood,anchorMood,joy,hope){
     if(joy) return 'helps you win';
@@ -9478,9 +9511,9 @@ initThemeToggle();
     anchorTier=liveTiers.length?Math.min.apply(null,liveTiers):Math.min.apply(null,all.map(function(x){return x.tier;}));
     var anchorSwing=0, gross=0, rawOther=0, hope=false;
     all.forEach(function(x){
-      gross+=(IM_TW[x.tier]||1)*Math.abs(x.statusD);
+      gross+=imTierWeight(x.tier)*Math.abs(x.statusD);
       if(x.tier===anchorTier){ anchorSwing+=x.statusD; if(x.fB<0.35 && x.fA>=0.42) hope=true; }
-      else rawOther+=(IM_TW[x.tier]||1)*x.statusD;
+      else rawOther+=imTierWeight(x.tier)*x.statusD;
     });
     var anchorMood=anchorSwing*IM_MOODSCALE; if(anchorMood<0)anchorMood*=IM_LAMBDA; anchorMood=imClamp(anchorMood,-10,10);
     var otherScore=Math.tanh(rawOther/IM_OSCALE);
