@@ -9426,29 +9426,76 @@ initThemeToggle();
   function clearTimers(){timers.forEach(function(t){clearTimeout(t);});timers=[];}
   function after(ms,fn){var t=setTimeout(fn,ms);timers.push(t);return t;}
 
-  /* ── Impact model: league-weighted win-probability swing ──────────────────
-     net = Σ over starting-leagues of  weight × (winProb_after − winProb_before)
-     winProb = Φ(margin / σ);  margin = yourProjFinal − oppProjFinal
-     σ = max(1.5, √(β·R));  R = remaining projected pts (both teams) = the "clock"
-     No projection for a league → margin-only fallback w/ wide fixed σ (never
-     treat missing proj as clinched). Magnitude → animation intensity.
-     v1 of the REAL calc; per-player "beat-your-projection" refinement is a TODO. */
-  var BETA=4, NET_FULL=1.2;
-  function ncdf(z){var t=1/(1+0.2316419*Math.abs(z));var d=0.3989423*Math.exp(-z*z/2);var p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p;}
-  function leagueWeightByName(name){var idx=(typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder))?priorityOrder.indexOf(name):-1;var rank=idx<0?99:idx+1;return rank===1?5:(rank<=4?5-rank:1);}
-  function marginSigmaFromCtx(ctx){
-    ctx=ctx||{};
-    var myP=+ctx.myPoints||0, oppP=+ctx.oppPoints||0, myPr=+ctx.myProjPts||0, oppPr=+ctx.oppProjPts||0;
-    if((myPr+oppPr)>0){var R=Math.max(0,myPr-myP)+Math.max(0,oppPr-oppP);return {margin:myPr-oppPr,sigma:Math.max(1.5,Math.sqrt(BETA*R))};}
-    return {margin:myP-oppP, sigma:25}; /* no projection → margin-only, wide σ */
+  /* ── Impact model: tiered, loss-averse, hope/nerves-buffered anchor ────────
+     Full emotional model (designed + calibrated with Matt). See
+     conflicted-emotional-model.md and project memory for the why. Output is a
+     "mood" −10..+10: sign → card color, |gross| → intensity, label → card text.
+       1) Each league → a stakes-aware win-read swing (statusD), endgame-sharpened.
+       2) Anchor = your top LIVE tier; its swing is loss-averse + gates joy.
+       3) Other tiers → a saturating consolation/erosion + a weak-anchor tint.
+       4) Tier-1 leagues get a ±hope/nerves buffer on the FELT win read (never
+          safe, never dead until mathematically decided) — affects liveness/feel,
+          not the raw swing.
+     Dial constants below are the calibrated defaults; tweak in place to retune.
+     TODO before public launch: calibrate the win-prob scale (S0F / sharpness)
+     against real box scores. Tiers are interim-derived from priorityOrder
+     (rank1→T1, rank2→T2, rank3+→T3) until the tier-assignment UI ships. */
+  var IM_S0F=0.07, IM_SHARPWIN=0.30, IM_TOPUP=0.40, IM_CONSOLECAP=1.0, IM_SINK=0.35,
+      IM_MOODSCALE=13, IM_OSCALE=0.7, IM_INT_DIV=1.4, IM_LOWER=3.0, IM_ELIM=0.04, IM_CLINCH=0.96;
+  var IM_LAMBDA=1.7, IM_MINSCALE=Math.max(0.08,Math.min(0.75,1.05-0.85)), IM_WINFLOOR=0.75, IM_CONSOLE=0.95, IM_HOPEBUF=0.20;
+  var IM_TW={1:1.0, 2:0.5, 3:0.25};
+  function imSig(x){return 1/(1+Math.exp(-x));}
+  function imClamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function imTierFromName(name){var idx=(typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder))?priorityOrder.indexOf(name):-1;var rank=idx<0?99:idx+1;return rank===1?1:(rank===2?2:3);}
+  function imTier1Felt(w){ if(w<=IM_ELIM||w>=IM_CLINCH) return w; return imClamp(0.5+(w-0.5)*(1-2*IM_HOPEBUF),0,1); }
+  function imLabel(mood,anchorMood,joy,hope){
+    if(joy) return 'helps you win';
+    if(hope && anchorMood>0) return 'back in it';
+    if(mood>=4) return 'big help';
+    if(mood>=0.4) return anchorMood<0?'some consolation':'helps you';
+    if(mood>-0.4) return 'a wash';
+    if(mood>-4) return 'that stings';
+    return 'gut punch';
   }
-  function computeEventNet(legs){
-    var net=0;
+  /* legs: [{tier, side:'mine'|'opp', T, margin, remPct, delta}] — margin is the
+     CURRENT projected matchup margin (yours−opp); the play's delta is applied to
+     the scoring side to get the after-state. */
+  function computeMood(legs){
+    var anchorTier, liveTiers=[], all=[];
     legs.forEach(function(l){
-      var s=(l.side==='mine')?1:-1, m=(l.margin||0), sg=(l.sigma||25), w=(l.weight==null?1:l.weight);
-      net+=w*(ncdf((m+s*(l.delta||0))/sg)-ncdf(m/sg));
+      var T=Math.max(1,l.T||1), s=(l.side==='mine')?1:-1, dlt=l.delta||0;
+      var remPct=imClamp(l.remPct==null?0.5:l.remPct,0,1);
+      var scaleF=imClamp(remPct/IM_SHARPWIN, IM_MINSCALE, 1), sig0=Math.max(0.006,IM_S0F*scaleF);
+      var leadA=(l.margin)/T, leadB=(l.margin - s*dlt)/T;
+      var rA=imSig(leadA/sig0), rB=imSig(leadB/sig0);
+      var statusD=rA-rB;
+      var fA=rA, fB=rB;
+      if(l.tier===1){ fA=imTier1Felt(rA); fB=imTier1Felt(rB); }
+      var liveness=1-Math.min(Math.abs(2*fB-1),Math.abs(2*fA-1));
+      if(liveness>0.15)liveTiers.push(l.tier);
+      all.push({tier:l.tier,statusD:statusD,fB:fB,fA:fA});
     });
-    return {net:net, intensity:Math.max(0,Math.min(1,Math.abs(net)/NET_FULL))};
+    anchorTier=liveTiers.length?Math.min.apply(null,liveTiers):Math.min.apply(null,all.map(function(x){return x.tier;}));
+    var anchorSwing=0, gross=0, rawOther=0, hope=false;
+    all.forEach(function(x){
+      gross+=(IM_TW[x.tier]||1)*Math.abs(x.statusD);
+      if(x.tier===anchorTier){ anchorSwing+=x.statusD; if(x.fB<0.35 && x.fA>=0.42) hope=true; }
+      else rawOther+=(IM_TW[x.tier]||1)*x.statusD;
+    });
+    var anchorMood=anchorSwing*IM_MOODSCALE; if(anchorMood<0)anchorMood*=IM_LAMBDA; anchorMood=imClamp(anchorMood,-10,10);
+    var otherScore=Math.tanh(rawOther/IM_OSCALE);
+    var moodAnchor;
+    if(anchorMood>=0){
+      if(otherScore>=0) moodAnchor=anchorMood+(10-anchorMood)*otherScore*IM_TOPUP;
+      else moodAnchor=anchorMood*(1-(1-IM_WINFLOOR)*(-otherScore));
+    } else {
+      if(otherScore>0) moodAnchor=anchorMood+(IM_CONSOLECAP-anchorMood)*otherScore*IM_CONSOLE;
+      else moodAnchor=anchorMood+(-10-anchorMood)*(-otherScore)*IM_SINK;
+    }
+    var aStr=imClamp(Math.abs(anchorMood)/2.5,0,1);
+    var mood=imClamp(moodAnchor+(1-aStr)*(otherScore*IM_LOWER),-10,10);
+    var joy=(anchorMood>0 && mood>=7);
+    return { mood:mood, intensity:imClamp(gross/IM_INT_DIV,0,1), color:(mood>=0), joy:joy, hope:(hope&&anchorMood>0), label:imLabel(mood,anchorMood,joy,hope) };
   }
 
   function skipAll(){
@@ -9513,9 +9560,9 @@ initThemeToggle();
         var stackX=cx-cw/2;
         cards.forEach(function(cd){cd.el.style.transition='transform 0.45s cubic-bezier(.5,0,.6,1),opacity 0.3s ease';cd.el.style.transform='translate('+stackX+'px,'+cardY+'px) scale('+scale+')';});
         after(420,function(){
-          var net=ev.net||0, EPSN=0.005, pos=net>=0;
-          var inten=(ev.intensity==null?Math.max(0,Math.min(1,Math.abs(net)/NET_FULL)):ev.intensity);
-          var txt=net>EPSN?'helps you win':net<-EPSN?'hurts your chances':'points are points';
+          var net=ev.net||0, pos=(ev.color!=null?ev.color:net>=0);
+          var inten=(ev.intensity==null?Math.max(0,Math.min(1,Math.abs(net)/1.2)):ev.intensity);
+          var txt=ev.label||(pos?'helps you win':'hurts your chances');
           var restScale=heroScale*(1+inten*0.10), glow=pos?'46,160,110':'224,80,76';
           var nhx=cx-heroW/2, nhy=heroY;
           var fin=document.createElement('div'); fin.className='ia-hero '+(pos?'net-pos':'net-neg'); fin.style.transformOrigin='top center';
@@ -9587,10 +9634,17 @@ initThemeToggle();
         legs.forEach(function(l){var key=l.league+'|'+l.side,was=(psnap[key]!=null?psnap[key]:l.pts);l.delta=l.pts-was;if(Math.abs(l.delta)>Math.abs(repDelta))repDelta=l.delta;});
         var fire=(repDelta>EPS)||(repDelta<-EPS&&Math.abs(repDelta)>=0.5);
         if(!fire)return;
-        /* Real model: weight by league priority, win-prob swing per matchup. */
-        legs.forEach(function(l){l.weight=leagueWeightByName(l.league);var ms=marginSigmaFromCtx(ctxMap[l.league]);l.margin=ms.margin;l.sigma=ms.sigma;});
-        var r=computeEventNet(legs);
-        events.push({id:id,name:p.full_name||'Player',pos:p.position||'',legs:legs,net:r.net,intensity:r.intensity,delta:repDelta});
+        /* Full model: per-league tier + matchup context → mood verdict. */
+        legs.forEach(function(l){
+          var c=ctxMap[l.league]||{};
+          var myPr=+c.myProjPts||0, oppPr=+c.oppProjPts||0, myP=+c.myPoints||0, oppP=+c.oppPoints||0;
+          var T=myPr+oppPr, margin;
+          if(T>0){ margin=myPr-oppPr; l.remPct=(Math.max(0,myPr-myP)+Math.max(0,oppPr-oppP))/T; }
+          else { T=Math.max(1,(myP+oppP)||120); margin=myP-oppP; l.remPct=0.5; } /* no proj → wide fallback */
+          l.tier=imTierFromName(l.league); l.T=T; l.margin=margin;
+        });
+        var r=computeMood(legs);
+        events.push({id:id,name:p.full_name||'Player',pos:p.position||'',legs:legs,net:r.mood,intensity:r.intensity,color:r.color,label:r.label,joy:r.joy,delta:repDelta});
       });
       prev=cur; prevCtx=ctx;
       if(isHist)return;
@@ -9626,25 +9680,23 @@ initThemeToggle();
     [{name:'Derrick Henry',pos:'RB',delta:6.0,dist:[[DR,'mine'],[RC,'opp']]}],
     [{name:'Justin Jefferson',pos:'WR',delta:-0.6,dist:[[DR,'opp'],[RC,'mine'],[GG,'opp']]}]
   ];
-  /* Test legs run through the SAME win-prob model. Synthetic matchup context per
-     leg: optional 3rd tuple element {m:margin, r:remainingPts}; default a mid-game
-     coin-flip (m=0, r=100). Weight by a fixed demo priority (DR>RC>GG>DM). */
-  var DEMO_PRI=[DR,RC,GG,DM];
-  /* Fixed per-league matchup context for the test slate: m=your projected margin,
-     r=remaining projected pts. DR close w/ lots left, RC trailing mid-game,
-     GG near-clinched blowout (tiny r), DM trailing. Lets the test show real
-     win-prob variation + the clinched/intensity behavior. */
-  var DEMO_CTX={}; DEMO_CTX[DR]={m:4,r:135}; DEMO_CTX[RC]={m:-9,r:75}; DEMO_CTX[GG]={m:21,r:26}; DEMO_CTX[DM]={m:-11,r:90};
-  function testWeight(name){var i=DEMO_PRI.indexOf(name);var rank=i<0?99:i+1;return rank===1?5:(rank<=4?5-rank:1);}
+  /* Test legs run through the SAME full mood model. Fixed per-demo-league
+     matchup context: tier + projected total + margin + game progress. DR is the
+     Tier-1 anchor (close, lots left), RC/GG Tier-2, GG near-clinched, DM Tier-3.
+     Optional 3rd tuple element {m:margin, prog:0-1} overrides per play. */
+  var DEMO_CTX={};
+  DEMO_CTX[DR]={tier:1,T:240,margin:4,prog:0.55};
+  DEMO_CTX[RC]={tier:2,T:175,margin:-9,prog:0.55};
+  DEMO_CTX[GG]={tier:2,T:210,margin:21,prog:0.85};
+  DEMO_CTX[DM]={tier:3,T:200,margin:-11,prog:0.50};
   function buildEvents(batch){
     return batch.map(function(pl,i){
       var legs=pl.dist.map(function(d){
-        var base=DEMO_CTX[d[0]]||{m:0,r:100}, o=d[2]||{};
-        var R=(o.r==null?base.r:o.r), m=(o.m==null?base.m:o.m);
-        return {league:d[0],side:d[1],delta:pl.delta,weight:testWeight(d[0]),margin:m,sigma:Math.max(1.5,Math.sqrt(BETA*R))};
+        var base=DEMO_CTX[d[0]]||{tier:2,T:200,margin:0,prog:0.5}, o=d[2]||{};
+        return {league:d[0],side:d[1],delta:pl.delta,tier:base.tier,T:base.T,margin:(o.m==null?base.margin:o.m),remPct:imClamp(1-(o.prog==null?base.prog:o.prog),0,1)};
       });
-      var r=computeEventNet(legs);
-      return {id:'test_'+i+'_'+pl.name,name:pl.name,pos:pl.pos,legs:legs,net:r.net,intensity:r.intensity,delta:pl.delta};
+      var r=computeMood(legs);
+      return {id:'test_'+i+'_'+pl.name,name:pl.name,pos:pl.pos,legs:legs,net:r.mood,intensity:r.intensity,color:r.color,label:r.label,joy:r.joy,delta:pl.delta};
     });
   }
   var tIdx=0, tTimer=null, tLooping=false;
