@@ -243,6 +243,10 @@
       padding: 4px 7px; border-radius: var(--radius-pill); flex-shrink: 0;
     }
     .menu-drawer__divider { height: 1px; background: var(--line); margin: 10px 14px; border: 0; }
+    /* Signed-out / landing menu: show Home + Sign in, hide the app-only sections. */
+    .menu-signedout-only { display: none; }
+    body.nav-can-signin .menu-signedout-only { display: block; }
+    body.nav-landing .menu-app-only { display: none; }
     .menu-drawer__section-label {
       font: 500 10px/1 var(--font-mono); color: var(--ink-500);
       letter-spacing: 0.16em; text-transform: uppercase;
@@ -2483,35 +2487,45 @@
     </button>
   </div>
   <ul class="menu-drawer__list" role="menu">
-    <li class="menu-drawer__section-label" role="presentation">Views</li>
-    <li role="none">
+    <li role="none" class="menu-signedout-only">
+      <button class="menu-drawer__item" data-menu-action="home" role="menuitem" type="button">
+        <span>Home</span>
+      </button>
+    </li>
+    <li role="none" class="menu-signedout-only">
+      <button class="menu-drawer__item" data-menu-action="signin" role="menuitem" type="button">
+        <span>Sign in</span>
+      </button>
+    </li>
+    <li class="menu-drawer__section-label menu-app-only" role="presentation">Views</li>
+    <li role="none" class="menu-app-only">
       <button class="menu-drawer__item is-active" data-menu-action="dashboard" role="menuitem" type="button">
         <span>Dashboard</span>
       </button>
     </li>
-    <li role="none">
+    <li role="none" class="menu-app-only">
       <button class="menu-drawer__item" data-menu-action="exposure" role="menuitem" type="button">
         <span>Exposure map</span>
       </button>
     </li>
-    <li role="none">
+    <li role="none" class="menu-app-only">
       <button class="menu-drawer__item" data-menu-action="watch-priority" role="menuitem" type="button">
         <span>Watch priority</span>
       </button>
     </li>
-    <li role="presentation"><hr class="menu-drawer__divider" aria-hidden="true"></li>
-    <li class="menu-drawer__section-label" role="presentation">Account</li>
-    <li role="none">
+    <li role="presentation" class="menu-app-only"><hr class="menu-drawer__divider" aria-hidden="true"></li>
+    <li class="menu-drawer__section-label menu-app-only" role="presentation">Account</li>
+    <li role="none" class="menu-app-only">
       <button class="menu-drawer__item" data-menu-action="account" role="menuitem" type="button">
         <span>Account</span>
       </button>
     </li>
-    <li role="none">
+    <li role="none" class="menu-app-only">
       <button class="menu-drawer__item" data-menu-action="settings" role="menuitem" type="button">
         <span>Settings</span>
       </button>
     </li>
-    <li role="none">
+    <li role="none" class="menu-app-only">
       <button class="menu-drawer__item" data-menu-action="connections" role="menuitem" type="button">
         <span>League connections</span>
       </button>
@@ -2898,7 +2912,7 @@
 
     <div class="about-foot">
       <span class="about-tagline">All your leagues<span class="cut"> · </span>one place.</span>
-      <button class="btn-ghost" onclick="goToDashboardOrSetup()" type="button">← Back to dashboard</button>
+      <button class="btn-ghost" onclick="goToDashboardOrSetup()" type="button">← Back</button>
     </div>
   </div>
 </div>
@@ -3595,6 +3609,7 @@ window.exitConnections=exitConnections;
 window.applyConnectionsAndView=applyConnectionsAndView;
 
 function showSetup(){hideAll();isDemoMode=false;document.getElementById('setup-panel').style.display='flex';try{window.__wizardActive=false;if(typeof stopYahooPoll==='function')stopYahooPoll();}catch(e){}try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}try{updateHeaderAuthControls(true);}catch(e){}}
+window.showSetup=showSetup;
 function showLoading(msg){hideAll();document.getElementById('loading-panel').style.display='flex';document.getElementById('loading-msg').textContent=msg||'Pulling your leagues.';}
 function setLoading(msg){document.getElementById('loading-msg').textContent=msg;}
 function showError(msg){hideAll();document.getElementById('error-panel').style.display='flex';document.getElementById('error-msg').textContent=msg;}
@@ -6229,15 +6244,18 @@ function openAccountModal(){
   }
 }
 
-/* Header auth control: on the landing/setup page the hamburger only opens empty
-   app views, so swap it for a direct Sign in button. Once a real view (board,
-   demo, exposure, watch) is showing, restore the hamburger. Landing/header only. */
+/* Header auth control: the hamburger is ALWAYS shown. On the landing/setup page
+   the menu collapses to just "Sign in" + the Site section (About); the app-only
+   views/account sections hide until there's something to show. `showSignin`
+   means "we're on the landing/setup page." */
 function updateHeaderAuthControls(showSignin){
   const burger = document.getElementById('menu-trigger');
   const signin = document.getElementById('header-signin');
-  if(!burger || !signin) return;
-  signin.style.display = showSignin ? 'inline-flex' : 'none';
-  burger.style.display = showSignin ? 'none' : 'inline-flex';
+  if(burger) burger.style.display = 'inline-flex';
+  if(signin) signin.style.display = 'none'; /* retired in favor of the menu item */
+  const signedIn = !!(window.__account && window.__account.signedIn);
+  document.body.classList.toggle('nav-landing', !!showSignin);
+  document.body.classList.toggle('nav-can-signin', !!showSignin && !signedIn);
 }
 window.updateHeaderAuthControls = updateHeaderAuthControls;
 
@@ -9263,6 +9281,10 @@ initThemeToggle();
           if (typeof window.showConnections === 'function') window.showConnections();
         } else if (action === 'about') {
           if (typeof window.showAbout === 'function') window.showAbout();
+        } else if (action === 'signin') {
+          if (typeof window.openSignInModal === 'function') window.openSignInModal();
+        } else if (action === 'home') {
+          if (typeof window.showSetup === 'function') window.showSetup();
         }
         // Future routes — wire these up as each view ships:
         //   blog, contact
