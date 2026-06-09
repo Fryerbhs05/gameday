@@ -1969,6 +1969,25 @@
     /* Opp-roster (negative) mode — keep the avatar in the navy "against" color
        so it matches the rest of the for/against palette on this view. */
     .exp-drawer__avatar.mode-negative { background: var(--navy-700); }
+
+    /* ── Headshot thumbnails ──────────────────────────────────────────
+       The <img> is layered over the initials and fills the circle; if it
+       404s its onerror removes it and the initials beneath remain. Any
+       round avatar that opts in just needs position:relative + overflow. */
+    .exp-drawer__avatar, .wp-drawer__avatar { position: relative; overflow: hidden; }
+    .player-headshot {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; object-position: top center;
+      border-radius: inherit; background: inherit; display: block;
+    }
+    /* Single-player avatar in the Watch Priority drawer header — mirrors the
+       exposure drawer avatar so the two headers read consistently. */
+    .wp-drawer__avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--coral-500); color: var(--paper);
+      display: flex; align-items: center; justify-content: center;
+      font: 500 13px/1 var(--font-sans); flex-shrink: 0;
+    }
     .exp-drawer__name { font: 500 16px/1.1 var(--font-sans); margin: 0 0 4px; color: var(--ink-900); }
     .exp-drawer__pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
     .exp-drawer__close { margin-left: auto; background: transparent; border: 0; cursor: pointer; color: var(--ink-500); font: 500 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 4px; }
@@ -3312,6 +3331,48 @@ function buildSleeperIdLookup(playerDB){
     if(k && !lookup[k]) lookup[k] = pid;
   }
   return lookup;
+}
+
+/* ── Player headshot helpers ──────────────────────────────────────────
+   Sleeper serves NFL player thumbnails by numeric player_id off its CDN
+   with no auth:  https://sleepercdn.com/content/nfl/players/thumb/<id>.jpg
+   Sleeper-rostered players already carry their own ID (player.sleeperId);
+   ESPN & Yahoo players store a platform key instead, so we resolve them
+   through the same name|team|pos lookup used during classification. The
+   resolver is built once and cached. Every headshot renders with an
+   onerror fallback to the initials beneath, so a missing photo (fringe
+   players, defenses) never leaves an empty circle. */
+var _sleeperIdLookupCache = null;
+function getSleeperIdLookup(){
+  if (_sleeperIdLookupCache) return _sleeperIdLookupCache;
+  if (window.playerDB) _sleeperIdLookupCache = buildSleeperIdLookup(window.playerDB);
+  return _sleeperIdLookupCache || {};
+}
+/* Resolve a Sleeper numeric ID from a player-like object (or a bare Sleeper
+   roster string). Returns '' when it can't be resolved. */
+function resolveSleeperId(player){
+  if (!player) return '';
+  if (typeof player === 'string') return /^\d+$/.test(player) ? player : '';
+  if (player.sleeperId) return String(player.sleeperId);
+  var k = unifiedPlayerKey(player.full_name || player.name || '', player.team || '', player.position || '');
+  if (!k) return '';
+  var hit = getSleeperIdLookup()[k];
+  return hit ? String(hit) : '';
+}
+function sleeperHeadshotUrl(sleeperId){
+  return sleeperId ? 'https://sleepercdn.com/content/nfl/players/thumb/' + sleeperId + '.jpg' : '';
+}
+/* Inner HTML for a round avatar element: a headshot <img> layered over the
+   initials. On image error the <img> hides itself and the initials show
+   through. `initials` is expected to already be safe (letters only). */
+function avatarInnerHtml(player, initials){
+  var sid = resolveSleeperId(player);
+  var ini = '<span class="avatar-initials">' + (initials || '') + '</span>';
+  if (!sid) return ini;
+  var img = '<img class="player-headshot" src="' + sleeperHeadshotUrl(sid) + '" alt="" ' +
+            'loading="lazy" decoding="async" ' +
+            'onerror="this.remove();">';
+  return ini + img;
 }
 
 function calcLiveState(myPts,oppPts,myProj,oppProj){
@@ -7555,7 +7616,7 @@ initThemeToggle();
     var avatarModeCls = state.mode === 'negative' ? ' mode-negative' : '';
     return '<div class="exp-drawer" data-exp-drawer="' + esc(player.id) + '">' +
       '<div class="exp-drawer__head">' +
-        '<div class="exp-drawer__avatar' + avatarModeCls + '">' + esc(initials) + '</div>' +
+        '<div class="exp-drawer__avatar' + avatarModeCls + '">' + avatarInnerHtml(player, initials) + '</div>' +
         '<div style="min-width:0;">' +
           '<p class="exp-drawer__name">' + esc(player.full_name) + '</p>' +
           '<div class="exp-drawer__pill-row">' + headerPills + '</div>' +
@@ -8713,7 +8774,9 @@ initThemeToggle();
       sections = '<p class="wp-drawer__sub">Not rostered in any league this week.</p>';
     }
 
+    var wpInitials = (p.full_name||'?').split(/\s+/).map(function(s){return s[0]||'';}).join('').slice(0,2).toUpperCase();
     return '<div class="wp-drawer__head">' +
+      '<div class="wp-drawer__avatar">' + avatarInnerHtml(p, wpInitials) + '</div>' +
       '<div style="min-width:0;flex:1;">' +
         '<h3 class="wp-drawer__title">' + esc(p.full_name || '—') + '</h3>' +
         '<p class="wp-drawer__subtitle">' + esc(pos) + ' · ' + esc(team) + '</p>' +
