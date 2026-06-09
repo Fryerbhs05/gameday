@@ -1367,7 +1367,9 @@
     .column.conflicted .player-card { border-left: 3px solid var(--split); }
     .column.enemy      .player-card { border-left: 3px solid var(--enemy); }
     .player-card.filtered-out { display: none; }
-    .player-card.clinched { opacity: 0.5; border-left-color: var(--neutral) !important; }
+    /* Dull/clinched display intentionally disabled (revisit later). Class still
+       toggled in JS so the logic stays intact; just no visual difference. */
+    .player-card.clinched { }
 
     .card-top { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
     .pos-badge {
