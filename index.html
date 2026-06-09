@@ -1388,6 +1388,33 @@
     }
     .player-team { font: 400 11px/1 var(--font-mono); color: var(--ink-500); margin-left: auto; flex-shrink: 0; }
 
+    /* Option A bucket-card header: headshot anchor + two-line text block.
+       The headshot carries a position-colored ring (glanceable position cue);
+       the position word + team + injury sit on a quiet meta sub-line so the
+       name gets its own line and the row stops competing with five elements. */
+    .card-shot {
+      width: 40px; height: 40px; border-radius: 50%; box-sizing: border-box;
+      flex-shrink: 0; position: relative; overflow: hidden;
+      background: var(--coral-500); color: var(--paper);
+      display: flex; align-items: center; justify-content: center;
+      font: 500 12px/1 var(--font-sans); border: 2px solid var(--ink-300);
+    }
+    .card-shot.ring-QB  { border-color: var(--coral-500); }
+    .card-shot.ring-RB  { border-color: var(--cheer); }
+    .card-shot.ring-WR  { border-color: var(--navy-500); }
+    .card-shot.ring-TE  { border-color: var(--split); }
+    .card-shot.ring-K   { border-color: var(--neutral); }
+    .card-shot.ring-DEF { border-color: var(--enemy); }
+    .card-shot.ring-FLEX{ border-color: var(--ink-300); }
+    .card-id { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .card-id-line { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .card-meta {
+      font: 400 11px/1.3 var(--font-mono); color: var(--ink-500);
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .card-meta__pos { color: var(--ink-700); }
+    .card-meta__sep { opacity: 0.5; }
+
     /* Live-game indicator (pulsing pill in card top row) */
     .live-pill {
       display: inline-flex; align-items: center; gap: 4px;
@@ -4309,8 +4336,18 @@ function buildCardInner(player,isHist){
 
   /* On prior seasons, the team chip would reflect current rosters not the
      player's team at the time — suppress to avoid misleading data. */
-  const teamHtml = isPriorSeason() ? '' : `<span class="player-team">${player.team||''}</span>`;
-  return `<div class="card-top"><span class="pos-badge ${posClass(player.position)}">${player.position||'—'}</span><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${livePill}${teamHtml}${injBadge}</div>${ptsHTML}${rosterHTML}`;
+  const metaTeam = isPriorSeason() ? '' : (player.team ? `<span class="card-meta__sep">·</span><span>${player.team}</span>` : '');
+  /* Option A header: headshot (position-colored ring) + name line + meta line.
+     Ring class maps eligibility/flex to one of the position colors. */
+  const ringCls = 'ring-' + ({QB:'QB',RB:'RB',WR:'WR',TE:'TE',K:'K',DEF:'DEF'}[(player.position||'').toUpperCase()] || 'FLEX');
+  const initials = (player.full_name||'?').split(/\s+/).map(s=>s[0]||'').join('').slice(0,2).toUpperCase();
+  return `<div class="card-top">`+
+      `<div class="card-shot ${ringCls}">${avatarInnerHtml(player, initials)}</div>`+
+      `<div class="card-id">`+
+        `<div class="card-id-line"><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${livePill}</div>`+
+        `<div class="card-meta"><span class="card-meta__pos">${player.position||'—'}</span>${metaTeam}${injBadge}</div>`+
+      `</div>`+
+    `</div>${ptsHTML}${rosterHTML}`;
 }
 
 function buildCard(player,isHist){
