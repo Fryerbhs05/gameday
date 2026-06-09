@@ -72,7 +72,7 @@
       --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
       --radius-sm:4px; --radius-md:8px; --radius-lg:12px; --radius-pill:999px;
-      --max-width:980px; --gutter:24px;
+      --max-width:980px; --max-width-wide:1320px; --gutter:24px;
       --ease-out:cubic-bezier(0.2,0.8,0.2,1); --duration-fast:120ms; --duration-base:200ms;
     }
     @media (prefers-color-scheme: dark) {
@@ -148,7 +148,7 @@
       height: 76px; position: sticky; top: 0; z-index: 100;
     }
     .site-header__inner {
-      max-width: var(--max-width); margin: 0 auto; padding: 0 var(--gutter);
+      max-width: var(--max-width-wide); margin: 0 auto; padding: 0 var(--gutter);
       height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px;
     }
     /* Balanced three-section header: the left controls and the right nav each
@@ -773,7 +773,7 @@
        BOARD
     ═══════════════════════════════════════════════════════════ */
     #board { display: none; }
-    .board-inner { max-width: var(--max-width); margin: 0 auto; padding: 24px var(--gutter) 64px; }
+    .board-inner { max-width: var(--max-width-wide); margin: 0 auto; padding: 24px var(--gutter) 64px; }
 
     /* Nav controls */
     .nav-controls {
@@ -1353,6 +1353,7 @@
 
     /* Player cards */
     .player-card {
+      position: relative;
       background: var(--paper-soft); border: 1px solid var(--line);
       border-radius: var(--radius-md); padding: 13px 15px;
       margin-bottom: 8px;
@@ -1421,10 +1422,11 @@
     .card-media__team { color: var(--ink-500); letter-spacing: 0.04em; }
     .card-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
     .card-id-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
-    /* Name no longer grows to fill the row, so the injury/live chips sit just
-       to the right of the name rather than pinned to the far edge. */
+    /* Name no longer grows to fill the row, so the live chip sits just to the
+       right of the name. The injury tag is pinned to the card's top-right
+       corner instead (out of the name flow). */
     .card-id-line .player-name { flex: 0 1 auto; }
-    .card-id-line .inj-badge { flex-shrink: 0; }
+    .card-id-line .inj-badge { position: absolute; top: 13px; right: 15px; flex-shrink: 0; }
 
     /* Live-game indicator (pulsing pill in card top row) */
     .live-pill {
