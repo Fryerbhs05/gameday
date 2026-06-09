@@ -3641,7 +3641,21 @@ function renderAccountLeagues(){
   if(!host)return;
   const all=Array.isArray(allLeaguesSeen)?allLeaguesSeen:[];
   if(!all.length){
-    host.innerHTML='<div class="account-leagues-empty">No leagues loaded yet. Open your dashboard once and they’ll appear here.</div>';
+    const connected=(typeof isAnyProviderConnected==='function')&&isAnyProviderConnected();
+    if(connected&&!isDemoMode){
+      // Connected but the list hasn't been fed yet. If no dashboard load has run
+      // this session (or one is in flight), show a loading note and kick a fetch
+      // ONCE — renderBoard re-calls this when the data lands. The isAnyProviderLoaded
+      // guard prevents a re-kick loop if a load genuinely returns no leagues.
+      if(!isAnyProviderLoaded||isFetching){
+        host.innerHTML='<div class="account-leagues-empty">Loading your leagues…</div>';
+        if(!isAnyProviderLoaded&&!isFetching){try{run();}catch(e){}}
+      }else{
+        host.innerHTML='<div class="account-leagues-empty">No active leagues found for this week. Open your dashboard to load them, then check back here.</div>';
+      }
+    }else{
+      host.innerHTML='<div class="account-leagues-empty">Connect a league to manage it here.</div>';
+    }
     return;
   }
   // Group by platform, preserving a stable platform order then league order.
@@ -4575,7 +4589,7 @@ function renderBoard(data,username){
   const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
   document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
   liveToggleAvailable=!isDemoMode&&!isHist;
@@ -4625,6 +4639,9 @@ function renderBoard(data,username){
      IIFE-bound scope without a closure over these top-level lets. */
   window.currentContexts=currentContexts;
   window.currentLeagues=currentLeagues;
+  // If the user is sitting on the Account view when fresh data lands, refresh the
+  // Manage-leagues list so it fills in (allLeaguesSeen was just populated).
+  if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}
   reconcilePriorityOrder(currentContexts);
   updateSettingsPanel();
   if(shouldAutoLaunchPriority(currentContexts))showPriorityOnboarding(currentContexts);
