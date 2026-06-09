@@ -61,9 +61,18 @@ async function handleMe(req, res) {
   } catch (e) {
     console.error('account/me profile read:', e.message);
   }
+  // Account-level "global exclude" list — leagues the user switched OFF in the
+  // Account view. The client drops these from the calculation layer on load so
+  // the exclusion follows across devices. Best-effort: failure → empty list.
+  let disabledLeagues = [];
+  try {
+    disabledLeagues = await A.getDisabledLeagues(acct.uid);
+  } catch (e) {
+    console.error('account/me disabled-leagues read:', e.message);
+  }
   res
     .status(200)
-    .json({ signedIn: true, enabled: true, email: acct.email, name, platforms, sleeper: sleeperUsername });
+    .json({ signedIn: true, enabled: true, email: acct.email, name, platforms, sleeper: sleeperUsername, disabledLeagues });
 }
 
 // ── POST ?action=logout: end session on this device ──────────────
@@ -180,6 +189,31 @@ async function handleProfile(req, res) {
   }
 }
 
+// ── POST ?action=leagues: save the account-level disabled-league list ──
+// Body { disabledLeagues: ["espn|Dynasty Warriors", ...] }. Replaces the stored
+// list wholesale (the client always sends the full current set). Persists the
+// "global exclude" so toggled-off leagues stay excluded on every device.
+async function handleLeagues(req, res) {
+  if (!A.accountsConfigured()) {
+    res.status(503).json({ error: 'Accounts are not enabled.' });
+    return;
+  }
+  const acct = A.readAccount(req);
+  if (!acct) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+  try {
+    const body = await readJsonBody(req);
+    const keys = Array.isArray(body && body.disabledLeagues) ? body.disabledLeagues : [];
+    const saved = await A.setDisabledLeagues(acct.uid, keys);
+    res.status(200).json({ ok: true, disabledLeagues: saved || [] });
+  } catch (e) {
+    console.error('account/leagues error:', e.message);
+    res.status(500).json({ error: 'Could not save your league settings.' });
+  }
+}
+
 module.exports = async (req, res) => {
   // Identity is per-cookie and must never be cached — otherwise a browser can
   // re-render a stale account after the session cookie changes (e.g. clicking a
@@ -192,6 +226,7 @@ module.exports = async (req, res) => {
     if (action === 'delete') return handleDelete(req, res);
     if (action === 'sleeper') return handleSleeper(req, res);
     if (action === 'profile') return handleProfile(req, res);
+    if (action === 'leagues') return handleLeagues(req, res);
     res.status(400).json({ error: 'Unknown action' });
     return;
   }
