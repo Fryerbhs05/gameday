@@ -3635,6 +3635,10 @@ function accountViewOpen(){const v=document.getElementById('view-account');retur
    full pre-filter list captured each load) so OFF leagues still appear here to
    be switched back on. */
 const ALG_PLATFORM_ORDER=['espn','yahoo','sleeper'];
+// Local HTML escaper — the matchup-drawer's escHtml is scoped inside that
+// function and not visible here, so define our own (referencing it threw and
+// left the list blank).
+function algEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function platformLabel(pid){try{return (PROVIDERS[pid]&&PROVIDERS[pid].displayName)||pid;}catch(e){return pid;}}
 function renderAccountLeagues(){
   const host=document.getElementById('account-leagues-list');
@@ -3667,13 +3671,13 @@ function renderAccountLeagues(){
   });
   let html='';
   pids.forEach(pid=>{
-    html+=`<div class="alg-group"><div class="alg-platform">${escHtml(platformLabel(pid))}</div>`;
+    html+=`<div class="alg-group"><div class="alg-platform">${algEsc(platformLabel(pid))}</div>`;
     groups[pid].forEach(l=>{
       const on=!disabledLeagueKeys.has(l.key);
       const color=(typeof lc==='function')?lc(l.leagueName):'var(--ink-300)';
-      html+=`<div class="alg-row${on?'':' off'}" data-alg-row="${escHtml(l.key)}">`
-        +`<span class="alg-name"><span class="alg-dot" style="background:${color}"></span>${escHtml(l.leagueName)}</span>`
-        +`<button class="live-toggle${on?' on':''}" data-alg-toggle="${escHtml(l.key)}" type="button" role="switch" aria-checked="${on}" aria-label="Toggle ${escHtml(l.leagueName)}"></button>`
+      html+=`<div class="alg-row${on?'':' off'}" data-alg-row="${algEsc(l.key)}">`
+        +`<span class="alg-name"><span class="alg-dot" style="background:${color}"></span>${algEsc(l.leagueName)}</span>`
+        +`<button class="live-toggle${on?' on':''}" data-alg-toggle="${algEsc(l.key)}" type="button" role="switch" aria-checked="${on}" aria-label="Toggle ${algEsc(l.leagueName)}"></button>`
         +`</div>`;
     });
     html+=`</div>`;
