@@ -266,6 +266,42 @@ async function getProfile(uid) {
   );
   return rows && rows[0] ? rows[0] : null;
 }
+
+/* ── Disabled leagues (account-level "global exclude") ───────────── */
+// A per-account list of league keys the user has switched OFF in the Account
+// view. Keyed by `platform|leagueName` (platform-prefixed so two leagues that
+// share a name across platforms can't collide). Unlike the in-memory Filters
+// drawer, this PERSISTS server-side so the exclusion follows the user across
+// devices — a disabled league is dropped from the calculation layer entirely,
+// not just hidden visually. Stored as a jsonb array on the profile row.
+async function getDisabledLeagues(uid) {
+  if (!uid) return [];
+  const rows = await sbFetch(
+    `user_profiles?user_id=eq.${uid}&select=disabled_leagues`
+  );
+  const v = rows && rows[0] ? rows[0].disabled_leagues : null;
+  return Array.isArray(v) ? v : [];
+}
+async function setDisabledLeagues(uid, keys) {
+  if (!uid) return;
+  // Sanitize: strings only, de-duped, capped so a malformed client can't bloat
+  // the row. Upsert (PK = user_id) so accounts without a profile row still save.
+  const clean = Array.from(
+    new Set(
+      (Array.isArray(keys) ? keys : [])
+        .filter((k) => typeof k === 'string' && k.length && k.length <= 300)
+        .slice(0, 200)
+    )
+  );
+  await sbFetch('user_profiles', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify([
+      { user_id: uid, disabled_leagues: clean, updated_at: new Date().toISOString() }
+    ])
+  });
+  return clean;
+}
 // Full account erasure (GDPR/CCPA "delete my data").
 async function deleteUserData(uid, email) {
   await sbFetch(`platform_sessions?user_id=eq.${uid}`, {
@@ -340,6 +376,8 @@ module.exports = {
   upsertUser,
   upsertProfile,
   getProfile,
+  getDisabledLeagues,
+  setDisabledLeagues,
   saveMagicToken,
   consumeMagicToken,
   savePlatformSession,
