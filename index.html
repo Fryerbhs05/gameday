@@ -5349,7 +5349,23 @@ function experimentGoDashboard(){
   window.scrollTo(0,0);
 }
 window.experimentGoDashboard=experimentGoDashboard;
-function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};hiddenLeagues.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);}
+function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};hiddenLeagues.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);ensureDemoHeadshots();}
+/* Demo player cards fall back to initials because demo rosters carry no Sleeper
+   ID and the player DB (which the name→ID resolver needs) isn't loaded outside a
+   real connection. The demo uses real player names/teams, so loading the DB lets
+   the SAME resolver used in production find their headshots. We render the board
+   first (instant, with initials) then load the DB in the background and re-render
+   so photos appear in the same card location as live mode. */
+async function ensureDemoHeadshots(){
+  try{
+    if(!window.playerDB){
+      const db=await getPlayerDB();
+      window.playerDB=db;
+      _sleeperIdLookupCache=null; // force the name→Sleeper-ID lookup to rebuild from the DB
+    }
+    if(isDemoMode)renderBoard(getDemoData(),'demo'); // re-render now that headshots can resolve
+  }catch(e){console.warn('demo headshots load failed:',e.message);}
+}
 async function handleRefresh(){
   const btn=document.getElementById('refresh-btn');
   // Ignore re-clicks while a sync is already in flight — the .syncing class is
