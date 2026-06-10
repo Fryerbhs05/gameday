@@ -3595,6 +3595,7 @@ function renderAccountPanel(){
          leagues would linger after sign-out. Server keeps the account copy and
          rehydrates on next sign-in. Mirrors the account modal's sign-out. */
       try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+      clearBoardSnapshot();
       window.location.href='/?account=signed_out';
     });
   }
@@ -3608,6 +3609,7 @@ function renderAccountPanel(){
         const r=await fetch('/api/account/me?action=delete',{method:'POST',credentials:'include'});
         if(r.ok){
           try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+          clearBoardSnapshot();
           window.location.href='/?account=signed_out';
         }else{
           del.disabled=false; del.textContent='Delete account';
@@ -3848,6 +3850,7 @@ async function handleDisconnectAll(){
     try{ await PROVIDERS[id].disconnect(); }catch(e){ console.warn('disconnect failed:',id,e.message); }
   }
   isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();
+  clearBoardSnapshot(); // no connections → next boot must not flash the old board
   window.__connectionsDirty=false;window.__connectionsViewActive=false;
   showSetup();
 }
@@ -4564,6 +4567,10 @@ function sortPlayers(arr){
 function renderBoard(data,username){
   window.__conflictedLastData=data;
   window.__conflictedLastUsername=username;
+  /* Persist the live-week board for the snapshot boot (stale-while-revalidate):
+     next page load paints from this instantly instead of the loading panel.
+     saveBoardSnapshot self-guards against demo / historical / no-data renders. */
+  try{saveBoardSnapshot(data,username);}catch(e){}
   const _expoOpen=!!window.__conflictedExposureOpen;
   const _watchOpen=!!window.__conflictedWatchOpen;
   const{cheerFor,conflicted,enemies,offseasonMode,debugInfo,noData,noDataReason,contexts,hasScoring,isHist,partialError}=data;
@@ -5415,8 +5422,58 @@ async function run(){
     renderBoard(await loadData(),getPrimaryDisplayName());
     lastFetchTime=Date.now();
     startAutoRefresh();
-  }catch(err){console.error(err);showError(err.message||'Something went wrong on our end. Refreshing usually fixes it.');}
+    return true;
+  }catch(err){
+    console.error(err);
+    /* If the user is already looking at real content (snapshot boot, a routine
+       refresh, or a non-dashboard view), keep it — replacing a populated screen
+       with the full-page error panel is worse than silently staying stale. The
+       error panel is reserved for cold loads where there's nothing to show. */
+    if(isDashboardVisible()||window.__conflictedExposureOpen||window.__conflictedWatchOpen||accountViewOpen()){
+      console.warn('refresh failed; keeping current view:',err.message);
+    }else{
+      showError(err.message||'Something went wrong on our end. Refreshing usually fixes it.');
+    }
+    return false;
+  }
 }
+
+/* ══ BOARD SNAPSHOT — stale-while-revalidate boot ═══════════════════════════
+   When a suspended tab/PWA wakes up, the browser often silently reloads the
+   page, and the old boot path put up the full-page loading panel while account
+   + provider checks ran — yanking the user off whatever they were doing. Fix:
+   after every successful live render we persist the dataset; the next boot
+   paints the board from that snapshot instantly, then revalidates in the
+   background with the LIVE button's existing .syncing pulse as the indicator.
+   The full loading panel now only appears on genuinely cold starts.
+   NOTE: this caches DATA only — it never persists filters or anything that
+   hides games (see filter-persistence rule). */
+const BOARD_SNAPSHOT_KEY='conflicted_board_snapshot_v1';
+const BOARD_SNAPSHOT_MAX_AGE_MS=24*60*60*1000; // older than a day → cold boot
+function saveBoardSnapshot(data,username){
+  try{
+    /* Only snapshot real, live-week boards: never demo/preview data, never a
+       historical week (boot always lands on the live week), never no-data. */
+    if(isDemoMode||!data||data.noData||data.isHist)return;
+    if(!isAnyProviderConnected())return;
+    const snap={ts:Date.now(),week:activeWeek,season:activeSeason,liveWeek:liveWeek,liveSeason:liveSeason,username:username||'',data:data};
+    try{localStorage.setItem(BOARD_SNAPSHOT_KEY,JSON.stringify(snap));}
+    catch(e){
+      /* Quota pressure: retry without the bulky debug payload before giving up. */
+      try{snap.data=Object.assign({},data,{debugInfo:null});localStorage.setItem(BOARD_SNAPSHOT_KEY,JSON.stringify(snap));}catch(e2){}
+    }
+  }catch(e){}
+}
+function readBoardSnapshot(){
+  try{
+    const raw=localStorage.getItem(BOARD_SNAPSHOT_KEY);if(!raw)return null;
+    const snap=JSON.parse(raw);
+    if(!snap||!snap.data||typeof snap.ts!=='number')return null;
+    if(Date.now()-snap.ts>BOARD_SNAPSHOT_MAX_AGE_MS){clearBoardSnapshot();return null;}
+    return snap;
+  }catch(e){return null;}
+}
+function clearBoardSnapshot(){try{localStorage.removeItem(BOARD_SNAPSHOT_KEY);}catch(e){}}
 
 const REFRESH_MS=60*1000;let refreshTimer=null;let lastFetchTime=0;let isFetching=false;
 function shouldAutoRefresh(){return !isDemoMode && isAnyProviderConnected() && !isHistoricalWeek();}
@@ -6507,13 +6564,14 @@ function openAccountModal(){
          or its leagues would linger after sign-out. The account copy is kept
          server-side and rehydrates on the next sign-in via info.sleeper. */
       try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+      clearBoardSnapshot();
       window.location.href = '/?account=signed_out';
     });
     backdrop.querySelector('#account-delete').addEventListener('click', async(e)=>{
       if(!confirm('Permanently delete your account and all stored connections? This cannot be undone.')) return;
       e.target.disabled = true; e.target.textContent = 'Deleting…';
       const r = await fetch('/api/account/me?action=delete',{method:'POST',credentials:'include'});
-      if(r.ok){ try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){} window.location.href = '/?account=signed_out'; }
+      if(r.ok){ try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){} clearBoardSnapshot(); window.location.href = '/?account=signed_out'; }
       else { errEl.textContent = 'Could not delete account. Try again.'; e.target.disabled=false; e.target.textContent='Delete account'; }
     });
   } else {
@@ -7085,12 +7143,39 @@ loadExperimentState();
 initThemeToggle();
 
 (async()=>{
-  const cameFromYahooOAuth=new URLSearchParams(window.location.search).get('yahoo')==='connected';
+  const _bootParams=new URLSearchParams(window.location.search);
+  const cameFromYahooOAuth=_bootParams.get('yahoo')==='connected';
+  const justSignedOut=_bootParams.get('account')==='signed_out';
   consumeYahooReturnParam();
   consumeEspnReturnParam();
   /* Local (localStorage) connections first, so the account hydration below sees
      accurate connectionState for its local-wins guards. */
   Object.values(PROVIDERS).forEach(p=>{try{p.rehydrate&&p.rehydrate();}catch(e){console.warn(p.id+' rehydrate failed:',e.message);}});
+  /* ── SNAPSHOT BOOT (stale-while-revalidate) ──────────────────────────────
+     If we have a recent board snapshot, paint it NOW — before any network —
+     so a resumed tab/PWA shows the dashboard instantly instead of the
+     loading panel. The LIVE button pulses (.syncing) while the real fetch
+     runs behind it; renderBoard's keyed reconciliation then updates cards
+     in place with no flash. If the user navigates (account view, exposure,
+     a drawer) before the fetch lands, the existing view guards keep the
+     refresh from yanking them away. Skipped after OAuth returns and
+     sign-out, where stale data would be wrong or confusing. */
+  let bootedFromSnapshot=false;
+  if(!cameFromYahooOAuth&&!justSignedOut){
+    const snap=readBoardSnapshot();
+    if(snap){
+      try{
+        liveWeek=snap.liveWeek||snap.week||1;liveSeason=snap.liveSeason||snap.season||THIS_YR;
+        activeWeek=snap.week||liveWeek;activeSeason=snap.season||liveSeason;
+        buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);
+        /* isAnyProviderLoaded stays false on purpose: the real loadData() below
+           must still snap activeWeek/activeSeason to the true live week. */
+        renderBoard(snap.data,snap.username||'');
+        bootedFromSnapshot=true;
+        const btn=document.getElementById('refresh-btn');if(btn)btn.classList.add('syncing');
+      }catch(e){console.warn('snapshot boot failed, falling back to cold boot:',e.message);clearBoardSnapshot();}
+    }
+  }
   /* AWAIT account hydration before the run()/showSetup() decision below. It must
      finish first or an account-only connection (e.g. Sleeper synced from another
      device, with nothing in this device's localStorage) won't be in
@@ -7101,9 +7186,21 @@ initThemeToggle();
   /* Run Yahoo + ESPN status checks in parallel so bootstrap doesn't pay the
      latency of two sequential round-trips before deciding what to render. */
   await Promise.all([checkYahooStatus(),checkEspnStatus()]);
+  const _endSnapshotSync=()=>{const btn=document.getElementById('refresh-btn');if(btn)btn.classList.remove('syncing');};
   if(cameFromYahooOAuth)showSetup();
-  else if(isAnyProviderConnected())await run();
-  else showSetup();
+  else if(isAnyProviderConnected()){
+    const ok=await run();
+    _endSnapshotSync();
+    if(bootedFromSnapshot&&ok)flashSyncedFeedback(); // same green snap as a manual sync
+  }
+  else{
+    _endSnapshotSync();
+    /* Nothing connected anymore (disconnected on another device, expired
+       sessions) — the snapshot no longer represents this user. Drop it so the
+       next boot doesn't flash a board they can't have. */
+    if(bootedFromSnapshot)clearBoardSnapshot();
+    showSetup();
+  }
 })();
 </script>
 
