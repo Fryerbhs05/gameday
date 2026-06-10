@@ -3995,6 +3995,7 @@ async function handleDisconnectAll(){
     try{ await PROVIDERS[id].disconnect(); }catch(e){ console.warn('disconnect failed:',id,e.message); }
   }
   isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();
+  try{clearHistCache();}catch(e){} // drop cached historic periods tied to old connections
   clearBoardSnapshot(); // no connections → next boot must not flash the old board
   window.__connectionsDirty=false;window.__connectionsViewActive=false;
   showSetup();
@@ -5317,9 +5318,14 @@ async function loadData(){
     ? `${failedProviderIds.map(id=>PROVIDERS[id].displayName).join(' and ')} data unavailable — showing the rest.`
     : null;
   const __result={cheerFor,conflicted,enemies,allRostered:Array.from(map.values()),noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,leagues:valid,posRankByLeague,partialError,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
-  /* Cache complete historic results only — never the live week (it changes) and
-     never a partial fetch (a provider erred → may fill in on retry). */
-  if(isHist&&!partialError){try{__histCache.set(__histKey(activeSeason,activeWeek),__result);}catch(e){}}
+  /* Cache complete historic results only — never the live week (it changes),
+     never a partial fetch (a provider erred → may fill in on retry), and never if
+     a connected provider dropped DURING this fetch (e.g. an ESPN session that
+     genuinely expired mid-load). That last guard stops us from persisting an
+     ESPN-less / broken view for the rest of the session. */
+  const __stillConn=getConnectedProviders();
+  const __connStable=__stillConn.length===connected.length&&connected.every(id=>__stillConn.includes(id));
+  if(isHist&&!partialError&&__connStable){try{__histCache.set(__histKey(activeSeason,activeWeek),__result);}catch(e){}}
   return __result;
   }finally{isFetching=false;window.__conflictedInflight=null;}
   })();
@@ -6165,12 +6171,20 @@ const PROVIDERS={
         ? connectionState.espn.league_ids
         : (connectionState.espn.league_id?[connectionState.espn.league_id]:[]);
       if(!ids.length)return{results:[],contexts:[],debugLeagues:[]};
-      let authCleared=false;
+      let auth401Count=0;
       const perLeague=await Promise.all(ids.map(async(lid)=>{
         try{
           const url=`/api/espn/data?endpoint=boxscore&season=${encodeURIComponent(season)}&week=${encodeURIComponent(week)}&league_id=${encodeURIComponent(lid)}`;
           const r=await fetch(url,{credentials:'include'});
-          if(r?.status===401){authCleared=true;return null;}
+          /* 401 here is AMBIGUOUS. It can mean the espn_s2 session is dead, but it
+             also fires when this SWID simply has no access to THIS league in THIS
+             historic season (e.g. a year before you joined, or an un-renewed
+             league ESPN walls off). So treat a per-league 401 like 404/403 — skip
+             this league for this period — and only judge the *session* after the
+             whole loop (below), via a single status re-check. We must NEVER wipe
+             the connection straight from a per-season 401: in the installed PWA
+             that signs you out of ESPN with no hard refresh available to recover. */
+          if(r?.status===401){auth401Count++;return null;}
           /* 404 = league didn't exist this season (un-renewed / before user joined);
              403 = stale id no longer in the set. Both: skip quietly. */
           if(r?.status===404||r?.status===403)return null;
@@ -6187,11 +6201,22 @@ const PROVIDERS={
           };
         }catch(e){console.warn(`ESPN loadLeagues failed (league ${lid}):`,e.message);return null;}
       }));
-      if(authCleared){
-        connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null,league_ids:[],league_names:{}};
+      const ok=perLeague.filter(Boolean);
+      /* All leagues refused auth AND none succeeded → the session *might* be dead,
+         or none of these leagues are simply reachable for this historic season.
+         Re-validate ONCE against the cookie before doing anything drastic.
+         checkStatus() rewrites connectionState.espn from the HttpOnly cookie:
+           • connected:true  → session is fine, the 401s were season-specific;
+                               keep the connection, just return no ESPN data here.
+           • connected:false → genuinely expired; checkStatus already cleared it,
+                               so the connect card flips to "reconnect" naturally.
+         Either way we never blind-wipe the connection on a raw 401, so flipping
+         between years can't sign the user out of ESPN. */
+      if(auth401Count>0 && !ok.length){
+        try{ await PROVIDERS.espn.checkStatus(); }catch(e){}
+        try{ renderSetupProviders(); }catch(e){}
         return{results:[],contexts:[],debugLeagues:[]};
       }
-      const ok=perLeague.filter(Boolean);
       renderSetupProviders();
       return{
         results:ok.map(x=>x.result),
