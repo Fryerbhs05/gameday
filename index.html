@@ -2051,6 +2051,13 @@
       object-fit: cover; object-position: top center;
       border-radius: inherit; background: inherit; display: block;
     }
+    /* Team logos (D/ST) are square graphics on transparent backgrounds — fit the
+       whole logo inside the circle with a little breathing room rather than
+       cropping it like a photo. */
+    .player-headshot.dst-logo {
+      object-fit: contain; object-position: center; padding: 14%;
+      box-sizing: border-box; background: var(--paper);
+    }
     /* Single-player avatar in the Watch Priority drawer header — mirrors the
        exposure drawer avatar so the two headers read consistently. */
     .wp-drawer__avatar {
@@ -3473,16 +3480,44 @@ function getSleeperIdLookup(){
   if (window.playerDB) _sleeperIdLookupCache = buildSleeperIdLookup(window.playerDB);
   return _sleeperIdLookupCache || {};
 }
+/* Secondary index keyed by name+position only (no team). Used as a fallback when
+   the strict name|team|pos match misses — typically when a player's team differs
+   between our roster source and Sleeper's DB (free agents, recent moves, etc.,
+   e.g. Tyreek Hill while unrostered). On a name+pos collision, prefer the active
+   player (has a team / active flag) over retired or duplicate-name entries. */
+var _sleeperNamePosCache = null;
+function buildSleeperNamePosLookup(playerDB){
+  const lookup = {}, isActiveAt = {};
+  if(!playerDB) return lookup;
+  for(const pid of Object.keys(playerDB)){
+    const info = playerDB[pid];
+    if(!info || !info.full_name) continue;
+    const k = unifiedPlayerKey(info.full_name, '', info.position || '');
+    if(!k) continue;
+    const active = info.active === true || !!info.team;
+    if(!(k in lookup) || (active && !isActiveAt[k])){ lookup[k] = pid; isActiveAt[k] = active; }
+  }
+  return lookup;
+}
+function getSleeperNamePosLookup(){
+  if (_sleeperNamePosCache) return _sleeperNamePosCache;
+  if (window.playerDB) _sleeperNamePosCache = buildSleeperNamePosLookup(window.playerDB);
+  return _sleeperNamePosCache || {};
+}
 /* Resolve a Sleeper numeric ID from a player-like object (or a bare Sleeper
    roster string). Returns '' when it can't be resolved. */
 function resolveSleeperId(player){
   if (!player) return '';
   if (typeof player === 'string') return /^\d+$/.test(player) ? player : '';
   if (player.sleeperId) return String(player.sleeperId);
-  var k = unifiedPlayerKey(player.full_name || player.name || '', player.team || '', player.position || '');
-  if (!k) return '';
-  var hit = getSleeperIdLookup()[k];
-  return hit ? String(hit) : '';
+  var name = player.full_name || player.name || '';
+  var k = unifiedPlayerKey(name, player.team || '', player.position || '');
+  if (k) { var hit = getSleeperIdLookup()[k]; if (hit) return String(hit); }
+  /* Secondary attempt: name + position only, for players whose team doesn't
+     line up with Sleeper's DB (e.g. unrostered / recently moved players). */
+  var k2 = unifiedPlayerKey(name, '', player.position || '');
+  if (k2) { var hit2 = getSleeperNamePosLookup()[k2]; if (hit2) return String(hit2); }
+  return '';
 }
 function sleeperHeadshotUrl(sleeperId){
   return sleeperId ? 'https://sleepercdn.com/content/nfl/players/thumb/' + sleeperId + '.jpg' : '';
@@ -3490,9 +3525,28 @@ function sleeperHeadshotUrl(sleeperId){
 /* Inner HTML for a round avatar element: a headshot <img> layered over the
    initials. On image error the <img> hides itself and the initials show
    through. `initials` is expected to already be safe (letters only). */
+/* Map provider-specific team codes onto Sleeper's canonical abbreviations so the
+   logo filename resolves regardless of source (ESPN uses WSH/where others use WAS,
+   older feeds use OAK/SD/STL, etc.). */
+var DST_TEAM_ALIAS = {WSH:'WAS',JAC:'JAX',LA:'LAR',STL:'LAR',OAK:'LV',SD:'LAC',
+  ARZ:'ARI',BLT:'BAL',CLV:'CLE',HST:'HOU',GNB:'GB',KAN:'KC',NWE:'NE',NOR:'NO',SFO:'SF',TAM:'TB'};
+function dstLogoUrl(team){
+  if(!team) return '';
+  var t = String(team).toUpperCase();
+  t = DST_TEAM_ALIAS[t] || t;
+  return 'https://sleepercdn.com/images/team_logos/nfl/' + t.toLowerCase() + '.png';
+}
 function avatarInnerHtml(player, initials){
-  var sid = resolveSleeperId(player);
   var ini = '<span class="avatar-initials">' + (initials || '') + '</span>';
+  /* Team defenses (D/ST) have no player headshot — use the team logo instead. */
+  var pos = (player && typeof player === 'object' ? (player.position || '') : '').toUpperCase();
+  if (pos === 'DEF' || pos === 'DST') {
+    var logo = dstLogoUrl(player.team || '');
+    if (!logo) return ini;
+    return ini + '<img class="player-headshot dst-logo" src="' + logo + '" alt="" ' +
+           'loading="lazy" decoding="async" onerror="this.remove();">';
+  }
+  var sid = resolveSleeperId(player);
   if (!sid) return ini;
   var img = '<img class="player-headshot" src="' + sleeperHeadshotUrl(sid) + '" alt="" ' +
             'loading="lazy" decoding="async" ' +
@@ -5432,7 +5486,7 @@ async function ensureDemoHeadshots(){
     if(!window.playerDB){
       const db=await getPlayerDB();
       window.playerDB=db;
-      _sleeperIdLookupCache=null; // force the name→Sleeper-ID lookup to rebuild from the DB
+      _sleeperIdLookupCache=null; _sleeperNamePosCache=null; // force the name→Sleeper-ID lookups to rebuild from the DB
     }
     if(isDemoMode)renderBoard(getDemoData(),'demo'); // re-render now that headshots can resolve
   }catch(e){console.warn('demo headshots load failed:',e.message);}
