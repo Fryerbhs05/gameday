@@ -2805,9 +2805,36 @@
         <div id="enemy-list"></div>
       </div>
     </div>
+    <div id="board-skeleton" aria-hidden="true" style="display:none;"></div>
     <div class="board-foot"><span class="t-stat-sm" id="board-refresh-time"></span></div>
   </div>
 </div>
+
+<style id="skeleton-styles">
+  /* Skeleton placeholders shown while a different season/week loads. Theme-var
+     based so they adapt to dark (default) and light automatically. */
+  @keyframes skel-shimmer { 0%{background-position:-180% 0;} 100%{background-position:180% 0;} }
+  .skel { position:relative; overflow:hidden; border-radius:var(--radius-sm);
+    background:linear-gradient(100deg, var(--paper-deep) 30%, var(--line-soft) 50%, var(--paper-deep) 70%);
+    background-size:200% 100%; animation:skel-shimmer 1.25s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce){ .skel{ animation:none; } }
+  #board-skeleton .skel-scores { display:flex; gap:10px; overflow:hidden; padding:4px 0 2px; margin-bottom:14px; }
+  #board-skeleton .skel-score { flex:0 0 auto; width:150px; height:60px; border:1px solid var(--line);
+    border-radius:var(--radius-md); }
+  #board-skeleton .skel-columns { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media (max-width:760px){ #board-skeleton .skel-columns{ grid-template-columns:1fr; } }
+  #board-skeleton .skel-col-head { display:flex; align-items:center; gap:8px; padding-bottom:6px;
+    margin-bottom:10px; border-bottom:1px solid var(--line); }
+  #board-skeleton .skel-pill { width:26px; height:26px; border-radius:var(--radius-pill); }
+  #board-skeleton .skel-title { width:96px; height:13px; }
+  #board-skeleton .skel-card { display:flex; align-items:center; gap:12px; padding:11px 12px;
+    border:1px solid var(--line); border-radius:var(--radius-md); background:var(--paper-soft); margin-bottom:10px; }
+  #board-skeleton .skel-avatar { flex:0 0 auto; width:40px; height:40px; border-radius:var(--radius-pill); }
+  #board-skeleton .skel-lines { flex:1; display:flex; flex-direction:column; gap:7px; }
+  #board-skeleton .skel-line-1 { width:62%; height:12px; }
+  #board-skeleton .skel-line-2 { width:40%; height:9px; }
+  #board-skeleton .skel-num { flex:0 0 auto; width:34px; height:18px; }
+</style>
 
 <!-- ══ IMPACT ANIMATION OVERLAY (experiment) ══════════════════ -->
 <div id="impact-overlay" aria-hidden="true"><div id="ia-live" role="status" aria-live="polite"></div></div>
@@ -4007,6 +4034,63 @@ function goToDashboardOrSetup(){
 function buildWeekSelect(sel){const el=document.getElementById('week-select');el.innerHTML='';for(let w=1;w<=MAX_WEEK;w++){const o=document.createElement('option');o.value=w;o.textContent=`Week ${w}`;if(w===sel)o.selected=true;el.appendChild(o);}}
 function buildSeasonSelect(sel){const el=document.getElementById('season-select');el.innerHTML='';for(let y=THIS_YR;y>=FIRST_YR;y--){const o=document.createElement('option');o.value=String(y);o.textContent=String(y);if(String(y)===String(sel))o.selected=true;el.appendChild(o);}}
 
+/* ══ PERIOD-CHANGE SKELETONS ════════════════════════════════════════════════
+   When the user picks a different season/week, the historic fetch can take a few
+   seconds. Instead of leaving the now-wrong current-period board frozen on
+   screen, we clear it and show shimmer placeholders shaped like the real board.
+   Gated behind a 150ms delay so cached/instant loads never flash a skeleton, and
+   only ever fired by explicit user period changes — never the 60s auto-refresh. */
+let __skelTimer=null;
+function buildBoardSkeleton(){
+  const host=document.getElementById('board-skeleton');
+  if(!host||host.dataset.built)return;
+  const card='<div class="skel-card"><div class="skel skel-avatar"></div>'
+    +'<div class="skel-lines"><div class="skel skel-line-1"></div><div class="skel skel-line-2"></div></div>'
+    +'<div class="skel skel-num"></div></div>';
+  const col=(n)=>'<div class="skel-col"><div class="skel-col-head"><div class="skel skel-pill"></div>'
+    +'<div class="skel skel-title"></div></div>'+card.repeat(n)+'</div>';
+  const scores='<div class="skel-scores">'+'<div class="skel skel-score"></div>'.repeat(5)+'</div>';
+  host.innerHTML=scores+'<div class="skel-columns">'+col(5)+col(3)+col(4)+'</div>';
+  host.dataset.built='1';
+}
+function showBoardSkeleton(){
+  buildBoardSkeleton();
+  const cols=document.getElementById('columns');
+  const strip=document.getElementById('scoreboard-frame');
+  const nde=document.getElementById('no-data-state');
+  if(nde)nde.classList.remove('visible');
+  if(cols)cols.style.display='none';
+  if(strip)strip.style.display='none';
+  const host=document.getElementById('board-skeleton');
+  if(host)host.style.display='block';
+}
+function hideBoardSkeleton(){
+  const host=document.getElementById('board-skeleton');
+  if(host)host.style.display='none';
+  const strip=document.getElementById('scoreboard-frame');
+  if(strip)strip.style.display='';
+  /* Restore the columns we hid. On the success path renderBoard runs right after
+     this and re-sets display based on noData; on the error keep-stale path this
+     is what brings the previous period's board back instead of a blank gap. */
+  const cols=document.getElementById('columns');
+  if(cols)cols.style.display='';
+}
+/* Call right before run() on a user-initiated period change. */
+function schedulePeriodSkeleton(){
+  clearPeriodSkeleton();
+  /* Only meaningful when the board is already on screen — a cold load uses the
+     full loading panel, and other views (exposure/account) manage themselves. */
+  const boardEl=document.getElementById('board');
+  const onBoard=!!(boardEl&&boardEl.style.display&&boardEl.style.display!=='none');
+  if(!onBoard||isDemoMode)return;
+  __skelTimer=setTimeout(()=>{__skelTimer=null;showBoardSkeleton();},150);
+}
+/* Clears the pending timer and removes any visible skeleton. Idempotent. */
+function clearPeriodSkeleton(){
+  if(__skelTimer){clearTimeout(__skelTimer);__skelTimer=null;}
+  hideBoardSkeleton();
+}
+
 function updateNavUI(){
   const isLive=activeWeek===liveWeek&&activeSeason===liveSeason;
   document.getElementById('week-prev').disabled=activeWeek<=1;
@@ -4683,6 +4767,9 @@ function sortPlayers(arr){
 }
 
 function renderBoard(data,username){
+  /* Real data has arrived (or no-data resolved) — tear down any period-change
+     skeleton before we touch the columns. */
+  try{clearPeriodSkeleton();}catch(e){}
   window.__conflictedLastData=data;
   window.__conflictedLastUsername=username;
   /* Persist the live-week board for the snapshot boot (stale-while-revalidate):
@@ -5019,9 +5106,33 @@ function unifiedPlayerKey(name, team, pos) {
   return N + '|' + T + '|' + P;
 }
 
+/* ══ LAZY PER-PERIOD HISTORIC CACHE ═════════════════════════════════════════
+   Historic NFL results never change within a session, so once a past season/week
+   has been fetched we keep its computed dataset in memory and return it instantly
+   on re-selection — no refetch, no skeleton. This is lazy: only periods the user
+   actually visits are stored. We never preload the full history on boot.
+   The key folds in the connected providers + account-disabled leagues so a
+   connection or exclusion change naturally misses the stale entry. */
+const __histCache=new Map();
+function __histSig(){
+  let providers='';
+  try{providers=getConnectedProviders().slice().sort().join(',');}catch(e){}
+  let disabled='';
+  try{disabled=Array.from(disabledLeagueKeys).sort().join(',');}catch(e){}
+  return providers+'#'+disabled;
+}
+function __histKey(season,week){return season+'|'+week+'|'+__histSig();}
+function clearHistCache(){__histCache.clear();}
 async function loadData(){
   if(!isAnyProviderConnected()){
     return{noData:true,noDataReason:'No providers connected.',cheerFor:[],conflicted:[],enemies:[],allRostered:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
+  }
+  /* Instant return for an already-loaded past period (see __histCache above).
+     isHistoricalWeek() reads the live week/season already known from the prior
+     load, so this resolves synchronously before any network work. */
+  if(!isDemoMode&&isHistoricalWeek()){
+    const hit=__histCache.get(__histKey(activeSeason,activeWeek));
+    if(hit)return hit;
   }
   /* Re-entrancy guard: if a previous loadData() is still in flight, return its
      promise so callers all settle on the same result instead of stacking fetches. */
@@ -5205,7 +5316,11 @@ async function loadData(){
   const partialError=(failedProviderIds&&failedProviderIds.length)
     ? `${failedProviderIds.map(id=>PROVIDERS[id].displayName).join(' and ')} data unavailable — showing the rest.`
     : null;
-  return{cheerFor,conflicted,enemies,allRostered:Array.from(map.values()),noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,leagues:valid,posRankByLeague,partialError,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
+  const __result={cheerFor,conflicted,enemies,allRostered:Array.from(map.values()),noData:false,offseasonMode,hasScoring,isHist,contexts:leagueContexts,leagues:valid,posRankByLeague,partialError,debugInfo:{season:activeSeason,week:activeWeek,usedFallback:false,isHist,hasProj,leagues:debugLeagues}};
+  /* Cache complete historic results only — never the live week (it changes) and
+     never a partial fetch (a provider erred → may fill in on retry). */
+  if(isHist&&!partialError){try{__histCache.set(__histKey(activeSeason,activeWeek),__result);}catch(e){}}
+  return __result;
   }finally{isFetching=false;window.__conflictedInflight=null;}
   })();
   return window.__conflictedInflight;
@@ -5403,10 +5518,10 @@ function getDemoData(){
   return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,leagues:demoLeagues,debugInfo:null,allRostered:Array.from(map.values()),cheerFor,conflicted,enemies};
 }
 
-async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
-async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
-async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};hiddenLeagues.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected())await run();}
-async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(isAnyProviderConnected())await run();}
+async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected()){schedulePeriodSkeleton();await run();}}
+async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected()){schedulePeriodSkeleton();await run();}}
+async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};hiddenLeagues.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected()){schedulePeriodSkeleton();await run();}}
+async function snapToLive(){activeWeek=liveWeek;activeSeason=liveSeason;buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();if(isDemoMode)return;if(isAnyProviderConnected()){schedulePeriodSkeleton();await run();}}
 
 /* Demo opens on the LIVE week/season (not a pinned historic week) so the nav
    reads "Live · {season}" and the demo never looks like you've browsed back in
@@ -5543,6 +5658,9 @@ async function run(){
     return true;
   }catch(err){
     console.error(err);
+    /* A period-change skeleton may be up; remove it so we fall back to the prior
+       board (or the error panel) instead of a frozen shimmer. */
+    try{clearPeriodSkeleton();}catch(e){}
     /* If the user is already looking at real content (snapshot boot, a routine
        refresh, or a non-dashboard view), keep it — replacing a populated screen
        with the full-page error panel is worse than silently staying stale. The
