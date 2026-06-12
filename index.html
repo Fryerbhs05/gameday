@@ -1371,6 +1371,62 @@
        toggled in JS so the logic stays intact; just no visual difference. */
     .player-card.clinched { }
 
+    /* ──────────────────────────────────────────────────────────────
+       EXPERIMENTAL — mobile tabbed bucket view (TestMode2026 only)
+       Stacks → tabs so Enemies aren't a 50-card scroll away. Conflicted
+       players surface at the TOP of Cheer and Enemy with light-navy
+       framing. Gated on body.experiment-active AND the mobile breakpoint:
+       desktop and non-experiment users get the unchanged 3-column board.
+       ────────────────────────────────────────────────────────────── */
+    .exp-tabbar { display: none; }
+    .exp-conflict-mirror { display: none; }
+    @media (max-width: 640px) {
+      body.experiment-active .exp-tabbar {
+        display: flex; gap: 6px; margin-top: 12px; margin-bottom: -8px;
+      }
+      body.experiment-active .exp-tab {
+        flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 3px;
+        padding: 9px 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+        background: var(--paper-soft); color: var(--ink-500);
+        border: 1px solid var(--line); border-radius: var(--radius-md);
+        font: 600 13px/1 var(--font-sans); letter-spacing: -0.01em;
+        transition: background var(--duration-fast) var(--ease-out),
+                    color var(--duration-fast) var(--ease-out),
+                    border-color var(--duration-fast) var(--ease-out);
+      }
+      body.experiment-active .exp-tab .exp-tab-ct { font: 500 11px/1 var(--font-mono); opacity: 0.75; }
+      body.experiment-active .exp-tab[data-tab="cheer"].is-active      { background: var(--cheer-soft); color: var(--cheer); border-color: var(--cheer); }
+      body.experiment-active .exp-tab[data-tab="enemy"].is-active      { background: var(--enemy-soft); color: var(--enemy); border-color: var(--enemy); }
+      body.experiment-active .exp-tab[data-tab="conflicted"].is-active { background: color-mix(in oklab, var(--navy-500) 14%, transparent); color: var(--navy-500); border-color: var(--navy-500); }
+
+      /* One column at a time, chosen by data-exp-tab on #columns */
+      body.experiment-active #columns > .column { display: none; }
+      body.experiment-active #columns[data-exp-tab="cheer"]      > .column.cheer      { display: block; }
+      body.experiment-active #columns[data-exp-tab="enemy"]      > .column.enemy      { display: block; }
+      body.experiment-active #columns[data-exp-tab="conflicted"] > .column.conflicted { display: block; }
+      /* Tabs replace the per-column headers; neutralize any leftover collapse */
+      body.experiment-active #columns .column-header { display: none; }
+      body.experiment-active #columns .column.collapsed > :not(.column-header) { display: revert; }
+
+      /* Conflicted players mirrored atop Cheer & Enemy */
+      body.experiment-active .exp-conflict-mirror.has-cards {
+        display: block; margin-bottom: 14px; padding-bottom: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      body.experiment-active .exp-mirror-label {
+        font: 600 10px/1.3 var(--font-sans); letter-spacing: 0.08em;
+        text-transform: uppercase; color: var(--navy-500);
+        margin: 0 2px 9px; display: flex; align-items: center; gap: 6px;
+      }
+      /* Light-navy framing for conflicted players everywhere in the exp view —
+         replaces the coral/gold (--split) accent the default board uses. */
+      body.experiment-active #conflicted-list .player-card,
+      body.experiment-active .exp-conflict-mirror .player-card {
+        border-color: var(--navy-500);
+        border-left-color: var(--navy-500);
+      }
+    }
+
     .card-top { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
     .pos-badge {
       font: 500 10px/1 var(--font-mono); padding: 3px 6px;
@@ -2791,9 +2847,15 @@
       <div class="no-data-msg" id="no-data-msg"></div>
       <div class="no-data-hint">Use the season dropdown or week selector to try a different period.</div>
     </div>
-    <div class="columns" id="columns">
+    <div id="exp-tabbar" class="exp-tabbar" role="tablist" aria-label="Player buckets">
+      <button class="exp-tab is-active" data-tab="cheer" role="tab" aria-selected="true"><span>Cheer for</span><span class="exp-tab-ct" id="exp-ct-cheer">0</span></button>
+      <button class="exp-tab" data-tab="enemy" role="tab" aria-selected="false"><span>Enemy</span><span class="exp-tab-ct" id="exp-ct-enemy">0</span></button>
+      <button class="exp-tab" data-tab="conflicted" role="tab" aria-selected="false"><span>Conflicted</span><span class="exp-tab-ct" id="exp-ct-conflicted">0</span></button>
+    </div>
+    <div class="columns" id="columns" data-exp-tab="cheer">
       <div class="column cheer">
         <div class="column-header"><span class="col-count" id="count-cheer">0</span><span class="col-title">Cheer for</span><span class="col-subtitle">Your rosters only</span></div>
+        <div class="exp-conflict-mirror" id="exp-cheer-conflicts"></div>
         <div id="cheer-list"></div>
       </div>
       <div class="column conflicted">
@@ -2802,6 +2864,7 @@
       </div>
       <div class="column enemy">
         <div class="column-header"><span class="col-count" id="count-enemy">0</span><span class="col-title">Enemies</span><span class="col-subtitle">Only against you</span></div>
+        <div class="exp-conflict-mirror" id="exp-enemy-conflicts"></div>
         <div id="enemy-list"></div>
       </div>
     </div>
@@ -4689,6 +4752,16 @@ function applyFilters(){
       e.textContent=liveActive&&anyHidden?'No matching players are in live games right now.':liveActive?'No players in this bucket are in live games right now.':'No players match this filter.';
     }else if(e)e.remove();
   });
+  /* EXPERIMENTAL mirror cards (conflicted pinned atop Cheer/Enemy) must honor the
+     same league/live filters — toggle filtered-out only, no empty-state here. */
+  ['exp-cheer-conflicts','exp-enemy-conflicts'].forEach(id=>{
+    const list=document.getElementById(id);if(!list)return;
+    list.querySelectorAll('.player-card').forEach(c=>{
+      const leagueOk=!anyHidden||c.dataset.leagues.split('|').some(lg=>!hiddenLeagues.has(lg));
+      const liveOk=!liveActive||c.dataset.live==='1';
+      c.classList.toggle('filtered-out',!leagueOk||!liveOk);
+    });
+  });
   updatePillCounts();
 }
 
@@ -4814,6 +4887,28 @@ function sortPlayers(arr){
   });
 }
 
+/* EXPERIMENTAL (TestMode2026, mobile) — mirror the conflicted players to the
+   top of the Cheer and Enemy tabs so they're the first names you see on each
+   side. Built fresh each render (0–6 cards → cheap, no reconciliation needed);
+   cards carry dataset.leagues so applyFilters() still hides them under league
+   filters. CSS gives these a light-navy frame. No-op when the experiment flag
+   is off, so the production board is untouched. */
+function renderExpMirrors(conflicted,isHist){
+  const on=document.body.classList.contains('experiment-active');
+  const specs=[['exp-cheer-conflicts','Also against you'],['exp-enemy-conflicts','Also on your roster']];
+  specs.forEach(function(s){
+    const m=document.getElementById(s[0]);if(!m)return;
+    m.innerHTML='';
+    if(!on||!conflicted||!conflicted.length){m.classList.remove('has-cards');return;}
+    const lab=document.createElement('div');
+    lab.className='exp-mirror-label';
+    lab.textContent='Conflicted — '+s[1];
+    m.appendChild(lab);
+    sortPlayers(conflicted).forEach(function(p){m.appendChild(buildCard(p,isHist));});
+    m.classList.add('has-cards');
+  });
+}
+
 function renderBoard(data,username){
   /* Real data has arrived (or no-data resolved) — tear down any period-change
      skeleton before we touch the columns. */
@@ -4853,14 +4948,18 @@ function renderBoard(data,username){
   const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
   document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
+  /* Restore the experimental tab bar (display reset → CSS exp+mobile gate takes over). */
+  (function(t){if(t)t.style.display='';})(document.getElementById('exp-tabbar'));
   /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
   liveToggleAvailable=!isDemoMode&&!isHist;
   if(contexts?.length)renderScoresStrip(contexts);
   document.getElementById('count-cheer').textContent=cheerFor.length;
   document.getElementById('count-conflicted').textContent=conflicted.length;
   document.getElementById('count-enemy').textContent=enemies.length;
+  /* Experimental tab-bar counts (TestMode2026 mobile view). */
+  (function(c,cf,en){if(c)c.textContent=cheerFor.length;if(cf)cf.textContent=conflicted.length;if(en)en.textContent=enemies.length;})(document.getElementById('exp-ct-cheer'),document.getElementById('exp-ct-conflicted'),document.getElementById('exp-ct-enemy'));
   const lgNames=[];[...cheerFor,...conflicted,...enemies].forEach(p=>[...p.myLeagues,...p.againstLeagues].forEach(n=>{if(!lgNames.includes(n))lgNames.push(n);}));
   lgNames.forEach(n=>assignColor(n));buildFilterPills(lgNames);
   // Keyed reconciliation: keep existing .player-card nodes across 60s refreshes
@@ -4895,6 +4994,7 @@ function renderBoard(data,username){
     });
   }
   renderList('cheer-list',cheerFor);renderList('conflicted-list',conflicted);renderList('enemy-list',enemies);
+  try{renderExpMirrors(conflicted,isHist);}catch(e){}
   try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek,contexts:contexts});}catch(e){}
   applyFilters();
   currentContexts=Array.isArray(contexts)?contexts.slice():[];
@@ -5799,6 +5899,23 @@ buildWeekSelect(1);buildSeasonSelect(THIS_YR);
 document.querySelectorAll('.column > .column-header').forEach(h=>{
   h.addEventListener('click',()=>h.parentElement.classList.toggle('collapsed'));
 });
+
+/* EXPERIMENTAL (TestMode2026, mobile) — bucket tab switching. Sets data-exp-tab
+   on #columns (CSS shows one column at a time) and the active-tab styling.
+   Deliberately NOT persisted: the active tab hides buckets, and we never store
+   anything that hides players, so every load defaults back to "Cheer for". */
+(function(){
+  const bar=document.getElementById('exp-tabbar'),cols=document.getElementById('columns');
+  if(!bar||!cols)return;
+  if(!cols.dataset.expTab)cols.dataset.expTab='cheer';
+  bar.addEventListener('click',function(e){
+    const b=e.target.closest('.exp-tab');if(!b)return;
+    cols.dataset.expTab=b.dataset.tab;
+    bar.querySelectorAll('.exp-tab').forEach(function(x){
+      const sel=x===b;x.classList.toggle('is-active',sel);x.setAttribute('aria-selected',sel?'true':'false');
+    });
+  });
+})();
 
 /* ════════════════════════════════════════════════════════════════════════
    ESPN — parser helpers (used by PROVIDERS.espn.loadLeagues below)
