@@ -1430,45 +1430,67 @@
     :root[data-theme="light"] .nav-controls { border-color: var(--navy-900); }
 
     /* ──────────────────────────────────────────────────────────────
-       EXPERIMENTAL — "LOYALTIES" buckets section title + section frame
-       (TestMode2026 only). Mirrors the SCOREBOARD wordmark; the navy frame
-       moves up from #columns to wrap the header + tabs + buckets as one
-       titled section. Non-experiment users keep the current promoted look.
+       "LOYALTIES" buckets section title + section frame (all users).
+       Mirrors the SCOREBOARD wordmark; the navy frame wraps the header +
+       tabs + buckets as one titled section.
        ────────────────────────────────────────────────────────────── */
-    .loyalties-header { display: none; }
-    body.experiment-active .loyalties-section {
+    .loyalties-section {
       border: 1px solid var(--navy-900);
       border-radius: var(--radius-lg);
       padding: 16px;
       margin-top: 14px;
       transition: border-color 1.3s var(--ease-out);
     }
-    @media (prefers-color-scheme: dark) { body.experiment-active .loyalties-section { border-color: var(--navy-300); } }
-    :root[data-theme="dark"]  body.experiment-active .loyalties-section { border-color: var(--navy-300); }
-    :root[data-theme="light"] body.experiment-active .loyalties-section { border-color: var(--navy-900); }
-    body.experiment-active .loyalties-header {
+    @media (prefers-color-scheme: dark) { .loyalties-section { border-color: var(--navy-300); } }
+    :root[data-theme="dark"]  .loyalties-section { border-color: var(--navy-300); }
+    :root[data-theme="light"] .loyalties-section { border-color: var(--navy-900); }
+    .loyalties-header {
       display: grid; place-items: center;
       padding-bottom: 10px; margin-bottom: 12px;
       border-bottom: 1px solid var(--line);
     }
-    body.experiment-active .loyalties-wordmark {
+    .loyalties-wordmark {
       display: inline-flex; align-items: baseline; gap: 0;
       font: 700 22px/1 var(--font-sans); letter-spacing: 0.06em;
     }
-    body.experiment-active .loyalties-wordmark__a,
-    body.experiment-active .loyalties-wordmark__b { color: var(--ink-900); }
-    /* Frame now lives on .loyalties-section — drop the inner buckets frame so we
+    .loyalties-wordmark__a,
+    .loyalties-wordmark__b { color: var(--ink-900); }
+    /* Frame lives on .loyalties-section — drop the inner buckets frame so we
        don't double-border, and let the section own the padding. */
-    body.experiment-active .loyalties-section > #columns {
+    .loyalties-section > #columns {
       border-color: transparent;
       padding: 0;
       margin-top: 0;
     }
     /* Tabs sit just under the header now, not floating above a separate frame. */
-    body.experiment-active .exp-tabbar { margin-top: 0; margin-bottom: 12px; }
+    .exp-tabbar { margin-top: 0; margin-bottom: 12px; }
     @media (max-width: 480px) {
-      body.experiment-active .loyalties-section { padding: 12px 10px; }
-      body.experiment-active .loyalties-wordmark { font-size: 18px; }
+      .loyalties-section { padding: 12px 10px; }
+      .loyalties-wordmark { font-size: 18px; }
+    }
+
+    /* ── Collapsible sections — click the SCOREBOARD / LOYALTIES header to
+       collapse the section to just its title bar. State is in-memory only
+       (resets on reload), never persisted, since it hides data. ── */
+    .scoreboard-header, .loyalties-header { position: relative; cursor: pointer; }
+    .scoreboard-header { padding-left: 22px; padding-right: 22px; }
+    .loyalties-header  { padding-left: 22px; padding-right: 22px; }
+    .scoreboard-header::after, .loyalties-header::after {
+      content: ""; position: absolute; right: 4px; top: 42%;
+      width: 8px; height: 8px;
+      border-right: 2px solid var(--ink-500); border-bottom: 2px solid var(--ink-500);
+      transform: translateY(-50%) rotate(45deg);
+      transition: transform var(--duration-fast) var(--ease-out);
+    }
+    .scoreboard-frame.collapsed .scoreboard-header::after,
+    .loyalties-section.collapsed .loyalties-header::after {
+      transform: translateY(-50%) rotate(-45deg);
+    }
+    .scoreboard-frame.collapsed > :not(.scoreboard-header) { display: none; }
+    .loyalties-section.collapsed > :not(.loyalties-header) { display: none; }
+    .scoreboard-frame.collapsed .scoreboard-header,
+    .loyalties-section.collapsed .loyalties-header {
+      padding-bottom: 0; margin-bottom: 0; border-bottom: none;
     }
 
     .card-top { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
@@ -5928,6 +5950,25 @@ buildWeekSelect(1);buildSeasonSelect(THIS_YR);
 document.querySelectorAll('.column > .column-header').forEach(h=>{
   h.addEventListener('click',()=>h.parentElement.classList.toggle('collapsed'));
 });
+
+/* Collapsible SCOREBOARD / LOYALTIES sections — click (or Enter/Space on) the
+   section header to collapse it to just its title bar. In-memory only; never
+   persisted, so it resets on reload (consistent with not storing data-hiding
+   state). */
+(function(){
+  function wire(headerSel,frameId){
+    const h=document.querySelector(headerSel),f=document.getElementById(frameId);
+    if(!h||!f)return;
+    h.setAttribute('role','button');
+    h.setAttribute('tabindex','0');
+    h.setAttribute('aria-expanded','true');
+    const toggle=()=>{const c=f.classList.toggle('collapsed');h.setAttribute('aria-expanded',c?'false':'true');};
+    h.addEventListener('click',toggle);
+    h.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
+  }
+  wire('.scoreboard-header','scoreboard-frame');
+  wire('.loyalties-header','loyalties-section');
+})();
 
 /* EXPERIMENTAL (TestMode2026, mobile) — bucket tab switching. Sets data-exp-tab
    on #columns (CSS shows one column at a time) and the active-tab styling.
