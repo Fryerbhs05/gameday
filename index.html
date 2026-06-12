@@ -1419,6 +1419,16 @@
         border-left-color: var(--split);
       }
     }
+    /* EXPERIMENTAL — frame the week / season / filter nav row in the same navy
+       border as the scoreboard and buckets frames (navy in light mode, light
+       blue in dark mode). Not viewport-gated: those frames show on all sizes. */
+    body.experiment-active .nav-controls {
+      border-color: var(--navy-900);
+      border-radius: var(--radius-lg);
+    }
+    @media (prefers-color-scheme: dark) { body.experiment-active .nav-controls { border-color: var(--navy-300); } }
+    :root[data-theme="dark"]  body.experiment-active .nav-controls { border-color: var(--navy-300); }
+    :root[data-theme="light"] body.experiment-active .nav-controls { border-color: var(--navy-900); }
 
     .card-top { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
     .pos-badge {
