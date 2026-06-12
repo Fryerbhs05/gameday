@@ -1411,11 +1411,11 @@
       body.experiment-active #columns .column-header { display: none; }
       body.experiment-active #columns .column.collapsed > :not(.column-header) { display: revert; }
 
-      /* Gold/yellow framing for conflicted players wherever they appear in the
-         exp view — the dedicated Conflicted tab AND mixed into Cheer / Enemy. */
+      /* Gold/yellow left-edge indicator for conflicted players wherever they
+         appear in the exp view — the dedicated Conflicted tab AND mixed into
+         Cheer / Enemy. Left bar only; the rest of the card frame stays default. */
       body.experiment-active #conflicted-list .player-card,
       body.experiment-active .player-card.conflicted-player {
-        border-color: var(--split);
         border-left-color: var(--split);
       }
     }
