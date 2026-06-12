@@ -1411,8 +1411,10 @@
       body.experiment-active #columns .column-header { display: none; }
       body.experiment-active #columns .column.collapsed > :not(.column-header) { display: revert; }
 
-      /* Gold/yellow framing for conflicted players in the exp view. */
-      body.experiment-active #conflicted-list .player-card {
+      /* Gold/yellow framing for conflicted players wherever they appear in the
+         exp view — the dedicated Conflicted tab AND mixed into Cheer / Enemy. */
+      body.experiment-active #conflicted-list .player-card,
+      body.experiment-active .player-card.conflicted-player {
         border-color: var(--split);
         border-left-color: var(--split);
       }
@@ -4923,7 +4925,7 @@ function renderBoard(data,username){
   // so the columns don't wipe-and-rebuild (the cause of the visual flash). New
   // cards get [data-fresh="1"] to play the entrance animation once; updates and
   // reorders leave that attribute alone.
-  function renderList(id,players){
+  function renderList(id,players,markIds){
     const el=document.getElementById(id);
     if(!el._cardIndex)el._cardIndex=new Map();
     const idx=el._cardIndex;
@@ -4947,10 +4949,19 @@ function renderBoard(data,username){
         idx.set(pid,node);
         requestAnimationFrame(()=>requestAnimationFrame(()=>node.removeAttribute('data-fresh')));
       }
+      if(markIds)node.classList.toggle('conflicted-player',markIds.has(pid)); // gold-frame conflicted cards shown inside Cheer/Enemy
       el.appendChild(node); // reorders without re-creating
     });
   }
-  renderList('cheer-list',cheerFor);renderList('conflicted-list',conflicted);renderList('enemy-list',enemies);
+  /* EXPERIMENTAL (TestMode2026, mobile): conflicted players are by definition on
+     both sides, so surface them inside the Cheer and Enemy lists too — sorted
+     naturally (not pinned), gold-framed via .conflicted-player. Off-experiment,
+     the lists stay exactly the three disjoint buckets. */
+  const _expOn=document.body.classList.contains('experiment-active');
+  const _conflictedIds=new Set(conflicted.map(p=>String(p.id)));
+  const _cheerList=_expOn?cheerFor.concat(conflicted):cheerFor;
+  const _enemyList=_expOn?enemies.concat(conflicted):enemies;
+  renderList('cheer-list',_cheerList,_conflictedIds);renderList('conflicted-list',conflicted,_conflictedIds);renderList('enemy-list',_enemyList,_conflictedIds);
   try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek,contexts:contexts});}catch(e){}
   applyFilters();
   currentContexts=Array.isArray(contexts)?contexts.slice():[];
