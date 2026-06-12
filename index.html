@@ -1373,31 +1373,34 @@
 
     /* ──────────────────────────────────────────────────────────────
        EXPERIMENTAL — mobile tabbed bucket view (TestMode2026 only)
-       Stacks → tabs so Enemies aren't a 50-card scroll away. Conflicted
-       players surface at the TOP of Cheer and Enemy with light-navy
-       framing. Gated on body.experiment-active AND the mobile breakpoint:
-       desktop and non-experiment users get the unchanged 3-column board.
+       Stacks → tabs so Enemies aren't a 50-card scroll away: one bucket
+       shows at a time. Gated on body.experiment-active AND the mobile
+       breakpoint; desktop and non-experiment users get the unchanged
+       3-column board.
        ────────────────────────────────────────────────────────────── */
     .exp-tabbar { display: none; }
-    .exp-conflict-mirror { display: none; }
     @media (max-width: 640px) {
       body.experiment-active .exp-tabbar {
-        display: flex; gap: 6px; margin-top: 12px; margin-bottom: -8px;
+        display: flex; gap: 6px; margin-top: 24px; margin-bottom: -8px;
       }
+      /* Unselected tabs carry their bucket's color as a frame (green / red /
+         gold); the selected tab keeps that frame and fills with the soft tint. */
       body.experiment-active .exp-tab {
         flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 3px;
         padding: 9px 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
-        background: var(--paper-soft); color: var(--ink-500);
-        border: 1px solid var(--line); border-radius: var(--radius-md);
+        background: transparent; border: 1px solid; border-radius: var(--radius-md);
         font: 600 13px/1 var(--font-sans); letter-spacing: -0.01em;
         transition: background var(--duration-fast) var(--ease-out),
                     color var(--duration-fast) var(--ease-out),
                     border-color var(--duration-fast) var(--ease-out);
       }
       body.experiment-active .exp-tab .exp-tab-ct { font: 500 11px/1 var(--font-mono); opacity: 0.75; }
-      body.experiment-active .exp-tab[data-tab="cheer"].is-active      { background: var(--cheer-soft); color: var(--cheer); border-color: var(--cheer); }
-      body.experiment-active .exp-tab[data-tab="enemy"].is-active      { background: var(--enemy-soft); color: var(--enemy); border-color: var(--enemy); }
-      body.experiment-active .exp-tab[data-tab="conflicted"].is-active { background: color-mix(in oklab, var(--navy-500) 14%, transparent); color: var(--navy-500); border-color: var(--navy-500); }
+      body.experiment-active .exp-tab[data-tab="cheer"]      { color: var(--cheer); border-color: var(--cheer); }
+      body.experiment-active .exp-tab[data-tab="enemy"]      { color: var(--enemy); border-color: var(--enemy); }
+      body.experiment-active .exp-tab[data-tab="conflicted"] { color: var(--split); border-color: var(--split); }
+      body.experiment-active .exp-tab[data-tab="cheer"].is-active      { background: var(--cheer-soft); }
+      body.experiment-active .exp-tab[data-tab="enemy"].is-active      { background: var(--enemy-soft); }
+      body.experiment-active .exp-tab[data-tab="conflicted"].is-active { background: var(--split-soft); }
 
       /* One column at a time, chosen by data-exp-tab on #columns */
       body.experiment-active #columns > .column { display: none; }
@@ -1408,22 +1411,10 @@
       body.experiment-active #columns .column-header { display: none; }
       body.experiment-active #columns .column.collapsed > :not(.column-header) { display: revert; }
 
-      /* Conflicted players mirrored atop Cheer & Enemy */
-      body.experiment-active .exp-conflict-mirror.has-cards {
-        display: block; margin-bottom: 14px; padding-bottom: 12px;
-        border-bottom: 1px solid var(--line);
-      }
-      body.experiment-active .exp-mirror-label {
-        font: 600 10px/1.3 var(--font-sans); letter-spacing: 0.08em;
-        text-transform: uppercase; color: var(--navy-500);
-        margin: 0 2px 9px; display: flex; align-items: center; gap: 6px;
-      }
-      /* Light-navy framing for conflicted players everywhere in the exp view —
-         replaces the coral/gold (--split) accent the default board uses. */
-      body.experiment-active #conflicted-list .player-card,
-      body.experiment-active .exp-conflict-mirror .player-card {
-        border-color: var(--navy-500);
-        border-left-color: var(--navy-500);
+      /* Gold/yellow framing for conflicted players in the exp view. */
+      body.experiment-active #conflicted-list .player-card {
+        border-color: var(--split);
+        border-left-color: var(--split);
       }
     }
 
@@ -2855,7 +2846,6 @@
     <div class="columns" id="columns" data-exp-tab="cheer">
       <div class="column cheer">
         <div class="column-header"><span class="col-count" id="count-cheer">0</span><span class="col-title">Cheer for</span><span class="col-subtitle">Your rosters only</span></div>
-        <div class="exp-conflict-mirror" id="exp-cheer-conflicts"></div>
         <div id="cheer-list"></div>
       </div>
       <div class="column conflicted">
@@ -2864,7 +2854,6 @@
       </div>
       <div class="column enemy">
         <div class="column-header"><span class="col-count" id="count-enemy">0</span><span class="col-title">Enemies</span><span class="col-subtitle">Only against you</span></div>
-        <div class="exp-conflict-mirror" id="exp-enemy-conflicts"></div>
         <div id="enemy-list"></div>
       </div>
     </div>
@@ -4752,16 +4741,6 @@ function applyFilters(){
       e.textContent=liveActive&&anyHidden?'No matching players are in live games right now.':liveActive?'No players in this bucket are in live games right now.':'No players match this filter.';
     }else if(e)e.remove();
   });
-  /* EXPERIMENTAL mirror cards (conflicted pinned atop Cheer/Enemy) must honor the
-     same league/live filters — toggle filtered-out only, no empty-state here. */
-  ['exp-cheer-conflicts','exp-enemy-conflicts'].forEach(id=>{
-    const list=document.getElementById(id);if(!list)return;
-    list.querySelectorAll('.player-card').forEach(c=>{
-      const leagueOk=!anyHidden||c.dataset.leagues.split('|').some(lg=>!hiddenLeagues.has(lg));
-      const liveOk=!liveActive||c.dataset.live==='1';
-      c.classList.toggle('filtered-out',!leagueOk||!liveOk);
-    });
-  });
   updatePillCounts();
 }
 
@@ -4887,28 +4866,6 @@ function sortPlayers(arr){
   });
 }
 
-/* EXPERIMENTAL (TestMode2026, mobile) — mirror the conflicted players to the
-   top of the Cheer and Enemy tabs so they're the first names you see on each
-   side. Built fresh each render (0–6 cards → cheap, no reconciliation needed);
-   cards carry dataset.leagues so applyFilters() still hides them under league
-   filters. CSS gives these a light-navy frame. No-op when the experiment flag
-   is off, so the production board is untouched. */
-function renderExpMirrors(conflicted,isHist){
-  const on=document.body.classList.contains('experiment-active');
-  const specs=[['exp-cheer-conflicts','Also against you'],['exp-enemy-conflicts','Also on your roster']];
-  specs.forEach(function(s){
-    const m=document.getElementById(s[0]);if(!m)return;
-    m.innerHTML='';
-    if(!on||!conflicted||!conflicted.length){m.classList.remove('has-cards');return;}
-    const lab=document.createElement('div');
-    lab.className='exp-mirror-label';
-    lab.textContent='Conflicted — '+s[1];
-    m.appendChild(lab);
-    sortPlayers(conflicted).forEach(function(p){m.appendChild(buildCard(p,isHist));});
-    m.classList.add('has-cards');
-  });
-}
-
 function renderBoard(data,username){
   /* Real data has arrived (or no-data resolved) — tear down any period-change
      skeleton before we touch the columns. */
@@ -4994,7 +4951,6 @@ function renderBoard(data,username){
     });
   }
   renderList('cheer-list',cheerFor);renderList('conflicted-list',conflicted);renderList('enemy-list',enemies);
-  try{renderExpMirrors(conflicted,isHist);}catch(e){}
   try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek,contexts:contexts});}catch(e){}
   applyFilters();
   currentContexts=Array.isArray(contexts)?contexts.slice():[];
