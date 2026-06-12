@@ -5697,6 +5697,7 @@ function experimentGoDashboard(){
       activeWeek=liveWeek;activeSeason=liveSeason;
       buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();
       renderBoard(getDemoData(),'preview');
+      ensureDemoHeadshots('preview');
     }
   }catch(e){console.warn('experimentGoDashboard failed:',e.message);}
   window.scrollTo(0,0);
@@ -5709,14 +5710,17 @@ function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeaso
    the SAME resolver used in production find their headshots. We render the board
    first (instant, with initials) then load the DB in the background and re-render
    so photos appear in the same card location as live mode. */
-async function ensureDemoHeadshots(){
+async function ensureDemoHeadshots(previewLabel){
   try{
     if(!window.playerDB){
       const db=await getPlayerDB();
       window.playerDB=db;
       _sleeperIdLookupCache=null; _sleeperNamePosCache=null; // force the name→Sleeper-ID lookups to rebuild from the DB
     }
-    if(isDemoMode)renderBoard(getDemoData(),'demo'); // re-render now that headshots can resolve
+    // Re-render now that headshots can resolve. Demo mode uses the 'demo' label;
+    // the TestMode preview board (isDemoMode deliberately false) passes its own.
+    if(isDemoMode)renderBoard(getDemoData(),'demo');
+    else if(previewLabel)renderBoard(getDemoData(),previewLabel);
   }catch(e){console.warn('demo headshots load failed:',e.message);}
 }
 async function handleRefresh(){
