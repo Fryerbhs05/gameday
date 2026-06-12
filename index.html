@@ -1372,20 +1372,19 @@
     .player-card.clinched { }
 
     /* ──────────────────────────────────────────────────────────────
-       EXPERIMENTAL — mobile tabbed bucket view (TestMode2026 only)
+       MOBILE TABBED BUCKET VIEW (all users)
        Stacks → tabs so Enemies aren't a 50-card scroll away: one bucket
-       shows at a time. Gated on body.experiment-active AND the mobile
-       breakpoint; desktop and non-experiment users get the unchanged
+       shows at a time. Mobile breakpoint only; desktop keeps the unchanged
        3-column board.
        ────────────────────────────────────────────────────────────── */
     .exp-tabbar { display: none; }
     @media (max-width: 640px) {
-      body.experiment-active .exp-tabbar {
+      .exp-tabbar {
         display: flex; gap: 6px; margin-top: 24px; margin-bottom: -8px;
       }
       /* Unselected tabs carry their bucket's color as a frame (green / red /
          gold); the selected tab keeps that frame and fills with the soft tint. */
-      body.experiment-active .exp-tab {
+      .exp-tab {
         flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 3px;
         padding: 9px 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
         background: transparent; border: 1px solid; border-radius: var(--radius-md);
@@ -1394,41 +1393,41 @@
                     color var(--duration-fast) var(--ease-out),
                     border-color var(--duration-fast) var(--ease-out);
       }
-      body.experiment-active .exp-tab .exp-tab-ct { font: 500 11px/1 var(--font-mono); opacity: 0.75; }
-      body.experiment-active .exp-tab[data-tab="cheer"]      { color: var(--cheer); border-color: var(--cheer); }
-      body.experiment-active .exp-tab[data-tab="enemy"]      { color: var(--enemy); border-color: var(--enemy); }
-      body.experiment-active .exp-tab[data-tab="conflicted"] { color: var(--split); border-color: var(--split); }
-      body.experiment-active .exp-tab[data-tab="cheer"].is-active      { background: var(--cheer-soft); }
-      body.experiment-active .exp-tab[data-tab="enemy"].is-active      { background: var(--enemy-soft); }
-      body.experiment-active .exp-tab[data-tab="conflicted"].is-active { background: var(--split-soft); }
+      .exp-tab .exp-tab-ct { font: 500 11px/1 var(--font-mono); opacity: 0.75; }
+      .exp-tab[data-tab="cheer"]      { color: var(--cheer); border-color: var(--cheer); }
+      .exp-tab[data-tab="enemy"]      { color: var(--enemy); border-color: var(--enemy); }
+      .exp-tab[data-tab="conflicted"] { color: var(--split); border-color: var(--split); }
+      .exp-tab[data-tab="cheer"].is-active      { background: var(--cheer-soft); }
+      .exp-tab[data-tab="enemy"].is-active      { background: var(--enemy-soft); }
+      .exp-tab[data-tab="conflicted"].is-active { background: var(--split-soft); }
 
       /* One column at a time, chosen by data-exp-tab on #columns */
-      body.experiment-active #columns > .column { display: none; }
-      body.experiment-active #columns[data-exp-tab="cheer"]      > .column.cheer      { display: block; }
-      body.experiment-active #columns[data-exp-tab="enemy"]      > .column.enemy      { display: block; }
-      body.experiment-active #columns[data-exp-tab="conflicted"] > .column.conflicted { display: block; }
+      #columns > .column { display: none; }
+      #columns[data-exp-tab="cheer"]      > .column.cheer      { display: block; }
+      #columns[data-exp-tab="enemy"]      > .column.enemy      { display: block; }
+      #columns[data-exp-tab="conflicted"] > .column.conflicted { display: block; }
       /* Tabs replace the per-column headers; neutralize any leftover collapse */
-      body.experiment-active #columns .column-header { display: none; }
-      body.experiment-active #columns .column.collapsed > :not(.column-header) { display: revert; }
+      #columns .column-header { display: none; }
+      #columns .column.collapsed > :not(.column-header) { display: revert; }
 
       /* Gold/yellow left-edge indicator for conflicted players wherever they
-         appear in the exp view — the dedicated Conflicted tab AND mixed into
-         Cheer / Enemy. Left bar only; the rest of the card frame stays default. */
-      body.experiment-active #conflicted-list .player-card,
-      body.experiment-active .player-card.conflicted-player {
+         appear — the dedicated Conflicted tab AND mixed into Cheer / Enemy.
+         Left bar only; the rest of the card frame stays default. */
+      #conflicted-list .player-card,
+      .player-card.conflicted-player {
         border-left-color: var(--split);
       }
     }
-    /* EXPERIMENTAL — frame the week / season / filter nav row in the same navy
-       border as the scoreboard and buckets frames (navy in light mode, light
-       blue in dark mode). Not viewport-gated: those frames show on all sizes. */
-    body.experiment-active .nav-controls {
+    /* Frame the week / season / filter nav row in the same navy border as the
+       scoreboard and buckets frames (navy in light mode, light blue in dark).
+       Not viewport-gated: those frames show on all sizes. */
+    .nav-controls {
       border-color: var(--navy-900);
       border-radius: var(--radius-lg);
     }
-    @media (prefers-color-scheme: dark) { body.experiment-active .nav-controls { border-color: var(--navy-300); } }
-    :root[data-theme="dark"]  body.experiment-active .nav-controls { border-color: var(--navy-300); }
-    :root[data-theme="light"] body.experiment-active .nav-controls { border-color: var(--navy-900); }
+    @media (prefers-color-scheme: dark) { .nav-controls { border-color: var(--navy-300); } }
+    :root[data-theme="dark"]  .nav-controls { border-color: var(--navy-300); }
+    :root[data-theme="light"] .nav-controls { border-color: var(--navy-900); }
 
     .card-top { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
     .pos-badge {
@@ -4963,14 +4962,15 @@ function renderBoard(data,username){
       el.appendChild(node); // reorders without re-creating
     });
   }
-  /* EXPERIMENTAL (TestMode2026, mobile): conflicted players are by definition on
-     both sides, so surface them inside the Cheer and Enemy lists too — sorted
-     naturally (not pinned), gold-framed via .conflicted-player. Off-experiment,
-     the lists stay exactly the three disjoint buckets. */
-  const _expOn=document.body.classList.contains('experiment-active');
+  /* MOBILE tabbed view: conflicted players are by definition on both sides, so
+     surface them inside the Cheer and Enemy lists too — sorted naturally (not
+     pinned), gold-framed via .conflicted-player. On desktop (3 columns visible
+     at once) the lists stay the three disjoint buckets to avoid showing the same
+     player three times simultaneously. */
+  const _mobileView=(typeof window.matchMedia==='function')&&window.matchMedia('(max-width: 640px)').matches;
   const _conflictedIds=new Set(conflicted.map(p=>String(p.id)));
-  const _cheerList=_expOn?cheerFor.concat(conflicted):cheerFor;
-  const _enemyList=_expOn?enemies.concat(conflicted):enemies;
+  const _cheerList=_mobileView?cheerFor.concat(conflicted):cheerFor;
+  const _enemyList=_mobileView?enemies.concat(conflicted):enemies;
   renderList('cheer-list',_cheerList,_conflictedIds);renderList('conflicted-list',conflicted,_conflictedIds);renderList('enemy-list',_enemyList,_conflictedIds);
   try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek,contexts:contexts});}catch(e){}
   applyFilters();
