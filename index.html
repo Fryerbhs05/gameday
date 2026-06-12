@@ -1429,6 +1429,48 @@
     :root[data-theme="dark"]  .nav-controls { border-color: var(--navy-300); }
     :root[data-theme="light"] .nav-controls { border-color: var(--navy-900); }
 
+    /* ──────────────────────────────────────────────────────────────
+       EXPERIMENTAL — "LOYALTIES" buckets section title + section frame
+       (TestMode2026 only). Mirrors the SCOREBOARD wordmark; the navy frame
+       moves up from #columns to wrap the header + tabs + buckets as one
+       titled section. Non-experiment users keep the current promoted look.
+       ────────────────────────────────────────────────────────────── */
+    .loyalties-header { display: none; }
+    body.experiment-active .loyalties-section {
+      border: 1px solid var(--navy-900);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-top: 14px;
+      transition: border-color 1.3s var(--ease-out);
+    }
+    @media (prefers-color-scheme: dark) { body.experiment-active .loyalties-section { border-color: var(--navy-300); } }
+    :root[data-theme="dark"]  body.experiment-active .loyalties-section { border-color: var(--navy-300); }
+    :root[data-theme="light"] body.experiment-active .loyalties-section { border-color: var(--navy-900); }
+    body.experiment-active .loyalties-header {
+      display: grid; place-items: center;
+      padding-bottom: 10px; margin-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    body.experiment-active .loyalties-wordmark {
+      display: inline-flex; align-items: baseline; gap: 0;
+      font: 700 22px/1 var(--font-sans); letter-spacing: 0.06em;
+    }
+    body.experiment-active .loyalties-wordmark__a,
+    body.experiment-active .loyalties-wordmark__b { color: var(--ink-900); }
+    /* Frame now lives on .loyalties-section — drop the inner buckets frame so we
+       don't double-border, and let the section own the padding. */
+    body.experiment-active .loyalties-section > #columns {
+      border-color: transparent;
+      padding: 0;
+      margin-top: 0;
+    }
+    /* Tabs sit just under the header now, not floating above a separate frame. */
+    body.experiment-active .exp-tabbar { margin-top: 0; margin-bottom: 12px; }
+    @media (max-width: 480px) {
+      body.experiment-active .loyalties-section { padding: 12px 10px; }
+      body.experiment-active .loyalties-wordmark { font-size: 18px; }
+    }
+
     .card-top { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
     .pos-badge {
       font: 500 10px/1 var(--font-mono); padding: 3px 6px;
@@ -2849,6 +2891,10 @@
       <div class="no-data-msg" id="no-data-msg"></div>
       <div class="no-data-hint">Use the season dropdown or week selector to try a different period.</div>
     </div>
+    <div class="loyalties-section" id="loyalties-section">
+    <div class="loyalties-header">
+      <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">LOYAL</span><span class="loyalties-wordmark__b">TIES</span></div>
+    </div>
     <div id="exp-tabbar" class="exp-tabbar" role="tablist" aria-label="Player buckets">
       <button class="exp-tab is-active" data-tab="cheer" role="tab" aria-selected="true"><span>Cheer for</span><span class="exp-tab-ct" id="exp-ct-cheer">0</span></button>
       <button class="exp-tab" data-tab="enemy" role="tab" aria-selected="false"><span>Enemy</span><span class="exp-tab-ct" id="exp-ct-enemy">0</span></button>
@@ -2867,6 +2913,7 @@
         <div class="column-header"><span class="col-count" id="count-enemy">0</span><span class="col-title">Enemies</span><span class="col-subtitle">Only against you</span></div>
         <div id="enemy-list"></div>
       </div>
+    </div>
     </div>
     <div id="board-skeleton" aria-hidden="true" style="display:none;"></div>
     <div class="board-foot"><span class="t-stat-sm" id="board-refresh-time"></span></div>
@@ -4916,10 +4963,11 @@ function renderBoard(data,username){
   const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
   document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
-  /* Restore the experimental tab bar (display reset → CSS exp+mobile gate takes over). */
+  /* Restore the experimental tab bar + titled section (display reset → CSS gates take over). */
   (function(t){if(t)t.style.display='';})(document.getElementById('exp-tabbar'));
+  (function(s){if(s)s.style.display='';})(document.getElementById('loyalties-section'));
   /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
   liveToggleAvailable=!isDemoMode&&!isHist;
   if(contexts?.length)renderScoresStrip(contexts);
