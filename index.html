@@ -4940,7 +4940,7 @@ function renderBoard(data,username){
     const idx=el._cardIndex;
     if(!players.length){
       idx.forEach(n=>n.remove());idx.clear();
-      if(!el.querySelector('.empty-state'))el.innerHTML='<div class="empty-state">No players in this bucket.</div>';
+      if(!el.querySelector('.empty-state')){const _msg=id==='conflicted-list'?'Zero divided loyalties. Nobody&rsquo;s making you root against yourself this week.':'No players in this bucket.';el.innerHTML='<div class="empty-state">'+_msg+'</div>';}
       return;
     }
     const emptyEl=el.querySelector('.empty-state');if(emptyEl)emptyEl.remove();
