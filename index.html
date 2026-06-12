@@ -2966,6 +2966,20 @@
   #board-skeleton .skel-line-1 { width:62%; height:12px; }
   #board-skeleton .skel-line-2 { width:40%; height:9px; }
   #board-skeleton .skel-num { flex:0 0 auto; width:34px; height:18px; }
+  /* Framed-section skeletons — mirror the navy SCOREBOARD and LOYALTIES frames
+     (title bar + tabs + body) so the whole board area shimmers during a period
+     change, not just the bucket cards. */
+  #board-skeleton .skel-frame { border:1px solid var(--navy-900); border-radius:var(--radius-lg);
+    padding:16px; margin-bottom:14px; }
+  @media (prefers-color-scheme: dark){ #board-skeleton .skel-frame{ border-color:var(--navy-300); } }
+  :root[data-theme="dark"]  #board-skeleton .skel-frame{ border-color:var(--navy-300); }
+  :root[data-theme="light"] #board-skeleton .skel-frame{ border-color:var(--navy-900); }
+  #board-skeleton .skel-scores { margin-bottom:0; }
+  #board-skeleton .skel-section-title { width:120px; height:18px; margin:0 auto 14px; }
+  #board-skeleton .skel-tabs { display:none; gap:6px; margin-bottom:12px; }
+  @media (max-width:640px){ #board-skeleton .skel-tabs{ display:flex; } }
+  #board-skeleton .skel-tab { flex:1 1 0; height:42px; border-radius:var(--radius-md); }
+  @media (max-width:480px){ #board-skeleton .skel-frame{ padding:12px 10px; } }
 </style>
 
 <!-- ══ IMPACT ANIMATION OVERLAY (experiment) ══════════════════ -->
@@ -4230,16 +4244,23 @@ function buildBoardSkeleton(){
   const col=(n)=>'<div class="skel-col"><div class="skel-col-head"><div class="skel skel-pill"></div>'
     +'<div class="skel skel-title"></div></div>'+card.repeat(n)+'</div>';
   const scores='<div class="skel-scores">'+'<div class="skel skel-score"></div>'.repeat(5)+'</div>';
-  host.innerHTML=scores+'<div class="skel-columns">'+col(5)+col(3)+col(4)+'</div>';
+  const tabs='<div class="skel-tabs">'+'<div class="skel skel-tab"></div>'.repeat(3)+'</div>';
+  host.innerHTML=
+    '<div class="skel-frame"><div class="skel skel-section-title"></div>'+scores+'</div>'
+    +'<div class="skel-frame"><div class="skel skel-section-title"></div>'+tabs
+      +'<div class="skel-columns">'+col(5)+col(3)+col(4)+'</div></div>';
   host.dataset.built='1';
 }
 function showBoardSkeleton(){
   buildBoardSkeleton();
-  const cols=document.getElementById('columns');
+  /* Hide the whole titled LOYALTIES section (header + tabs + buckets) and the
+     scoreboard frame — everything outside the filters row and site header — so
+     the skeleton stands in for all of it, not just the bucket cards. */
+  const sec=document.getElementById('loyalties-section');
   const strip=document.getElementById('scoreboard-frame');
   const nde=document.getElementById('no-data-state');
   if(nde)nde.classList.remove('visible');
-  if(cols)cols.style.display='none';
+  if(sec)sec.style.display='none';
   if(strip)strip.style.display='none';
   const host=document.getElementById('board-skeleton');
   if(host)host.style.display='block';
@@ -4249,11 +4270,11 @@ function hideBoardSkeleton(){
   if(host)host.style.display='none';
   const strip=document.getElementById('scoreboard-frame');
   if(strip)strip.style.display='';
-  /* Restore the columns we hid. On the success path renderBoard runs right after
+  /* Restore the section we hid. On the success path renderBoard runs right after
      this and re-sets display based on noData; on the error keep-stale path this
      is what brings the previous period's board back instead of a blank gap. */
-  const cols=document.getElementById('columns');
-  if(cols)cols.style.display='';
+  const sec=document.getElementById('loyalties-section');
+  if(sec)sec.style.display='';
 }
 /* Call right before run() on a user-initiated period change. */
 function schedulePeriodSkeleton(){
