@@ -10951,11 +10951,16 @@ initThemeToggle();
     });
   }
   var tIdx=0, tTimer=null, tLooping=false;
+  function isConflictedPlay(pl){ var s=pl.dist.map(function(d){return d[1];}); return s.indexOf('mine')>=0 && s.indexOf('opp')>=0; }
   function testNext(){
     testMode=true; var p=TEST_PLAYS[tIdx%TEST_PLAYS.length]; tIdx++;
-    queue.push(buildEvents(p)); drain();
-    /* Same scripted slate also drives the Live Updates log: one row per
-       (player × league), 'mine' → green/cheer, 'opp' → red/enemy. */
+    /* The impact animation is the "conflicted scoring sequence" — production only
+       ever feeds it the conflicted bucket. Mirror that here so pure-cheer / pure-enemy
+       test plays (e.g. Nacua #2, Adams #4) don't wrongly fire the CONFLICTED splash. */
+    var confPlayers=p.filter(isConflictedPlay);
+    if(confPlayers.length){ queue.push(buildEvents(confPlayers)); drain(); }
+    /* The Live Updates log gets every (player × league), conflicted or not:
+       'mine' → green/cheer, 'opp' → red/enemy. */
     try{
       if(window.__luTestInject){
         var luRows=[];
