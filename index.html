@@ -10901,13 +10901,17 @@ initThemeToggle();
      exact same queue + animation path. Uses demo-mode player names and the four
      demo leagues. testMode relaxes the live-data gates (still needs experiment
      mode on + motion allowed). Includes a fumble (negative → flips), a tie
-     (→ green), a downward stat correction (>=0.5, fires), and a same-play
-     multi-player batch (Allen TD pass + St. Brown reception collide side by side). */
+     (→ green), a downward stat correction (>=0.5, fires), a same-play
+     multi-player batch (Allen TD pass + St. Brown reception collide side by side),
+     and two non-conflicted single-side plays — Nacua (#2, all 'mine' → pure cheer)
+     and Adams (#4, all 'opp' → pure enemy). */
   var DR='Dynasty Royale', RC='Redraft Chaos', GG='The Gridiron', DM='Devy Masters';
   var TEST_PLAYS=[
     [{name:'Bijan Robinson',pos:'RB',delta:6.0,dist:[[DR,'mine'],[RC,'opp'],[GG,'opp']]}],
+    [{name:'Puka Nacua',pos:'WR',delta:7.0,dist:[[DR,'mine'],[RC,'mine'],[GG,'mine']]}],
     [{name:'Josh Allen',pos:'QB',delta:6.2,dist:[[DR,'opp'],[RC,'mine'],[GG,'mine']]},
      {name:'Amon-Ra St. Brown',pos:'WR',delta:6.0,dist:[[DR,'mine'],[RC,'mine']]}],
+    [{name:'Davante Adams',pos:'WR',delta:8.0,dist:[[DR,'opp'],[RC,'opp']]}],
     [{name:'Patrick Mahomes',pos:'QB',delta:6.0,dist:[[DR,'mine'],[RC,'opp'],[GG,'mine']]},
      {name:'Amon-Ra St. Brown',pos:'WR',delta:7.6,dist:[[DR,'mine'],[RC,'mine']]},
      {name:'Steelers D/ST',pos:'DEF',delta:-7.0,dist:[[DR,'opp'],[RC,'opp']]}],
