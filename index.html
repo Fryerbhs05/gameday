@@ -2966,11 +2966,12 @@
       </div>
     </div>
     </div>
-    <!-- ══ LIVE UPDATES (experiment-only) ══════════════════════════════════════
+    <!-- ══ LIVE UPDATES ═════════════════════════════════════════════════════════
          Real-time scoring log. Each row is one (player × league) scoring change
          since the prior 60s sync — green when the player is helping you in that
-         league, red when hurting. Gated behind experiment mode via .exp-only. -->
-    <div class="loyalties-section live-updates-section exp-only" id="live-updates-section">
+         league, red when hurting. Visibility tracks league data (hidden on no-data),
+         mirroring the LOYALTIES section. -->
+    <div class="loyalties-section live-updates-section" id="live-updates-section">
       <div class="loyalties-header live-updates-header">
         <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">LIVE</span><span class="loyalties-wordmark__b"> UPDATES</span></div>
       </div>
@@ -4304,10 +4305,12 @@ function showBoardSkeleton(){
      scoreboard frame — everything outside the filters row and site header — so
      the skeleton stands in for all of it, not just the bucket cards. */
   const sec=document.getElementById('loyalties-section');
+  const lu=document.getElementById('live-updates-section');
   const strip=document.getElementById('scoreboard-frame');
   const nde=document.getElementById('no-data-state');
   if(nde)nde.classList.remove('visible');
   if(sec)sec.style.display='none';
+  if(lu)lu.style.display='none';
   if(strip)strip.style.display='none';
   const host=document.getElementById('board-skeleton');
   if(host)host.style.display='block';
@@ -4322,6 +4325,8 @@ function hideBoardSkeleton(){
      is what brings the previous period's board back instead of a blank gap. */
   const sec=document.getElementById('loyalties-section');
   if(sec)sec.style.display='';
+  const lu=document.getElementById('live-updates-section');
+  if(lu)lu.style.display='';
 }
 /* Call right before run() on a user-initiated period change. */
 function schedulePeriodSkeleton(){
@@ -5053,11 +5058,11 @@ function renderBoard(data,username){
   const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
   document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));(function(s){if(s)s.style.display='none';})(document.getElementById('live-updates-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Restore the experimental tab bar + titled section (display reset → CSS gates take over). */
   (function(t){if(t)t.style.display='';})(document.getElementById('exp-tabbar'));
-  (function(s){if(s)s.style.display='';})(document.getElementById('loyalties-section'));
+  (function(s){if(s)s.style.display='';})(document.getElementById('loyalties-section'));(function(s){if(s)s.style.display='';})(document.getElementById('live-updates-section'));
   /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
   liveToggleAvailable=!isDemoMode&&!isHist;
   if(contexts?.length)renderScoresStrip(contexts);
@@ -6093,7 +6098,6 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
      (allRostered + isHist). Seeds on first sight, emits deltas thereafter. */
   window.__buildLiveUpdates=function(data){
     try{
-      if(!window.experimentEnabled||!window.experimentEnabled())return;
       const log=document.getElementById('live-updates-log');if(!log)return;
       const empty=document.getElementById('lu-empty');
       // Live Updates only make sense for the in-progress current week.
