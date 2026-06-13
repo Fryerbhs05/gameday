@@ -6052,6 +6052,8 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   let luPrev=Object.create(null);     // "<playerId>|<league>" -> last seen total
   let luSeeded=false;                 // first sync only seeds; never emits a flood
   let luLog=[];                       // [{t, rows:[...]}], newest first
+  let luTestTot=Object.create(null);  // test harness: "<name>|<league>" -> running total
+  let luTestClk=3600;                 // test harness: synthetic game seconds remaining (counts down)
 
   function nflClockFor(team){try{return (team&&nflGameClocks.get(team))||'';}catch(e){return'';}}
 
@@ -6127,8 +6129,35 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     }catch(e){console.warn('Live Updates build failed:',e&&e.message);}
   };
 
+  /* Test harness hook (experiment-only) — reuses the impact-animation test control.
+     Injects a scripted scoring batch straight into the log, bypassing the 60s diff,
+     and maintains its own running totals + a descending synthetic game clock so the
+     rows look live during the offseason. `inRows`: [{name,pos,team?,league,fmt,side,delta}]
+     where side is 'mine' (→ cheer/green) or 'opp' (→ enemy/red). */
+  window.__luTestInject=function(inRows){
+    try{
+      if(!window.experimentEnabled||!window.experimentEnabled())return;
+      const log=document.getElementById('live-updates-log');if(!log||!inRows||!inRows.length)return;
+      const empty=document.getElementById('lu-empty');if(empty)empty.textContent='No scoring changes yet — updates appear here as your players score.';
+      luTestClk=Math.max(0,luTestClk-(15+Math.floor(Math.random()*40)));
+      const quarter=luTestClk>2700?1:luTestClk>1800?2:luTestClk>900?3:4;
+      const rem=luTestClk-(4-quarter)*900;
+      const clk='Q'+quarter+' '+Math.floor(rem/60)+':'+('0'+(rem%60)).slice(-2);
+      const rows=inRows.map(function(r){
+        const key=r.name+'|'+r.league;
+        if(luTestTot[key]==null)luTestTot[key]=Math.round((5+Math.random()*8)*10)/10;
+        luTestTot[key]=Math.round((luTestTot[key]+r.delta)*10)/10;
+        return {id:'t_'+key,name:r.name,pos:r.pos,team:r.team||'',league:r.league,fmt:r.fmt||'',side:(r.side==='opp'?'enemy':'cheer'),delta:r.delta,total:luTestTot[key],clk:clk};
+      });
+      const t=new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
+      luLog.unshift({t:t,rows:rows});
+      if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
+      render(0);
+    }catch(e){console.warn('Live Updates test inject failed:',e&&e.message);}
+  };
+
   /* Reset on disconnect / user change so one user's log never bleeds into another. */
-  window.__resetLiveUpdates=function(){luPrev=Object.create(null);luSeeded=false;luLog=[];const l=document.getElementById('live-updates-log');if(l)l.innerHTML='';const e=document.getElementById('lu-empty');if(e)e.style.display='block';};
+  window.__resetLiveUpdates=function(){luPrev=Object.create(null);luSeeded=false;luLog=[];luTestTot=Object.create(null);luTestClk=3600;const l=document.getElementById('live-updates-log');if(l)l.innerHTML='';const e=document.getElementById('lu-empty');if(e)e.style.display='block';};
 })();
 
 /* EXPERIMENTAL (TestMode2026, mobile) — bucket tab switching. Sets data-exp-tab
@@ -10899,6 +10928,9 @@ initThemeToggle();
      matchup context: tier + projected total + margin + game progress. DR is the
      Tier-1 anchor (close, lots left), RC/GG Tier-2, GG near-clinched, DM Tier-3.
      Optional 3rd tuple element {m:margin, prog:0-1} overrides per play. */
+  /* Per-demo-league scoring format, so the Live Updates test rows show why the
+     same play yields different deltas/totals across leagues. */
+  var LU_TEST_FMT={};LU_TEST_FMT[DR]='PPR';LU_TEST_FMT[RC]='Half';LU_TEST_FMT[GG]='Std';LU_TEST_FMT[DM]='PPR';
   var DEMO_CTX={};
   DEMO_CTX[DR]={tier:1,T:240,margin:4,prog:0.55};
   DEMO_CTX[RC]={tier:2,T:175,margin:-9,prog:0.55};
@@ -10915,7 +10947,21 @@ initThemeToggle();
     });
   }
   var tIdx=0, tTimer=null, tLooping=false;
-  function testNext(){ testMode=true; var p=TEST_PLAYS[tIdx%TEST_PLAYS.length]; tIdx++; queue.push(buildEvents(p)); drain(); }
+  function testNext(){
+    testMode=true; var p=TEST_PLAYS[tIdx%TEST_PLAYS.length]; tIdx++;
+    queue.push(buildEvents(p)); drain();
+    /* Same scripted slate also drives the Live Updates log: one row per
+       (player × league), 'mine' → green/cheer, 'opp' → red/enemy. */
+    try{
+      if(window.__luTestInject){
+        var luRows=[];
+        p.forEach(function(pl){ pl.dist.forEach(function(d){
+          luRows.push({name:pl.name,pos:pl.pos,league:d[0],side:d[1],delta:pl.delta,fmt:LU_TEST_FMT[d[0]]||''});
+        }); });
+        window.__luTestInject(luRows);
+      }
+    }catch(e){}
+  }
   window.__impactTest={ next:testNext,
     loop:function(ms){ this.stop(); tLooping=true; testMode=true; testNext(); tTimer=setInterval(function(){ if(!running)testNext(); }, ms||25000); },
     stop:function(){ tLooping=false; if(tTimer){clearInterval(tTimer);tTimer=null;} } };
