@@ -1493,6 +1493,35 @@
       padding-bottom: 0; margin-bottom: 0; border-bottom: none;
     }
 
+    /* ── LIVE UPDATES log (experiment) — vertical stacked scoring feed ──
+       Reuses the navy LOYALTIES frame chrome. One row per (player × league)
+       scoring change; left bar + league-name tint encode side (green=helping,
+       red=hurting). No yellow — a player is strictly cheer or enemy per league. */
+    .live-updates-header { padding-left: 22px; padding-right: 22px; }
+    .lu-sub { font: 400 12px/1.3 var(--font-sans); color: var(--ink-500); margin: 2px 2px 2px; }
+    .lu-synchead { display: flex; align-items: center; gap: 8px; margin: 12px 0 2px; }
+    .lu-synchead .lu-ln { flex: 1; height: 1px; background: var(--line-soft); }
+    .lu-synchead .lu-tx { font: 500 11px/1 var(--font-mono); color: var(--ink-500); white-space: nowrap; }
+    .lu-row { display: grid; grid-template-columns: 4px 1fr auto; gap: 11px; align-items: center;
+      padding: 9px 2px; border-bottom: 1px solid var(--line-soft); }
+    .lu-row:last-child { border-bottom: none; }
+    .lu-bar { width: 4px; height: 32px; border-radius: 2px; }
+    .lu-bar.cheer { background: var(--cheer); } .lu-bar.enemy { background: var(--enemy); }
+    .lu-name { font: 500 14px/1.2 var(--font-sans); color: var(--ink-900); }
+    .lu-pos { font: 400 11px/1 var(--font-sans); color: var(--ink-500); margin-left: 3px; }
+    .lu-league { font: 400 11px/1 var(--font-sans); margin-top: 4px; }
+    .lu-league.cheer { color: var(--cheer); } .lu-league.enemy { color: var(--enemy); }
+    .lu-fmt { color: var(--ink-500); border: 1px solid var(--line); border-radius: var(--radius-pill);
+      padding: 0 6px; margin-left: 4px; font: 500 10px/1.5 var(--font-mono); }
+    .lu-right { text-align: right; }
+    .lu-delta { font: 500 16px/1 var(--font-mono); color: var(--ink-900); }
+    .lu-delta.neg { color: var(--enemy); }
+    .lu-tot { font: 400 11px/1 var(--font-mono); color: var(--ink-500); margin-top: 4px; }
+    .lu-empty { font: 400 13px/1.4 var(--font-sans); color: var(--ink-500); padding: 12px 2px 2px; }
+    @keyframes lu-flash { 0% { background: var(--split-soft); } 100% { background: transparent; } }
+    @media (prefers-reduced-motion: reduce) { .lu-row.lu-new { animation: none; } }
+    .lu-row.lu-new { animation: lu-flash 1.4s var(--ease-out); }
+
     .card-top { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
     .pos-badge {
       font: 500 10px/1 var(--font-mono); padding: 3px 6px;
@@ -2937,6 +2966,18 @@
       </div>
     </div>
     </div>
+    <!-- ══ LIVE UPDATES (experiment-only) ══════════════════════════════════════
+         Real-time scoring log. Each row is one (player × league) scoring change
+         since the prior 60s sync — green when the player is helping you in that
+         league, red when hurting. Gated behind experiment mode via .exp-only. -->
+    <div class="loyalties-section live-updates-section exp-only" id="live-updates-section">
+      <div class="loyalties-header live-updates-header">
+        <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">LIVE</span><span class="loyalties-wordmark__b"> UPDATES</span></div>
+      </div>
+      <div class="lu-sub">Scoring changes · all relevant players</div>
+      <div id="live-updates-log" class="lu-log"></div>
+      <div class="lu-empty" id="lu-empty">No scoring changes yet — updates appear here as your players score.</div>
+    </div>
     <div id="board-skeleton" aria-hidden="true" style="display:none;"></div>
     <div class="board-foot"><span class="t-stat-sm" id="board-refresh-time"></span></div>
   </div>
@@ -3326,7 +3367,7 @@
 <script>
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#2B6FA8','#D85A30','#3D8B5C','#B27F1A','#7AA8D1','#A33D2E','#5F5E5A','#0F2235'];
 const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
-let liveOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0;
+let liveOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map();
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},hiddenLeagues=new Set(),isAnyProviderLoaded=false,liveToggleAvailable=false,leagueNamesCache=[];
 /* Account-level "global exclude": leagues the user switched OFF in the Account
    view. Keyed by `platform|leagueName` (platform-prefixed so identically-named
@@ -3409,13 +3450,18 @@ async function fetchNflGameStates(season,week){
     const url=`${ESPN_SCOREBOARD}?dates=${season}&seasontype=2&week=${week}`;
     const r=await fetch(url);if(!r.ok)throw new Error(`ESPN HTTP ${r.status}`);
     const j=await r.json();
-    const m=new Map();
+    const m=new Map(),clk=new Map();
     (j.events||[]).forEach(ev=>{
       const comp=ev.competitions?.[0];if(!comp)return;
       const state=comp.status?.type?.state||'pre';
-      (comp.competitors||[]).forEach(c=>{const abbr=c.team?.abbreviation;if(abbr)m.set(abbr,state);});
+      // Best-effort game clock for the Live Updates log: "Q3 4:12" while a game
+      // is in progress, otherwise omitted (pregame) or "Final".
+      let clock='';
+      if(state==='in'){const per=comp.status?.period,dc=comp.status?.displayClock;if(per)clock=(per>4?'OT':'Q'+per)+(dc?' '+dc:'');}
+      else if(state==='post')clock='Final';
+      (comp.competitors||[]).forEach(c=>{const abbr=c.team?.abbreviation;if(abbr){m.set(abbr,state);if(clock)clk.set(abbr,clock);}});
     });
-    nflGameStates=m;nflGameStatesKey=key;nflGameStatesAt=Date.now();
+    nflGameStates=m;nflGameClocks=clk;nflGameStatesKey=key;nflGameStatesAt=Date.now();
   }catch(e){console.warn('NFL game state fetch failed:',e.message);}
 }
 function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.team)==='in';}
@@ -4187,6 +4233,7 @@ async function handleDisconnectAll(){
     try{ await PROVIDERS[id].disconnect(); }catch(e){ console.warn('disconnect failed:',id,e.message); }
   }
   isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();
+  try{window.__resetLiveUpdates&&window.__resetLiveUpdates();}catch(e){}
   try{clearHistCache();}catch(e){} // drop cached historic periods tied to old connections
   liveLeaguesSeen=[];__liveDiscoverDone=false; // Account league list must re-discover after reconnect
   clearBoardSnapshot(); // no connections → next boot must not flash the old board
@@ -5064,6 +5111,7 @@ function renderBoard(data,username){
   const _enemyList=_mobileView?enemies.concat(conflicted):enemies;
   renderList('cheer-list',_cheerList,_conflictedIds);renderList('conflicted-list',conflicted,_conflictedIds);renderList('enemy-list',_enemyList,_conflictedIds);
   try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek,contexts:contexts});}catch(e){}
+  try{if(window.__buildLiveUpdates)window.__buildLiveUpdates(data);}catch(e){}
   applyFilters();
   currentContexts=Array.isArray(contexts)?contexts.slice():[];
   currentLeagues=Array.isArray(data.leagues)?data.leagues.slice():[];
@@ -5864,7 +5912,7 @@ function flashSyncedFeedback(){
     setTimeout(()=>el.classList.remove('synced-flash'),200);
   });
 }
-async function handleChangeUser(){isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();showSetup();syncDemoRibbon();}
+async function handleChangeUser(){isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();try{window.__resetLiveUpdates&&window.__resetLiveUpdates();}catch(e){}showSetup();syncDemoRibbon();}
 /* Safety-net sync: guarantees the ribbon clears even on demo-exit paths that
    don't route through handleDemo/handleChangeUser (e.g. connecting a league). */
 try{setInterval(syncDemoRibbon,400);}catch(e){}
@@ -5989,6 +6037,98 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   }
   wire('.scoreboard-header','scoreboard-frame');
   wire('.loyalties-header','loyalties-section');
+  wire('.live-updates-header','live-updates-section');
+})();
+
+/* ══ LIVE UPDATES engine (experiment-only) ═══════════════════════════════════
+   No platform exposes per-play fantasy points, so a "scoring change" is derived
+   by diffing each (player × league) running total between successive 60s syncs.
+   A player can be on different sides in different leagues, so each league is its
+   own row: green when the player is on YOUR side there (helping), red when on the
+   opponent's (hurting). Snapshot persists in-memory across the session. */
+(function(){
+  const LU_MAX_BATCHES=30;            // cap log length (≈ last 30 syncs)
+  const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let luPrev=Object.create(null);     // "<playerId>|<league>" -> last seen total
+  let luSeeded=false;                 // first sync only seeds; never emits a flood
+  let luLog=[];                       // [{t, rows:[...]}], newest first
+
+  function nflClockFor(team){try{return (team&&nflGameClocks.get(team))||'';}catch(e){return'';}}
+
+  function rowHtml(r,isNew){
+    const sign=r.delta>=0?'+':'−';
+    const mag=Math.abs(r.delta).toFixed(1);
+    const negCls=r.delta<0?' neg':'';
+    const fmt=r.fmt?'<span class="lu-fmt">'+r.fmt+'</span>':'';
+    const tail=r.clk?(' · '+r.clk):'';
+    return '<div class="lu-row'+(isNew?' lu-new':'')+'">'
+      +'<div class="lu-bar '+r.side+'"></div>'
+      +'<div style="min-width:0;">'
+        +'<div class="lu-name">'+esc(r.name)+(r.pos?'<span class="lu-pos">'+esc(r.pos)+(r.team?' · '+esc(r.team):'')+'</span>':'')+'</div>'
+        +'<div class="lu-league '+r.side+'">'+esc(r.league)+fmt+'</div>'
+      +'</div>'
+      +'<div class="lu-right">'
+        +'<div class="lu-delta'+negCls+'">'+sign+mag+'</div>'
+        +'<div class="lu-tot">'+r.total.toFixed(1)+' pt'+tail+'</div>'
+      +'</div></div>';
+  }
+
+  function render(latestBatchIdx){
+    const log=document.getElementById('live-updates-log');
+    const empty=document.getElementById('lu-empty');
+    if(!log)return;
+    if(!luLog.length){log.innerHTML='';if(empty)empty.style.display='block';return;}
+    if(empty)empty.style.display='none';
+    let html='';
+    luLog.forEach((b,bi)=>{
+      html+='<div class="lu-synchead"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
+      b.rows.forEach(r=>{html+=rowHtml(r,bi===latestBatchIdx);});
+    });
+    log.innerHTML=html;
+  }
+
+  /* Called from renderBoard after the buckets paint. `data` is the render result
+     (allRostered + isHist). Seeds on first sight, emits deltas thereafter. */
+  window.__buildLiveUpdates=function(data){
+    try{
+      if(!window.experimentEnabled||!window.experimentEnabled())return;
+      const log=document.getElementById('live-updates-log');if(!log)return;
+      const empty=document.getElementById('lu-empty');
+      // Live Updates only make sense for the in-progress current week.
+      if(!data||data.isHist){if(empty){empty.textContent='Live Updates track the current week — pick the live week to see scoring as it happens.';empty.style.display='block';}log.innerHTML='';return;}
+      if(empty)empty.textContent='No scoring changes yet — updates appear here as your players score.';
+      const players=(data.allRostered||[]);
+      const snap=Object.create(null);
+      const rows=[];
+      const consider=(p,lgName,side)=>{
+        const lp=p.leaguePoints&&p.leaguePoints[lgName];if(!lp)return;
+        const pts=Number(lp.pts);if(!isFinite(pts))return;
+        const k=p.id+'|'+lgName;snap[k]=pts;
+        const prev=luPrev[k];
+        if(prev===undefined||Math.abs(pts-prev)<0.05)return;
+        rows.push({id:p.id,name:p.full_name,pos:p.position,team:p.team,league:lgName,fmt:lp.fmt||'',side:side,delta:pts-prev,total:pts,clk:nflClockFor(p.team)});
+      };
+      players.forEach(p=>{
+        if(!p||!p.full_name)return;
+        (p.myLeagues||[]).forEach(l=>consider(p,l,'cheer'));
+        (p.againstLeagues||[]).forEach(l=>consider(p,l,'enemy'));
+      });
+      Object.assign(luPrev,snap);
+      if(!luSeeded){luSeeded=true;render(-1);return;} // first sync: seed only
+      if(rows.length){
+        // Biggest swings first within the sync; helping (cheer) ties break ahead.
+        rows.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+        const now=new Date();
+        const t=now.toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
+        luLog.unshift({t:t,rows:rows});
+        if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
+      }
+      render(rows.length?0:-1);
+    }catch(e){console.warn('Live Updates build failed:',e&&e.message);}
+  };
+
+  /* Reset on disconnect / user change so one user's log never bleeds into another. */
+  window.__resetLiveUpdates=function(){luPrev=Object.create(null);luSeeded=false;luLog=[];const l=document.getElementById('live-updates-log');if(l)l.innerHTML='';const e=document.getElementById('lu-empty');if(e)e.style.display='block';};
 })();
 
 /* EXPERIMENTAL (TestMode2026, mobile) — bucket tab switching. Sets data-exp-tab
