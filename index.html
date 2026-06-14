@@ -1532,6 +1532,19 @@
     .lu-catchup .lu-range { font: 400 11px/1 var(--font-mono); color: var(--ink-500); margin-left: 8px; white-space: nowrap; }
     .lu-row.lu-stale { background: var(--paper-deep); }
     .lu-row.lu-stale:first-of-type { border-top-left-radius: var(--radius-sm); border-top-right-radius: var(--radius-sm); }
+    /* Net-impact frame — one per player per live sync. Border thickness + glow scale
+       with how much the player swings your matchups (set inline in JS); no body fill.
+       Encompasses all of a player's per-league cards. */
+    .lu-group { border-radius: var(--radius-md); padding: 9px 11px 6px; margin-bottom: 10px; background: transparent; box-sizing: border-box; }
+    .lu-group.lu-new { animation: lu-flash 1.4s var(--ease-out); }
+    @media (prefers-reduced-motion: reduce) { .lu-group.lu-new { animation: none; } }
+    .lu-ghead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+    .lu-gname { font: 500 14px/1.2 var(--font-sans); color: var(--ink-900); }
+    .lu-gpos { font: 400 11px/1 var(--font-sans); color: var(--ink-500); margin-left: 3px; }
+    .lu-gnet { font: 500 11px/1 var(--font-sans); white-space: nowrap; }
+    .lu-lrow { display: grid; grid-template-columns: 4px 1fr auto; gap: 10px; align-items: center;
+      padding: 6px 0; border-top: 1px solid var(--line-soft); }
+    .lu-lrow:first-of-type { border-top: none; }
 
     .card-top { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
     .pos-badge {
@@ -4328,7 +4341,7 @@ function showBoardSkeleton(){
   const nde=document.getElementById('no-data-state');
   if(nde)nde.classList.remove('visible');
   if(sec)sec.style.display='none';
-  if(lu)lu.style.display='none';
+  if(lu&&!(window.experimentEnabled&&window.experimentEnabled()))lu.style.display='none';
   if(strip)strip.style.display='none';
   const host=document.getElementById('board-skeleton');
   if(host)host.style.display='block';
@@ -5076,7 +5089,7 @@ function renderBoard(data,username){
   const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
   document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));(function(s){if(s)s.style.display='none';})(document.getElementById('live-updates-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));(function(s){if(s&&!(window.experimentEnabled&&window.experimentEnabled()))s.style.display='none';})(document.getElementById('live-updates-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Restore the experimental tab bar + titled section (display reset → CSS gates take over). */
   (function(t){if(t)t.style.display='';})(document.getElementById('exp-tabbar'));
@@ -6126,6 +6139,55 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       +'</div></div>';
   }
 
+  /* A league-level card inside a player's net-impact frame — no name (it's in the
+     group header), just the per-league side bar + delta. */
+  function lgRowHtml(r){
+    const sign=r.delta>=0?'+':'−';
+    const mag=Math.abs(r.delta).toFixed(1);
+    const negCls=r.delta<0?' neg':'';
+    const fmt=r.fmt?'<span class="lu-fmt">'+r.fmt+'</span>':'';
+    const tail=r.clk?(' · '+r.clk):'';
+    return '<div class="lu-lrow">'
+      +'<div class="lu-bar '+r.side+'"></div>'
+      +'<div class="lu-league '+r.side+'">'+esc(r.league)+fmt+'</div>'
+      +'<div class="lu-right">'
+        +'<div class="lu-delta'+negCls+'">'+sign+mag+'</div>'
+        +'<div class="lu-tot">'+r.total.toFixed(1)+' pt'+tail+'</div>'
+      +'</div></div>';
+  }
+  /* Net-impact verdict for a player's grouped rows. Faithful path uses the impact
+     module's mood model (matchup margin/time/league-priority aware); falls back to
+     a signed-delta sum if that's unavailable. Returns {pos, intensity, label}. */
+  function groupNet(grpRows,contexts){
+    try{
+      if(window.__netImpact){
+        const legs=grpRows.map(r=>({league:r.league,side:(r.side==='enemy'?'opp':'mine'),delta:r.delta}));
+        const ni=window.__netImpact(legs,contexts);
+        if(ni)return ni;
+      }
+    }catch(e){}
+    let sum=0;grpRows.forEach(r=>{sum+=(r.side==='enemy'?-1:1)*r.delta;});
+    return {pos:sum>=0,intensity:Math.max(0.08,Math.min(1,Math.abs(sum)/15)),label:(sum>=0?'helps you':'hurts you')};
+  }
+  /* Continuous intensity → border thickness (1→5px) + glow; color from net side.
+     color-mix over var(--cheer)/var(--enemy) so it adapts to light/dark theme. */
+  function groupStyle(net){
+    const cv=net.pos?'var(--cheer)':'var(--enemy)';
+    const i=Math.max(0,Math.min(1,net.intensity||0));
+    const bw=(1+i*4).toFixed(1);
+    const bc='color-mix(in oklab, '+cv+' '+Math.round((0.55+i*0.45)*100)+'%, transparent)';
+    const gl='0 0 '+Math.round(6+i*26)+'px color-mix(in oklab, '+cv+' '+Math.round((0.10+i*0.40)*100)+'%, transparent)';
+    return 'border:'+bw+'px solid '+bc+';box-shadow:'+gl+';';
+  }
+  function groupHtml(g,isNew){
+    const net=g.net||{pos:true,intensity:0.1,label:''};
+    const cv=net.pos?'var(--cheer)':'var(--enemy)';
+    const head='<div class="lu-ghead"><span class="lu-gname">'+esc(g.name)
+      +(g.pos?'<span class="lu-gpos">'+esc(g.pos)+(g.team?' · '+esc(g.team):'')+'</span>':'')+'</span>'
+      +(net.label?'<span class="lu-gnet" style="color:'+cv+'">'+esc(net.label)+'</span>':'')+'</div>';
+    return '<div class="lu-group'+(isNew?' lu-new':'')+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
+  }
+
   function render(latestBatchIdx){
     const log=document.getElementById('live-updates-log');
     const empty=document.getElementById('lu-empty');
@@ -6135,15 +6197,18 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     let html='';
     luLog.forEach((b,bi)=>{
       if(b.stale){
+        // Catch-up recap — flat, unframed rows with names inline (no net impact).
         html+='<div class="lu-synchead lu-catchup">'
           +'<span class="lu-tx"><i class="ti ti-history" aria-hidden="true"></i> Let&rsquo;s Catch You Up</span>'
           +'<span class="lu-range">from '+esc(b.from)+' to '+esc(b.to)+'</span>'
           +'<span class="lu-ln"></span></div>';
+        (b.rows||[]).forEach(r=>{html+=rowHtml(r,false,true);});
       }else{
+        // Live — net-impact framed groups, one per player.
         html+='<div class="lu-synchead"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
+        const flashThis=(bi===latestBatchIdx);
+        (b.groups||[]).forEach(g=>{html+=groupHtml(g,flashThis);});
       }
-      const flashThis=(bi===latestBatchIdx)&&!b.stale; // recap rows never flash
-      b.rows.forEach(r=>{html+=rowHtml(r,flashThis,b.stale);});
     });
     log.innerHTML=html;
   }
@@ -6182,14 +6247,25 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       if(!luSeeded){luSeeded=true;luLastSyncAt=Date.now();render(-1);return;} // first sync: seed only
       const nowMs=Date.now();
       if(rows.length){
-        // Biggest swings first within the sync; helping (cheer) ties break ahead.
-        rows.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
         // A gap of > 2 min since the last sync means these deltas accumulated while
         // we weren't refreshing — present them as a demoted "catch you up" recap.
         const stale=luLastSyncAt>0 && (nowMs-luLastSyncAt)>LU_STALE_MS;
         const t=new Date(nowMs).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
-        const batch={t:t,rows:rows,stale:stale};
-        if(stale){batch.from=fmtClock(luLastSyncAt);batch.to=fmtClock(nowMs);}
+        let batch;
+        if(stale){
+          // Recap: flat, biggest swings first, no net-impact frames.
+          rows.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
+          batch={t:t,stale:true,from:fmtClock(luLastSyncAt),to:fmtClock(nowMs),rows:rows};
+        }else{
+          // Live: group rows per player, compute each group's net impact once (now —
+          // never re-derived on re-render, so old frames don't drift as matchups move).
+          const gmap=new Map();
+          rows.forEach(r=>{if(!gmap.has(r.id))gmap.set(r.id,{id:r.id,name:r.name,pos:r.pos,team:r.team,rows:[]});gmap.get(r.id).rows.push(r);});
+          const groups=Array.from(gmap.values());
+          groups.forEach(g=>{g.net=groupNet(g.rows,data.contexts);});
+          groups.sort((a,b)=>(b.net.intensity||0)-(a.net.intensity||0)); // biggest swing first
+          batch={t:t,stale:false,groups:groups};
+        }
         luLog.unshift(batch);
         if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
       }
@@ -6198,36 +6274,46 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     }catch(e){console.warn('Live Updates build failed:',e&&e.message);}
   };
 
-  /* Test harness hook (experiment-only) — reuses the impact-animation test control.
-     Injects a scripted scoring batch straight into the log, bypassing the 60s diff,
-     and maintains its own running totals + a descending synthetic game clock so the
-     rows look live during the offseason. `inRows`: [{name,pos,team?,league,fmt,side,delta}]
-     where side is 'mine' (→ cheer/green) or 'opp' (→ enemy/red). */
-  window.__luTestInject=function(inRows,opts){
+  /* Test harness hooks (experiment-only) — reuse the impact-animation test control.
+     Maintain their own running totals + a descending synthetic game clock so rows
+     look live during the offseason. */
+  function testEnabled(){return !!(window.experimentEnabled&&window.experimentEnabled())&&!!document.getElementById('live-updates-log');}
+  function testClk(stale){ // advance synthetic game clock; a gap jumps it by minutes
+    luTestClk=Math.max(0,luTestClk-(stale?(300+Math.floor(Math.random()*600)):(15+Math.floor(Math.random()*40))));
+    const q=luTestClk>2700?1:luTestClk>1800?2:luTestClk>900?3:4, rem=luTestClk-(4-q)*900;
+    return 'Q'+q+' '+Math.floor(rem/60)+':'+('0'+(rem%60)).slice(-2);
+  }
+  function testRow(name,r,clk){ // r: {league, side('cheer'/'enemy'/'mine'/'opp'), delta, fmt}
+    const key=name+'|'+r.league;
+    if(luTestTot[key]==null)luTestTot[key]=Math.round((5+Math.random()*8)*10)/10;
+    luTestTot[key]=Math.round((luTestTot[key]+r.delta)*10)/10;
+    return {id:'t_'+key,name:name,league:r.league,fmt:r.fmt||'',side:(r.side==='opp'?'enemy':(r.side==='mine'?'cheer':r.side)),delta:r.delta,total:luTestTot[key],clk:clk};
+  }
+  // Live framed batch. inGroups: [{name,pos,team?,net:{pos,intensity,label}, rows:[{league,side,delta,fmt}]}]
+  window.__luTestInjectLive=function(inGroups){
     try{
-      if(!window.experimentEnabled||!window.experimentEnabled())return;
-      const log=document.getElementById('live-updates-log');if(!log||!inRows||!inRows.length)return;
+      if(!testEnabled()||!inGroups||!inGroups.length)return;
       const empty=document.getElementById('lu-empty');if(empty)empty.textContent='No scoring changes yet — updates appear here as your players score.';
-      const stale=!!(opts&&opts.stale);
-      // A simulated gap jumps the synthetic game clock by minutes, not seconds.
-      luTestClk=Math.max(0,luTestClk-(stale?(300+Math.floor(Math.random()*600)):(15+Math.floor(Math.random()*40))));
-      const quarter=luTestClk>2700?1:luTestClk>1800?2:luTestClk>900?3:4;
-      const rem=luTestClk-(4-quarter)*900;
-      const clk='Q'+quarter+' '+Math.floor(rem/60)+':'+('0'+(rem%60)).slice(-2);
-      const rows=inRows.map(function(r){
-        const key=r.name+'|'+r.league;
-        if(luTestTot[key]==null)luTestTot[key]=Math.round((5+Math.random()*8)*10)/10;
-        luTestTot[key]=Math.round((luTestTot[key]+r.delta)*10)/10;
-        return {id:'t_'+key,name:r.name,pos:r.pos,team:r.team||'',league:r.league,fmt:r.fmt||'',side:(r.side==='opp'?'enemy':'cheer'),delta:r.delta,total:luTestTot[key],clk:clk};
-      });
-      const nowMs=Date.now();
-      const t=new Date(nowMs).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
-      const batch={t:t,rows:rows,stale:stale};
-      if(stale){const gapMs=(opts&&opts.gapMs)||(25*60000);batch.from=fmtClock(nowMs-gapMs);batch.to=fmtClock(nowMs);}
-      luLog.unshift(batch);
+      const clk=testClk(false);
+      const groups=inGroups.map(function(g){return {id:'t_'+g.name,name:g.name,pos:g.pos,team:g.team||'',net:g.net,rows:g.rows.map(function(r){return testRow(g.name,r,clk);})};});
+      const t=new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
+      luLog.unshift({t:t,stale:false,groups:groups});
       if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
-      render(stale?-1:0); // recap batches don't flash
-    }catch(e){console.warn('Live Updates test inject failed:',e&&e.message);}
+      render(0);
+    }catch(e){console.warn('Live Updates test (live) failed:',e&&e.message);}
+  };
+  // Stale "catch you up" batch — flat, unframed. inRows: [{name,pos,league,side,delta,fmt}]
+  window.__luTestInjectGap=function(inRows){
+    try{
+      if(!testEnabled()||!inRows||!inRows.length)return;
+      const clk=testClk(true);
+      const rows=inRows.map(function(r){const o=testRow(r.name,r,clk);o.pos=r.pos;o.team=r.team||'';return o;});
+      const nowMs=Date.now(), gapMs=25*60000;
+      const t=new Date(nowMs).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
+      luLog.unshift({t:t,stale:true,from:fmtClock(nowMs-gapMs),to:fmtClock(nowMs),rows:rows});
+      if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
+      render(-1);
+    }catch(e){console.warn('Live Updates test (gap) failed:',e&&e.message);}
   };
 
   /* Reset on disconnect / user change so one user's log never bleeds into another. */
@@ -10972,6 +11058,27 @@ initThemeToggle();
     }catch(e){}
   };
 
+  /* Reusable net-impact verdict for the Live Updates frames. Given a player's
+     per-league legs (side + this-sync delta) and the current matchup contexts,
+     builds the same legs as the detector and runs the shared mood model.
+     inLegs: [{league, side:'mine'|'opp', delta}]. Returns {pos, intensity, label}. */
+  window.__netImpact=function(inLegs,contexts){
+    try{
+      if(!inLegs||!inLegs.length)return null;
+      var ctxMap={}; (contexts||[]).forEach(function(c){if(c&&c.leagueName)ctxMap[c.leagueName]=c;});
+      var legs=inLegs.map(function(g){
+        var c=ctxMap[g.league]||{};
+        var myPr=+c.myProjPts||0, oppPr=+c.oppProjPts||0, myP=+c.myPoints||0, oppP=+c.oppPoints||0;
+        var T=myPr+oppPr, margin, remPct;
+        if(T>0){ margin=myPr-oppPr; remPct=(Math.max(0,myPr-myP)+Math.max(0,oppPr-oppP))/T; }
+        else { T=Math.max(1,(myP+oppP)||120); margin=myP-oppP; remPct=0.5; }
+        return {league:g.league, side:g.side, delta:g.delta||0, tier:imTierFromName(g.league), T:T, margin:margin, remPct:remPct};
+      });
+      var r=computeMood(legs);
+      return {pos:!!r.color, intensity:r.intensity, label:r.label};
+    }catch(e){ return null; }
+  };
+
   /* ── Test harness (experiment-only) ──────────────────────────────────────
      Offseason has no live scoring, so this replays a scripted slate through the
      exact same queue + animation path. Uses demo-mode player names and the four
@@ -11035,15 +11142,18 @@ initThemeToggle();
        test plays (e.g. Nacua #2, Adams #4) don't wrongly fire the CONFLICTED splash. */
     var confPlayers=p.filter(isConflictedPlay);
     if(confPlayers.length){ queue.push(buildEvents(confPlayers)); drain(); }
-    /* The Live Updates log gets every (player × league), conflicted or not:
-       'mine' → green/cheer, 'opp' → red/enemy. */
+    /* The Live Updates log gets a net-impact framed group per player (every player,
+       conflicted or not). Mood for ALL players via buildEvents — the same model the
+       animation uses — so the frame color/intensity matches the conflicted composite. */
     try{
-      if(window.__luTestInject){
-        var luRows=[];
-        p.forEach(function(pl){ pl.dist.forEach(function(d){
-          luRows.push({name:pl.name,pos:pl.pos,league:d[0],side:d[1],delta:pl.delta,fmt:LU_TEST_FMT[d[0]]||''});
-        }); });
-        window.__luTestInject(luRows);
+      if(window.__luTestInjectLive){
+        var evs=buildEvents(p);
+        var groups=p.map(function(pl,i){
+          var ev=evs[i]||{};
+          var rows=pl.dist.map(function(d){return {league:d[0],side:(d[1]==='mine'?'cheer':'enemy'),delta:pl.delta,fmt:LU_TEST_FMT[d[0]]||''};});
+          return {name:pl.name,pos:pl.pos,net:{pos:!!ev.color,intensity:ev.intensity,label:ev.label},rows:rows};
+        });
+        window.__luTestInjectLive(groups);
       }
     }catch(e){}
   }
@@ -11051,15 +11161,15 @@ initThemeToggle();
      "Let's Catch You Up" recap batch in the Live Updates log. Log-only — no impact
      animation (a catch-up isn't a live conflicted moment). */
   function testGap(){
-    if(!window.__luTestInject)return;
+    if(!window.__luTestInjectGap)return;
     var luRows=[];
     for(var i=0;i<3;i++){
       var p=TEST_PLAYS[tIdx%TEST_PLAYS.length]; tIdx++;
       p.forEach(function(pl){ pl.dist.forEach(function(d){
-        luRows.push({name:pl.name,pos:pl.pos,league:d[0],side:d[1],delta:pl.delta,fmt:LU_TEST_FMT[d[0]]||''});
+        luRows.push({name:pl.name,pos:pl.pos,league:d[0],side:(d[1]==='mine'?'cheer':'enemy'),delta:pl.delta,fmt:LU_TEST_FMT[d[0]]||''});
       }); });
     }
-    window.__luTestInject(luRows,{stale:true});
+    window.__luTestInjectGap(luRows);
   }
   window.__impactTestGap=testGap;
   window.__impactTest={ next:testNext, gap:testGap,
