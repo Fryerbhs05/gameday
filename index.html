@@ -256,6 +256,9 @@
       padding: 14px 18px; border-top: 1px solid var(--line);
       font: 400 11px/1.4 var(--font-mono); color: var(--ink-500); letter-spacing: 0.04em;
     }
+    /* The menu drawer runs full-height (bottom:0); the fixed demo ribbon overlaps its
+       foot. Add the ribbon's reserved height so the footer clears it in demo mode. */
+    body.demo-active .menu-drawer__foot { padding-bottom: calc(14px + 64px); }
     body.menu-open { overflow: hidden; }
     @media (prefers-reduced-motion: reduce) {
       .menu-drawer, .menu-overlay, .site-header__menu-btn { transition: none; }
@@ -1521,6 +1524,14 @@
     @keyframes lu-flash { 0% { background: var(--split-soft); } 100% { background: transparent; } }
     @media (prefers-reduced-motion: reduce) { .lu-row.lu-new { animation: none; } }
     .lu-row.lu-new { animation: lu-flash 1.4s var(--ease-out); }
+    /* "Let's Catch You Up" — stale recap batch (gap > 2 min). Demoted vs. live:
+       neutral inset band, distinct divider with a history icon + time range, no flash. */
+    .lu-synchead.lu-catchup { margin-top: 14px; }
+    .lu-catchup .lu-tx { display: inline-flex; align-items: center; gap: 5px;
+      font: 500 12px/1 var(--font-sans); color: var(--ink-700); }
+    .lu-catchup .lu-range { font: 400 11px/1 var(--font-mono); color: var(--ink-500); margin-left: 8px; white-space: nowrap; }
+    .lu-row.lu-stale { background: var(--paper-deep); }
+    .lu-row.lu-stale:first-of-type { border-top-left-radius: var(--radius-sm); border-top-right-radius: var(--radius-sm); }
 
     .card-top { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
     .pos-badge {
@@ -2170,6 +2181,12 @@
     }
     .sheet__body,
     .exp-sheet__body { overflow-y: auto; overscroll-behavior: contain; padding: 6px 16px 18px; }
+    /* When the persistent demo ribbon is up it's fixed above the sheet (z 9000 > 901)
+       and covers the sheet's bottom edge — the last row gets hidden. Pad the scroll
+       body by the ribbon's reserved height (matches body.demo-active padding-bottom)
+       so the final option always clears it. */
+    body.demo-active .sheet__body,
+    body.demo-active .exp-sheet__body { padding-bottom: calc(18px + 64px); }
     /* When the exposure drawer renders inside the sheet, drop its outer chrome — sheet provides it. */
     .sheet .exp-drawer,
     .exp-sheet .exp-drawer { background: transparent; border: 0; padding: 6px 0 0; margin: 0; }
@@ -2973,7 +2990,7 @@
          mirroring the LOYALTIES section. -->
     <div class="loyalties-section live-updates-section" id="live-updates-section">
       <div class="loyalties-header live-updates-header">
-        <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">LIVE</span><span class="loyalties-wordmark__b"> UPDATES</span></div>
+        <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">LIVE</span><span class="loyalties-wordmark__b">&nbsp;UPDATES</span></div>
       </div>
       <div class="lu-sub">Scoring changes · all relevant players</div>
       <div id="live-updates-log" class="lu-log"></div>
@@ -3028,6 +3045,7 @@
 <div id="impact-overlay" aria-hidden="true"><div id="ia-live" role="status" aria-live="polite"></div></div>
 <div id="impact-test-ctl" aria-label="Impact animation test harness">
   <button type="button" onclick="window.__impactTest&&window.__impactTest.next()">▶ Next play</button>
+  <button type="button" onclick="window.__impactTestGap&&window.__impactTestGap()">⏱ Simulate gap</button>
   <button type="button" id="impact-test-loop-btn" onclick="window.__impactTestLoopToggle&&window.__impactTestLoopToggle(this)">↻ Loop 25s</button>
 </div>
 
@@ -6045,30 +6063,58 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   wire('.live-updates-header','live-updates-section');
 })();
 
-/* ══ LIVE UPDATES engine (experiment-only) ═══════════════════════════════════
+/* ══ LIVE UPDATES engine ═════════════════════════════════════════════════════
    No platform exposes per-play fantasy points, so a "scoring change" is derived
    by diffing each (player × league) running total between successive 60s syncs.
    A player can be on different sides in different leagues, so each league is its
    own row: green when the player is on YOUR side there (helping), red when on the
-   opponent's (hurting). Snapshot persists in-memory across the session. */
+   opponent's (hurting). Snapshot is in-memory only (never persisted).
+
+   Two batch states by the gap since the last sync:
+     • LIVE          — gap ≤ 2 min (normal cadence). Timestamp divider, gold flash.
+     • CATCH YOU UP  — gap > 2 min (tab slept/backgrounded/throttled). A demoted
+                       "Let's Catch You Up · from HH:MM to HH:MM" divider, no flash.
+   The whole feed wipes clean at local midnight, so the catch-up window never
+   spans days and each game day starts fresh. */
 (function(){
   const LU_MAX_BATCHES=30;            // cap log length (≈ last 30 syncs)
+  const LU_STALE_MS=120000;           // >2 min since last sync → "catch you up" batch
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   let luPrev=Object.create(null);     // "<playerId>|<league>" -> last seen total
   let luSeeded=false;                 // first sync only seeds; never emits a flood
-  let luLog=[];                       // [{t, rows:[...]}], newest first
+  let luLog=[];                       // [{t, rows:[...], stale, from, to}], newest first
+  let luLastSyncAt=0;                 // wall-clock (ms) of the last sync — gap detection + range label
+  let luDay=null;                     // local date string of the current feed (midnight-wipe guard)
   let luTestTot=Object.create(null);  // test harness: "<name>|<league>" -> running total
   let luTestClk=3600;                 // test harness: synthetic game seconds remaining (counts down)
 
   function nflClockFor(team){try{return (team&&nflGameClocks.get(team))||'';}catch(e){return'';}}
+  function localDayStr(d){d=d||new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+  function fmtClock(ms){return new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});}
+  /* Full clear of the feed + diff snapshot + test state. Used by the nightly wipe,
+     the day-rollover guard, and user-change/disconnect. */
+  function clearAll(){luPrev=Object.create(null);luSeeded=false;luLog=[];luLastSyncAt=0;luTestTot=Object.create(null);luTestClk=3600;}
+  /* Wipe the section clean at local midnight and reschedule for the next one. A
+     +2s cushion avoids firing a hair early; the day-rollover guard in
+     __buildLiveUpdates covers the case where the tab was asleep across midnight. */
+  function scheduleMidnightWipe(){
+    const now=new Date();
+    const next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,2,0);
+    setTimeout(function(){
+      clearAll();luDay=localDayStr();
+      const e=document.getElementById('lu-empty');if(e)e.textContent='No scoring changes yet — updates appear here as your players score.';
+      render(-1);
+      scheduleMidnightWipe();
+    }, Math.max(1000,next-now));
+  }
 
-  function rowHtml(r,isNew){
+  function rowHtml(r,isNew,stale){
     const sign=r.delta>=0?'+':'−';
     const mag=Math.abs(r.delta).toFixed(1);
     const negCls=r.delta<0?' neg':'';
     const fmt=r.fmt?'<span class="lu-fmt">'+r.fmt+'</span>':'';
     const tail=r.clk?(' · '+r.clk):'';
-    return '<div class="lu-row'+(isNew?' lu-new':'')+'">'
+    return '<div class="lu-row'+(isNew?' lu-new':'')+(stale?' lu-stale':'')+'">'
       +'<div class="lu-bar '+r.side+'"></div>'
       +'<div style="min-width:0;">'
         +'<div class="lu-name">'+esc(r.name)+(r.pos?'<span class="lu-pos">'+esc(r.pos)+(r.team?' · '+esc(r.team):'')+'</span>':'')+'</div>'
@@ -6088,8 +6134,16 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     if(empty)empty.style.display='none';
     let html='';
     luLog.forEach((b,bi)=>{
-      html+='<div class="lu-synchead"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
-      b.rows.forEach(r=>{html+=rowHtml(r,bi===latestBatchIdx);});
+      if(b.stale){
+        html+='<div class="lu-synchead lu-catchup">'
+          +'<span class="lu-tx"><i class="ti ti-history" aria-hidden="true"></i> Let&rsquo;s Catch You Up</span>'
+          +'<span class="lu-range">from '+esc(b.from)+' to '+esc(b.to)+'</span>'
+          +'<span class="lu-ln"></span></div>';
+      }else{
+        html+='<div class="lu-synchead"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
+      }
+      const flashThis=(bi===latestBatchIdx)&&!b.stale; // recap rows never flash
+      b.rows.forEach(r=>{html+=rowHtml(r,flashThis,b.stale);});
     });
     log.innerHTML=html;
   }
@@ -6103,6 +6157,11 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       // Live Updates only make sense for the in-progress current week.
       if(!data||data.isHist){if(empty){empty.textContent='Live Updates track the current week — pick the live week to see scoring as it happens.';empty.style.display='block';}log.innerHTML='';return;}
       if(empty)empty.textContent='No scoring changes yet — updates appear here as your players score.';
+      // Daily wipe: if the local date rolled over since the last sync (e.g. the tab
+      // slept across midnight), clear the feed so a catch-up never spans days.
+      const today=localDayStr();
+      if(luDay&&luDay!==today){clearAll();}
+      luDay=today;
       const players=(data.allRostered||[]);
       const snap=Object.create(null);
       const rows=[];
@@ -6120,15 +6179,21 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         (p.againstLeagues||[]).forEach(l=>consider(p,l,'enemy'));
       });
       Object.assign(luPrev,snap);
-      if(!luSeeded){luSeeded=true;render(-1);return;} // first sync: seed only
+      if(!luSeeded){luSeeded=true;luLastSyncAt=Date.now();render(-1);return;} // first sync: seed only
+      const nowMs=Date.now();
       if(rows.length){
         // Biggest swings first within the sync; helping (cheer) ties break ahead.
         rows.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
-        const now=new Date();
-        const t=now.toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
-        luLog.unshift({t:t,rows:rows});
+        // A gap of > 2 min since the last sync means these deltas accumulated while
+        // we weren't refreshing — present them as a demoted "catch you up" recap.
+        const stale=luLastSyncAt>0 && (nowMs-luLastSyncAt)>LU_STALE_MS;
+        const t=new Date(nowMs).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
+        const batch={t:t,rows:rows,stale:stale};
+        if(stale){batch.from=fmtClock(luLastSyncAt);batch.to=fmtClock(nowMs);}
+        luLog.unshift(batch);
         if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
       }
+      luLastSyncAt=nowMs;
       render(rows.length?0:-1);
     }catch(e){console.warn('Live Updates build failed:',e&&e.message);}
   };
@@ -6138,12 +6203,14 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
      and maintains its own running totals + a descending synthetic game clock so the
      rows look live during the offseason. `inRows`: [{name,pos,team?,league,fmt,side,delta}]
      where side is 'mine' (→ cheer/green) or 'opp' (→ enemy/red). */
-  window.__luTestInject=function(inRows){
+  window.__luTestInject=function(inRows,opts){
     try{
       if(!window.experimentEnabled||!window.experimentEnabled())return;
       const log=document.getElementById('live-updates-log');if(!log||!inRows||!inRows.length)return;
       const empty=document.getElementById('lu-empty');if(empty)empty.textContent='No scoring changes yet — updates appear here as your players score.';
-      luTestClk=Math.max(0,luTestClk-(15+Math.floor(Math.random()*40)));
+      const stale=!!(opts&&opts.stale);
+      // A simulated gap jumps the synthetic game clock by minutes, not seconds.
+      luTestClk=Math.max(0,luTestClk-(stale?(300+Math.floor(Math.random()*600)):(15+Math.floor(Math.random()*40))));
       const quarter=luTestClk>2700?1:luTestClk>1800?2:luTestClk>900?3:4;
       const rem=luTestClk-(4-quarter)*900;
       const clk='Q'+quarter+' '+Math.floor(rem/60)+':'+('0'+(rem%60)).slice(-2);
@@ -6153,15 +6220,20 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         luTestTot[key]=Math.round((luTestTot[key]+r.delta)*10)/10;
         return {id:'t_'+key,name:r.name,pos:r.pos,team:r.team||'',league:r.league,fmt:r.fmt||'',side:(r.side==='opp'?'enemy':'cheer'),delta:r.delta,total:luTestTot[key],clk:clk};
       });
-      const t=new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
-      luLog.unshift({t:t,rows:rows});
+      const nowMs=Date.now();
+      const t=new Date(nowMs).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
+      const batch={t:t,rows:rows,stale:stale};
+      if(stale){const gapMs=(opts&&opts.gapMs)||(25*60000);batch.from=fmtClock(nowMs-gapMs);batch.to=fmtClock(nowMs);}
+      luLog.unshift(batch);
       if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
-      render(0);
+      render(stale?-1:0); // recap batches don't flash
     }catch(e){console.warn('Live Updates test inject failed:',e&&e.message);}
   };
 
   /* Reset on disconnect / user change so one user's log never bleeds into another. */
-  window.__resetLiveUpdates=function(){luPrev=Object.create(null);luSeeded=false;luLog=[];luTestTot=Object.create(null);luTestClk=3600;const l=document.getElementById('live-updates-log');if(l)l.innerHTML='';const e=document.getElementById('lu-empty');if(e)e.style.display='block';};
+  window.__resetLiveUpdates=function(){clearAll();luDay=null;const l=document.getElementById('live-updates-log');if(l)l.innerHTML='';const e=document.getElementById('lu-empty');if(e)e.style.display='block';};
+
+  scheduleMidnightWipe(); // nightly clean slate
 })();
 
 /* EXPERIMENTAL (TestMode2026, mobile) — bucket tab switching. Sets data-exp-tab
@@ -10975,7 +11047,22 @@ initThemeToggle();
       }
     }catch(e){}
   }
-  window.__impactTest={ next:testNext,
+  /* Simulate a refresh gap: bundle the next few scripted plays into one demoted
+     "Let's Catch You Up" recap batch in the Live Updates log. Log-only — no impact
+     animation (a catch-up isn't a live conflicted moment). */
+  function testGap(){
+    if(!window.__luTestInject)return;
+    var luRows=[];
+    for(var i=0;i<3;i++){
+      var p=TEST_PLAYS[tIdx%TEST_PLAYS.length]; tIdx++;
+      p.forEach(function(pl){ pl.dist.forEach(function(d){
+        luRows.push({name:pl.name,pos:pl.pos,league:d[0],side:d[1],delta:pl.delta,fmt:LU_TEST_FMT[d[0]]||''});
+      }); });
+    }
+    window.__luTestInject(luRows,{stale:true});
+  }
+  window.__impactTestGap=testGap;
+  window.__impactTest={ next:testNext, gap:testGap,
     loop:function(ms){ this.stop(); tLooping=true; testMode=true; testNext(); tTimer=setInterval(function(){ if(!running)testNext(); }, ms||25000); },
     stop:function(){ tLooping=false; if(tTimer){clearInterval(tTimer);tTimer=null;} } };
   window.__impactTestLoopToggle=function(btn){
