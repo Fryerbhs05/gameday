@@ -1539,10 +1539,22 @@
     /* Catch-up cluster — same player grouping as live, but no net-impact frame:
        just the neutral darker band. */
     .lu-cgroup { background: var(--paper-deep); border-radius: var(--radius-md); padding: 8px 11px 5px; margin-bottom: 8px; }
+    /* Soft-navy frame around the whole catch-up bundle — neutral grouping, no
+       good/bad signal; lighter/softer than the section's outer navy border. */
+    .lu-bundle { border: 1px solid var(--navy-500); border-radius: var(--radius-md); padding: 4px 9px 2px; margin: 12px 0 10px; }
+    .lu-bundle .lu-synchead.lu-catchup { margin-top: 4px; }
+    .lu-bundle .lu-cgroup:last-child { margin-bottom: 2px; }
+    /* Condensed catch-up row right side — total + delta on one line (no game clock). */
+    .lu-crow-right { display: flex; align-items: baseline; gap: 10px; }
+    .lu-crow-right .lu-tot { margin-top: 0; }
+    /* Tighten catch-up rows to single-line height (bar + padding were sized for two
+       lines). Scoped to .lu-cgroup so live cards keep their taller two-line rows. */
+    .lu-cgroup .lu-lrow { padding: 3px 0; }
+    .lu-cgroup .lu-bar { height: 18px; }
     /* Net-impact frame — one per player per live sync. Border thickness + glow scale
        with how much the player swings your matchups (set inline in JS); no body fill.
        Encompasses all of a player's per-league cards. */
-    .lu-group { border-radius: var(--radius-md); padding: 9px 11px 6px; margin-bottom: 10px; background: transparent; box-sizing: border-box; }
+    .lu-group { border-radius: var(--radius-md); padding: 9px 11px 6px; margin-bottom: 10px; background: var(--paper-soft); box-sizing: border-box; }
     .lu-group.lu-new { animation: lu-flash 1.4s var(--ease-out); }
     @media (prefers-reduced-motion: reduce) { .lu-group.lu-new { animation: none; } }
     .lu-ghead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
@@ -6130,10 +6142,25 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   /* Catch-up card cluster — same per-player / one-card-per-league grouping as the
      live frames, but NO net-impact framing: a neutral darker band only. The
      per-league side bars (green/red) stay; no new coloring. */
+  /* Condensed catch-up league line — single row: side bar · league · total · delta.
+     No game clock; the running total sits just left of the delta. */
+  function catchRowHtml(r){
+    const sign=r.delta>=0?'+':'−';
+    const mag=Math.abs(r.delta).toFixed(1);
+    const negCls=r.delta<0?' neg':'';
+    const fmt=r.fmt?'<span class="lu-fmt">'+r.fmt+'</span>':'';
+    return '<div class="lu-lrow">'
+      +'<div class="lu-bar '+r.side+'"></div>'
+      +'<div class="lu-league '+r.side+'">'+esc(r.league)+fmt+'</div>'
+      +'<div class="lu-crow-right">'
+        +'<span class="lu-tot">'+r.total.toFixed(1)+' pt</span>'
+        +'<span class="lu-delta'+negCls+'">'+sign+mag+'</span>'
+      +'</div></div>';
+  }
   function catchGroupHtml(g){
     const head='<div class="lu-ghead"><span class="lu-gname">'+esc(g.name)
       +(g.pos?'<span class="lu-gpos">'+esc(g.pos)+(g.team?' · '+esc(g.team):'')+'</span>':'')+'</span></div>';
-    return '<div class="lu-cgroup">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
+    return '<div class="lu-cgroup">'+head+g.rows.map(catchRowHtml).join('')+'</div>';
   }
 
   /* A league-level card inside a player's group — no name (it's in the group
@@ -6194,12 +6221,16 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     let html='';
     luLog.forEach((b,bi)=>{
       if(b.stale){
-        // Catch-up recap — flat, unframed rows with names inline (no net impact).
-        html+='<div class="lu-synchead lu-catchup">'
+        // Catch-up recap — player cards clustered like live, but wrapped in one
+        // soft-navy bundle frame (neutral grouping, no good/bad signal). No per-card
+        // net-impact framing; cards keep the darker recap surface.
+        html+='<div class="lu-bundle">'
+          +'<div class="lu-synchead lu-catchup">'
           +'<span class="lu-tx"><i class="ti ti-history" aria-hidden="true"></i> Let&rsquo;s Catch You Up</span>'
           +'<span class="lu-range">from '+esc(b.from)+' to '+esc(b.to)+'</span>'
           +'<span class="lu-ln"></span></div>';
         (b.groups||[]).forEach(g=>{html+=catchGroupHtml(g);});
+        html+='</div>';
       }else{
         // Live — net-impact framed groups, one per player.
         html+='<div class="lu-synchead"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
