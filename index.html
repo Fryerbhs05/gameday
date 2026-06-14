@@ -1532,6 +1532,9 @@
     .lu-catchup .lu-range { font: 400 11px/1 var(--font-mono); color: var(--ink-500); margin-left: 8px; white-space: nowrap; }
     .lu-row.lu-stale { background: var(--paper-deep); }
     .lu-row.lu-stale:first-of-type { border-top-left-radius: var(--radius-sm); border-top-right-radius: var(--radius-sm); }
+    /* Catch-up cluster — same player grouping as live, but no net-impact frame:
+       just the neutral darker band. */
+    .lu-cgroup { background: var(--paper-deep); border-radius: var(--radius-md); padding: 8px 11px 5px; margin-bottom: 8px; }
     /* Net-impact frame — one per player per live sync. Border thickness + glow scale
        with how much the player swings your matchups (set inline in JS); no body fill.
        Encompasses all of a player's per-league cards. */
@@ -6121,26 +6124,17 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     }, Math.max(1000,next-now));
   }
 
-  function rowHtml(r,isNew,stale){
-    const sign=r.delta>=0?'+':'−';
-    const mag=Math.abs(r.delta).toFixed(1);
-    const negCls=r.delta<0?' neg':'';
-    const fmt=r.fmt?'<span class="lu-fmt">'+r.fmt+'</span>':'';
-    const tail=r.clk?(' · '+r.clk):'';
-    return '<div class="lu-row'+(isNew?' lu-new':'')+(stale?' lu-stale':'')+'">'
-      +'<div class="lu-bar '+r.side+'"></div>'
-      +'<div style="min-width:0;">'
-        +'<div class="lu-name">'+esc(r.name)+(r.pos?'<span class="lu-pos">'+esc(r.pos)+(r.team?' · '+esc(r.team):'')+'</span>':'')+'</div>'
-        +'<div class="lu-league '+r.side+'">'+esc(r.league)+fmt+'</div>'
-      +'</div>'
-      +'<div class="lu-right">'
-        +'<div class="lu-delta'+negCls+'">'+sign+mag+'</div>'
-        +'<div class="lu-tot">'+r.total.toFixed(1)+' pt'+tail+'</div>'
-      +'</div></div>';
+  /* Catch-up card cluster — same per-player / one-card-per-league grouping as the
+     live frames, but NO net-impact framing: a neutral darker band only. The
+     per-league side bars (green/red) stay; no new coloring. */
+  function catchGroupHtml(g){
+    const head='<div class="lu-ghead"><span class="lu-gname">'+esc(g.name)
+      +(g.pos?'<span class="lu-gpos">'+esc(g.pos)+(g.team?' · '+esc(g.team):'')+'</span>':'')+'</span></div>';
+    return '<div class="lu-cgroup">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
   }
 
-  /* A league-level card inside a player's net-impact frame — no name (it's in the
-     group header), just the per-league side bar + delta. */
+  /* A league-level card inside a player's group — no name (it's in the group
+     header), just the per-league side bar + delta. Shared by live and catch-up. */
   function lgRowHtml(r){
     const sign=r.delta>=0?'+':'−';
     const mag=Math.abs(r.delta).toFixed(1);
@@ -6202,7 +6196,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
           +'<span class="lu-tx"><i class="ti ti-history" aria-hidden="true"></i> Let&rsquo;s Catch You Up</span>'
           +'<span class="lu-range">from '+esc(b.from)+' to '+esc(b.to)+'</span>'
           +'<span class="lu-ln"></span></div>';
-        (b.rows||[]).forEach(r=>{html+=rowHtml(r,false,true);});
+        (b.groups||[]).forEach(g=>{html+=catchGroupHtml(g);});
       }else{
         // Live — net-impact framed groups, one per player.
         html+='<div class="lu-synchead"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
@@ -6252,16 +6246,18 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         const stale=luLastSyncAt>0 && (nowMs-luLastSyncAt)>LU_STALE_MS;
         const t=new Date(nowMs).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
         let batch;
+        // Group rows per player (one card per league), same as the live frames.
+        const gmap=new Map();
+        rows.forEach(r=>{if(!gmap.has(r.id))gmap.set(r.id,{id:r.id,name:r.name,pos:r.pos,team:r.team,rows:[]});gmap.get(r.id).rows.push(r);});
+        const groups=Array.from(gmap.values());
         if(stale){
-          // Recap: flat, biggest swings first, no net-impact frames.
-          rows.sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));
-          batch={t:t,stale:true,from:fmtClock(luLastSyncAt),to:fmtClock(nowMs),rows:rows};
+          // Recap: same clustering, but no net-impact framing. Biggest swing first.
+          groups.forEach(g=>{g.max=Math.max.apply(null,g.rows.map(r=>Math.abs(r.delta)));});
+          groups.sort((a,b)=>b.max-a.max);
+          batch={t:t,stale:true,from:fmtClock(luLastSyncAt),to:fmtClock(nowMs),groups:groups};
         }else{
-          // Live: group rows per player, compute each group's net impact once (now —
-          // never re-derived on re-render, so old frames don't drift as matchups move).
-          const gmap=new Map();
-          rows.forEach(r=>{if(!gmap.has(r.id))gmap.set(r.id,{id:r.id,name:r.name,pos:r.pos,team:r.team,rows:[]});gmap.get(r.id).rows.push(r);});
-          const groups=Array.from(gmap.values());
+          // Live: compute each group's net impact once (now — never re-derived on
+          // re-render, so old frames don't drift as matchups move).
           groups.forEach(g=>{g.net=groupNet(g.rows,data.contexts);});
           groups.sort((a,b)=>(b.net.intensity||0)-(a.net.intensity||0)); // biggest swing first
           batch={t:t,stale:false,groups:groups};
@@ -6302,15 +6298,16 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       render(0);
     }catch(e){console.warn('Live Updates test (live) failed:',e&&e.message);}
   };
-  // Stale "catch you up" batch — flat, unframed. inRows: [{name,pos,league,side,delta,fmt}]
-  window.__luTestInjectGap=function(inRows){
+  // Stale "catch you up" batch — clustered per player, no net frame. inGroups same
+  // shape as live minus `net`: [{name,pos,team?, rows:[{league,side,delta,fmt}]}]
+  window.__luTestInjectGap=function(inGroups){
     try{
-      if(!testEnabled()||!inRows||!inRows.length)return;
+      if(!testEnabled()||!inGroups||!inGroups.length)return;
       const clk=testClk(true);
-      const rows=inRows.map(function(r){const o=testRow(r.name,r,clk);o.pos=r.pos;o.team=r.team||'';return o;});
+      const groups=inGroups.map(function(g){return {id:'t_'+g.name,name:g.name,pos:g.pos,team:g.team||'',rows:g.rows.map(function(r){return testRow(g.name,r,clk);})};});
       const nowMs=Date.now(), gapMs=25*60000;
       const t=new Date(nowMs).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
-      luLog.unshift({t:t,stale:true,from:fmtClock(nowMs-gapMs),to:fmtClock(nowMs),rows:rows});
+      luLog.unshift({t:t,stale:true,from:fmtClock(nowMs-gapMs),to:fmtClock(nowMs),groups:groups});
       if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
       render(-1);
     }catch(e){console.warn('Live Updates test (gap) failed:',e&&e.message);}
@@ -11162,14 +11159,15 @@ initThemeToggle();
      animation (a catch-up isn't a live conflicted moment). */
   function testGap(){
     if(!window.__luTestInjectGap)return;
-    var luRows=[];
+    var byName={}; // cluster the bundled plays per player (one card per league)
     for(var i=0;i<3;i++){
       var p=TEST_PLAYS[tIdx%TEST_PLAYS.length]; tIdx++;
-      p.forEach(function(pl){ pl.dist.forEach(function(d){
-        luRows.push({name:pl.name,pos:pl.pos,league:d[0],side:(d[1]==='mine'?'cheer':'enemy'),delta:pl.delta,fmt:LU_TEST_FMT[d[0]]||''});
-      }); });
+      p.forEach(function(pl){
+        if(!byName[pl.name])byName[pl.name]={name:pl.name,pos:pl.pos,rows:[]};
+        pl.dist.forEach(function(d){ byName[pl.name].rows.push({league:d[0],side:(d[1]==='mine'?'cheer':'enemy'),delta:pl.delta,fmt:LU_TEST_FMT[d[0]]||''}); });
+      });
     }
-    window.__luTestInjectGap(luRows);
+    window.__luTestInjectGap(Object.keys(byName).map(function(k){return byName[k];}));
   }
   window.__impactTestGap=testGap;
   window.__impactTest={ next:testNext, gap:testGap,
