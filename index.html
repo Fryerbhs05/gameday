@@ -165,6 +165,10 @@
       letter-spacing: 0.08em; text-transform: uppercase;
       background: var(--paper-deep); padding: 6px 10px; border-radius: var(--radius-pill);
     }
+    /* The brand is centered at a fixed width, so the nav's leading week pill collides
+       with the wordmark on narrow-desktop / tablet widths. It's redundant with the
+       dashboard's own Week/Season selector, so keep it hidden until there's clear room. */
+    @media (max-width: 960px) { .site-header__week { display: none !important; } }
     /* ── Menu trigger (hamburger) ────────────────────────────── */
     .site-header__menu-btn {
       display: inline-flex; align-items: center; justify-content: center;
@@ -1683,8 +1687,7 @@
       .filter-pill { font-size: 11px; padding: 4px 10px; }
       .filter-count { display: none; }
       .filter-divider { display: none; }
-      /* Slim the header on mobile — Change user is duplicated by the in-page "change" link, and the WEEK pill is redundant with the dashboard week selector */
-      .site-header__week { display: none !important; }
+      /* Slim the header on mobile — Change user is duplicated by the in-page "change" link. (The WEEK pill is already hidden up to 900px; see .site-header__week.) */
       #change-user-btn { display: none !important; }
     }
     @media (min-width: 641px) and (max-width: 768px) {
@@ -2980,11 +2983,11 @@
       <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">LOYAL</span><span class="loyalties-wordmark__b">TIES</span></div>
     </div>
     <div id="exp-tabbar" class="exp-tabbar" role="tablist" aria-label="Player buckets">
-      <button class="exp-tab is-active" data-tab="cheer" role="tab" aria-selected="true"><span>Cheer for</span><span class="exp-tab-ct" id="exp-ct-cheer">0</span></button>
+      <button class="exp-tab" data-tab="cheer" role="tab" aria-selected="false"><span>Cheer for</span><span class="exp-tab-ct" id="exp-ct-cheer">0</span></button>
+      <button class="exp-tab is-active" data-tab="conflicted" role="tab" aria-selected="true"><span>Conflicted</span><span class="exp-tab-ct" id="exp-ct-conflicted">0</span></button>
       <button class="exp-tab" data-tab="enemy" role="tab" aria-selected="false"><span>Enemy</span><span class="exp-tab-ct" id="exp-ct-enemy">0</span></button>
-      <button class="exp-tab" data-tab="conflicted" role="tab" aria-selected="false"><span>Conflicted</span><span class="exp-tab-ct" id="exp-ct-conflicted">0</span></button>
     </div>
-    <div class="columns" id="columns" data-exp-tab="cheer">
+    <div class="columns" id="columns" data-exp-tab="conflicted">
       <div class="column cheer">
         <div class="column-header"><span class="col-count" id="count-cheer">0</span><span class="col-title">Cheer for</span><span class="col-subtitle">Your rosters only</span></div>
         <div id="cheer-list"></div>
@@ -6322,11 +6325,12 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
 /* EXPERIMENTAL (TestMode2026, mobile) — bucket tab switching. Sets data-exp-tab
    on #columns (CSS shows one column at a time) and the active-tab styling.
    Deliberately NOT persisted: the active tab hides buckets, and we never store
-   anything that hides players, so every load defaults back to "Cheer for". */
+   anything that hides players, so every load defaults back to "Conflicted" (the
+   app's namesake bucket — the players worth deciding about first). */
 (function(){
   const bar=document.getElementById('exp-tabbar'),cols=document.getElementById('columns');
   if(!bar||!cols)return;
-  if(!cols.dataset.expTab)cols.dataset.expTab='cheer';
+  if(!cols.dataset.expTab)cols.dataset.expTab='conflicted';
   bar.addEventListener('click',function(e){
     const b=e.target.closest('.exp-tab');if(!b)return;
     cols.dataset.expTab=b.dataset.tab;
