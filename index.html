@@ -709,32 +709,24 @@
       font: 500 12px/1.5 var(--font-sans); color: var(--ink-700);
     }
     .espn-prereq strong { color: var(--split); }
-    /* Inline annotated DevTools diagrams. Theme-aware via tokens; numbered
-       markers (coral discs) tie the picture to the written steps. */
-    .espn-illus {
-      width: 100%; height: auto; display: block; margin: 4px 0 4px;
-      border-radius: var(--radius-md);
+    /* On-demand example clip: a quiet text toggle that expands a lazy-loaded
+       screen recording. Stays out of the way until the user asks for it. */
+    .espn-example-wrap { margin: 0 0 18px; }
+    .espn-example-toggle {
+      background: none; border: none; color: var(--navy-500);
+      font: 600 13px/1 var(--font-sans); cursor: pointer; padding: 4px 0;
     }
-    .dvt-win { fill: var(--paper); stroke: var(--line); stroke-width: 1; }
-    .dvt-line { stroke: var(--line); stroke-width: 1; }
-    .dvt-tab { font: 600 11px var(--font-sans); fill: var(--ink-500); }
-    .dvt-side { font: 600 11px var(--font-sans); fill: var(--ink-700); }
-    .dvt-th { font: 600 10px var(--font-sans); fill: var(--ink-500); letter-spacing: 0.05em; }
-    .dvt-cap { font: 600 10px var(--font-sans); fill: var(--ink-500); }
-    .dvt-mono { font-family: var(--font-mono); font-size: 11px; fill: var(--ink-700); }
-    .dvt-val { fill: var(--ink-700); }
-    .dvt-strong { fill: var(--ink-900); font-weight: 600; }
-    .dvt-faint { fill: var(--ink-300); }
-    .dvt-hl { fill: var(--coral-500); }
-    .dvt-ok { fill: var(--cheer); font-size: 10px; }
-    .dvt-pillbg { fill: color-mix(in oklab, var(--coral-500) 14%, transparent); }
-    .dvt-sel { fill: color-mix(in oklab, var(--navy-500) 16%, transparent); }
-    .dvt-rowhl {
-      fill: color-mix(in oklab, var(--coral-500) 9%, transparent);
-      stroke: color-mix(in oklab, var(--coral-500) 55%, transparent); stroke-width: 1.5;
+    .espn-example-toggle:hover { color: var(--coral-500); }
+    .espn-example { margin-top: 10px; }
+    .espn-example__vid {
+      width: 100%; display: block; border-radius: var(--radius-md);
+      border: 1px solid var(--line); background: var(--navy-900);
     }
-    .dvt-num circle { fill: var(--coral-500); }
-    .dvt-num text { fill: #fff; font: 700 9px var(--font-sans); text-anchor: middle; }
+    .espn-example__fallback {
+      font: 500 12px/1.5 var(--font-sans); color: var(--ink-500);
+      text-align: center; padding: 18px; background: var(--paper-soft);
+      border: 1px solid var(--line); border-radius: var(--radius-md);
+    }
     .espn-modal-actions {
       display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;
     }
@@ -7794,52 +7786,18 @@ function openEspnConnectModal(){
       ? `<div class="espn-prereq"><strong>Safari setup (one time):</strong> turn on the Develop menu — Safari → Settings → Advanced → check &ldquo;Show features for web developers,&rdquo; then reopen this.</div>`
       : '';
 
-    /* Inline, theme-aware diagrams (no external assets). They annotate the same
-       numbered steps so a non-developer can match the picture to the words. */
-    const consoleSvg=`
-      <svg class="espn-illus" viewBox="0 0 460 132" role="img" aria-label="Browser console: paste the snippet at the prompt and press Return; a green success line confirms your cookies were copied">
-        <rect x="1" y="1" width="458" height="130" rx="9" class="dvt-win"/>
-        <line x1="1" y1="28" x2="459" y2="28" class="dvt-line"/>
-        <rect x="74" y="6" width="72" height="17" rx="8" class="dvt-pillbg"/>
-        <text x="14" y="19" class="dvt-tab">Elements</text>
-        <text x="82" y="19" class="dvt-tab dvt-hl">Console</text>
-        <text x="156" y="19" class="dvt-tab">Network</text>
-        <g class="dvt-num"><circle cx="146" cy="14" r="8"/><text x="146" y="17.5">3</text></g>
-        <rect x="12" y="46" width="404" height="19" rx="3" class="dvt-rowhl"/>
-        <text x="18" y="59" class="dvt-mono dvt-faint">›</text>
-        <text x="30" y="59" class="dvt-mono dvt-val">(function(){var c=document.cookie,g=function(n)…})();</text>
-        <g class="dvt-num"><circle cx="12" cy="55" r="8"/><text x="12" y="58.5">4</text></g>
-        <text x="18" y="88" class="dvt-mono dvt-ok">Conflicted: cookies copied. Paste them back into the app.</text>
-        <text x="18" y="114" class="dvt-cap">Paste the snippet, press Return — your cookies are copied for you.</text>
-      </svg>`;
-    const cookiesSvg=`
-      <svg class="espn-illus" viewBox="0 0 460 196" role="img" aria-label="DevTools storage panel: open the ${B.storagePanel} tab, choose Cookies for fantasy.espn.com, then copy the espn_s2 and SWID rows into the fields below">
-        <rect x="1" y="1" width="458" height="194" rx="9" class="dvt-win"/>
-        <line x1="1" y1="28" x2="459" y2="28" class="dvt-line"/>
-        <rect x="206" y="6" width="${B.storagePanel.length>9?92:74}" height="17" rx="8" class="dvt-pillbg"/>
-        <text x="14" y="19" class="dvt-tab">Elements</text>
-        <text x="78" y="19" class="dvt-tab">Network</text>
-        <text x="214" y="19" class="dvt-tab dvt-hl">${B.storagePanel}</text>
-        <g class="dvt-num"><circle cx="${B.storagePanel.length>9?302:286}" cy="14" r="8"/><text x="${B.storagePanel.length>9?302:286}" y="17.5">2</text></g>
-        <line x1="150" y1="28" x2="150" y2="195" class="dvt-line"/>
-        <text x="16" y="50" class="dvt-side">▾ ${B.storagePanel}</text>
-        <text x="28" y="69" class="dvt-side">▾ Cookies</text>
-        <rect x="10" y="78" width="134" height="20" rx="4" class="dvt-sel"/>
-        <text x="34" y="92" class="dvt-mono dvt-strong">fantasy.espn.com</text>
-        <g class="dvt-num"><circle cx="150" cy="88" r="8"/><text x="150" y="91.5">3</text></g>
-        <text x="166" y="48" class="dvt-th">Name</text>
-        <text x="300" y="48" class="dvt-th">Value</text>
-        <rect x="158" y="58" width="296" height="30" rx="5" class="dvt-rowhl"/>
-        <text x="168" y="77" class="dvt-mono dvt-hl">espn_s2</text>
-        <text x="248" y="77" class="dvt-mono dvt-val">AECt8QAtN7m%2FK1x…</text>
-        <rect x="158" y="94" width="296" height="30" rx="5" class="dvt-rowhl"/>
-        <text x="168" y="113" class="dvt-mono dvt-hl">SWID</text>
-        <text x="248" y="113" class="dvt-mono dvt-val">{F4529D57-2118-…}</text>
-        <g class="dvt-num"><circle cx="158" cy="73" r="8"/><text x="158" y="76.5">4</text></g>
-        <text x="168" y="143" class="dvt-mono dvt-faint">region</text>
-        <text x="248" y="143" class="dvt-mono dvt-faint">us</text>
-        <text x="166" y="176" class="dvt-cap">Copy both values into the fields below</text>
-      </svg>`;
+    /* On-demand "See example" clip — a real screen recording, lazy-loaded only
+       when the user opens it (preload=none), so it never weighs down the modal.
+       Drop the recording at /espn-connect-demo.mp4 (poster optional). Until then,
+       the video fires 'error' on play and we show a graceful fallback. */
+    const exampleHTML=`
+      <div class="espn-example-wrap">
+        <button type="button" class="espn-example-toggle" id="espn-example-toggle" aria-expanded="false" aria-controls="espn-example">▶ See a quick example</button>
+        <div class="espn-example" id="espn-example" hidden>
+          <video id="espn-example-video" class="espn-example__vid" src="/espn-connect-demo.mp4" poster="/espn-connect-demo.jpg" muted loop playsinline controls preload="none"></video>
+          <div class="espn-example__fallback" id="espn-example-fallback" hidden>Walkthrough video coming soon.</div>
+        </div>
+      </div>`;
 
     const backdrop=document.createElement('div');
     backdrop.id='espn-modal-backdrop';
@@ -7869,9 +7827,10 @@ function openEspnConnectModal(){
               <button type="button" class="espn-snippet__copy" id="espn-snippet-copy">Copy snippet</button>
             </div>
             <div class="espn-snippet__after" id="espn-snippet-after" hidden></div>
-            ${consoleSvg}
             <div class="espn-snippet__hint">These two cookies only let us read your leagues — never your password. You can disconnect anytime.</div>
           </div>
+
+          ${exampleHTML}
 
           <div class="espn-field espn-smartpaste">
             <label for="espn-smart">Paste your cookies <span class="espn-field-tag">easiest</span></label>
@@ -7892,7 +7851,6 @@ function openEspnConnectModal(){
             </ol>
             <p class="espn-field-hint" style="margin-top:6px">No need to find a League ID — we detect your leagues from the cookies.</p>
           </div>
-          ${cookiesSvg}
 
           <div class="espn-field">
             <label for="espn-s2">espn_s2 cookie</label>
@@ -7953,6 +7911,28 @@ function openEspnConnectModal(){
     };
     document.getElementById('espn-tab-fast').addEventListener('click',()=>switchTab('fast'));
     document.getElementById('espn-tab-manual').addEventListener('click',()=>switchTab('manual'));
+
+    /* "See example" — expand/collapse the lazy clip. Plays on open, pauses on
+       close; if the recording isn't deployed yet, swap in the fallback note. */
+    const exToggle=document.getElementById('espn-example-toggle');
+    const exPanel=document.getElementById('espn-example');
+    const exVideo=document.getElementById('espn-example-video');
+    if(exToggle&&exPanel){
+      exToggle.addEventListener('click',()=>{
+        const show=exPanel.hidden;
+        exPanel.hidden=!show;
+        exToggle.setAttribute('aria-expanded',show?'true':'false');
+        exToggle.textContent=show?'▾ Hide example':'▶ See a quick example';
+        if(exVideo){ try{ show?exVideo.play():exVideo.pause(); }catch(e){} }
+      });
+      if(exVideo){
+        exVideo.addEventListener('error',()=>{
+          exVideo.style.display='none';
+          const fb=document.getElementById('espn-example-fallback');
+          if(fb)fb.hidden=false;
+        });
+      }
+    }
 
     /* Console-snippet path: show the snippet text and copy it on click. Prefer
        the async Clipboard API; fall back to selecting the code so the user can
