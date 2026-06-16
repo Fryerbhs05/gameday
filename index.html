@@ -625,6 +625,51 @@
       background: var(--paper); padding: 1px 5px; border-radius: 3px;
       font: 400 11px/1 var(--font-mono); color: var(--coral-700);
     }
+    /* Console-snippet path — the fastest way to grab the cookies without the
+       DevTools cookie-hunt. The snippet reads document.cookie, copy()s the
+       result, and the output feeds the existing quick-paste parser. */
+    .espn-snippet {
+      background: var(--paper-deep); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px;
+    }
+    .espn-snippet__step {
+      display: inline-block; background: var(--coral-500); color: var(--paper);
+      font: 700 9px/1 var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 4px 8px; border-radius: 10px; margin-bottom: 10px;
+    }
+    .espn-snippet__steps {
+      margin: 0 0 12px; padding-left: 18px;
+      font: 400 12px/1.55 var(--font-sans); color: var(--ink-700);
+    }
+    .espn-snippet__steps li { margin-bottom: 4px; }
+    .espn-snippet__steps code, .espn-snippet__hint code {
+      background: var(--paper); padding: 1px 5px; border-radius: 3px;
+      font: 400 11px/1 var(--font-mono); color: var(--coral-700);
+    }
+    .espn-snippet kbd {
+      background: var(--paper); border: 1px solid var(--line); border-bottom-width: 2px;
+      border-radius: 4px; padding: 1px 5px; font: 600 10px/1.4 var(--font-mono); color: var(--ink-900);
+    }
+    .espn-snippet__code {
+      display: flex; align-items: stretch; gap: 8px;
+      background: var(--ink-900); border-radius: var(--radius-md); padding: 10px 12px;
+    }
+    .espn-snippet__code code {
+      flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap;
+      font: 400 11px/1.6 var(--font-mono); color: #e8eef3;
+    }
+    .espn-snippet__copy {
+      flex: none; align-self: center;
+      background: var(--navy-500); color: var(--paper); border: none;
+      border-radius: var(--radius-md); padding: 8px 12px;
+      font: 600 11px/1 var(--font-sans); cursor: pointer; white-space: nowrap;
+      transition: background 0.15s var(--ease-out);
+    }
+    .espn-snippet__copy:hover { background: var(--navy-700); }
+    .espn-snippet__copy.copied { background: var(--ally, #2e7d57); }
+    .espn-snippet__hint {
+      font: 400 11px/1.45 var(--font-sans); color: var(--ink-500); margin-top: 10px;
+    }
     .espn-modal-actions {
       display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;
     }
@@ -7638,6 +7683,14 @@ function parseEspnPaste(text){
   return out;
 }
 
+/* One-line console snippet the user runs on fantasy.espn.com. It reads the two
+   session cookies from document.cookie, copies "espn_s2=…; SWID=…" to the
+   clipboard via the console's copy() helper (falling back to logging the line),
+   and that string drops straight into parseEspnPaste via the quick-paste box.
+   Messages avoid apostrophes so the whole thing stays a clean double-quoted
+   string with no escaping. */
+const ESPN_COOKIE_SNIPPET="(function(){var c=document.cookie,g=function(n){var m=c.match(new RegExp(n+'=([^;]+)'));return m?m[1]:null},s=g('espn_s2'),w=g('SWID');if(w){try{w=decodeURIComponent(w)}catch(e){}}if(!s||!w){console.log('%cConflicted: could not read your ESPN cookies here. Make sure you are signed in at fantasy.espn.com, then run this again.','color:#D00018;font-weight:bold');return}var out='espn_s2='+s+'; SWID='+w;try{copy(out);console.log('%cConflicted: cookies copied. Paste them back into the app.','color:#2e7d57;font-weight:bold')}catch(e){console.log('%cConflicted: copy the line below.','color:#2e7d57;font-weight:bold');console.log(out)}})();";
+
 function openEspnConnectModal(){
   return new Promise((resolve)=>{
     /* Tear down any pre-existing modal so reopening doesn't stack DOM nodes */
@@ -7652,7 +7705,21 @@ function openEspnConnectModal(){
         <h2 id="espn-modal-title">Connect ESPN</h2>
         <p class="espn-modal-sub">ESPN doesn't offer a public sign-in flow, so we use two session cookies you copy from your own browser. We never see your ESPN password — and we'll automatically pull in <strong>every</strong> league on your account.</p>
 
-        <button type="button" class="espn-help-toggle" id="espn-help-toggle">How do I find these cookies? &#9662;</button>
+        <div class="espn-snippet">
+          <span class="espn-snippet__step">Fastest way</span>
+          <ol class="espn-snippet__steps">
+            <li>Open <code>fantasy.espn.com</code> in another tab and make sure you're signed in.</li>
+            <li>Open your browser console (<kbd>F12</kbd> → <strong>Console</strong>, or <kbd>⌥⌘J</kbd> on Mac), paste the snippet below, and press <kbd>Enter</kbd>.</li>
+            <li>It copies your cookies for you — come back and paste them into the box below.</li>
+          </ol>
+          <div class="espn-snippet__code">
+            <code id="espn-snippet-code">…</code>
+            <button type="button" class="espn-snippet__copy" id="espn-snippet-copy">Copy snippet</button>
+          </div>
+          <div class="espn-snippet__hint">Safari needs the Develop menu first (Settings → Advanced → Show features for web developers). Prefer clicking around? Use the manual steps below.</div>
+        </div>
+
+        <button type="button" class="espn-help-toggle" id="espn-help-toggle">Find the cookies manually instead &#9662;</button>
         <div class="espn-help-body" id="espn-help-body" style="display:none">
           <strong>espn_s2 and SWID cookies</strong>
           <ol>
@@ -7665,8 +7732,8 @@ function openEspnConnectModal(){
         </div>
 
         <div class="espn-field espn-smartpaste">
-          <label for="espn-smart">Quick paste <span class="espn-field-tag">easiest</span></label>
-          <textarea id="espn-smart" rows="2" placeholder="Paste the block of cookies you copied here — we'll fill in the fields below automatically." autocomplete="off"></textarea>
+          <label for="espn-smart">Paste your cookies <span class="espn-field-tag">easiest</span></label>
+          <textarea id="espn-smart" rows="2" placeholder="Paste the snippet's result here — or any block containing espn_s2 and SWID. We'll fill in the fields below automatically." autocomplete="off"></textarea>
           <div class="espn-smart-status" id="espn-smart-status"></div>
         </div>
 
@@ -7717,6 +7784,28 @@ function openEspnConnectModal(){
       const isOpen=body.style.display!=='none';
       body.style.display=isOpen?'none':'block';
     });
+
+    /* Console-snippet path: show the snippet text and copy it on click. Prefer
+       the async Clipboard API; fall back to selecting the code so the user can
+       Cmd/Ctrl+C if clipboard access is blocked. */
+    const snipCode=document.getElementById('espn-snippet-code');
+    const snipBtn=document.getElementById('espn-snippet-copy');
+    if(snipCode)snipCode.textContent=ESPN_COOKIE_SNIPPET;
+    if(snipBtn){
+      snipBtn.addEventListener('click',async()=>{
+        try{
+          await navigator.clipboard.writeText(ESPN_COOKIE_SNIPPET);
+        }catch(e){
+          try{
+            const r=document.createRange();r.selectNodeContents(snipCode);
+            const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+          }catch(_){}
+        }
+        snipBtn.textContent='Copied ✓';
+        snipBtn.classList.add('copied');
+        setTimeout(()=>{snipBtn.textContent='Copy snippet';snipBtn.classList.remove('copied');},1800);
+      });
+    }
 
     /* Reveal the optional manual-League-ID field (Advanced fallback). */
     const showAdvanced=()=>{
