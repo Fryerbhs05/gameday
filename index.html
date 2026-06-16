@@ -667,6 +667,9 @@
     }
     .espn-snippet__copy:hover { background: var(--navy-700); }
     .espn-snippet__copy.copied { background: var(--ally, #2e7d57); }
+    .espn-snippet__after {
+      font: 600 11px/1.45 var(--font-sans); color: var(--ally, #2e7d57); margin-top: 8px;
+    }
     .espn-snippet__hint {
       font: 400 11px/1.45 var(--font-sans); color: var(--ink-500); margin-top: 10px;
     }
@@ -7708,14 +7711,17 @@ function openEspnConnectModal(){
         <div class="espn-snippet">
           <span class="espn-snippet__step">Fastest way</span>
           <ol class="espn-snippet__steps">
-            <li>Open <code>fantasy.espn.com</code> in another tab and make sure you're signed in.</li>
-            <li>Open your browser console (<kbd>F12</kbd> → <strong>Console</strong>, or <kbd>⌥⌘J</kbd> on Mac), paste the snippet below, and press <kbd>Enter</kbd>.</li>
-            <li>It copies your cookies for you — come back and paste them into the box below.</li>
+            <li><strong>Copy</strong> the snippet below.</li>
+            <li>Open <code>fantasy.espn.com</code> in another tab, signed in.</li>
+            <li>Open the console — right-click the page → <strong>Inspect</strong> → <strong>Console</strong> tab. (Shortcut: <kbd>⌥⌘C</kbd> Safari · <kbd>F12</kbd> Chrome/Edge.)</li>
+            <li><strong>Paste</strong> it there and press <kbd>Return</kbd>.</li>
+            <li>Come back and paste your cookies in the box below.</li>
           </ol>
           <div class="espn-snippet__code">
             <code id="espn-snippet-code">…</code>
             <button type="button" class="espn-snippet__copy" id="espn-snippet-copy">Copy snippet</button>
           </div>
+          <div class="espn-snippet__after" id="espn-snippet-after" hidden></div>
           <div class="espn-snippet__hint">Safari needs the Develop menu first (Settings → Advanced → Show features for web developers). Prefer clicking around? Use the manual steps below.</div>
         </div>
 
@@ -7803,6 +7809,10 @@ function openEspnConnectModal(){
         }
         snipBtn.textContent='Copied ✓';
         snipBtn.classList.add('copied');
+        /* Reinforce the next action right where the user's attention is — clicking
+           Copy is only step 1; the snippet still has to be run in the ESPN console. */
+        const after=document.getElementById('espn-snippet-after');
+        if(after){after.hidden=false;after.textContent='Now paste it into your ESPN browser console and press Return — that copies your cookies.';}
         setTimeout(()=>{snipBtn.textContent='Copy snippet';snipBtn.classList.remove('copied');},1800);
       });
     }
