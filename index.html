@@ -576,6 +576,25 @@
       font: 400 13px/1.5 var(--font-sans); color: var(--ink-500);
       margin-bottom: 18px;
     }
+    /* Segmented Fastest / Manual tabs: recessed track, raised active pill —
+       theme-stable since paper-deep < paper-soft in both light and dark. */
+    .espn-tabs {
+      display: flex; gap: 4px; margin: 2px 0 18px;
+      background: var(--paper-deep); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 4px;
+    }
+    .espn-tab {
+      flex: 1; text-align: center; cursor: pointer;
+      background: transparent; border: none; border-radius: var(--radius-sm);
+      padding: 9px 12px; font: 600 13px/1 var(--font-sans); color: var(--ink-500);
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+    }
+    .espn-tab:hover { color: var(--ink-700); }
+    .espn-tab.is-active {
+      background: var(--paper-soft); color: var(--ink-900);
+      box-shadow: 0 1px 2px rgba(15, 27, 38, 0.18);
+    }
+    .espn-pane[hidden] { display: none; }
     .espn-field { margin-bottom: 14px; }
     .espn-field label {
       display: block; font: 500 12px/1.3 var(--font-sans);
@@ -593,20 +612,22 @@
     .espn-field-hint {
       font: 400 11px/1.4 var(--font-sans); color: var(--ink-500); margin-top: 4px;
     }
+    /* Primary paste field — marked with a coral left-accent instead of a heavy
+       boxed surface, so it reads as the recommended path without nesting two
+       dark panels (which looked muddy in dark mode). */
     .espn-smartpaste {
-      background: var(--paper-deep); border: 1px dashed var(--line);
-      border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 18px;
+      border-left: 3px solid var(--coral-500); padding-left: 13px; margin-bottom: 18px;
     }
     .espn-field-tag {
       display: inline-block; vertical-align: middle; margin-left: 6px;
-      background: var(--navy-500); color: var(--paper);
-      font: 600 9px/1 var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase;
-      padding: 3px 6px; border-radius: 10px;
+      background: color-mix(in oklab, var(--coral-500) 16%, transparent); color: var(--coral-700);
+      font: 700 9px/1 var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 3px 7px; border-radius: var(--radius-pill);
     }
     .espn-smart-status {
-      font: 500 11px/1.4 var(--font-sans); margin-top: 6px; min-height: 14px;
+      font: 600 11px/1.4 var(--font-sans); margin-top: 6px; min-height: 14px;
     }
-    .espn-smart-status.ok { color: var(--ally, #2e7d57); }
+    .espn-smart-status.ok { color: var(--cheer); }
     .espn-smart-status.warn { color: var(--ink-500); }
     .espn-help-toggle {
       background: none; border: none; color: var(--navy-500);
@@ -615,9 +636,9 @@
     }
     .espn-help-toggle:hover { color: var(--coral-500); }
     .espn-help-body {
-      background: var(--paper-deep); border-radius: var(--radius-md);
-      padding: 14px 16px; margin-bottom: 16px;
-      font: 400 12px/1.55 var(--font-sans); color: var(--ink-700);
+      background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: var(--radius-md); padding: 16px 18px; margin-bottom: 16px;
+      font: 400 12.5px/1.6 var(--font-sans); color: var(--ink-700);
     }
     .espn-help-body ol { padding-left: 20px; margin: 6px 0; }
     .espn-help-body li { margin-bottom: 4px; }
@@ -626,52 +647,59 @@
       font: 400 11px/1 var(--font-mono); color: var(--coral-700);
     }
     /* Console-snippet path — the fastest way to grab the cookies without the
-       DevTools cookie-hunt. The snippet reads document.cookie, copy()s the
-       result, and the output feeds the existing quick-paste parser. */
+       DevTools cookie-hunt. Theme-aware: the code box uses brand navy-900, which
+       is NOT remapped in dark mode, so it stays a dark, readable "terminal" in
+       both light and dark themes (with fixed light text). */
     .espn-snippet {
-      background: var(--paper-deep); border: 1px solid var(--line);
-      border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 16px;
+      background: var(--paper-soft);
+      border: 1px solid color-mix(in oklab, var(--coral-500) 22%, var(--line));
+      border-radius: var(--radius-md); padding: 16px 18px; margin-bottom: 18px;
     }
     .espn-snippet__step {
-      display: inline-block; background: var(--coral-500); color: var(--paper);
-      font: 700 9px/1 var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase;
-      padding: 4px 8px; border-radius: 10px; margin-bottom: 10px;
+      display: inline-block; background: var(--coral-500); color: #fff;
+      font: 700 9px/1 var(--font-sans); letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 4px 9px; border-radius: var(--radius-pill); margin-bottom: 12px;
     }
     .espn-snippet__steps {
-      margin: 0 0 12px; padding-left: 18px;
-      font: 400 12px/1.55 var(--font-sans); color: var(--ink-700);
+      margin: 0 0 14px; padding-left: 20px;
+      font: 400 12.5px/1.6 var(--font-sans); color: var(--ink-700);
     }
-    .espn-snippet__steps li { margin-bottom: 4px; }
+    .espn-snippet__steps li { margin-bottom: 5px; }
+    .espn-snippet__steps li::marker { color: var(--ink-500); font-weight: 600; }
     .espn-snippet__steps code, .espn-snippet__hint code {
       background: var(--paper); padding: 1px 5px; border-radius: 3px;
       font: 400 11px/1 var(--font-mono); color: var(--coral-700);
     }
     .espn-snippet kbd {
       background: var(--paper); border: 1px solid var(--line); border-bottom-width: 2px;
-      border-radius: 4px; padding: 1px 5px; font: 600 10px/1.4 var(--font-mono); color: var(--ink-900);
+      border-radius: 4px; padding: 1px 6px; font: 600 10px/1.5 var(--font-mono);
+      color: var(--ink-900); white-space: nowrap;
     }
     .espn-snippet__code {
-      display: flex; align-items: stretch; gap: 8px;
-      background: var(--ink-900); border-radius: var(--radius-md); padding: 10px 12px;
+      display: flex; align-items: center; gap: 10px;
+      background: var(--navy-900);
+      border: 1px solid color-mix(in oklab, var(--navy-500) 35%, transparent);
+      border-radius: var(--radius-md); padding: 7px 7px 7px 14px; margin-top: 2px;
     }
     .espn-snippet__code code {
-      flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap;
-      font: 400 11px/1.6 var(--font-mono); color: #e8eef3;
+      flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font: 400 11px/1.7 var(--font-mono); color: #C9D6E5;
     }
     .espn-snippet__copy {
-      flex: none; align-self: center;
-      background: var(--navy-500); color: var(--paper); border: none;
-      border-radius: var(--radius-md); padding: 8px 12px;
-      font: 600 11px/1 var(--font-sans); cursor: pointer; white-space: nowrap;
+      flex: none;
+      background: var(--coral-500); color: #fff; border: none;
+      border-radius: var(--radius-sm); padding: 9px 15px;
+      font: 700 11px/1 var(--font-sans); letter-spacing: 0.01em; cursor: pointer; white-space: nowrap;
       transition: background 0.15s var(--ease-out);
     }
-    .espn-snippet__copy:hover { background: var(--navy-700); }
-    .espn-snippet__copy.copied { background: var(--ally, #2e7d57); }
+    .espn-snippet__copy:hover { background: var(--coral-400); }
+    .espn-snippet__copy.copied { background: var(--cheer); }
     .espn-snippet__after {
-      font: 600 11px/1.45 var(--font-sans); color: var(--ally, #2e7d57); margin-top: 8px;
+      font: 600 11.5px/1.5 var(--font-sans); color: var(--cheer); margin-top: 10px;
     }
     .espn-snippet__hint {
-      font: 400 11px/1.45 var(--font-sans); color: var(--ink-500); margin-top: 10px;
+      font: 400 11px/1.5 var(--font-sans); color: var(--ink-500);
+      margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--line-soft);
     }
     .espn-modal-actions {
       display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;
@@ -7708,57 +7736,64 @@ function openEspnConnectModal(){
         <h2 id="espn-modal-title">Connect ESPN</h2>
         <p class="espn-modal-sub">ESPN doesn't offer a public sign-in flow, so we use two session cookies you copy from your own browser. We never see your ESPN password — and we'll automatically pull in <strong>every</strong> league on your account.</p>
 
-        <div class="espn-snippet">
-          <span class="espn-snippet__step">Fastest way</span>
-          <ol class="espn-snippet__steps">
-            <li><strong>Copy</strong> the snippet below.</li>
-            <li>Open <code>fantasy.espn.com</code> in another tab, signed in.</li>
-            <li>Open the console — right-click the page → <strong>Inspect</strong> → <strong>Console</strong> tab. (Shortcut: <kbd>⌥⌘C</kbd> Safari · <kbd>F12</kbd> Chrome/Edge.)</li>
-            <li><strong>Paste</strong> it there and press <kbd>Return</kbd>.</li>
-            <li>Come back and paste your cookies in the box below.</li>
-          </ol>
-          <div class="espn-snippet__code">
-            <code id="espn-snippet-code">…</code>
-            <button type="button" class="espn-snippet__copy" id="espn-snippet-copy">Copy snippet</button>
+        <div class="espn-tabs" role="tablist" aria-label="How to connect ESPN">
+          <button type="button" class="espn-tab is-active" id="espn-tab-fast" role="tab" aria-selected="true" aria-controls="espn-pane-fast">Fastest</button>
+          <button type="button" class="espn-tab" id="espn-tab-manual" role="tab" aria-selected="false" aria-controls="espn-pane-manual">Manual</button>
+        </div>
+
+        <div class="espn-pane" id="espn-pane-fast" role="tabpanel" aria-labelledby="espn-tab-fast">
+          <div class="espn-snippet">
+            <ol class="espn-snippet__steps">
+              <li><strong>Copy</strong> the snippet below.</li>
+              <li>Open <code>fantasy.espn.com</code> in another tab, signed in.</li>
+              <li>Open the console — right-click the page → <strong>Inspect</strong> → <strong>Console</strong> tab. (Shortcut: <kbd>⌥⌘C</kbd> Safari · <kbd>F12</kbd> Chrome/Edge.)</li>
+              <li><strong>Paste</strong> it there and press <kbd>Return</kbd>.</li>
+              <li>Come back and paste your cookies in the box below.</li>
+            </ol>
+            <div class="espn-snippet__code">
+              <code id="espn-snippet-code">…</code>
+              <button type="button" class="espn-snippet__copy" id="espn-snippet-copy">Copy snippet</button>
+            </div>
+            <div class="espn-snippet__after" id="espn-snippet-after" hidden></div>
+            <div class="espn-snippet__hint">Safari: enable the Develop menu first (Settings → Advanced → Show features for web developers).</div>
           </div>
-          <div class="espn-snippet__after" id="espn-snippet-after" hidden></div>
-          <div class="espn-snippet__hint">Safari needs the Develop menu first (Settings → Advanced → Show features for web developers). Prefer clicking around? Use the manual steps below.</div>
+
+          <div class="espn-field espn-smartpaste">
+            <label for="espn-smart">Paste your cookies <span class="espn-field-tag">easiest</span></label>
+            <textarea id="espn-smart" rows="2" placeholder="Paste the snippet's result here — or any block containing espn_s2 and SWID. We'll fill the fields in for you." autocomplete="off"></textarea>
+            <div class="espn-smart-status" id="espn-smart-status"></div>
+          </div>
         </div>
 
-        <button type="button" class="espn-help-toggle" id="espn-help-toggle">Find the cookies manually instead &#9662;</button>
-        <div class="espn-help-body" id="espn-help-body" style="display:none">
-          <strong>espn_s2 and SWID cookies</strong>
-          <ol>
-            <li>Open <code>fantasy.espn.com</code> and sign in, then right-click anywhere &rarr; <em>Inspect</em></li>
-            <li>In DevTools, click the <strong>Application</strong> tab (or <strong>Storage</strong> in Safari)</li>
-            <li>In the left sidebar: <strong>Cookies</strong> &rarr; <code>https://fantasy.espn.com</code></li>
-            <li>Find rows named <code>espn_s2</code> (long string) and <code>SWID</code> (in <code>{braces}</code>) — copy each value</li>
-          </ol>
-          <p class="espn-field-hint" style="margin-top:6px">No need to find a League ID — we detect your leagues from the cookies.</p>
-        </div>
+        <div class="espn-pane" id="espn-pane-manual" role="tabpanel" aria-labelledby="espn-tab-manual" hidden>
+          <div class="espn-help-body">
+            <strong>Find your two cookies by hand</strong>
+            <ol>
+              <li>Open <code>fantasy.espn.com</code> and sign in, then right-click anywhere &rarr; <em>Inspect</em></li>
+              <li>In DevTools, click the <strong>Application</strong> tab (or <strong>Storage</strong> in Safari)</li>
+              <li>In the left sidebar: <strong>Cookies</strong> &rarr; <code>https://fantasy.espn.com</code></li>
+              <li>Find <code>espn_s2</code> (long string) and <code>SWID</code> (in <code>{braces}</code>) — copy each value into the fields below</li>
+            </ol>
+            <p class="espn-field-hint" style="margin-top:6px">No need to find a League ID — we detect your leagues from the cookies.</p>
+          </div>
 
-        <div class="espn-field espn-smartpaste">
-          <label for="espn-smart">Paste your cookies <span class="espn-field-tag">easiest</span></label>
-          <textarea id="espn-smart" rows="2" placeholder="Paste the snippet's result here — or any block containing espn_s2 and SWID. We'll fill in the fields below automatically." autocomplete="off"></textarea>
-          <div class="espn-smart-status" id="espn-smart-status"></div>
-        </div>
+          <div class="espn-field">
+            <label for="espn-s2">espn_s2 cookie</label>
+            <textarea id="espn-s2" rows="3" placeholder="AECt8QAtN7m%2FK..." autocomplete="off"></textarea>
+            <div class="espn-field-hint">Long string, often 200+ characters with %-encoded chars.</div>
+          </div>
+          <div class="espn-field">
+            <label for="espn-swid">SWID cookie</label>
+            <input type="text" id="espn-swid" placeholder="{F4529D57-2118-...}" autocomplete="off" />
+            <div class="espn-field-hint">Including the curly braces.</div>
+          </div>
 
-        <div class="espn-field">
-          <label for="espn-s2">espn_s2 cookie</label>
-          <textarea id="espn-s2" rows="3" placeholder="AECt8QAtN7m%2FK..." autocomplete="off"></textarea>
-          <div class="espn-field-hint">Long string, often 200+ characters with %-encoded chars.</div>
-        </div>
-        <div class="espn-field">
-          <label for="espn-swid">SWID cookie</label>
-          <input type="text" id="espn-swid" placeholder="{F4529D57-2118-...}" autocomplete="off" />
-          <div class="espn-field-hint">Including the curly braces.</div>
-        </div>
-
-        <button type="button" class="espn-help-toggle" id="espn-adv-toggle" style="display:none">Add a League ID manually &#9662;</button>
-        <div class="espn-field" id="espn-adv-field" style="display:none">
-          <label for="espn-league-id">League ID <span class="espn-field-tag">optional</span></label>
-          <input type="text" id="espn-league-id" inputmode="numeric" placeholder="e.g. 224435" autocomplete="off" />
-          <div class="espn-field-hint">Only needed if we couldn't auto-detect your leagues. The number after <code>leagueId=</code> in your league URL — you can paste the whole URL here too.</div>
+          <button type="button" class="espn-help-toggle" id="espn-adv-toggle" style="display:none">Add a League ID manually &#9662;</button>
+          <div class="espn-field" id="espn-adv-field" style="display:none">
+            <label for="espn-league-id">League ID <span class="espn-field-tag">optional</span></label>
+            <input type="text" id="espn-league-id" inputmode="numeric" placeholder="e.g. 224435" autocomplete="off" />
+            <div class="espn-field-hint">Only needed if we couldn't auto-detect your leagues. The number after <code>leagueId=</code> in your league URL — you can paste the whole URL here too.</div>
+          </div>
         </div>
 
         <div class="espn-modal-error" id="espn-modal-error"></div>
@@ -7785,11 +7820,22 @@ function openEspnConnectModal(){
     });
     document.getElementById('espn-cancel').addEventListener('click',()=>cleanup({success:false,cancelled:true}));
 
-    document.getElementById('espn-help-toggle').addEventListener('click',()=>{
-      const body=document.getElementById('espn-help-body');
-      const isOpen=body.style.display!=='none';
-      body.style.display=isOpen?'none':'block';
-    });
+    /* Fastest / Manual tabs. Both panes stay in the DOM (hidden, not removed) so
+       the smart-paste box can fill the manual fields and submit can read them
+       regardless of which tab is showing. */
+    const TABS={fast:['espn-tab-fast','espn-pane-fast'],manual:['espn-tab-manual','espn-pane-manual']};
+    const switchTab=(which)=>{
+      Object.keys(TABS).forEach((k)=>{
+        const sel=k===which;
+        const [btnId,paneId]=TABS[k];
+        const btn=document.getElementById(btnId);
+        btn.classList.toggle('is-active',sel);
+        btn.setAttribute('aria-selected',sel?'true':'false');
+        document.getElementById(paneId).hidden=!sel;
+      });
+    };
+    document.getElementById('espn-tab-fast').addEventListener('click',()=>switchTab('fast'));
+    document.getElementById('espn-tab-manual').addEventListener('click',()=>switchTab('manual'));
 
     /* Console-snippet path: show the snippet text and copy it on click. Prefer
        the async Clipboard API; fall back to selecting the code so the user can
@@ -7834,7 +7880,7 @@ function openEspnConnectModal(){
       if(got.swid){document.getElementById('espn-swid').value=got.swid;filled.push('SWID');}
       const status=document.getElementById('espn-smart-status');
       if(filled.length){status.textContent='✓ Filled in: '+filled.join(', ');status.className='espn-smart-status ok';}
-      else if(raw.trim()){status.textContent="Couldn't spot your cookies in that — paste the espn_s2 and SWID values into the fields below.";status.className='espn-smart-status warn';}
+      else if(raw.trim()){status.textContent="Couldn't spot your cookies in that — try the Manual tab to enter espn_s2 and SWID by hand.";status.className='espn-smart-status warn';}
       else{status.textContent='';status.className='espn-smart-status';}
     };
     document.getElementById('espn-smart').addEventListener('input',(e)=>applySmart(e.target.value));
@@ -7900,6 +7946,7 @@ function openEspnConnectModal(){
           /* 422 = cookies valid but no leagues auto-detected. Reveal the manual
              League ID field so the user can finish. */
           if(r.status===422||j.needsManualLeague){
+            switchTab('manual');
             showAdvanced();
             errEl.textContent=j.error||'We couldn’t detect your leagues automatically. Add a League ID below to finish.';
           }else{
