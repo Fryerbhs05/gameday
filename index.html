@@ -7852,6 +7852,24 @@ function openEspnConnectModal(){
       if(/espn_s2/i.test(espnS2)){const g=parseEspnPaste(espnS2);if(g.espnS2)espnS2=g.espnS2;}
       if(/SWID/i.test(swid)){const g=parseEspnPaste(swid);if(g.swid)swid=g.swid;}
 
+      /* Recovery net: the snippet copies a single "espn_s2=…; SWID={…}" blob, and
+         users sometimes drop that whole blob into the wrong box (e.g. the SWID
+         field, or the quick-paste box without the auto-fill firing). Rather than
+         reject it, re-parse the combined text of every input and backfill any
+         value we're still missing. Whatever box the blob lands in, this finds it. */
+      if(espnS2.length<50||!swid){
+        const pool=[
+          document.getElementById('espn-smart').value||'',
+          document.getElementById('espn-s2').value||'',
+          document.getElementById('espn-swid').value||'',
+          document.getElementById('espn-league-id').value||''
+        ].join('\n');
+        const g=parseEspnPaste(pool);
+        if((espnS2.length<50)&&g.espnS2){espnS2=g.espnS2;document.getElementById('espn-s2').value=g.espnS2;}
+        if(!swid&&g.swid){swid=g.swid;document.getElementById('espn-swid').value=g.swid;}
+        if(!leagueId&&g.leagueId)leagueId=g.leagueId;
+      }
+
       /* League ID is optional now — we auto-detect leagues from the cookies.
          Only validate it if the user supplied one via the Advanced field. */
       if(leagueId&&!/^[0-9]+$/.test(leagueId)){errEl.textContent='League ID must be all digits.';return;}
