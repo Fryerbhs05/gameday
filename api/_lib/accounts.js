@@ -144,6 +144,42 @@ function normEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
+/* ── Rate limiting (Postgres-backed, fail-open) ─────────────────── */
+// Atomic check-and-increment via the rl_hit() SQL function (see
+// db/migration-add-rate-limits.sql). Returns true if the call is ALLOWED.
+//
+// FAIL-OPEN BY DESIGN: if accounts aren't configured, or the function/table
+// doesn't exist yet, or Supabase is unreachable, this returns true so a limiter
+// outage can NEVER lock users out of signing in. A limiter that fails closed is
+// worse than no limiter.
+async function rateLimitOk(bucket, limit, windowSecs) {
+  if (!accountsConfigured()) return true;
+  try {
+    const res = await sbFetch('rpc/rl_hit', {
+      method: 'POST',
+      body: JSON.stringify({
+        p_bucket: bucket,
+        p_limit: limit,
+        p_window_secs: windowSecs
+      })
+    });
+    // The function returns a scalar boolean; only an explicit false blocks.
+    return res === false ? false : true;
+  } catch (e) {
+    console.error('rateLimit error (failing open):', e.message);
+    return true;
+  }
+}
+
+// Best-effort client IP from proxy headers. Vercel sets x-forwarded-for
+// (client is the first entry). Falls back to x-real-ip, then a constant so a
+// missing header buckets together rather than throwing.
+function clientIp(req) {
+  const xff = (req.headers['x-forwarded-for'] || '').toString();
+  if (xff) return xff.split(',')[0].trim();
+  return (req.headers['x-real-ip'] || '').toString().trim() || 'unknown';
+}
+
 // Look up a user by email WITHOUT creating one. Returns { id, email } or null.
 // Used by the onboarding flow to decide new-vs-returning before deciding whether
 // to hand out a session or send a verification link.
@@ -372,6 +408,8 @@ module.exports = {
   clearAccountCookie,
   readAccount,
   normEmail,
+  rateLimitOk,
+  clientIp,
   findUser,
   upsertUser,
   upsertProfile,
