@@ -1,0 +1,24 @@
+# ─── Secrets & environment ───────────────────────────────────────
+# Never commit these. All real secrets live in Vercel env vars.
+.env
+.env.*
+*.pem
+*.key
+
+# ─── OS / editor cruft ───────────────────────────────────────────
+.DS_Store
+**/.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# ─── Dependencies / build output ─────────────────────────────────
+node_modules/
+.vercel/
+dist/
+build/
+
+# ─── Scratch / temp files ────────────────────────────────────────
+*.tmp
+_deltest.tmp
+err.txt
