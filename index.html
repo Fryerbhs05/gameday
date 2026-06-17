@@ -457,6 +457,20 @@
     .wiz-nav .btn-primary { flex: 0 0 auto; min-width: 120px; }
     .wiz-note { font: 500 12px/1.45 var(--font-sans); color: var(--coral-500, #FF6B5A); min-height: 0; }
     .wiz-link { background: none; border: 0; color: var(--coral-500, #FF6B5A); font: 600 12px/1 var(--font-sans); cursor: pointer; padding: 0; text-decoration: underline; }
+    /* "Don't see your platform?" — quiet, collapsed demand-capture below the picker. */
+    .wiz-req { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+    .wiz-req-summary { font: 600 12px/1.4 var(--font-sans); color: var(--ink-500); cursor: pointer; list-style: none; }
+    .wiz-req-summary::-webkit-details-marker { display: none; }
+    .wiz-req-summary::before { content: '+ '; color: var(--ink-500); }
+    .wiz-req[open] .wiz-req-summary::before { content: '\2212  '; }
+    .wiz-req-summary:hover { color: var(--ink-700); }
+    .wiz-req-body { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .wiz-req-hint { font: 400 12px/1.5 var(--font-sans); color: var(--ink-500); margin: 0; }
+    .wiz-req-grid { display: flex; flex-direction: column; gap: 7px; }
+    .wiz-req-check, .wiz-req-notify { display: flex; align-items: center; gap: 8px; font: 500 13px/1.3 var(--font-sans); color: var(--ink-700); cursor: pointer; }
+    .wiz-req-check input, .wiz-req-notify input { accent-color: var(--cheer); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; margin: 0; }
+    .wiz-req-notify { margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--line); }
+    #wiz-req-other { margin-top: 2px; }
     /* Keep the Sleeper username field from stretching the full card width on desktop. */
     .wiz-step-body .signin-input-row { max-width: 360px; }
     .provider-card {
@@ -7058,6 +7072,7 @@ function startWizard(){
   window.__wizardActive = true;
   window.__wizQueue = null;
   window.__wizIdx = 0;
+  window.__wizReqDraft = null;   // fresh wizard: clear any prior "missing platform" picks
   window.__wizSelected = new Set();
   // Pre-select anything already connected (e.g. returning mid-flow).
   Object.keys(PROVIDERS).forEach(id=>{ if(connectionState[id] && connectionState[id].connected) window.__wizSelected.add(id); });
@@ -7094,11 +7109,36 @@ function renderWizardSelection(){
       <input id="onb-email" class="signin-input" type="email" placeholder="you@example.com" autocomplete="email" oninput="updateWizBeginEnabled()" onkeydown="if(event.key==='Enter')wizardBegin()" />
       <p class="provider-error" id="onb-error" style="display:none"></p>
     </div>` : '';
+  // "Don't see your platform?" — multi-select demand capture. No submit button:
+  // the picks ride along with the Continue click (wizardBegin → maybeSubmitIntegrationRequests).
+  // State is held in __wizReqDraft so it survives the re-render when a league pick toggles.
+  const rq = window.__wizReqDraft || { platforms: [], other: '', notify: false, open: false };
+  const otherChecked = rq.platforms.indexOf('other') >= 0;
+  const reqChecks = [
+    ['cbs','CBS Sports'], ['nfl','NFL.com'], ['fleaflicker','Fleaflicker'],
+    ['rtsports','RT Sports'], ['mfl','MyFantasyLeague (MFL)'], ['other','Other']
+  ].map(function(pp){
+    const on = rq.platforms.indexOf(pp[0]) >= 0;
+    const extra = pp[0]==='other'
+      ? ` onchange="document.getElementById('wiz-req-other').style.display=this.checked?'block':'none'"` : '';
+    return `<label class="wiz-req-check"><input type="checkbox" value="${pp[0]}"${on?' checked':''}${extra}/> <span>${pp[1]}</span></label>`;
+  }).join('');
+  const reqHtml =
+    `<details class="wiz-req"${rq.open?' open':''}>
+       <summary class="wiz-req-summary">Don't see your platform?</summary>
+       <div class="wiz-req-body">
+         <p class="wiz-req-hint">Check any you'd want — we'll log it when you continue and prioritize what to build next.</p>
+         <div class="wiz-req-grid">${reqChecks}</div>
+         <input id="wiz-req-other" class="signin-input" type="text" placeholder="Which platform?" maxlength="60" style="display:${otherChecked?'block':'none'}" value="${(rq.other||'').replace(/"/g,'&quot;')}" />
+         <label class="wiz-req-notify"><input type="checkbox" id="wiz-req-notify"${rq.notify?' checked':''}/> <span>Email me at my account address when one of these is ready</span></label>
+       </div>
+     </details>`;
   root.innerHTML =
     identityHtml +
     `<p class="wiz-select-label">Which leagues do you want to connect?</p>
      <div class="wiz-pick-grid">${cards}</div>
-     <button class="btn-primary" id="wiz-begin" style="width:100%;margin-top:14px"${window.__wizSelected.size?'':' disabled'}>${needIdentity?'Save &amp; continue':'Continue'}</button>`;
+     <button class="btn-primary" id="wiz-begin" style="width:100%;margin-top:14px"${window.__wizSelected.size?'':' disabled'}>${needIdentity?'Save &amp; continue':'Continue'}</button>
+     ${reqHtml}`;
   const begin = document.getElementById('wiz-begin');
   if(begin) begin.onclick = wizardBegin;
   if(needIdentity && window.__onbDraft){
@@ -7124,6 +7164,7 @@ function updateWizBeginEnabled(){
 }
 function toggleWizardPick(id){
   captureOnbDraft();           // keep any typed name/email across the re-render
+  captureReqDraft();           // ...and any "missing platform" checkboxes
   const s = window.__wizSelected;
   if(s.has(id)) s.delete(id); else s.add(id);
   renderWizardSelection();
@@ -7138,12 +7179,50 @@ function captureOnbDraft(){
     window.__onbDraft = { first: f?f.value:'', last: l?l.value:'', email: e?e.value:'' };
   }
 }
+/* Snapshot the "Don't see your platform?" picks so they survive the re-render
+   that fires whenever a league pick toggles (mirrors captureOnbDraft). */
+function captureReqDraft(){
+  const det=document.querySelector('.wiz-req');
+  if(!det) return;
+  const platforms=Array.from(det.querySelectorAll('.wiz-req-grid input[type=checkbox]:checked')).map(c=>c.value);
+  const otherEl=document.getElementById('wiz-req-other');
+  const notifyEl=document.getElementById('wiz-req-notify');
+  window.__wizReqDraft={
+    platforms,
+    other: otherEl?otherEl.value:'',
+    notify: !!(notifyEl&&notifyEl.checked),
+    open: !!det.open
+  };
+}
+/* Fire-and-forget the integration request(s) as the user commits via Continue.
+   Non-critical demand capture: it must never block or error the connect flow.
+   Runs AFTER the account exists so the server can attach user_id + (for notify)
+   the account email. "Other" carries its typed value as "other:<name>". */
+function maybeSubmitIntegrationRequests(){
+  const rq=window.__wizReqDraft;
+  if(!rq || !rq.platforms || !rq.platforms.length) return;
+  let platforms=rq.platforms.filter(p=>p!=='other');
+  if(rq.platforms.indexOf('other')>=0){
+    const typed=(rq.other||'').trim();
+    platforms.push(typed?('other:'+typed).slice(0,80):'other');
+  }
+  if(!platforms.length) return;
+  window.__wizReqDraft=null;   // guard against a double-submit on re-entry
+  fetch('/api/integrations/request',{
+    method:'POST', credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ platforms, notify: !!rq.notify, source:'wizard' })
+  }).catch(()=>{ /* non-critical; silent */ });
+}
 async function wizardBegin(){
+  captureReqDraft();   // snapshot any "missing platform" picks before we leave this screen
   // When identity fields are present, create the account before connecting.
   if(onboardingGateActive()){
     const ok = await submitIdentityInline();
     if(!ok) return;
   }
+  // Account now exists (or already did) — log the demand with the user attached.
+  maybeSubmitIntegrationRequests();
   const order = ['sleeper','yahoo','espn'];
   window.__wizQueue = order.filter(id=>window.__wizSelected.has(id));
   window.__wizIdx = 0;
