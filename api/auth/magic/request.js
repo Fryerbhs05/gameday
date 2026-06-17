@@ -26,6 +26,26 @@ async function readJsonBody(req) {
   });
 }
 
+// Throttle the email-sending paths. Returns true if the request may proceed,
+// or false after writing a 429 (caller should just return). Two buckets:
+//   • per-IP   — 20 / hour: stops one attacker spraying many addresses
+//   • per-email — 4 / 15 min: stops bombing a single victim's inbox
+// Both checks fail OPEN (A.rateLimitOk), so a limiter outage can't block logins.
+// A 429 leaks no account info (it's about rate, not whether the email exists),
+// so this preserves the endpoint's no-enumeration property.
+async function rateLimited(req, res, email) {
+  const ip = A.clientIp(req);
+  const [okIp, okEmail] = await Promise.all([
+    A.rateLimitOk(`magic:ip:${ip}`, 20, 3600),
+    A.rateLimitOk(`magic:email:${email}`, 4, 900)
+  ]);
+  if (okIp && okEmail) return true;
+  res.status(429).json({
+    error: 'Too many sign-in attempts. Please wait a few minutes and try again.'
+  });
+  return false;
+}
+
 // ── GET: verify the emailed token, sign the user in ──────────────
 async function handleVerify(req, res) {
   // The verify response sets the account cookie — never let it be cached.
@@ -69,6 +89,7 @@ async function handleRequest(req, res) {
       res.status(400).json({ error: 'Please enter a valid email address.' });
       return;
     }
+    if (!(await rateLimited(req, res, email))) return;
     const token = await A.saveMagicToken(email, 15);
     await A.sendMagicLink(email, token);
     res.status(200).json({ ok: true, sent: true });
@@ -96,6 +117,7 @@ async function handleOnboard(req, res) {
       res.status(400).json({ error: 'Please enter a valid email address.' });
       return;
     }
+    if (!(await rateLimited(req, res, email))) return;
     const first_name = String(body.first_name || '').trim().slice(0, 80);
     const last_name = String(body.last_name || '').trim().slice(0, 80);
 
