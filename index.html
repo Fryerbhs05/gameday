@@ -727,6 +727,25 @@
       text-align: center; padding: 18px; background: var(--paper-soft);
       border: 1px solid var(--line); border-radius: var(--radius-md);
     }
+    /* Draggable bookmarklet — looks like a primary CTA but the grab cursor and
+       nudge signal "drag me," since clicking it on our page does nothing useful. */
+    .espn-bookmarklet-row {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      margin: 10px 0 2px;
+    }
+    .espn-bookmarklet {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--coral-500); color: #fff; text-decoration: none;
+      border: 1px solid color-mix(in oklab, #000 14%, var(--coral-500));
+      border-radius: var(--radius-md); padding: 10px 16px;
+      font: 700 13px/1 var(--font-sans); cursor: grab; user-select: none;
+      box-shadow: 0 2px 6px rgba(15, 27, 38, 0.25);
+    }
+    .espn-bookmarklet:hover { background: var(--coral-400); }
+    .espn-bookmarklet:active { cursor: grabbing; }
+    .espn-bookmarklet__nudge {
+      font: 600 11px/1.4 var(--font-sans); color: var(--coral-500);
+    }
     .espn-modal-actions {
       display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;
     }
@@ -7748,6 +7767,12 @@ function parseEspnPaste(text){
    string with no escaping. */
 const ESPN_COOKIE_SNIPPET="(function(){var c=document.cookie,g=function(n){var m=c.match(new RegExp(n+'=([^;]+)'));return m?m[1]:null},s=g('espn_s2'),w=g('SWID');if(w){try{w=decodeURIComponent(w)}catch(e){}}if(!s||!w){console.log('%cConflicted: could not read your ESPN cookies here. Make sure you are signed in at fantasy.espn.com, then run this again.','color:#D00018;font-weight:bold');return}var out='espn_s2='+s+'; SWID='+w;try{copy(out);console.log('%cConflicted: cookies copied. Paste them back into the app.','color:#2e7d57;font-weight:bold')}catch(e){console.log('%cConflicted: copy the line below.','color:#2e7d57;font-weight:bold');console.log(out)}})();";
 
+/* Bookmarklet version of the snippet — same cookie read, but for a one-click
+   bookmark the user drags to their bar and clicks while on fantasy.espn.com.
+   No console helper here, so it copies via navigator.clipboard (with a prompt()
+   fallback) and uses alert() for feedback since our UI isn't on ESPN's page. */
+const ESPN_BOOKMARKLET_CODE="javascript:(function(){var c=document.cookie,g=function(n){var m=c.match(new RegExp(n+'=([^;]+)'));return m?m[1]:null},s=g('espn_s2'),w=g('SWID');if(w){try{w=decodeURIComponent(w)}catch(e){}}if(!s||!w){alert('Conflicted: could not find your ESPN cookies here. Make sure you are signed in at fantasy.espn.com, then click again.');return}var out='espn_s2='+s+'; SWID='+w;var ok=function(){alert('Conflicted: cookies copied! Go back to the Conflicted tab and paste them into the box.')};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(out).then(ok,function(){window.prompt('Conflicted: copy this, then paste it back into Conflicted:',out)})}else{window.prompt('Conflicted: copy this, then paste it back into Conflicted:',out)}})();";
+
 /* Browser-aware DevTools guidance. ESPN's cookie extraction differs per browser
    (console shortcut, the "Inspect" vs "Inspect Element" label, the storage panel
    name, and Safari's hidden Develop-menu prerequisite), so we tailor the copy
@@ -7769,7 +7794,11 @@ function detectEspnBrowser(){
   else if(isEdge){ name='Edge'; consoleShortcut=isMac?'⌥⌘J':'F12'; }
   else if(isOpera){ name='Opera'; consoleShortcut=isMac?'⌥⌘J':'Ctrl+Shift+J'; }
   else if(isChrome){ name='Chrome'; consoleShortcut=isMac?'⌥⌘J':'F12'; }
-  return {name,isMac,isSafari,isFirefox,isChrome,isEdge,isOpera,consoleShortcut,inspectLabel,storagePanel,needsDevelopMenu};
+  // The bookmarks bar toggles with the same chord across Chrome/Edge/Firefox/Safari;
+  // Safari just calls the strip the "Favorites Bar".
+  const bookmarksShortcut=isMac?'⇧⌘B':'Ctrl+Shift+B';
+  const bookmarksBarName=isSafari?'Favorites Bar':'bookmarks bar';
+  return {name,isMac,isSafari,isFirefox,isChrome,isEdge,isOpera,consoleShortcut,inspectLabel,storagePanel,needsDevelopMenu,bookmarksShortcut,bookmarksBarName};
 }
 
 function openEspnConnectModal(){
@@ -7808,11 +7837,29 @@ function openEspnConnectModal(){
         <p class="espn-modal-sub">ESPN doesn't offer a public sign-in flow, so we use two session cookies you copy from your own browser. We never see your ESPN password — and we'll automatically pull in <strong>every</strong> league on your account.</p>
 
         <div class="espn-tabs" role="tablist" aria-label="How to connect ESPN">
-          <button type="button" class="espn-tab is-active" id="espn-tab-fast" role="tab" aria-selected="true" aria-controls="espn-pane-fast">Fastest</button>
+          <button type="button" class="espn-tab is-active" id="espn-tab-easy" role="tab" aria-selected="true" aria-controls="espn-pane-easy">Easiest</button>
+          <button type="button" class="espn-tab" id="espn-tab-fast" role="tab" aria-selected="false" aria-controls="espn-pane-fast">Snippet</button>
           <button type="button" class="espn-tab" id="espn-tab-manual" role="tab" aria-selected="false" aria-controls="espn-pane-manual">Manual</button>
         </div>
 
-        <div class="espn-pane" id="espn-pane-fast" role="tabpanel" aria-labelledby="espn-tab-fast">
+        <div class="espn-pane" id="espn-pane-easy" role="tabpanel" aria-labelledby="espn-tab-easy">
+          <div class="espn-snippet">
+            <ol class="espn-snippet__steps">
+              <li>Find your <strong>${B.bookmarksBarName}</strong> — the strip of shortcuts just under the address bar. Don't see it? Press <kbd>${B.bookmarksShortcut}</kbd> to show it.</li>
+              <li><strong>Drag</strong> this button up onto that bar:
+                <div class="espn-bookmarklet-row">
+                  <a class="espn-bookmarklet" id="espn-bookmarklet" draggable="true">⚡ Connect ESPN</a>
+                  <span class="espn-bookmarklet__nudge" id="espn-bm-nudge"></span>
+                </div>
+              </li>
+              <li>On <code>fantasy.espn.com</code> (signed in), click your new <strong>Connect ESPN</strong> bookmark.</li>
+              <li>Come back here and paste your cookies in the box below.</li>
+            </ol>
+            <div class="espn-snippet__hint">Set it up once — after that, connecting is just: open ESPN → click the bookmark → paste. If clicking it does nothing, use the <strong>Snippet</strong> tab instead.</div>
+          </div>
+        </div>
+
+        <div class="espn-pane" id="espn-pane-fast" role="tabpanel" aria-labelledby="espn-tab-fast" hidden>
           ${prereqHTML}
           <div class="espn-snippet">
             <ol class="espn-snippet__steps">
@@ -7831,12 +7878,6 @@ function openEspnConnectModal(){
           </div>
 
           ${exampleHTML}
-
-          <div class="espn-field espn-smartpaste">
-            <label for="espn-smart">Paste your cookies <span class="espn-field-tag">easiest</span></label>
-            <textarea id="espn-smart" rows="2" placeholder="Paste the snippet's result here — or any block containing espn_s2 and SWID. We'll fill the fields in for you." autocomplete="off"></textarea>
-            <div class="espn-smart-status" id="espn-smart-status"></div>
-          </div>
         </div>
 
         <div class="espn-pane" id="espn-pane-manual" role="tabpanel" aria-labelledby="espn-tab-manual" hidden>
@@ -7871,6 +7912,15 @@ function openEspnConnectModal(){
           </div>
         </div>
 
+        <!-- Shared paste target for the Easiest (bookmarklet) and Snippet flows —
+             both copy the same "espn_s2=…; SWID=…" blob to the clipboard. Hidden
+             on the Manual tab, which uses the explicit fields above. -->
+        <div class="espn-field espn-smartpaste" id="espn-smartpaste-shared">
+          <label for="espn-smart">Then paste your cookies here</label>
+          <textarea id="espn-smart" rows="2" placeholder="Paste what was copied — or any block containing espn_s2 and SWID. We'll fill the fields in for you." autocomplete="off"></textarea>
+          <div class="espn-smart-status" id="espn-smart-status"></div>
+        </div>
+
         <div class="espn-modal-error" id="espn-modal-error"></div>
 
         <div class="espn-modal-actions">
@@ -7898,7 +7948,7 @@ function openEspnConnectModal(){
     /* Fastest / Manual tabs. Both panes stay in the DOM (hidden, not removed) so
        the smart-paste box can fill the manual fields and submit can read them
        regardless of which tab is showing. */
-    const TABS={fast:['espn-tab-fast','espn-pane-fast'],manual:['espn-tab-manual','espn-pane-manual']};
+    const TABS={easy:['espn-tab-easy','espn-pane-easy'],fast:['espn-tab-fast','espn-pane-fast'],manual:['espn-tab-manual','espn-pane-manual']};
     const switchTab=(which)=>{
       Object.keys(TABS).forEach((k)=>{
         const sel=k===which;
@@ -7908,9 +7958,30 @@ function openEspnConnectModal(){
         btn.setAttribute('aria-selected',sel?'true':'false');
         document.getElementById(paneId).hidden=!sel;
       });
+      /* The shared paste box serves the clipboard flows (Easiest/Snippet); the
+         Manual tab collects values in its own fields, so hide it there. */
+      const shared=document.getElementById('espn-smartpaste-shared');
+      if(shared)shared.hidden=(which==='manual');
     };
+    document.getElementById('espn-tab-easy').addEventListener('click',()=>switchTab('easy'));
     document.getElementById('espn-tab-fast').addEventListener('click',()=>switchTab('fast'));
     document.getElementById('espn-tab-manual').addEventListener('click',()=>switchTab('manual'));
+
+    /* Bookmarklet: point the draggable anchor at the javascript: payload. A click
+       ON our page would run against our origin (no ESPN cookies there), so we
+       block it and nudge the user to drag it to their bar instead. */
+    const bm=document.getElementById('espn-bookmarklet');
+    if(bm){
+      bm.setAttribute('href',ESPN_BOOKMARKLET_CODE);
+      bm.addEventListener('click',(e)=>{
+        e.preventDefault();
+        const n=document.getElementById('espn-bm-nudge');
+        if(n){
+          n.textContent='👆 Drag me up to your '+B.bookmarksBarName+' — no need to click here.';
+          clearTimeout(bm.__t); bm.__t=setTimeout(()=>{ n.textContent=''; },3500);
+        }
+      });
+    }
 
     /* "See example" — expand/collapse the lazy clip. Plays on open, pauses on
        close; if the recording isn't deployed yet, swap in the fallback note. */
