@@ -709,24 +709,6 @@
       font: 500 12px/1.5 var(--font-sans); color: var(--ink-700);
     }
     .espn-prereq strong { color: var(--split); }
-    /* On-demand example clip: a quiet text toggle that expands a lazy-loaded
-       screen recording. Stays out of the way until the user asks for it. */
-    .espn-example-wrap { margin: 0 0 18px; }
-    .espn-example-toggle {
-      background: none; border: none; color: var(--navy-500);
-      font: 600 13px/1 var(--font-sans); cursor: pointer; padding: 4px 0;
-    }
-    .espn-example-toggle:hover { color: var(--coral-500); }
-    .espn-example { margin-top: 10px; }
-    .espn-example__vid {
-      width: 100%; display: block; border-radius: var(--radius-md);
-      border: 1px solid var(--line); background: var(--navy-900);
-    }
-    .espn-example__fallback {
-      font: 500 12px/1.5 var(--font-sans); color: var(--ink-500);
-      text-align: center; padding: 18px; background: var(--paper-soft);
-      border: 1px solid var(--line); border-radius: var(--radius-md);
-    }
     /* Draggable bookmarklet — looks like a primary CTA but the grab cursor and
        nudge signal "drag me," since clicking it on our page does nothing useful. */
     .espn-bookmarklet-row {
@@ -7815,19 +7797,6 @@ function openEspnConnectModal(){
       ? `<div class="espn-prereq"><strong>Safari setup (one time):</strong> turn on the Develop menu — Safari → Settings → Advanced → check &ldquo;Show features for web developers,&rdquo; then reopen this.</div>`
       : '';
 
-    /* On-demand "See example" clip — a real screen recording, lazy-loaded only
-       when the user opens it (preload=none), so it never weighs down the modal.
-       Drop the recording at /espn-connect-demo.mp4 (poster optional). Until then,
-       the video fires 'error' on play and we show a graceful fallback. */
-    const exampleHTML=`
-      <div class="espn-example-wrap">
-        <button type="button" class="espn-example-toggle" id="espn-example-toggle" aria-expanded="false" aria-controls="espn-example">▶ See a quick example</button>
-        <div class="espn-example" id="espn-example" hidden>
-          <video id="espn-example-video" class="espn-example__vid" src="/espn-connect-demo.mp4" poster="/espn-connect-demo.jpg" muted loop playsinline controls preload="none"></video>
-          <div class="espn-example__fallback" id="espn-example-fallback" hidden>Walkthrough video coming soon.</div>
-        </div>
-      </div>`;
-
     const backdrop=document.createElement('div');
     backdrop.id='espn-modal-backdrop';
     backdrop.className='espn-modal-backdrop';
@@ -7876,8 +7845,6 @@ function openEspnConnectModal(){
             <div class="espn-snippet__after" id="espn-snippet-after" hidden></div>
             <div class="espn-snippet__hint">These two cookies only let us read your leagues — never your password. You can disconnect anytime.</div>
           </div>
-
-          ${exampleHTML}
         </div>
 
         <div class="espn-pane" id="espn-pane-manual" role="tabpanel" aria-labelledby="espn-tab-manual" hidden>
@@ -7981,28 +7948,6 @@ function openEspnConnectModal(){
           clearTimeout(bm.__t); bm.__t=setTimeout(()=>{ n.textContent=''; },3500);
         }
       });
-    }
-
-    /* "See example" — expand/collapse the lazy clip. Plays on open, pauses on
-       close; if the recording isn't deployed yet, swap in the fallback note. */
-    const exToggle=document.getElementById('espn-example-toggle');
-    const exPanel=document.getElementById('espn-example');
-    const exVideo=document.getElementById('espn-example-video');
-    if(exToggle&&exPanel){
-      exToggle.addEventListener('click',()=>{
-        const show=exPanel.hidden;
-        exPanel.hidden=!show;
-        exToggle.setAttribute('aria-expanded',show?'true':'false');
-        exToggle.textContent=show?'▾ Hide example':'▶ See a quick example';
-        if(exVideo){ try{ show?exVideo.play():exVideo.pause(); }catch(e){} }
-      });
-      if(exVideo){
-        exVideo.addEventListener('error',()=>{
-          exVideo.style.display='none';
-          const fb=document.getElementById('espn-example-fallback');
-          if(fb)fb.hidden=false;
-        });
-      }
     }
 
     /* Console-snippet path: show the snippet text and copy it on click. Prefer
