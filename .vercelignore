@@ -1,0 +1,28 @@
+# Files here are NEVER uploaded to Vercel, so they can never be served
+# publicly. Served assets (index.html, privacy.html, manifest.json,
+# offline.html, sw.js, og-image.png, icons/, api/) are intentionally NOT
+# listed and will deploy normally.
+
+# ─── Internal planning / spec docs ───────────────────────────────
+*.md
+*.sql
+accounts-plan.md
+conflicted-emotional-model.md
+conflicted-patent-consult-onepager.md
+ACCOUNTS-SETUP.md
+
+# ─── Design source (not part of the running site) ────────────────
+brand-kit/
+db/
+Archive/
+
+# ─── Code snippets not meant to be served ────────────────────────
+account-ui-snippet.html
+
+# ─── OS / scratch / dev cruft ────────────────────────────────────
+.DS_Store
+**/.DS_Store
+*.tmp
+_deltest.tmp
+err.txt
+.claude/
