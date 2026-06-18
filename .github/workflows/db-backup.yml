@@ -1,0 +1,74 @@
+name: Nightly DB backup
+
+# Nightly logical backup of the Supabase Postgres `public` schema (all app data:
+# users, magic_tokens, platform_sessions, user_profiles, league_connections,
+# events, integration_requests, rate_limits). Supabase free tier has NO
+# restorable backups, so this is our safety net.
+#
+# Bonus: the nightly DB connection counts as activity, so it also keeps the
+# free-tier project from auto-pausing during any quiet stretch.
+#
+# Requires two repo secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL    — the *Session pooler* connection string (see notes below)
+#   BACKUP_PASSPHRASE  — any strong passphrase; the dump is GPG-encrypted with it
+#                        because it contains user emails / PII.
+#
+# IMPORTANT — which connection string:
+#   Supabase free tier's DIRECT host (db.<ref>.supabase.co:5432) is IPv6-only,
+#   and GitHub's runners are IPv4-only, so a direct connection will fail to
+#   resolve/connect. Use the SESSION POOLER string from the dashboard:
+#     Dashboard → Project Settings → Database → Connection string → "Session pooler"
+#   It looks like:
+#     postgresql://postgres.zmdldmfwfpsjwygrznwg:[PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres
+#   Use SESSION mode (port 5432) — NOT the Transaction pooler (port 6543), which
+#   does not support pg_dump. Keep any ?sslmode=require that the dashboard includes.
+
+on:
+  schedule:
+    - cron: "37 7 * * *"   # 07:37 UTC daily (~3:37am ET). NOTE: GitHub cron is UTC.
+  workflow_dispatch: {}     # lets you run it on demand to test
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install PostgreSQL 17 client
+        # The server is PG17; pg_dump must be >= the server version, so we pull
+        # the client from the official PostgreSQL apt repo rather than use the
+        # older default on the runner.
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Dump, compress, encrypt
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ] || [ -z "${BACKUP_PASSPHRASE:-}" ]; then
+            echo "::error::Missing SUPABASE_DB_URL or BACKUP_PASSPHRASE secret."
+            exit 1
+          fi
+          STAMP="$(date -u +%Y%m%d-%H%M)"
+          OUT="conflicted-${STAMP}.sql.gz.gpg"
+          # --no-owner / --no-privileges keep the dump restorable to any target
+          # without needing Supabase's internal roles. public schema = all app data.
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" \
+            --schema=public --no-owner --no-privileges \
+            | gzip -9 \
+            | gpg --batch --yes --symmetric --cipher-algo AES256 \
+                  --passphrase "$BACKUP_PASSPHRASE" -o "$OUT"
+          ls -lh "$OUT"
+          echo "ARTIFACT_NAME=$OUT" >> "$GITHUB_ENV"
+
+      - name: Upload encrypted backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.ARTIFACT_NAME }}
+          retention-days: 30   # rolling 30-day history; older runs auto-expire
