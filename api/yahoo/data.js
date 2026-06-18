@@ -82,13 +82,33 @@ module.exports = async (req, res) => {
   try {
     const cookies = parseCookies(req);
 
-    // Resolve the signed-in account once (if any) — used for the read fallback,
-    // the self-heal write, and refresh writeback further down.
+    // Resolve the signed-in account once (if any) — used for the abuse throttle
+    // below, the read fallback, the self-heal write, and refresh writeback.
     let acct = null;
     try {
       if (A && A.accountsConfigured()) acct = A.readAccount(req);
     } catch (e) {
       console.error('yahoo/data account lookup failed (non-fatal):', e.message);
+    }
+
+    // ── Abuse throttle (fail-open — see api/_lib/accounts.rateLimitOk) ──────
+    // This endpoint proxies to Yahoo on every call, so a runaway client or a
+    // scraper could burn Vercel invocations and get our server IP rate-limited
+    // by Yahoo. Cap requests per identity (signed-in account if present, else
+    // client IP). The ceiling is generous — well above legit multi-league
+    // polling — so only genuine abuse trips the 429. Runs before the token
+    // refresh and the upstream fetch.
+    if (A && A.accountsConfigured()) {
+      try {
+        const who = acct && acct.uid ? `acct:${acct.uid}` : `ip:${A.clientIp(req)}`;
+        if (!(await A.rateLimitOk(`yahoo:data:${who}`, 150, 60))) {
+          res.setHeader('Retry-After', '60');
+          res.status(429).json({ error: 'Too many requests — please slow down and try again in a moment.' });
+          return;
+        }
+      } catch (e) {
+        console.error('yahoo/data throttle check failed (non-fatal):', e.message);
+      }
     }
 
     // Prefer the per-browser cookie (today's path). If it's absent — e.g. the

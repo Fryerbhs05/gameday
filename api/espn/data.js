@@ -81,6 +81,27 @@ function buildEspnUrl(leagueId, season, views, week) {
 
 module.exports = async (req, res) => {
   try {
+    // ── Abuse throttle (fail-open — see api/_lib/accounts.rateLimitOk) ──────
+    // This endpoint proxies to ESPN on every call, so a runaway client or a
+    // scraper could burn Vercel invocations and get our server IP rate-limited
+    // by ESPN. Cap requests per identity (signed-in account if present, else
+    // client IP). The ceiling is generous — well above legit multi-league
+    // polling — so only genuine abuse trips the 429. Runs FIRST so a blocked
+    // request never reaches decryption or the upstream fetch.
+    if (A && A.accountsConfigured()) {
+      try {
+        const a = A.readAccount(req);
+        const who = a && a.uid ? `acct:${a.uid}` : `ip:${A.clientIp(req)}`;
+        if (!(await A.rateLimitOk(`espn:data:${who}`, 150, 60))) {
+          res.setHeader('Retry-After', '60');
+          res.status(429).json({ error: 'Too many requests — please slow down and try again in a moment.' });
+          return;
+        }
+      } catch (e) {
+        console.error('espn/data throttle check failed (non-fatal):', e.message);
+      }
+    }
+
     const cookies = parseCookies(req);
 
     // Prefer the per-browser cookie (today's path). If it's absent — e.g. the
