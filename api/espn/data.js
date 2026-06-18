@@ -92,7 +92,7 @@ module.exports = async (req, res) => {
       try {
         const a = A.readAccount(req);
         const who = a && a.uid ? `acct:${a.uid}` : `ip:${A.clientIp(req)}`;
-        if (!(await A.rateLimitOk(`espn:data:${who}`, 150, 60))) {
+        if (!(await A.rateLimitOk(`espn:data:${who}`, 100, 60))) {
           res.setHeader('Retry-After', '60');
           res.status(429).json({ error: 'Too many requests — please slow down and try again in a moment.' });
           return;
