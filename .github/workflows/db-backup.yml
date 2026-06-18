@@ -17,8 +17,15 @@ name: Nightly DB backup
 # special characters in it need NO url-encoding and can't corrupt a connection
 # string. This is the robust way.
 #
+# Connects as a DEDICATED read-only role `conflicted_backup` (NOT the postgres
+# superuser): created via `create role conflicted_backup with login password '…';
+# grant pg_read_all_data to conflicted_backup;`. Pooler username is the
+# tenant-qualified `conflicted_backup.<ref>`. To rotate the password:
+#   alter role conflicted_backup with password '<new>';  (then update the secret)
+# To remove entirely: `drop role conflicted_backup;`.
+#
 # Requires two repo secrets (Settings → Secrets and variables → Actions):
-#   SUPABASE_DB_PASSWORD  — your Supabase database password, raw / verbatim
+#   SUPABASE_DB_PASSWORD  — the conflicted_backup role's password, raw / verbatim
 #   BACKUP_PASSPHRASE     — any strong passphrase; the dump is GPG-encrypted with
 #                           it because it contains user emails / PII.
 
@@ -30,7 +37,7 @@ on:
 env:
   PGHOST: aws-1-us-east-1.pooler.supabase.com
   PGPORT: "5432"
-  PGUSER: postgres.zmdldmfwfpsjwygrznwg
+  PGUSER: conflicted_backup.zmdldmfwfpsjwygrznwg
   PGDATABASE: postgres
   PGSSLMODE: require
 
