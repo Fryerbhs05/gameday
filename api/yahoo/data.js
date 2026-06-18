@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
     if (A && A.accountsConfigured()) {
       try {
         const who = acct && acct.uid ? `acct:${acct.uid}` : `ip:${A.clientIp(req)}`;
-        if (!(await A.rateLimitOk(`yahoo:data:${who}`, 150, 60))) {
+        if (!(await A.rateLimitOk(`yahoo:data:${who}`, 100, 60))) {
           res.setHeader('Retry-After', '60');
           res.status(429).json({ error: 'Too many requests — please slow down and try again in a moment.' });
           return;
