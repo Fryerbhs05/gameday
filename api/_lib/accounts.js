@@ -22,6 +22,7 @@
 //   MAGIC_FROM            — optional; from-address, defaults below
 
 const crypto = require('crypto');
+const O = require('./observe');
 
 const ALGO = 'aes-256-gcm';
 
@@ -37,7 +38,7 @@ function emailConfigured() {
   return Boolean(process.env.RESEND_API_KEY);
 }
 function appUrl() {
-  return (process.env.APP_URL || 'https://conflicted-fantasy.vercel.app').replace(/\/$/, '');
+  return (process.env.APP_URL || 'https://conflictedapp.com').replace(/\/$/, '');
 }
 
 /* ── Crypto (identical scheme to api/auth/callback.js) ──────────── */
@@ -167,6 +168,9 @@ async function rateLimitOk(bucket, limit, windowSecs) {
     return res === false ? false : true;
   } catch (e) {
     console.error('rateLimit error (failing open):', e.message);
+    // Report: a silently-failing limiter means NO abuse protection. We want to
+    // know the moment this starts happening rather than discover it during an attack.
+    O.reportError(e, { where: 'accounts:rateLimitOk', extra: { bucket } });
     return true;
   }
 }
@@ -208,6 +212,35 @@ async function upsertUser(email) {
   // Rare insert/insert race: the row now exists — read it back.
   const found = await sbFetch(`users?email=eq.${encodeURIComponent(e)}&select=id,email`);
   return found && found[0];
+}
+
+/* ── Integration requests (forward-looking demand capture) ──────── */
+// Logs a "we don't support this platform yet" request from the connect wizard.
+// `email` is optional (launch waitlist); `userId` is attached when signed in.
+// Best-effort: returns false instead of throwing so a capture failure can never
+// disrupt the wizard. See db/migration-add-integration-requests.sql.
+async function saveIntegrationRequest({ platform, email, source, userId } = {}) {
+  if (!accountsConfigured()) return false;
+  const p = String(platform || '').trim().slice(0, 80);
+  if (!p) return false;
+  const row = {
+    platform: p,
+    email: email ? normEmail(email).slice(0, 254) : null,
+    source: source ? String(source).trim().slice(0, 40) : null,
+    user_id: userId || null
+  };
+  try {
+    await sbFetch('integration_requests', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify([row])
+    });
+    return true;
+  } catch (e) {
+    console.error('saveIntegrationRequest failed (non-fatal):', e.message);
+    O.reportError(e, { where: 'accounts:saveIntegrationRequest', extra: { platform: p } });
+    return false;
+  }
 }
 
 /* ── Magic tokens ───────────────────────────────────────────────── */
@@ -367,7 +400,7 @@ async function sendMagicLink(email, token) {
   // Verification is handled by the GET branch of /api/auth/magic/request
   // (consolidated into one function to stay under Vercel Hobby's 12-fn limit).
   const link = `${appUrl()}/api/auth/magic/request?token=${encodeURIComponent(token)}`;
-  const from = process.env.MAGIC_FROM || 'Conflicted <login@conflicted-fantasy.vercel.app>';
+  const from = process.env.MAGIC_FROM || 'Conflicted <login@conflictedapp.com>';
   const html = `
     <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a2233">
       <h2 style="margin:0 0 8px">Sign in to Conflicted</h2>
@@ -418,6 +451,7 @@ module.exports = {
   setDisabledLeagues,
   saveMagicToken,
   consumeMagicToken,
+  saveIntegrationRequest,
   savePlatformSession,
   getPlatformSession,
   deletePlatformSession,

@@ -12,6 +12,7 @@
 // POST intentionally distinguishes session-vs-link so the funnel can branch.
 
 const A = require('../../_lib/accounts');
+const O = require('../../_lib/observe');
 
 async function readJsonBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -72,6 +73,7 @@ async function handleVerify(req, res) {
     res.end();
   } catch (e) {
     console.error('magic verify error:', e.message);
+    await O.reportError(e, { req, where: 'auth:magic:verify' });
     res.status(500).send('Sign-in error. Please request a new link.');
   }
 }
@@ -95,6 +97,7 @@ async function handleRequest(req, res) {
     res.status(200).json({ ok: true, sent: true });
   } catch (e) {
     console.error('magic request error:', e.message);
+    await O.reportError(e, { req, where: 'auth:magic:request' });
     res.status(500).json({ error: 'Could not send sign-in link. Please try again.' });
   }
 }
@@ -144,6 +147,7 @@ async function handleOnboard(req, res) {
     res.status(200).json({ ok: true, mode: 'session', email: user.email });
   } catch (e) {
     console.error('onboard error:', e.message);
+    await O.reportError(e, { req, where: 'auth:magic:onboard' });
     res.status(500).json({ error: 'Could not create your account. Please try again.' });
   }
 }
@@ -161,3 +165,7 @@ module.exports = async (req, res) => {
   res.setHeader('Allow', 'GET, POST');
   res.status(405).json({ error: 'Method not allowed' });
 };
+
+// Error monitoring: re-wrap the handler so any uncaught throw is reported
+// to Sentry (inert until SENTRY_DSN is set). See api/_lib/observe.js.
+module.exports = require('../../_lib/observe').wrap(module.exports, 'auth:magic');

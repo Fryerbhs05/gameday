@@ -40,3 +40,7 @@ module.exports = async (req, res) => {
     res.end();
   }
 };
+
+// Error monitoring: re-wrap the handler so any uncaught throw is reported
+// to Sentry (inert until SENTRY_DSN is set). See api/_lib/observe.js.
+module.exports = require('../_lib/observe').wrap(module.exports, 'espn:disconnect');
