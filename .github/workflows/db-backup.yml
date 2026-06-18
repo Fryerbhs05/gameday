@@ -8,25 +8,31 @@ name: Nightly DB backup
 # Bonus: the nightly DB connection counts as activity, so it also keeps the
 # free-tier project from auto-pausing during any quiet stretch.
 #
-# Requires two repo secrets (Settings → Secrets and variables → Actions):
-#   SUPABASE_DB_URL    — the *Session pooler* connection string (see notes below)
-#   BACKUP_PASSPHRASE  — any strong passphrase; the dump is GPG-encrypted with it
-#                        because it contains user emails / PII.
+# Connection: host / port / user / db are hardcoded below (none are secret —
+# only the password is). The connection goes through the Supabase SESSION POOLER
+# (port 5432, IPv4) because GH runners are IPv4-only and the direct host is
+# IPv6-only; the pooler username is the tenant-qualified `postgres.<ref>`.
 #
-# IMPORTANT — which connection string:
-#   Supabase free tier's DIRECT host (db.<ref>.supabase.co:5432) is IPv6-only,
-#   and GitHub's runners are IPv4-only, so a direct connection will fail to
-#   resolve/connect. Use the SESSION POOLER string from the dashboard:
-#     Dashboard → Project Settings → Database → Connection string → "Session pooler"
-#   It looks like:
-#     postgresql://postgres.zmdldmfwfpsjwygrznwg:[PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres
-#   Use SESSION mode (port 5432) — NOT the Transaction pooler (port 6543), which
-#   does not support pg_dump. Keep any ?sslmode=require that the dashboard includes.
+# The password is passed via the PGPASSWORD env var (NOT embedded in a URL), so
+# special characters in it need NO url-encoding and can't corrupt a connection
+# string. This is the robust way.
+#
+# Requires two repo secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_PASSWORD  — your Supabase database password, raw / verbatim
+#   BACKUP_PASSPHRASE     — any strong passphrase; the dump is GPG-encrypted with
+#                           it because it contains user emails / PII.
 
 on:
   schedule:
     - cron: "37 7 * * *"   # 07:37 UTC daily (~3:37am ET). NOTE: GitHub cron is UTC.
   workflow_dispatch: {}     # lets you run it on demand to test
+
+env:
+  PGHOST: aws-1-us-east-1.pooler.supabase.com
+  PGPORT: "5432"
+  PGUSER: postgres.zmdldmfwfpsjwygrznwg
+  PGDATABASE: postgres
+  PGSSLMODE: require
 
 jobs:
   backup:
@@ -46,19 +52,21 @@ jobs:
 
       - name: Dump, compress, encrypt
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
           set -euo pipefail
-          if [ -z "${SUPABASE_DB_URL:-}" ] || [ -z "${BACKUP_PASSPHRASE:-}" ]; then
-            echo "::error::Missing SUPABASE_DB_URL or BACKUP_PASSPHRASE secret."
+          if [ -z "${PGPASSWORD:-}" ] || [ -z "${BACKUP_PASSPHRASE:-}" ]; then
+            echo "::error::Missing SUPABASE_DB_PASSWORD or BACKUP_PASSPHRASE secret."
             exit 1
           fi
+          echo "Connecting as ${PGUSER}@${PGHOST}:${PGPORT}/${PGDATABASE} (password hidden)"
           STAMP="$(date -u +%Y%m%d-%H%M)"
           OUT="conflicted-${STAMP}.sql.gz.gpg"
-          # --no-owner / --no-privileges keep the dump restorable to any target
-          # without needing Supabase's internal roles. public schema = all app data.
-          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" \
+          # Host/user/db/password all come from env (PG* vars) — no URL to parse,
+          # so special chars in the password are passed verbatim and safe.
+          # --no-owner / --no-privileges keep the dump restorable to any target.
+          /usr/lib/postgresql/17/bin/pg_dump \
             --schema=public --no-owner --no-privileges \
             | gzip -9 \
             | gpg --batch --yes --symmetric --cipher-algo AES256 \
