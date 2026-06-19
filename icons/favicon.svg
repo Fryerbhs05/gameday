@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Conflicted</title>
+  <desc id="desc">Conflicted tab favicon: a bold split C, navy-blue left and coral right with a cream vertical seam on a deep-navy tile, echoing the bisected wordmark. Optimized for 16-32px legibility.</desc>
+  <defs>
+    <clipPath id="tile"><rect width="64" height="64" rx="13"/></clipPath>
+    <clipPath id="left"><rect x="0" width="32" height="64"/></clipPath>
+    <clipPath id="right"><rect x="32" width="32" height="64"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="64" height="64" fill="#0F1B26"/>
+    <g clip-path="url(#left)">
+      <path d="M47 18.5 A18 18 0 1 0 47 45.5" fill="none" stroke="#7AA8D1" stroke-width="11" stroke-linecap="round"/>
+    </g>
+    <g clip-path="url(#right)">
+      <path d="M47 18.5 A18 18 0 1 0 47 45.5" fill="none" stroke="#D85A30" stroke-width="11" stroke-linecap="round"/>
+    </g>
+    <rect x="30.7" y="5" width="2.6" height="54" fill="#F5EFE4"/>
+  </g>
+</svg>
