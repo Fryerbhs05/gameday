@@ -3111,9 +3111,9 @@
     <div class="banner banner-offseason" id="banner-offseason"><div><strong>Roster mode</strong> — no matchup data yet. Everyone defaults to your guys until lineups are set.</div></div>
     <div class="banner banner-warn"      id="banner-partial"><div id="banner-partial-msg"></div></div>
     <div id="no-data-state">
-      <div class="no-data-title">No league data</div>
+      <div class="no-data-title" id="no-data-title">No league data</div>
       <div class="no-data-msg" id="no-data-msg"></div>
-      <div class="no-data-hint">Use the season dropdown or week selector to try a different period.</div>
+      <div class="no-data-hint" id="no-data-hint">Use the season dropdown or week selector to try a different period.</div>
     </div>
     <div class="loyalties-section" id="loyalties-section">
     <div class="loyalties-header">
@@ -3649,6 +3649,17 @@ let disabledLeagueKeys=new Set(),allLeaguesSeen=[];
 let liveLeaguesSeen=[];
 function leagueKey(platform,name){return (platform||'?')+'|'+name;}
 window.disabledLeagueKeys=disabledLeagueKeys;
+/* Local mirror of the disabled-league set. The server copy (account) is the
+   source of truth, but it only loads AFTER the instant snapshot paint at boot —
+   so the snapshot boot reads this synchronous cache to decide whether the saved
+   board is still legit (it isn't, if every league in it is now switched off). */
+const DISABLED_LEAGUES_LS_KEY='conflicted_disabled_leagues_v1';
+function cacheDisabledLeaguesLocal(){
+  try{localStorage.setItem(DISABLED_LEAGUES_LS_KEY,JSON.stringify(Array.from(disabledLeagueKeys)));}catch(e){}
+}
+function readDisabledLeaguesLocal(){
+  try{const raw=localStorage.getItem(DISABLED_LEAGUES_LS_KEY);if(!raw)return new Set();const a=JSON.parse(raw);return new Set(Array.isArray(a)?a.filter(k=>typeof k==='string'&&k):[]);}catch(e){return new Set();}
+}
 /* True when the NFL is between seasons: Sleeper's state returns week:0 /
    season_type:"off", which forces liveWeek to a synthetic 1. There is no real
    "current" matchup in that window. ESPN (unlike Sleeper/Yahoo) still serves a
@@ -4372,6 +4383,7 @@ document.addEventListener('click',function(e){
   btn.classList.toggle('on',on);
   btn.setAttribute('aria-checked',String(on));
   const row=btn.closest('[data-alg-row]'); if(row)row.classList.toggle('off',!on);
+  cacheDisabledLeaguesLocal();
   persistDisabledLeagues();
   // Recompute the board in the background (guards keep us on the Account view).
   if(!isDemoMode&&isAnyProviderConnected()){ try{ run(); }catch(err){} }
@@ -5337,7 +5349,7 @@ function renderBoard(data,username){
   const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
   document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));(function(s){if(s&&!(window.experimentEnabled&&window.experimentEnabled()))s.style.display='none';})(document.getElementById('live-updates-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');(function(se){if(se)se.hidden=true;})(document.getElementById('scores-empty'));document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(leagueMgmtViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));(function(s){if(s&&!(window.experimentEnabled&&window.experimentEnabled()))s.style.display='none';})(document.getElementById('live-updates-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');(function(se){if(se)se.hidden=true;})(document.getElementById('scores-empty'));document.getElementById('no-data-msg').innerHTML=noDataReason;(function(){var t=document.getElementById('no-data-title');if(t)t.textContent=data.noDataTitle||'No league data';var h=document.getElementById('no-data-hint');if(h){var hint=(typeof data.noDataHint==='string')?data.noDataHint:'Use the season dropdown or week selector to try a different period.';h.textContent=hint;h.style.display=hint?'':'none';}})();currentContexts=[];if(leagueMgmtViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Restore the experimental tab bar + titled section (display reset → CSS gates take over). */
   (function(t){if(t)t.style.display='';})(document.getElementById('exp-tabbar'));
@@ -5752,13 +5764,25 @@ async function loadData(){
     // Drop account-disabled leagues from BOTH the results and the contexts before
     // any math runs — this is the "global exclude" (vs the visual-only Filters
     // drawer). Disabled leagues never enter conflicts/exposure/priority at all.
+    const rawValidCount=valid.length; // leagues this period BEFORE the global-exclude
     if(disabledLeagueKeys.size){
       valid=valid.filter(r=>!disabledLeagueKeys.has(leagueKey(r.platform,r.leagueName)));
       leagueContexts=leagueContexts.filter(c=>!disabledLeagueKeys.has(leagueKey(c.platform,c.leagueName)));
     }
-    return{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds};
+    /* Leagues existed for this period but the global-exclude filtered them ALL
+       out → the empty board is a user choice, not a missing-data situation. */
+    const allDisabled=rawValidCount>0&&valid.length===0&&disabledLeagueKeys.size>0;
+    return{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds,allDisabled};
   }
-  let{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds}=await fetchAllProviders(activeSeason,activeWeek,isHist);
+  let{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds,allDisabled}=await fetchAllProviders(activeSeason,activeWeek,isHist);
+  /* Every league is switched off in Manage leagues. There ARE leagues — don't
+     run the prior-season fallback or show "no leagues found"; point the user to
+     League Connections to turn one back on. */
+  if(!valid.length&&allDisabled){
+    const reason='Every league is switched off in your League Connections, so there’s nothing to track right now. Turn one back on to bring back conflicts, exposure, and priority.'
+      +'<div style="margin-top:18px;"><button type="button" class="btn-secondary" onclick="showConnections()">Manage League Connections</button></div>';
+    return{noData:true,noDataReason:reason,noDataTitle:'All leagues turned off',noDataHint:'',cheerFor:[],conflicted:[],enemies:[],allRostered:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
+  }
   if(!valid.length&&activeSeason===liveSeason){
     /* Capture fallback season locally so concurrent user input can't see a
        half-mutated activeSeason/liveSeason pair while the second fetch runs. */
@@ -6260,6 +6284,11 @@ const BOARD_SNAPSHOT_KEY='conflicted_board_snapshot_v1';
 const BOARD_SNAPSHOT_MAX_AGE_MS=24*60*60*1000; // older than a day → cold boot
 function saveBoardSnapshot(data,username){
   try{
+    /* A LIVE no-data render (e.g. every league toggled off, or genuinely no
+       leagues this season) must DROP any stale snapshot — otherwise the next
+       boot paints the old board for a moment before the no-data state resolves.
+       Historic no-data navigations don't touch the live snapshot. */
+    if(!isDemoMode&&data&&data.noData&&!data.isHist){clearBoardSnapshot();return;}
     /* Only snapshot real, live-week boards: never demo/preview data, never a
        historical week (boot always lands on the live week), never no-data. */
     if(isDemoMode||!data||data.noData||data.isHist)return;
@@ -7590,6 +7619,7 @@ async function bootstrapAccount(){
   try{
     disabledLeagueKeys.clear();
     (Array.isArray(info&&info.disabledLeagues)?info.disabledLeagues:[]).forEach(k=>{ if(typeof k==='string'&&k) disabledLeagueKeys.add(k); });
+    cacheDisabledLeaguesLocal(); // keep the synchronous boot mirror in sync with the server set
   }catch(e){}
   // Account-keyed rehydration: when signed in on a fresh device, pull the
   // connections stored against the account so they show up without re-connecting.
@@ -8462,7 +8492,21 @@ initThemeToggle();
      sign-out, where stale data would be wrong or confusing. */
   let bootedFromSnapshot=false;
   if(!cameFromYahooOAuth&&!justSignedOut){
-    const snap=readBoardSnapshot();
+    let snap=readBoardSnapshot();
+    /* If every league captured in the snapshot is now switched off (read from
+       the synchronous local mirror, since the server set hasn't loaded yet),
+       the snapshot would flash a board the user has fully excluded. Drop it and
+       cold-boot straight to the no-data state instead. */
+    if(snap&&snap.data){
+      try{
+        const off=readDisabledLeaguesLocal();
+        if(off.size){
+          const lgs=(snap.data.contexts&&snap.data.contexts.length?snap.data.contexts:(snap.data.leagues||[]));
+          const keys=(lgs||[]).map(l=>leagueKey(l.platform,l.leagueName)).filter(Boolean);
+          if(keys.length&&keys.every(k=>off.has(k))){clearBoardSnapshot();snap=null;}
+        }
+      }catch(e){}
+    }
     if(snap){
       try{
         liveWeek=snap.liveWeek||snap.week||1;liveSeason=snap.liveSeason||snap.season||THIS_YR;
