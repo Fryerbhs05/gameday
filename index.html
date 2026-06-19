@@ -3197,9 +3197,11 @@
     <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">Your Conflicted account and what's connected to it.</p>
   </div>
 
-  <!-- Signed-in surface -->
+  <!-- Signed-in surface — grouped into separate cards -->
   <div id="account-signedin" style="display:none;">
-    <div class="settings-panel" style="display:block;margin:0;">
+
+    <!-- Card 1 · Identity -->
+    <div class="settings-panel" style="display:block;margin:0 0 16px;">
       <div class="settings-body" style="display:block;">
         <div class="settings-row">
           <div class="settings-row-meta">
@@ -3215,6 +3217,12 @@
           </div>
           <div class="account-row-value" id="account-email-value">—</div>
         </div>
+      </div>
+    </div>
+
+    <!-- Card 2 · Connections -->
+    <div class="settings-panel" style="display:block;margin:0 0 16px;">
+      <div class="settings-body" style="display:block;">
         <div class="settings-row">
           <div class="settings-row-meta">
             <div class="settings-row-title">Platforms connected</div>
@@ -3229,13 +3237,48 @@
           </div>
           <div class="account-row-count" id="account-leagues-value">0</div>
         </div>
-        <div class="settings-row settings-row--stack" id="account-leagues-row">
+        <div class="settings-row settings-row--link" role="button" tabindex="0"
+             onclick="showConnections()"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showConnections();}"
+             aria-label="Manage League Connections">
           <div class="settings-row-meta">
-            <div class="settings-row-title">Manage leagues</div>
-            <div class="settings-row-sub">Turn a league off to exclude it from every calculation — conflicts, exposure, priority — across all your devices. It stays connected, just ignored until you switch it back on.</div>
+            <div class="settings-row-title">Manage League Connections</div>
+            <div class="settings-row-sub">Add or remove platforms, and turn individual leagues on or off.</div>
           </div>
-          <div class="account-leagues-list" id="account-leagues-list"></div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
+      </div>
+    </div>
+
+    <!-- Card 3 · Preferences -->
+    <div class="settings-panel" style="display:block;margin:0 0 16px;">
+      <div class="settings-body" style="display:block;">
+        <div class="settings-row settings-row--link" role="button" tabindex="0"
+             onclick="reRankPriority()"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();reRankPriority();}"
+             aria-label="League priority">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">League priority</div>
+            <div class="settings-row-sub">Set the order Conflicted leans on when your leagues disagree about a player.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
+        <div class="settings-row settings-row--link" role="button" tabindex="0"
+             onclick="showSettings()"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showSettings();}"
+             aria-label="Settings">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Settings</div>
+            <div class="settings-row-sub">Appearance and league priority.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4 · Account actions -->
+    <div class="settings-panel" style="display:block;margin:0;">
+      <div class="settings-body" style="display:block;">
         <div class="settings-row">
           <div class="settings-row-meta">
             <div class="settings-row-title">Sign out</div>
@@ -3256,7 +3299,7 @@
 
   <!-- Signed-out surface -->
   <div id="account-signedout" style="display:none;">
-    <div class="settings-panel" style="display:block;margin:0;">
+    <div class="settings-panel" style="display:block;margin:0 0 16px;">
       <div class="settings-body" style="display:block;">
         <div class="settings-row">
           <div class="settings-row-meta">
@@ -3267,31 +3310,29 @@
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Consolidated hub: Settings + League connections now live under Account
-       (always shown, so they're reachable whether signed in or out). -->
-  <div class="settings-panel" style="display:block;margin:16px 0 0;">
-    <div class="settings-body" style="display:block;">
-      <div class="settings-row settings-row--link" role="button" tabindex="0"
-           onclick="showConnections()"
-           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showConnections();}"
-           aria-label="League connections">
-        <div class="settings-row-meta">
-          <div class="settings-row-title">League connections</div>
-          <div class="settings-row-sub">Connect, re-connect, or remove the platforms Conflicted reads your leagues from.</div>
+    <!-- Reachable even when signed out (e.g. connected via Sleeper without an account). -->
+    <div class="settings-panel" style="display:block;margin:0;">
+      <div class="settings-body" style="display:block;">
+        <div class="settings-row settings-row--link" role="button" tabindex="0"
+             onclick="showConnections()"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showConnections();}"
+             aria-label="Manage League Connections">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Manage League Connections</div>
+            <div class="settings-row-sub">Add or remove platforms, and turn individual leagues on or off.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
-        <span class="settings-row-chevron" aria-hidden="true">›</span>
-      </div>
-      <div class="settings-row settings-row--link" role="button" tabindex="0"
-           onclick="showSettings()"
-           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showSettings();}"
-           aria-label="Settings">
-        <div class="settings-row-meta">
-          <div class="settings-row-title">Settings</div>
-          <div class="settings-row-sub">Appearance and league priority.</div>
+        <div class="settings-row settings-row--link" role="button" tabindex="0"
+             onclick="showSettings()"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showSettings();}"
+             aria-label="Settings">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Settings</div>
+            <div class="settings-row-sub">Appearance and league priority.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
-        <span class="settings-row-chevron" aria-hidden="true">›</span>
       </div>
     </div>
   </div>
@@ -3370,17 +3411,37 @@
   </div>
 </div>
 
-<!-- ══ LEAGUE CONNECTIONS VIEW (Account → League connections; also dashboard header) ═ -->
+<!-- ══ MANAGE LEAGUE CONNECTIONS (Account → Manage League Connections; also dashboard header) ═
+     Two sections: Platform Connections (provider tiles) and League Connections
+     (per-league on/off toggles, relocated from the Account tab). -->
 <div id="view-connections" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
   <div style="margin-bottom:20px;">
-    <h2 style="font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);margin:0 0 6px;">League connections</h2>
-    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">Connect, re-connect, or remove the platforms Conflicted reads your leagues from. Changes apply when you head back to the dashboard.</p>
+    <h2 style="font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);margin:0 0 6px;">Manage League Connections</h2>
+    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">Add or remove fantasy platforms, and turn individual leagues on or off. Platform changes apply when you head back to the dashboard.</p>
   </div>
+
+  <!-- Platform Connections -->
+  <div style="font:600 11px/1.4 var(--font-sans);letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-500);margin:0 0 10px;">Platform Connections</div>
   <div id="connections-grid" class="provider-card-grid" style="margin-bottom:0;"></div>
   <div id="connections-dirty-note" style="display:none;margin-top:18px;font:500 13px/1.5 var(--font-sans);color:var(--ink-700);background:var(--cheer-soft);border:1px solid var(--cheer);border-radius:var(--radius-md);padding:12px 14px;">
     Your connections changed.
     <button class="btn-secondary" style="margin-left:8px;" onclick="applyConnectionsAndView()" type="button">Reload dashboard</button>
   </div>
+
+  <!-- League Connections (per-league on/off) -->
+  <div style="font:600 11px/1.4 var(--font-sans);letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-500);margin:28px 0 10px;">League Connections</div>
+  <div class="settings-panel" style="display:block;margin:0;">
+    <div class="settings-body" style="display:block;">
+      <div class="settings-row settings-row--stack" id="account-leagues-row">
+        <div class="settings-row-meta">
+          <div class="settings-row-title">Manage leagues</div>
+          <div class="settings-row-sub">Turn a league off to exclude it from every calculation — conflicts, exposure, priority — across all your devices. It stays connected, just ignored until you switch it back on.</div>
+        </div>
+        <div class="account-leagues-list" id="account-leagues-list"></div>
+      </div>
+    </div>
+  </div>
+
   <div style="margin-top:28px;border-top:1px solid var(--line);padding-top:18px;">
     <div class="settings-row">
       <div class="settings-row-meta">
@@ -4160,6 +4221,12 @@ function wireAccountDeleteBtn(){
 /* True while the Account view is the visible panel. Used to keep a silent board
    recompute (after a league toggle) from yanking the user off this view. */
 function accountViewOpen(){const v=document.getElementById('view-account');return !!(v&&v.style.display&&v.style.display!=='none');}
+/* Account view OR the Manage League Connections page. Both host league-management
+   controls (per-league on/off toggles live on the connections page now), so the
+   silent board recompute must keep the user on whichever one they're on instead
+   of snapping to the dashboard. */
+function leagueMgmtViewOpen(){return accountViewOpen()||!!window.__connectionsViewActive;}
+window.leagueMgmtViewOpen=leagueMgmtViewOpen;
 
 /* ══ MANAGE LEAGUES (account-level global exclude) ═══════════════════
    Renders the indented, per-platform league list with on/off toggles under
@@ -4367,6 +4434,8 @@ function showConnections(){
   if(v)v.style.display='block';
   window.__connectionsViewActive=true;
   try{renderConnectionsPanel();}catch(e){console.warn('renderConnectionsPanel failed:',e.message);}
+  /* The per-league on/off list now lives on this page — populate it on open. */
+  try{renderAccountLeagues();}catch(e){console.warn('renderAccountLeagues failed:',e.message);}
 }
 window.showConnections=showConnections;
 function renderConnectionsPanel(){
@@ -5230,7 +5299,7 @@ function renderBoard(data,username){
   // a "snap to dashboard" on every week/season change.
   const _boardEl=document.getElementById('board');
   const _alreadyOnBoard=!!(_boardEl && _boardEl.style.display && _boardEl.style.display!=='none');
-  if(!_expoOpen && !_watchOpen && !_alreadyOnBoard && !accountViewOpen()){showBoard();}
+  if(!_expoOpen && !_watchOpen && !_alreadyOnBoard && !leagueMgmtViewOpen()){showBoard();}
   updateNavUI();
   (function(b){if(b)b.classList.toggle('visible',isDemoMode);})(document.getElementById('banner-demo'));
   document.getElementById('banner-offseason').classList.toggle('visible',!isDemoMode&&!!offseasonMode);
@@ -5246,7 +5315,7 @@ function renderBoard(data,username){
   const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
   document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));(function(s){if(s&&!(window.experimentEnabled&&window.experimentEnabled()))s.style.display='none';})(document.getElementById('live-updates-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));(function(s){if(s&&!(window.experimentEnabled&&window.experimentEnabled()))s.style.display='none';})(document.getElementById('live-updates-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(leagueMgmtViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Restore the experimental tab bar + titled section (display reset → CSS gates take over). */
   (function(t){if(t)t.style.display='';})(document.getElementById('exp-tabbar'));
@@ -5314,7 +5383,7 @@ function renderBoard(data,username){
   window.currentLeagues=currentLeagues;
   // If the user is sitting on the Account view when fresh data lands, refresh the
   // Manage-leagues list so it fills in (allLeaguesSeen was just populated).
-  if(accountViewOpen()){try{renderAccountLeagues();}catch(e){}}
+  if(leagueMgmtViewOpen()){try{renderAccountLeagues();}catch(e){}}
   reconcilePriorityOrder(currentContexts);
   updateSettingsPanel();
   if(shouldAutoLaunchPriority(currentContexts))showPriorityOnboarding(currentContexts);
@@ -5606,7 +5675,7 @@ async function loadData(){
   const _boardEl=document.getElementById('board');
   const _boardVisible=!!(_boardEl && _boardEl.style.display && _boardEl.style.display!=='none');
   const _expoOpen=!!window.__conflictedExposureOpen;
-  if(!_boardVisible && !_expoOpen && !accountViewOpen()) showLoading('Pulling your leagues.');
+  if(!_boardVisible && !_expoOpen && !leagueMgmtViewOpen()) showLoading('Pulling your leagues.');
   const state=await getNFLState();
   const _hasLiveWeek=(state.week>=1&&state.week<=MAX_WEEK);
   liveWeek=_hasLiveWeek?state.week:1;liveSeason=state.season;
@@ -6135,7 +6204,7 @@ async function run(){
        refresh, or a non-dashboard view), keep it — replacing a populated screen
        with the full-page error panel is worse than silently staying stale. The
        error panel is reserved for cold loads where there's nothing to show. */
-    if(isDashboardVisible()||window.__conflictedExposureOpen||window.__conflictedWatchOpen||accountViewOpen()){
+    if(isDashboardVisible()||window.__conflictedExposureOpen||window.__conflictedWatchOpen||leagueMgmtViewOpen()){
       console.warn('refresh failed; keeping current view:',err.message);
     }else{
       showError(err.message||'Something went wrong on our end. Refreshing usually fixes it.');
