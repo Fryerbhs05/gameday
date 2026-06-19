@@ -139,6 +139,14 @@
       --enemy:#A33D2E;     --enemy-soft:#EFD5CE;
       --split:#B27F1A;     --split-soft:#F0E2BF;
       --neutral:#7A7770;   --neutral-soft:#E8E3D5;
+      /* Fixed dark-surface palette — single source of truth for always-dark UI
+         (Watch Priority takeover, demo/experiment ribbons, GOTW). Intentionally
+         does NOT theme-flip: identical in light and dark. */
+      --surf-bg:#0F1B26;          --surf-panel:#122A40;       --surf-panel-2:#14202B;
+      --surf-border:#1A3A52;      --surf-border-strong:#234866;
+      --surf-text:#F5EFE4;        --surf-text-soft:#E6EDF3;   --surf-muted:#A8B5C2;
+      --surf-network:#C9D2DB;     --surf-amber:#E0A82E;       --surf-amber-text:#E2C792;
+      --surf-coral:#D85A30;       --surf-coral-bright:#F0997B; --surf-coral-deep:#C44E27;
       --success:var(--cheer); --warning:var(--split); --danger:var(--enemy); --info:var(--navy-500);
       --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
@@ -1392,15 +1400,15 @@
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 9000;
       display: none; align-items: center; justify-content: center; gap: 14px;
       padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
-      background: #14202B; border-top: 2px solid var(--coral-500);
+      background: var(--surf-panel-2); border-top: 2px solid var(--coral-500);
       box-shadow: 0 -6px 20px rgba(0,0,0,0.28);
-      font: 500 13px/1.3 var(--font-sans); color: #E6EDF3;
+      font: 500 13px/1.3 var(--font-sans); color: var(--surf-text-soft);
     }
     body.demo-active #demo-ribbon { display: flex; }
     body.demo-active { padding-bottom: 64px; }
     #demo-ribbon .dr-text { color: #AEBDCA; }
     #demo-ribbon .dr-exit {
-      margin-left: 4px; background: #7AA8D1; color: #14202B;
+      margin-left: 4px; background: #7AA8D1; color: var(--surf-panel-2);
       border: 0; border-radius: var(--radius-md); cursor: pointer;
       font: 600 13px/1 var(--font-sans); padding: 9px 16px;
       transition: background 0.15s var(--ease-out);
@@ -1418,27 +1426,27 @@
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 9000;
       display: none; align-items: center; justify-content: center; gap: 14px;
       padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
-      background: #14202B; border-top: 2px solid #E0A82E;
+      background: var(--surf-panel-2); border-top: 2px solid var(--surf-amber);
       box-shadow: 0 -6px 20px rgba(0,0,0,0.28);
-      font: 500 13px/1.3 var(--font-sans); color: #E6EDF3;
+      font: 500 13px/1.3 var(--font-sans); color: var(--surf-text-soft);
     }
     body.experiment-active #experiment-ribbon { display: flex; }
     body.experiment-active { padding-bottom: 64px; }
-    #experiment-ribbon .xr-text { color: #E2C792; }
+    #experiment-ribbon .xr-text { color: var(--surf-amber-text); }
     #experiment-ribbon .xr-exit {
-      margin-left: 4px; background: #E0A82E; color: #14202B;
+      margin-left: 4px; background: var(--surf-amber); color: var(--surf-panel-2);
       border: 0; border-radius: var(--radius-md); cursor: pointer;
       font: 600 13px/1 var(--font-sans); padding: 9px 16px;
       transition: background 0.15s var(--ease-out);
     }
     #experiment-ribbon .xr-exit:hover, #experiment-ribbon .xr-exit:active { background: #CC9526; }
     #experiment-ribbon .xr-link {
-      background: transparent; color: #E2C792;
-      border: 1px solid #E0A82E; border-radius: var(--radius-md); cursor: pointer;
+      background: transparent; color: var(--surf-amber-text);
+      border: 1px solid var(--surf-amber); border-radius: var(--radius-md); cursor: pointer;
       font: 600 13px/1 var(--font-sans); padding: 8px 14px;
       transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out);
     }
-    #experiment-ribbon .xr-link:hover, #experiment-ribbon .xr-link:active { background: #E0A82E; color: #14202B; }
+    #experiment-ribbon .xr-link:hover, #experiment-ribbon .xr-link:active { background: var(--surf-amber); color: var(--surf-panel-2); }
     @media (max-width: 560px) {
       #experiment-ribbon { gap: 10px; padding-left: 12px; padding-right: 12px; }
       #experiment-ribbon .xr-text { display: none; }
@@ -2423,68 +2431,68 @@
        cards, cream text, coral accents. body.wp-active forces the page
        chrome (body + header) to navy so the dark Watch Priority panels
        blend with the surrounding chrome. */
-    body.wp-active { background: #0F1B26 !important; color: #F5EFE4; }
-    body.wp-active .site-header { background: #0F1B26 !important; border-bottom-color: #1A3A52 !important; }
+    body.wp-active { background: var(--surf-bg) !important; color: var(--surf-text); }
+    body.wp-active .site-header { background: var(--surf-bg) !important; border-bottom-color: var(--surf-border) !important; }
     #view-watch {
       display: none;
       max-width: var(--max-width);
       margin: 0 auto;
       padding: 18px var(--gutter) 60px;
-      background: #0F1B26;
-      color: #F5EFE4;
+      background: var(--surf-bg);
+      color: var(--surf-text);
       min-height: 100vh;
     }
     .wp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
-    .wp-head__title h2 { font: 700 20px/1.1 var(--font-sans); margin: 0 0 3px; color: #F5EFE4; letter-spacing: -0.02em; }
-    .wp-head__title p { font: 400 12px/1.4 var(--font-sans); color: #A8B5C2; margin: 0; max-width: 56ch; }
+    .wp-head__title h2 { font: 700 20px/1.1 var(--font-sans); margin: 0 0 3px; color: var(--surf-text); letter-spacing: -0.02em; }
+    .wp-head__title p { font: 400 12px/1.4 var(--font-sans); color: var(--surf-muted); margin: 0; max-width: 56ch; }
     .wp-head__controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .wp-view-toggle { display: inline-flex; border: 1px solid #1A3A52; border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: #122A40; }
-    .wp-view-toggle button { background: transparent; border: 0; padding: 8px 12px; color: #A8B5C2; cursor: pointer; font: 500 12px/1 var(--font-sans); transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
-    .wp-view-toggle button + button { border-left: 1px solid #1A3A52; }
-    .wp-view-toggle button:hover:not(.active) { background: #1A3A52; color: #F5EFE4; }
-    .wp-view-toggle button.active { color: #F5EFE4; background: #1A3A52; }
+    .wp-view-toggle { display: inline-flex; border: 1px solid var(--surf-border); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--surf-panel); }
+    .wp-view-toggle button { background: transparent; border: 0; padding: 8px 12px; color: var(--surf-muted); cursor: pointer; font: 500 12px/1 var(--font-sans); transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+    .wp-view-toggle button + button { border-left: 1px solid var(--surf-border); }
+    .wp-view-toggle button:hover:not(.active) { background: var(--surf-border); color: var(--surf-text); }
+    .wp-view-toggle button.active { color: var(--surf-text); background: var(--surf-border); }
     .wp-view-toggle[data-view="cheer"] button.active { background: #3D8B5C; }
     .wp-view-toggle[data-view="hate"] button.active { background: #A33D2E; }
-    .wp-bench-toggle { display: inline-flex; border: 1px solid #1A3A52; border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: #122A40; }
-    .wp-bench-toggle button { background: transparent; border: 0; padding: 8px 11px; color: #A8B5C2; cursor: pointer; font: 500 11px/1 var(--font-sans); }
-    .wp-bench-toggle button + button { border-left: 1px solid #1A3A52; }
-    .wp-bench-toggle button:hover:not(.active) { background: #1A3A52; color: #F5EFE4; }
-    .wp-bench-toggle button.active { color: #F5EFE4; background: #1A3A52; }
+    .wp-bench-toggle { display: inline-flex; border: 1px solid var(--surf-border); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--surf-panel); }
+    .wp-bench-toggle button { background: transparent; border: 0; padding: 8px 11px; color: var(--surf-muted); cursor: pointer; font: 500 11px/1 var(--font-sans); }
+    .wp-bench-toggle button + button { border-left: 1px solid var(--surf-border); }
+    .wp-bench-toggle button:hover:not(.active) { background: var(--surf-border); color: var(--surf-text); }
+    .wp-bench-toggle button.active { color: var(--surf-text); background: var(--surf-border); }
     /* Slot panels — TRANSPARENT (no card fill, no border). The slot header
        sits as text on the navy page; the spotlight + strip are the only
        filled surfaces. Keeps the page lean and the spotlight as the focal
        point. */
     /* Slot panels — navy outlined section, mirrors Exposure page structure.
        Each slot is a bordered card with the head inside (clickable to collapse). */
-    .wp-slot { margin: 0 0 10px; background: #0F1B26; border: 1px solid #1A3A52; border-radius: var(--radius-md); overflow: hidden; }
-    .wp-slot__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: pointer; user-select: none; background: transparent; border-bottom: 1px solid #1A3A52; }
+    .wp-slot { margin: 0 0 10px; background: var(--surf-bg); border: 1px solid var(--surf-border); border-radius: var(--radius-md); overflow: hidden; }
+    .wp-slot__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: pointer; user-select: none; background: transparent; border-bottom: 1px solid var(--surf-border); }
     .wp-slot.is-collapsed .wp-slot__head { border-bottom-color: transparent; }
     .wp-slot__head:hover { background: rgba(255,255,255,0.02); }
-    .wp-slot__title { font: 500 11px/1 var(--font-mono); color: #F5EFE4; letter-spacing: 0.10em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
-    .wp-slot__caret { display: inline-block; transition: transform var(--duration-fast) var(--ease-out); color: #A8B5C2; font-size: 11px; }
+    .wp-slot__title { font: 500 11px/1 var(--font-mono); color: var(--surf-text); letter-spacing: 0.10em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+    .wp-slot__caret { display: inline-block; transition: transform var(--duration-fast) var(--ease-out); color: var(--surf-muted); font-size: 11px; }
     .wp-slot.is-collapsed .wp-slot__caret { transform: rotate(-90deg); }
-    .wp-slot__meta { font: 500 10px/1 var(--font-mono); color: #A8B5C2; letter-spacing: .04em; text-transform: uppercase; }
+    .wp-slot__meta { font: 500 10px/1 var(--font-mono); color: var(--surf-muted); letter-spacing: .04em; text-transform: uppercase; }
     .wp-slot__body { padding: 10px 12px 12px; display: grid; gap: 8px; background: transparent; }
     .wp-slot.is-collapsed .wp-slot__body { display: none; }
-    .wp-slot__empty { padding: 8px 4px; font: 400 12px/1.4 var(--font-sans); color: #A8B5C2; text-align: center; }
+    .wp-slot__empty { padding: 8px 4px; font: 400 12px/1.4 var(--font-sans); color: var(--surf-muted); text-align: center; }
     /* Game cards — navy panel, cream text, white player-count chip with coral text. */
-    .wp-game { border: 1px solid #1A3A52; border-radius: var(--radius-md); background: #122A40; padding: 12px 14px; transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
-    .wp-game:hover { background: #1A3A52; border-color: #234866; }
+    .wp-game { border: 1px solid var(--surf-border); border-radius: var(--radius-md); background: var(--surf-panel); padding: 12px 14px; transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+    .wp-game:hover { background: var(--surf-border); border-color: var(--surf-border-strong); }
     .wp-game--zero { opacity: 0.55; }
     .wp-game__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-    .wp-game__matchup { font: 700 14px/1.2 var(--font-sans); color: #F5EFE4; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-    .wp-game__at { color: #A8B5C2; font-weight: 500; }
-    .wp-game__score { font: 500 12px/1 var(--font-mono); color: #F5EFE4; padding: 4px 7px; border-radius: 8px; background: rgba(245,239,228,0.08); letter-spacing: .04em; }
-    .wp-game__meta { font: 500 11px/1.4 var(--font-mono); color: #A8B5C2; letter-spacing: .03em; text-transform: uppercase; display: flex; gap: 10px; flex-wrap: wrap; }
-    .wp-game__meta .wp-network { color: #C9D2DB; }
-    .wp-game__meta .wp-live { color: #F0997B; font-weight: 500; }
-    .wp-game__meta .wp-final { color: #A8B5C2; }
+    .wp-game__matchup { font: 700 14px/1.2 var(--font-sans); color: var(--surf-text); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .wp-game__at { color: var(--surf-muted); font-weight: 500; }
+    .wp-game__score { font: 500 12px/1 var(--font-mono); color: var(--surf-text); padding: 4px 7px; border-radius: 8px; background: rgba(245,239,228,0.08); letter-spacing: .04em; }
+    .wp-game__meta { font: 500 11px/1.4 var(--font-mono); color: var(--surf-muted); letter-spacing: .03em; text-transform: uppercase; display: flex; gap: 10px; flex-wrap: wrap; }
+    .wp-game__meta .wp-network { color: var(--surf-network); }
+    .wp-game__meta .wp-live { color: var(--surf-coral-bright); font-weight: 500; }
+    .wp-game__meta .wp-final { color: var(--surf-muted); }
     /* Player-count chip — dark navy pill with cream text. */
-    .wp-game__badge { font: 500 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 999px; letter-spacing: .03em; white-space: nowrap; background: #0F1B26; color: #F5EFE4; border: 1px solid #1A3A52; cursor: pointer; }
-    .wp-game__badge--maximum { background: #0F1B26; color: #F5EFE4; border-color: #1A3A52; }
-    .wp-game__badge--cheer { background: #0F1B26; color: #F5EFE4; border-color: #1A3A52; }
-    .wp-game__badge--hate { background: #0F1B26; color: #F5EFE4; border-color: #1A3A52; }
-    .wp-game__badge--zero { background: rgba(245,239,228,0.05); color: #A8B5C2; border-color: rgba(245,239,228,0.10); }
+    .wp-game__badge { font: 500 11px/1 var(--font-mono); padding: 6px 10px; border-radius: 999px; letter-spacing: .03em; white-space: nowrap; background: var(--surf-bg); color: var(--surf-text); border: 1px solid var(--surf-border); cursor: pointer; }
+    .wp-game__badge--maximum { background: var(--surf-bg); color: var(--surf-text); border-color: var(--surf-border); }
+    .wp-game__badge--cheer { background: var(--surf-bg); color: var(--surf-text); border-color: var(--surf-border); }
+    .wp-game__badge--hate { background: var(--surf-bg); color: var(--surf-text); border-color: var(--surf-border); }
+    .wp-game__badge--zero { background: rgba(245,239,228,0.05); color: var(--surf-muted); border-color: rgba(245,239,228,0.10); }
     .wp-pills { display: flex; flex-wrap: wrap; gap: 6px; }
     .wp-pill { font: 500 11px/1.2 var(--font-sans); padding: 4px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; max-width: 100%; }
     .wp-pill__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22ch; }
@@ -2498,13 +2506,13 @@
     .wp-pill.is-final { opacity: 0.55; }
 
     /* ── Must Watch toggle (filter scope) ─────────────────────── */
-    .wp-mustwatch-toggle { display: inline-flex; border: 1px solid #1A3A52; border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: #122A40; }
-    .wp-mustwatch-toggle button { background: transparent; border: 0; padding: 8px 11px; color: #A8B5C2; cursor: pointer; font: 500 11px/1 var(--font-sans); display: inline-flex; align-items: center; gap: 6px; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
-    .wp-mustwatch-toggle button + button { border-left: 1px solid #1A3A52; }
-    .wp-mustwatch-toggle button:hover:not(.active) { background: #1A3A52; color: #F5EFE4; }
-    .wp-mustwatch-toggle button.active { color: #F5EFE4; background: #D85A30; }
-    .wp-mw-count { font: 500 9px/1 var(--font-mono); background: rgba(255,255,255,0.10); color: #F5EFE4; padding: 3px 5px; border-radius: 999px; letter-spacing: .04em; }
-    .wp-mustwatch-toggle button.active .wp-mw-count { background: rgba(255,255,255,0.22); color: #F5EFE4; }
+    .wp-mustwatch-toggle { display: inline-flex; border: 1px solid var(--surf-border); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--surf-panel); }
+    .wp-mustwatch-toggle button { background: transparent; border: 0; padding: 8px 11px; color: var(--surf-muted); cursor: pointer; font: 500 11px/1 var(--font-sans); display: inline-flex; align-items: center; gap: 6px; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+    .wp-mustwatch-toggle button + button { border-left: 1px solid var(--surf-border); }
+    .wp-mustwatch-toggle button:hover:not(.active) { background: var(--surf-border); color: var(--surf-text); }
+    .wp-mustwatch-toggle button.active { color: var(--surf-text); background: var(--surf-coral); }
+    .wp-mw-count { font: 500 9px/1 var(--font-mono); background: rgba(255,255,255,0.10); color: var(--surf-text); padding: 3px 5px; border-radius: 999px; letter-spacing: .04em; }
+    .wp-mustwatch-toggle button.active .wp-mw-count { background: rgba(255,255,255,0.22); color: var(--surf-text); }
 
     /* Week + Year selects reuse Exposure's .exp-select-group chrome verbatim —
        cream shell, dark text, dark chevron — so the two pages match pixel-for-
@@ -2517,13 +2525,13 @@
        this single button, same drawer pattern as Exposure on mobile. */
     .wp-settings-btn {
       display: inline-flex; align-items: center; gap: 6px;
-      border: 1px solid #1A3A52; border-radius: var(--radius-md);
-      background: transparent; color: #F5EFE4;
+      border: 1px solid var(--surf-border); border-radius: var(--radius-md);
+      background: transparent; color: var(--surf-text);
       font: 500 12px/1 var(--font-sans);
       padding: 9px 14px; cursor: pointer;
       transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
     }
-    .wp-settings-btn:hover { background: rgba(255,255,255,0.04); color: #F5EFE4; }
+    .wp-settings-btn:hover { background: rgba(255,255,255,0.04); color: var(--surf-text); }
     .wp-settings-btn:active { background: rgba(255,255,255,0.08); }
     .wp-settings-btn svg { width: 12px; height: 12px; flex: 0 0 12px; }
 
@@ -2595,15 +2603,15 @@
        Same navy/cream look as .wp-game; the in-slot leader no longer gets
        special coral treatment. Only the Game of the Week banner is unique. */
     .wp-spotlight {
-      background: #122A40;
-      color: #F5EFE4;
-      border: 1px solid #1A3A52;
+      background: var(--surf-panel);
+      color: var(--surf-text);
+      border: 1px solid var(--surf-border);
       border-radius: var(--radius-md);
       padding: 10px 12px;
       margin: 0 0 6px;
       transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
     }
-    .wp-spotlight:hover { background: #1A3A52; border-color: #234866; }
+    .wp-spotlight:hover { background: var(--surf-border); border-color: var(--surf-border-strong); }
     .wp-spotlight__body { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .wp-spotlight__main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
     .wp-spotlight__match { font: 700 15px/1.1 var(--font-sans); margin: 0; letter-spacing: -0.02em; color: inherit; }
@@ -2617,33 +2625,33 @@
     }
     /* Boxy badge — dark navy with cream text, matches the unified chip system. */
     .wp-spotlight__badge {
-      background: #0F1B26;
-      color: #F5EFE4;
+      background: var(--surf-bg);
+      color: var(--surf-text);
       padding: 6px 10px;
       border-radius: var(--radius-md);
       text-align: center;
       min-width: 56px;
       flex-shrink: 0;
-      border: 1px solid #1A3A52;
+      border: 1px solid var(--surf-border);
       cursor: pointer;
     }
-    .wp-spotlight__badge-num { font: 700 18px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #F5EFE4; }
-    .wp-spotlight__badge-label { font: 500 8px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.78; margin-top: 3px; display: block; color: #F5EFE4; }
-    .wp-spotlight__live { font-weight: 500; color: #F0997B; }
+    .wp-spotlight__badge-num { font: 700 18px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: var(--surf-text); }
+    .wp-spotlight__badge-label { font: 500 8px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.78; margin-top: 3px; display: block; color: var(--surf-text); }
+    .wp-spotlight__live { font-weight: 500; color: var(--surf-coral-bright); }
     .wp-spotlight__at { opacity: 0.65; font-weight: 500; padding: 0 3px; }
 
     /* ── Game of the Week (in-slot) ──────────────────────────────
        The leader's slot header turns coral (replacing the old top-of-page
        marquee strip), the leader card gets a coral frame, and an inline
        "Game of the Week" chip sits between the matchup and the player chip. */
-    .wp-slot--gotw .wp-slot__head { background: #D85A30; border-bottom-color: rgba(15,27,38,0.30); }
-    .wp-slot--gotw .wp-slot__head:hover { background: #C44E27; }
-    .wp-slot--gotw .wp-slot__title { color: #F5EFE4; }
+    .wp-slot--gotw .wp-slot__head { background: var(--surf-coral); border-bottom-color: rgba(15,27,38,0.30); }
+    .wp-slot--gotw .wp-slot__head:hover { background: var(--surf-coral-deep); }
+    .wp-slot--gotw .wp-slot__title { color: var(--surf-text); }
     .wp-slot--gotw .wp-slot__caret { color: rgba(245,239,228,0.85); }
     .wp-slot--gotw .wp-slot__meta { color: rgba(245,239,228,0.85); }
     /* Coral frame on the card — navy interior kept, coral border + soft glow. */
-    .wp-spotlight--gotw { border-color: #D85A30; box-shadow: 0 0 0 1px #D85A30, 0 8px 24px -16px rgba(216,90,48,0.55); }
-    .wp-spotlight--gotw:hover { border-color: #F0997B; box-shadow: 0 0 0 1px #F0997B, 0 8px 24px -14px rgba(216,90,48,0.55); }
+    .wp-spotlight--gotw { border-color: var(--surf-coral); box-shadow: 0 0 0 1px var(--surf-coral), 0 8px 24px -16px rgba(216,90,48,0.55); }
+    .wp-spotlight--gotw:hover { border-color: var(--surf-coral-bright); box-shadow: 0 0 0 1px var(--surf-coral-bright), 0 8px 24px -14px rgba(216,90,48,0.55); }
     /* Inline GotW chip — solid coral, bold cream type, always one line.
        align-self:stretch makes it fill the card's existing height (no extra
        vertical padding) so it never makes the card taller. white-space:nowrap
@@ -2655,7 +2663,7 @@
       white-space: nowrap;
       padding: 0 13px;
       border-radius: var(--radius-md);
-      background: #D85A30;
+      background: var(--surf-coral);
       color: #FBEFE6;
       font: 800 12px/1 var(--font-mono);
       letter-spacing: 0.06em;
@@ -2663,14 +2671,14 @@
     }
 
     /* ── Strip (lower-priority games beneath spotlight) — navy panels ── */
-    .wp-strip { background: #122A40; border: 1px solid #234866; border-radius: var(--radius-md); overflow: hidden; }
+    .wp-strip { background: var(--surf-panel); border: 1px solid var(--surf-border-strong); border-radius: var(--radius-md); overflow: hidden; }
     .wp-strip__row {
       display: grid;
       grid-template-columns: 26px 1fr auto;
       gap: 10px;
       align-items: center;
       padding: 7px 11px;
-      border-bottom: 1px solid #234866;
+      border-bottom: 1px solid var(--surf-border-strong);
       transition: background var(--duration-fast) var(--ease-out);
       width: 100%;
       background: transparent;
@@ -2682,44 +2690,44 @@
       text-align: left;
     }
     .wp-strip__row:last-child { border-bottom: 0; }
-    .wp-strip__row:hover { background: #1A3A52; }
+    .wp-strip__row:hover { background: var(--surf-border); }
     .wp-strip__row--zero { opacity: 0.55; cursor: default; }
-    .wp-strip__row--zero:hover { background: #122A40; }
-    .wp-strip__rank { font: 500 11px/1 var(--font-mono); color: #A8B5C2; letter-spacing: -0.02em; }
+    .wp-strip__row--zero:hover { background: var(--surf-panel); }
+    .wp-strip__rank { font: 500 11px/1 var(--font-mono); color: var(--surf-muted); letter-spacing: -0.02em; }
     .wp-strip__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; }
-    .wp-strip__match { font: 700 12px/1.2 var(--font-sans); color: #F5EFE4; letter-spacing: -0.01em; }
-    .wp-strip__at { color: #A8B5C2; font-weight: 500; padding: 0 3px; }
-    .wp-strip__sub { font: 500 10px/1 var(--font-mono); color: #A8B5C2; letter-spacing: .04em; }
+    .wp-strip__match { font: 700 12px/1.2 var(--font-sans); color: var(--surf-text); letter-spacing: -0.01em; }
+    .wp-strip__at { color: var(--surf-muted); font-weight: 500; padding: 0 3px; }
+    .wp-strip__sub { font: 500 10px/1 var(--font-mono); color: var(--surf-muted); letter-spacing: .04em; }
     /* Mini boxy badge mirrors the GotW / spotlight badge family. */
     .wp-strip__badge {
-      background: #0F1B26;
-      color: #F5EFE4;
+      background: var(--surf-bg);
+      color: var(--surf-text);
       padding: 4px 8px;
       border-radius: 6px;
       text-align: center;
       min-width: 42px;
       flex-shrink: 0;
-      border: 1px solid #1A3A52;
+      border: 1px solid var(--surf-border);
     }
-    .wp-strip__badge-num { font: 700 14px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: #F5EFE4; }
-    .wp-strip__badge-label { font: 500 7px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.7; margin-top: 2px; display: block; color: #F5EFE4; }
+    .wp-strip__badge-num { font: 700 14px/1 var(--font-mono); letter-spacing: -0.02em; display: block; color: var(--surf-text); }
+    .wp-strip__badge-label { font: 500 7px/1 var(--font-mono); letter-spacing: 0.10em; text-transform: uppercase; opacity: 0.7; margin-top: 2px; display: block; color: var(--surf-text); }
     .wp-strip__badge--zero { background: rgba(168,181,194,0.08); border-color: rgba(168,181,194,0.16); }
     .wp-strip__badge--zero .wp-strip__badge-num,
-    .wp-strip__badge--zero .wp-strip__badge-label { color: #A8B5C2; opacity: 0.7; }
+    .wp-strip__badge--zero .wp-strip__badge-label { color: var(--surf-muted); opacity: 0.7; }
 
     /* ── Empty state for Must Watch with no qualifying games — navy ── */
     .wp-empty {
-      background: #1A3A52;
-      border: 1px dashed #234866;
+      background: var(--surf-border);
+      border: 1px dashed var(--surf-border-strong);
       border-radius: var(--radius-md);
       padding: 22px 18px;
       text-align: center;
       font: 400 13px/1.5 var(--font-sans);
-      color: #A8B5C2;
+      color: var(--surf-muted);
     }
-    .wp-empty b, .wp-empty strong { color: #F5EFE4; font-weight: 700; }
-    .wp-empty__head { font: 700 14px/1.3 var(--font-sans); color: #F5EFE4; margin: 0 0 6px; }
-    .wp-empty__sub { font: 400 12px/1.45 var(--font-sans); color: #A8B5C2; margin: 0; }
+    .wp-empty b, .wp-empty strong { color: var(--surf-text); font-weight: 700; }
+    .wp-empty__head { font: 700 14px/1.3 var(--font-sans); color: var(--surf-text); margin: 0 0 6px; }
+    .wp-empty__sub { font: 400 12px/1.45 var(--font-sans); color: var(--surf-muted); margin: 0; }
 
     /* Drawer (reuses BottomSheet shell) */
     .wp-drawer__head { display: flex; align-items: center; gap: 12px; padding: 4px 0 10px; border-bottom: 1px solid var(--line-soft); margin-bottom: 12px; }
