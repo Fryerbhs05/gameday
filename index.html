@@ -2109,6 +2109,13 @@
     }
     .alg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
     .alg-row .live-toggle { flex-shrink: 0; }
+    .alg-pending-row .alg-name { color: var(--ink-700); }
+    .alg-pending-badge {
+      flex-shrink: 0; font: 600 10px/1 var(--font-sans); letter-spacing: .03em;
+      text-transform: uppercase; color: var(--ink-500);
+      border: 1px solid var(--line); border-radius: var(--radius-pill);
+      padding: 5px 9px; white-space: nowrap; cursor: default;
+    }
     .account-delete-row {
       display: flex; justify-content: flex-end;
       margin-top: 14px;
@@ -4328,11 +4335,106 @@ async function discoverLiveLeagues(){
   })();
   return __liveDiscoverInflight;
 }
+/* ══ PENDING (NOT-YET-RENEWED) LEAGUES ══════════════════════════════════════
+   In the offseason a manager's leagues split: dynasty leagues auto-roll into the
+   new season (they show normally), while redraft leagues stay on last season as
+   "complete" until the commissioner recreates them — so they'd silently vanish
+   from Manage leagues even though the manager still considers them current.
+   This discovers those leagues and lists them with a "Not yet renewed" badge
+   (no on/off toggle — there's nothing in the calc layer to exclude yet). They
+   never enter the board: they're a separate list, not part of liveLeaguesSeen.
+   Supported on Sleeper (previous_league_id chain) and Yahoo (renew/renewed
+   metadata) — both expose a per-season league list + a cross-season link. ESPN
+   reuses one league_id across all seasons with no clean renewal signal, so it's
+   not covered. */
+let pendingLeaguesSeen=[];
+let __pendingDiscoverDone=false, __pendingDiscoverInflight=null;
+/* Sleeper: prior-season leagues whose league_id is not the previous_league_id of
+   any current-season league (and whose name has no current match). */
+async function discoverSleeperPending(curSeason,prevSeason){
+  const username=connectionState.sleeper.identity;
+  const user=await getUser(username);
+  if(!user||!user.user_id)return [];
+  const [cur,prev]=await Promise.all([
+    getLeagues(user.user_id,curSeason).catch(()=>[]),
+    getLeagues(user.user_id,prevSeason).catch(()=>[])
+  ]);
+  const curArr=Array.isArray(cur)?cur:[],prevArr=Array.isArray(prev)?prev:[];
+  const successorIds=new Set(curArr.map(l=>l&&l.previous_league_id).filter(Boolean).map(String));
+  const curNames=new Set(curArr.map(l=>l&&l.name).filter(Boolean));
+  const out=[];
+  prevArr.forEach(l=>{
+    if(!l||!l.name||!l.league_id)return;
+    if(successorIds.has(String(l.league_id)))return;
+    if(curNames.has(l.name))return;
+    out.push({platform:'sleeper',leagueName:l.name,key:leagueKey('sleeper',l.name),pending:true,prevSeason});
+  });
+  return out;
+}
+/* Yahoo: prior-season leagues that haven't been renewed forward. Yahoo stamps a
+   league with `renewed` once recreated, and the new league's `renew` points back
+   to the old one. league_key is "<gameKey>.l.<id>" while renew/renewed use
+   "<gameKey>_<id>", so normalize before comparing. */
+async function discoverYahooPending(curSeason,prevSeason){
+  const norm=k=>String(k||'').replace('.l.','_');
+  const [curJson,prevJson]=await Promise.all([
+    yhFetch('endpoint=leagues&season='+encodeURIComponent(curSeason)).catch(()=>null),
+    yhFetch('endpoint=leagues&season='+encodeURIComponent(prevSeason)).catch(()=>null)
+  ]);
+  const curArr=curJson?parseYahooLeagues(curJson,curSeason):[];
+  const prevArr=prevJson?parseYahooLeagues(prevJson,prevSeason):[];
+  const renewTargets=new Set(curArr.map(l=>norm(l.renew)).filter(Boolean)); // current leagues' back-pointers
+  const curNames=new Set(curArr.map(l=>l.name).filter(Boolean));
+  const out=[];
+  prevArr.forEach(l=>{
+    if(!l||!l.name||!l.league_key)return;
+    if(l.renewed)return;                            // Yahoo already linked it forward
+    if(renewTargets.has(norm(l.league_key)))return; // a current league points back to it
+    if(curNames.has(l.name))return;                 // same-name current league exists
+    out.push({platform:'yahoo',leagueName:l.name,key:leagueKey('yahoo',l.name),pending:true,prevSeason});
+  });
+  return out;
+}
+async function discoverPendingLeagues(){
+  if(__pendingDiscoverInflight)return __pendingDiscoverInflight;
+  const sleeperOn=!!(connectionState.sleeper&&connectionState.sleeper.connected&&connectionState.sleeper.identity);
+  const yahooOn=!!(connectionState.yahoo&&connectionState.yahoo.connected);
+  if(isDemoMode||!liveOffseason||(!sleeperOn&&!yahooOn)){
+    __pendingDiscoverDone=true;pendingLeaguesSeen=[];return [];
+  }
+  __pendingDiscoverInflight=(async()=>{
+    try{
+      const curSeason=String(liveSeason||THIS_YR);
+      const prevSeason=String(parseInt(curSeason,10)-1);
+      const tasks=[];
+      if(sleeperOn)tasks.push(discoverSleeperPending(curSeason,prevSeason).catch(()=>[]));
+      if(yahooOn)  tasks.push(discoverYahooPending(curSeason,prevSeason).catch(()=>[]));
+      const lists=await Promise.all(tasks);
+      const out=[];
+      lists.forEach(l=>{(Array.isArray(l)?l:[]).forEach(x=>out.push(x));});
+      pendingLeaguesSeen=out;
+      return out;
+    }catch(e){pendingLeaguesSeen=[];return [];}
+    finally{
+      __pendingDiscoverDone=true;__pendingDiscoverInflight=null;
+      try{if(leagueMgmtViewOpen())renderAccountLeagues();}catch(e){}
+    }
+  })();
+  return __pendingDiscoverInflight;
+}
 function renderAccountLeagues(){
   const host=document.getElementById('account-leagues-list');
   if(!host)return;
-  /* ALWAYS the current-year set — never the historic dropdown selection. */
-  const all=Array.isArray(liveLeaguesSeen)?liveLeaguesSeen:[];
+  /* Kick the (lazy, offseason-only) discovery of not-yet-renewed leagues; it
+     re-renders this list when it lands and self-guards against re-kick loops. */
+  if(!__pendingDiscoverDone){try{discoverPendingLeagues();}catch(e){}}
+  /* ALWAYS the current-year set — never the historic dropdown selection. Append
+     any not-yet-renewed leagues (deduped) so redraft leagues awaiting their new
+     season still appear, flagged with a badge rather than a toggle. */
+  const live=Array.isArray(liveLeaguesSeen)?liveLeaguesSeen:[];
+  const liveKeys=new Set(live.map(l=>l&&l.key).filter(Boolean));
+  const pend=(Array.isArray(pendingLeaguesSeen)?pendingLeaguesSeen:[]).filter(l=>l&&l.key&&!liveKeys.has(l.key));
+  const all=live.concat(pend);
   if(!all.length){
     const connected=(typeof isAnyProviderConnected==='function')&&isAnyProviderConnected();
     if(connected&&!isDemoMode){
@@ -4363,6 +4465,15 @@ function renderAccountLeagues(){
   pids.forEach(pid=>{
     html+=`<div class="alg-group"><div class="alg-platform">${algEsc(platformLabel(pid))}</div>`;
     groups[pid].forEach(l=>{
+      if(l.pending){
+        /* Not yet renewed for the new season — no toggle (nothing to exclude in
+           the calc layer yet), just a status badge. */
+        html+=`<div class="alg-row alg-pending-row" data-alg-row="${algEsc(l.key)}">`
+          +`<span class="alg-name"><span class="alg-dot" style="background:var(--ink-300)"></span>${algEsc(l.leagueName)}</span>`
+          +`<span class="alg-pending-badge" title="This league hasn't been set up for the new season yet — it'll appear automatically once it is.">Not yet renewed</span>`
+          +`</div>`;
+        return;
+      }
       const on=!disabledLeagueKeys.has(l.key);
       const color=(typeof lc==='function')?lc(l.leagueName):'var(--ink-300)';
       html+=`<div class="alg-row${on?'':' off'}" data-alg-row="${algEsc(l.key)}">`
@@ -4548,6 +4659,7 @@ async function handleDisconnectAll(){
   try{window.__resetLiveUpdates&&window.__resetLiveUpdates();}catch(e){}
   try{clearHistCache();}catch(e){} // drop cached historic periods tied to old connections
   liveLeaguesSeen=[];__liveDiscoverDone=false; // Account league list must re-discover after reconnect
+  pendingLeaguesSeen=[];__pendingDiscoverDone=false; // re-discover not-yet-renewed leagues too
   clearBoardSnapshot(); // no connections → next boot must not flash the old board
   window.__connectionsDirty=false;window.__connectionsViewActive=false;
   showSetup();
@@ -5494,7 +5606,7 @@ function parseYahooLeagues(json, season) {
         if (lm.game_code && lm.game_code !== 'nfl') return;
         const lgSeason = String(lm.season || gameSeason);
         if (season && lgSeason !== String(season)) return;
-        out.push({ league_key: lm.league_key, name: lm.name, season: lgSeason, scoring_type: lm.scoring_type || '', current_week: parseInt(lm.current_week) || null, start_week: parseInt(lm.start_week) || 1, end_week: parseInt(lm.end_week) || 17, is_finished: lm.is_finished === 1 || lm.is_finished === '1' });
+        out.push({ league_key: lm.league_key, name: lm.name, season: lgSeason, scoring_type: lm.scoring_type || '', current_week: parseInt(lm.current_week) || null, start_week: parseInt(lm.start_week) || 1, end_week: parseInt(lm.end_week) || 17, is_finished: lm.is_finished === 1 || lm.is_finished === '1', renew: lm.renew || '', renewed: lm.renewed || '' });
       });
     });
   });
@@ -7555,7 +7667,7 @@ async function handleProviderConnect(id,el){
     if(err){err.style.display='none';err.textContent='';}
     const val=inp?.value?.trim()||'';
     const res=await p.connect(val);
-    if(res.success)refreshConnectUI();
+    if(res.success){__pendingDiscoverDone=false;pendingLeaguesSeen=[];refreshConnectUI();}
     else if(err){err.textContent=res.error||'Could not connect.';err.style.display='block';}
   }else{
     /* Modal-based (ESPN) and OAuth-redirect (Yahoo) flows. Yahoo navigates
@@ -7569,6 +7681,7 @@ async function handleProviderConnect(id,el){
 async function handleProviderDisconnect(id){
   const p=PROVIDERS[id];if(!p)return;
   await p.disconnect();
+  __pendingDiscoverDone=false;pendingLeaguesSeen=[]; // re-evaluate not-yet-renewed leagues
   refreshConnectUI();
 }
 
