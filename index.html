@@ -192,6 +192,15 @@
     a:hover { color: var(--coral-500); }
     ::selection { background: var(--coral-200); color: var(--ink-900); }
 
+    /* Shared keyboard-focus ring. :where() keeps specificity at 0 so any element
+       with its own focus treatment still overrides this, and :focus-visible means
+       it only shows for keyboard users — never on mouse click. */
+    :where(a, button, select, input, textarea, [tabindex], [role="button"], [role="tab"], [role="switch"], [role="menuitem"]):focus-visible {
+      outline: 2px solid var(--navy-500);
+      outline-offset: 2px;
+      border-radius: var(--radius-sm);
+    }
+
     /* Type utilities */
     .t-h1{font:800 36px/1.1 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);}
     .t-h2{font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);}
@@ -824,19 +833,19 @@
     .espn-modal-actions {
       display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;
     }
-    .espn-btn-cancel {
+    .btn-modal-ghost {
       background: transparent; color: var(--ink-500);
       border: 1px solid var(--line); border-radius: var(--radius-md);
       padding: 10px 18px; font: 500 13px/1 var(--font-sans); cursor: pointer;
     }
-    .espn-btn-cancel:hover { background: var(--paper-deep); }
-    .espn-btn-submit {
+    .btn-modal-ghost:hover { background: var(--paper-deep); }
+    .btn-modal {
       background: var(--navy-700); color: var(--paper);
       border: none; border-radius: var(--radius-md);
       padding: 10px 18px; font: 500 13px/1 var(--font-sans); cursor: pointer;
     }
-    .espn-btn-submit:hover { background: var(--navy-900); }
-    .espn-btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-modal:hover { background: var(--navy-900); }
+    .btn-modal:disabled { opacity: 0.5; cursor: not-allowed; }
     .espn-modal-error {
       color: var(--enemy); font: 400 12px/1.4 var(--font-sans);
       margin-top: 10px; min-height: 16px;
@@ -1055,6 +1064,11 @@
       gap: 12px; margin-bottom: 0;
     }
     .scores-strip.visible { display: grid; }
+    .scores-empty {
+      font: 400 13px/1.5 var(--font-sans); color: var(--ink-500);
+      text-align: center; padding: 18px 16px;
+    }
+    .scores-empty[hidden] { display: none; }
     @media (max-width: 480px) {
       .scores-strip { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
     }
@@ -1501,7 +1515,7 @@
     .ia-lcard__head { width: 100%; background: var(--paper-deep); border-bottom: 1px solid var(--line); font: 700 13px/1.2 var(--font-sans); color: var(--ink-900); text-align: center; padding: 8px; min-height: 34px; display: flex; align-items: center; justify-content: center; }
     .ia-lcard__main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 12px; }
     .ia-lcard__delta { font: 800 44px/1 var(--font-mono); }
-    .ia-lcard__name { font: 700 19px/1.12 var(--font-sans); color: var(--ink-900); text-align: center; margin-top: 6px; }
+    .ia-lcard__name { font: 700 18px/1.12 var(--font-sans); color: var(--ink-900); text-align: center; margin-top: 6px; }
     .ia-lcard.mine { border-color: var(--coral-500); } .ia-lcard.mine .ia-lcard__delta { color: var(--coral-500); }
     .ia-lcard.opp  { border-color: var(--navy-500);  } .ia-lcard.opp  .ia-lcard__delta { color: var(--navy-500);  }
     @media (prefers-reduced-motion: reduce) { #impact-overlay { display: none !important; } }
@@ -2032,7 +2046,7 @@
     @media (max-width: 640px) {
       .about-h1 { font-size: 29px; }
       .about-lede { font-size: 16px; }
-      .about-h2 { font-size: 19px; }
+      .about-h2 { font-size: 18px; }
     }
     .priority-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; flex-wrap: wrap; }
     .priority-actions .btn-primary { padding: 11px 22px; font-size: 14px; }
@@ -3092,6 +3106,7 @@
         <span class="scoreboard-context" id="scoreboard-context"></span>
       </div>
       <div class="scores-strip" id="scores-strip"></div>
+      <div class="scores-empty" id="scores-empty" hidden>No matchups are set yet. Once lineups lock, every score that matters lands right here.</div>
     </div>
     <div class="banner banner-offseason" id="banner-offseason"><div><strong>Roster mode</strong> — no matchup data yet. Everyone defaults to your guys until lineups are set.</div></div>
     <div class="banner banner-warn"      id="banner-partial"><div id="banner-partial-msg"></div></div>
@@ -4385,8 +4400,8 @@ function openAddNameModal(){
       </div>
       <div class="espn-modal-error" id="addname-error"></div>
       <div class="espn-modal-actions">
-        <button type="button" class="espn-btn-cancel" id="addname-cancel">Cancel</button>
-        <button type="button" class="espn-btn-submit" id="addname-submit">Save</button>
+        <button type="button" class="btn-modal-ghost" id="addname-cancel">Cancel</button>
+        <button type="button" class="btn-modal" id="addname-submit">Save</button>
       </div>
     </div>`;
   document.body.appendChild(backdrop);
@@ -4690,12 +4705,16 @@ function ctxDisplayState(ctx){
 function renderScoresStrip(contexts){
   contexts=sortContextsByPriority(contexts);
   const strip=document.getElementById('scores-strip');
+  const emptyEl=document.getElementById('scores-empty');
   if(!strip._cellIndex)strip._cellIndex=new Map();
   const idx=strip._cellIndex;
   if(!contexts.some(c=>c.leagueState!=='NO_MATCHUP')){
     idx.forEach(n=>n.remove());idx.clear();
-    strip.classList.remove('visible');return;
+    strip.classList.remove('visible');
+    if(emptyEl)emptyEl.hidden=false;
+    return;
   }
+  if(emptyEl)emptyEl.hidden=true;
   strip.classList.add('visible');
   const newNames=new Set(contexts.map(c=>c.leagueName));
   for(const[name,node]of idx){if(!newNames.has(name)){node.remove();idx.delete(name);}}
@@ -5318,19 +5337,30 @@ function renderBoard(data,username){
   const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
   document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));(function(s){if(s&&!(window.experimentEnabled&&window.experimentEnabled()))s.style.display='none';})(document.getElementById('live-updates-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(leagueMgmtViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));(function(s){if(s&&!(window.experimentEnabled&&window.experimentEnabled()))s.style.display='none';})(document.getElementById('live-updates-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');(function(se){if(se)se.hidden=true;})(document.getElementById('scores-empty'));document.getElementById('no-data-msg').innerHTML=noDataReason;currentContexts=[];if(leagueMgmtViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Restore the experimental tab bar + titled section (display reset → CSS gates take over). */
   (function(t){if(t)t.style.display='';})(document.getElementById('exp-tabbar'));
   (function(s){if(s)s.style.display='';})(document.getElementById('loyalties-section'));(function(s){if(s)s.style.display='';})(document.getElementById('live-updates-section'));
   /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
   liveToggleAvailable=!isDemoMode&&!isHist;
-  if(contexts?.length)renderScoresStrip(contexts);
+  if(contexts?.length)renderScoresStrip(contexts);else{document.getElementById('scores-strip').classList.remove('visible');(function(se){if(se)se.hidden=false;})(document.getElementById('scores-empty'));}
   document.getElementById('count-cheer').textContent=cheerFor.length;
   document.getElementById('count-conflicted').textContent=conflicted.length;
   document.getElementById('count-enemy').textContent=enemies.length;
   /* Experimental tab-bar counts (TestMode2026 mobile view). */
   (function(c,cf,en){if(c)c.textContent=cheerFor.length;if(cf)cf.textContent=conflicted.length;if(en)en.textContent=enemies.length;})(document.getElementById('exp-ct-cheer'),document.getElementById('exp-ct-conflicted'),document.getElementById('exp-ct-enemy'));
+  /* Default bucket: Conflicted is the namesake view, but it's useless when empty.
+     When no players are conflicted this week, open on Cheer For instead. Only auto-
+     default until the user manually picks a tab (then __expTabUserPicked locks it). */
+  (function(){
+    if(window.__expTabUserPicked)return;
+    const cols=document.getElementById('columns'),bar=document.getElementById('exp-tabbar');
+    if(!cols||!bar)return;
+    const want=conflicted.length>0?'conflicted':'cheer';
+    cols.dataset.expTab=want;
+    bar.querySelectorAll('.exp-tab').forEach(function(x){const sel=x.dataset.tab===want;x.classList.toggle('is-active',sel);x.setAttribute('aria-selected',sel?'true':'false');});
+  })();
   const lgNames=[];[...cheerFor,...conflicted,...enemies].forEach(p=>[...p.myLeagues,...p.againstLeagues].forEach(n=>{if(!lgNames.includes(n))lgNames.push(n);}));
   lgNames.forEach(n=>assignColor(n));buildFilterPills(lgNames);
   // Keyed reconciliation: keep existing .player-card nodes across 60s refreshes
@@ -6575,6 +6605,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   if(!cols.dataset.expTab)cols.dataset.expTab='conflicted';
   bar.addEventListener('click',function(e){
     const b=e.target.closest('.exp-tab');if(!b)return;
+    window.__expTabUserPicked=true; // user override — stop auto-defaulting the bucket
     cols.dataset.expTab=b.dataset.tab;
     bar.querySelectorAll('.exp-tab').forEach(function(x){
       const sel=x===b;x.classList.toggle('is-active',sel);x.setAttribute('aria-selected',sel?'true':'false');
@@ -7626,10 +7657,10 @@ function openAccountModal(){
       ${signedIn ? `
         <p class="espn-modal-sub">Signed in as <strong>${acct.email||''}</strong>. Your connections follow you across devices.</p>
         <div class="espn-modal-actions" style="justify-content:space-between">
-          <button type="button" class="espn-btn-cancel" id="account-delete">Delete account</button>
+          <button type="button" class="btn-modal-ghost" id="account-delete">Delete account</button>
           <div>
-            <button type="button" class="espn-btn-cancel" id="account-close">Close</button>
-            <button type="button" class="espn-btn-submit" id="account-logout">Sign out</button>
+            <button type="button" class="btn-modal-ghost" id="account-close">Close</button>
+            <button type="button" class="btn-modal" id="account-logout">Sign out</button>
           </div>
         </div>
         <div class="espn-modal-error" id="account-error"></div>
@@ -7641,8 +7672,8 @@ function openAccountModal(){
         </div>
         <div class="espn-modal-error" id="account-error"></div>
         <div class="espn-modal-actions">
-          <button type="button" class="espn-btn-cancel" id="account-close">Cancel</button>
-          <button type="button" class="espn-btn-submit" id="account-submit">Email me a link</button>
+          <button type="button" class="btn-modal-ghost" id="account-close">Cancel</button>
+          <button type="button" class="btn-modal" id="account-submit">Email me a link</button>
         </div>
       `}
     </div>`;
@@ -7684,7 +7715,7 @@ function openAccountModal(){
         if(r.ok){
           backdrop.querySelector('.espn-modal').innerHTML =
             `<h2>Check your email</h2><p class="espn-modal-sub">We sent a sign-in link to <strong>${email}</strong>. It works once and expires in 15 minutes.</p>
-             <div class="espn-modal-actions"><button type="button" class="espn-btn-submit" id="account-done">Done</button></div>`;
+             <div class="espn-modal-actions"><button type="button" class="btn-modal" id="account-done">Done</button></div>`;
           backdrop.querySelector('#account-done').addEventListener('click', close);
         } else {
           const j = await r.json().catch(()=>({}));
@@ -7735,11 +7766,11 @@ function openSignInModal(){
         <label for="signin-email">Email</label>
         <input type="email" id="signin-email" placeholder="you@example.com" autocomplete="email" />
       </div>
-      <button type="button" class="espn-btn-submit" id="signin-submit" style="width:100%">Email me a sign-in link</button>
+      <button type="button" class="btn-modal" id="signin-submit" style="width:100%">Email me a sign-in link</button>
       <div class="espn-modal-error" id="signin-modal-error" style="min-height:0;margin-top:8px"></div>
       <div class="espn-modal-or"><span class="espn-modal-or__line"></span><span class="espn-modal-or__txt">or</span><span class="espn-modal-or__line"></span></div>
       <h2 style="margin-bottom:14px">Get started</h2>
-      <button type="button" class="espn-btn-submit" id="signin-signup" style="width:100%;background:var(--coral-500)">Sign up</button>
+      <button type="button" class="btn-modal" id="signin-signup" style="width:100%;background:var(--coral-500)">Sign up</button>
     </div>`;
   document.body.appendChild(backdrop);
 
@@ -7770,7 +7801,7 @@ function openSignInModal(){
       if(r.ok){
         backdrop.querySelector('.espn-modal').innerHTML =
           `<h2>Check your email</h2><p class="espn-modal-sub">If an account exists for <strong>${email}</strong>, we've sent a one-time sign-in link. It works once and expires in 15 minutes.</p>
-           <div class="espn-modal-actions"><button type="button" class="espn-btn-submit" id="signin-done">Done</button></div>`;
+           <div class="espn-modal-actions"><button type="button" class="btn-modal" id="signin-done">Done</button></div>`;
         backdrop.querySelector('#signin-done').addEventListener('click', close);
       } else {
         const j = await r.json().catch(()=>({}));
@@ -8001,8 +8032,8 @@ function openEspnConnectModal(){
         <div class="espn-modal-error" id="espn-modal-error"></div>
 
         <div class="espn-modal-actions">
-          <button type="button" class="espn-btn-cancel" id="espn-cancel">Cancel</button>
-          <button type="button" class="espn-btn-submit" id="espn-submit">Connect</button>
+          <button type="button" class="btn-modal-ghost" id="espn-cancel">Cancel</button>
+          <button type="button" class="btn-modal" id="espn-submit">Connect</button>
         </div>
       </div>
     `;
@@ -10956,6 +10987,9 @@ initThemeToggle();
         } else if (action === 'home') {
           if (typeof window.showSetup === 'function') window.showSetup();
         }
+        // Every menu action lands the user at the top of the destination view,
+        // rather than inheriting the scroll position from the previous page.
+        window.scrollTo(0, 0);
         // Future routes — wire these up as each view ships:
         //   blog, contact
       });
