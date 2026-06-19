@@ -602,6 +602,15 @@
       cursor: pointer; text-decoration: underline; text-underline-offset: 3px; padding: 0;
     }
     .btn-provider-disconnect:hover { color: var(--coral-500); }
+    /* Anchor Disconnect to the card's top-right corner instead of giving it its
+       own row. Applies to every provider card (the Manage League Connections page
+       AND the onboarding connect grid). The wizard renders into wiz-step-body, not
+       a .provider-card, so it keeps its inline layout. */
+    .provider-card { position: relative; }
+    .provider-card .btn-provider-disconnect {
+      position: absolute; top: 14px; right: 16px; align-self: auto;
+      padding: 4px; margin: -4px; /* slightly larger tap area, same visual position */
+    }
     .provider-error { color: var(--enemy); font: 400 12px/1.4 var(--font-sans); margin: 0; }
 
     .btn-yahoo {
@@ -4611,19 +4620,8 @@ function renderConnectionsPanel(){
     head.innerHTML=`<span class="provider-icon" style="background:${p.accentColor}">${p.displayName.charAt(0)}</span><span class="provider-card-title">${p.displayName}</span>`;
     const body=document.createElement('div');body.className='provider-card-body';
     p.renderConnectCard(body);
-    /* ESPN holds several leagues on one connection — list them so the user can see
-       exactly what's wired up before disconnecting. */
-    if(p.id==='espn'&&connectionState.espn?.connected){
-      const ids=connectionState.espn.league_ids||[];
-      const names=connectionState.espn.league_names||{};
-      if(ids.length){
-        const list=document.createElement('div');list.className='conn-league-list';
-        // League names are free text other league members can set, so render
-        // them via textContent (never innerHTML) to neutralize any HTML payload.
-        ids.forEach(id=>{const chip=document.createElement('span');chip.className='conn-league-chip';chip.textContent=names[id]?names[id]:('League '+id);list.appendChild(chip);});
-        body.appendChild(list);
-      }
-    }
+    /* ESPN per-league chips removed here — the leagues are already listed in the
+       League Connections section below, so repeating them on the card was redundant. */
     card.appendChild(head);card.appendChild(body);
     grid.appendChild(card);
   });
