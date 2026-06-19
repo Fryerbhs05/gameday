@@ -1882,10 +1882,19 @@
       .signin-card { padding: 24px 20px; }
       .provider-card-grid { grid-template-columns: 1fr; }
       .board-inner { padding: 16px var(--gutter) 40px; }
-      .nav-controls { padding: 6px 10px; gap: 2px; flex-wrap: nowrap; }
+      .nav-controls { padding: 6px 8px; gap: 4px; flex-wrap: nowrap; }
       .nav-controls .nav-label { display: none; }
-      .nav-controls .btn-icon { padding: 4px 6px; font-size: 13px; }
-      .nav-controls select.nav-select { font-size: 13px; padding-right: 14px; }
+      /* Touch targets: arrows + dropdowns meet the 44px minimum on mobile.
+         Selects keep min-width:0 so the row still fits narrow phones. */
+      .nav-controls .btn-icon {
+        min-width: 44px; min-height: 44px; padding: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 18px; line-height: 1;
+      }
+      .nav-controls select.nav-select {
+        min-height: 44px; font-size: 14px;
+        padding: 0 24px 0 12px;
+      }
       .nav-controls select.week-select { min-width: 0; }
       .nav-controls .nav-spacer { min-width: 4px; }
       .nav-controls #board-refresh-time { font-size: 11px; white-space: nowrap; padding: 4px 6px; }
@@ -2922,20 +2931,9 @@
       </button>
     </li>
     <li role="presentation" class="menu-app-only"><hr class="menu-drawer__divider" aria-hidden="true"></li>
-    <li class="menu-drawer__section-label menu-app-only" role="presentation">Account</li>
     <li role="none" class="menu-app-only">
       <button class="menu-drawer__item" data-menu-action="account" role="menuitem" type="button">
         <span>Account</span>
-      </button>
-    </li>
-    <li role="none" class="menu-app-only">
-      <button class="menu-drawer__item" data-menu-action="settings" role="menuitem" type="button">
-        <span>Settings</span>
-      </button>
-    </li>
-    <li role="none" class="menu-app-only">
-      <button class="menu-drawer__item" data-menu-action="connections" role="menuitem" type="button">
-        <span>League connections</span>
       </button>
     </li>
     <li role="presentation"><hr class="menu-drawer__divider" aria-hidden="true"></li>
@@ -3271,6 +3269,33 @@
     </div>
   </div>
 
+  <!-- Consolidated hub: Settings + League connections now live under Account
+       (always shown, so they're reachable whether signed in or out). -->
+  <div class="settings-panel" style="display:block;margin:16px 0 0;">
+    <div class="settings-body" style="display:block;">
+      <div class="settings-row settings-row--link" role="button" tabindex="0"
+           onclick="showConnections()"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showConnections();}"
+           aria-label="League connections">
+        <div class="settings-row-meta">
+          <div class="settings-row-title">League connections</div>
+          <div class="settings-row-sub">Connect, re-connect, or remove the platforms Conflicted reads your leagues from.</div>
+        </div>
+        <span class="settings-row-chevron" aria-hidden="true">›</span>
+      </div>
+      <div class="settings-row settings-row--link" role="button" tabindex="0"
+           onclick="showSettings()"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showSettings();}"
+           aria-label="Settings">
+        <div class="settings-row-meta">
+          <div class="settings-row-title">Settings</div>
+          <div class="settings-row-sub">Appearance and league priority.</div>
+        </div>
+        <span class="settings-row-chevron" aria-hidden="true">›</span>
+      </div>
+    </div>
+  </div>
+
   <div style="margin-top:14px;">
     <button class="btn-ghost" onclick="goToDashboardOrSetup()" type="button">← Back to dashboard</button>
   </div>
@@ -3341,11 +3366,11 @@
     </div>
   </div>
   <div style="margin-top:14px;">
-    <button class="btn-ghost" onclick="goToDashboardOrSetup()" type="button">← Back to dashboard</button>
+    <button class="btn-ghost" onclick="showAccount()" type="button">← Back to account</button>
   </div>
 </div>
 
-<!-- ══ LEAGUE CONNECTIONS VIEW (hamburger → League connections) ═ -->
+<!-- ══ LEAGUE CONNECTIONS VIEW (Account → League connections; also dashboard header) ═ -->
 <div id="view-connections" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
   <div style="margin-bottom:20px;">
     <h2 style="font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);margin:0 0 6px;">League connections</h2>
