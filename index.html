@@ -3338,7 +3338,7 @@
   </div>
 
   <div style="margin-top:14px;">
-    <button class="btn-ghost" onclick="goToDashboardOrSetup()" type="button">← Back to dashboard</button>
+    <button class="btn-ghost" onclick="goToDashboardOrSetup();window.scrollTo(0,0);" type="button">← Back to dashboard</button>
   </div>
 </div>
 
@@ -3370,7 +3370,7 @@
     <button class="btn-ghost-danger" id="account-delete-btn" type="button">Delete Account</button>
   </div>
   <div style="margin-top:14px;">
-    <button class="btn-ghost" onclick="showAccount()" type="button">← Back to account</button>
+    <button class="btn-ghost" onclick="showAccount()" type="button">← Back to Account</button>
   </div>
 </div>
 
@@ -3407,7 +3407,7 @@
     </div>
   </div>
   <div style="margin-top:14px;">
-    <button class="btn-ghost" onclick="showAccount()" type="button">← Back to account</button>
+    <button class="btn-ghost" onclick="showAccount()" type="button">← Back to Account</button>
   </div>
 </div>
 
@@ -3452,7 +3452,7 @@
     </div>
   </div>
   <div style="margin-top:14px;">
-    <button class="btn-ghost" onclick="exitConnections()" type="button">← Back to dashboard</button>
+    <button class="btn-ghost" onclick="exitConnections()" type="button">← Back to Account</button>
   </div>
 </div>
 
@@ -4101,6 +4101,7 @@ function showAccount(){
   const v=document.getElementById('view-account');
   if(v)v.style.display='block';
   try{renderAccountPanel();}catch(e){console.warn('renderAccountPanel failed:',e.message);}
+  window.scrollTo(0,0); // always land at the top of the Account page
 }
 window.showAccount=showAccount;
 
@@ -4475,9 +4476,11 @@ function applyConnectionsAndView(){
   else showSetup();
 }
 function exitConnections(){
+  /* If platform connections changed, we must reload league data — that path lands
+     on the dashboard. Otherwise this is a subpage of Account, so return there. */
   if(window.__connectionsDirty){applyConnectionsAndView();return;}
   window.__connectionsViewActive=false;
-  goToDashboardOrSetup();
+  showAccount();
 }
 /* True teardown for this browser: run every provider's real disconnect() —
    Sleeper clears its localStorage keys, ESPN POSTs /api/espn/disconnect to drop
