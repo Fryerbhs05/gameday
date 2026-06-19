@@ -3660,6 +3660,30 @@ function cacheDisabledLeaguesLocal(){
 function readDisabledLeaguesLocal(){
   try{const raw=localStorage.getItem(DISABLED_LEAGUES_LS_KEY);if(!raw)return new Set();const a=JSON.parse(raw);return new Set(Array.isArray(a)?a.filter(k=>typeof k==='string'&&k):[]);}catch(e){return new Set();}
 }
+/* Merge a freshly-seen league list into the canonical current-year set
+   (liveLeaguesSeen) instead of replacing it wholesale. WHY: a single load can
+   omit a league it shouldn't — a transient Sleeper roster/matchup hiccup, or one
+   provider erroring (its catch returns zero results). A wholesale replace then
+   makes that league VANISH from Manage leagues even though it's still connected,
+   so the user can no longer toggle it back on. This was the "toggled off a
+   Sleeper league and it disappeared" bug: toggling fires an extra reload, an
+   extra chance for the re-fetch to omit a league. Fix: union by key (new entry
+   wins so names/colors stay fresh), then prune ONLY entries whose platform is no
+   longer connected (a real removal like a disconnect). Leagues you genuinely
+   left linger until the next page load, which is harmless and far better than a
+   live league disappearing. */
+function mergeLiveLeaguesSeen(seen){
+  try{
+    const byKey=new Map();
+    (Array.isArray(liveLeaguesSeen)?liveLeaguesSeen:[]).forEach(l=>{if(l&&l.key)byKey.set(l.key,l);});
+    (Array.isArray(seen)?seen:[]).forEach(l=>{if(l&&l.key)byKey.set(l.key,l);});
+    let connected=null;
+    try{connected=new Set(getConnectedProviders());}catch(e){connected=null;}
+    const out=[];
+    byKey.forEach(l=>{ if(!connected||connected.has(l.platform)) out.push(l); });
+    liveLeaguesSeen=out;
+  }catch(e){ if(Array.isArray(seen)&&seen.length) liveLeaguesSeen=seen; }
+}
 /* True when the NFL is between seasons: Sleeper's state returns week:0 /
    season_type:"off", which forces liveWeek to a synthetic 1. There is no real
    "current" matchup in that window. ESPN (unlike Sleeper/Yahoo) still serves a
@@ -4295,7 +4319,7 @@ async function discoverLiveLeagues(){
           if(!keys.has(k)){keys.add(k);seen.push({platform:pid,leagueName:nm,key:k});}
         });
       });
-      if(seen.length)liveLeaguesSeen=seen;
+      if(seen.length)mergeLiveLeaguesSeen(seen);
       return seen;
     }finally{
       __liveDiscoverDone=true;__liveDiscoverInflight=null;
@@ -5760,7 +5784,7 @@ async function loadData(){
     /* Only a current-year load feeds the Account view's league list (see
        liveLeaguesSeen). A historic load must not overwrite it, or ESPN/other
        leagues with no entry that season vanish from Manage Leagues. */
-    if(!isHist&&seen.length)liveLeaguesSeen=seen;
+    if(!isHist&&seen.length)mergeLiveLeaguesSeen(seen);
     // Drop account-disabled leagues from BOTH the results and the contexts before
     // any math runs — this is the "global exclude" (vs the visual-only Filters
     // drawer). Disabled leagues never enter conflicts/exposure/priority at all.
