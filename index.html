@@ -1490,18 +1490,20 @@
     #exp-bottom-nav { display: none; }
     #exp-bottom-nav {
       position: fixed; left: 0; right: 0; bottom: var(--exp-ribbon-h, 0px);
-      z-index: 8999;
+      /* Above the experiment ribbon (z 9000) so the scroll-away slide is visible
+         passing over it, rather than vanishing under it. */
+      z-index: 9001;
       grid-template-columns: repeat(5, minmax(0, 1fr));
       background: var(--paper-soft); border-top: 1px solid var(--line);
       box-shadow: 0 -4px 16px rgba(15, 34, 53, 0.06);
       /* Five evenly-distributed tabs (repeat(5,1fr) with centered content) span
-         the width like a standard mobile tab bar. A modest edge pad keeps the
-         outer tabs off the rounded corners; max() also clears the notch in
-         landscape. Background/border still span full width. */
-      padding-left: max(8px, env(safe-area-inset-left, 0px));
-      padding-right: max(8px, env(safe-area-inset-right, 0px));
-      /* Slide off the bottom on scroll-down, back on scroll-up (set in JS). */
-      transition: transform 0.28s var(--ease-out);
+         the width like a standard mobile tab bar. The edge pad keeps the outer
+         labels clear of the phone's rounded corners; max() also clears the notch
+         in landscape. Background/border still span full width. */
+      padding-left: max(14px, env(safe-area-inset-left, 0px));
+      padding-right: max(14px, env(safe-area-inset-right, 0px));
+      /* Slide off the bottom on scroll-down, back on scroll-up (toggled in JS). */
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
     }
     /* Hidden: travel own height + the ribbon gap below it, fully off-screen. */
     #exp-bottom-nav.cbnav-hidden { transform: translateY(calc(100% + var(--exp-ribbon-h, 0px) + 16px)); }
@@ -1516,7 +1518,7 @@
     }
     /* Label matches the section wordmarks (SCOREBOARD / LOYALTIES): bold sans,
        uppercase, wide tracking. */
-    .cbnav-tab span { font: 700 9.5px/1 var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase; }
+    .cbnav-tab span { font: 700 9px/1 var(--font-sans); letter-spacing: 0.035em; text-transform: uppercase; white-space: nowrap; }
     /* Icon rides in a rounded tile; only the active tab's tile fills, with the
        soft light-navy treatment used by the drawer's active item. */
     .cbnav-ico {
