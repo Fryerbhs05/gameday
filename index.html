@@ -1484,15 +1484,20 @@
        persistent mobile bar, with a More tab that opens the existing drawer
        for Account + Site links. Hidden unless: experiment mode on, in-app
        (not the landing/setup screen), and a mobile-width viewport. Sits just
-       above the experiment ribbon via --exp-ribbon-h (measured in JS). */
+       above the experiment ribbon via --exp-ribbon-h (measured in JS). With no
+       ribbon present (normal users) --exp-ribbon-h is 0, so the bar drops flush
+       to the bottom edge and instead reserves the iOS home-indicator inset. */
     #exp-bottom-nav { display: none; }
     #exp-bottom-nav {
-      position: fixed; left: 0; right: 0; bottom: var(--exp-ribbon-h, 64px);
+      position: fixed; left: 0; right: 0; bottom: var(--exp-ribbon-h, 0px);
       z-index: 8999;
       grid-template-columns: repeat(4, 1fr);
       background: var(--paper-soft); border-top: 1px solid var(--line);
       box-shadow: 0 -4px 16px rgba(15, 34, 53, 0.06);
     }
+    /* Flush at the screen edge → clear the home indicator. When stacked above
+       the experiment ribbon, the ribbon already owns the safe-area inset. */
+    body:not(.experiment-active) #exp-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
     .exp-tab {
       display: flex; flex-direction: column; align-items: center; gap: 3px;
       padding: 8px 2px 9px; background: transparent; border: 0; cursor: pointer;
@@ -1517,6 +1522,24 @@
       body.experiment-active:not(.nav-landing) .exp-tabbar-dupe { display: none !important; }
     }
     @media (prefers-reduced-motion: reduce) { .exp-tab { transition: none; } }
+
+    /* "Preview real nav" — strips the experiment chrome (banner + impact-test
+       harness) for 10s so the tab bar drops to its true production position and
+       reserves the iOS home-indicator inset, exactly as a normal user sees it.
+       The 350ms height loop measures the hidden banner as 0 → bar goes flush. */
+    body.exp-nav-preview #experiment-ribbon,
+    body.exp-nav-preview #impact-test-ctl { display: none !important; }
+    body.exp-nav-preview #exp-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    #exp-nav-preview-chip { display: none; }
+    body.exp-nav-preview #exp-nav-preview-chip {
+      display: inline-block; white-space: nowrap;
+      position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%;
+      transform: translateX(-50%); z-index: 9100;
+      background: var(--surf-amber); color: var(--surf-panel-2);
+      border: 0; cursor: pointer; font: 600 12px/1 var(--font-mono);
+      padding: 9px 14px; border-radius: var(--radius-pill);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    }
 
     /* ── Impact animation (experiment) — conflicted scoring sequence ──
        1) CONFLICTED splash (screen flash + branded pop-out)
@@ -3038,8 +3061,15 @@
 <div id="experiment-ribbon" role="status" aria-live="polite">
   <span class="xr-text">Experimental Mode — testing unreleased features</span>
   <button class="xr-link" type="button" onclick="experimentGoDashboard()">Dashboard</button>
+  <button class="xr-link" type="button" onclick="previewRealNav()" title="Hide the experiment banner + test buttons for 10s to see the tab bar where a normal user sees it">Preview real nav</button>
   <button class="xr-exit" type="button" onclick="exitExperiment()">Exit Experiment</button>
 </div>
+
+<!-- Countdown shown only while "Preview real nav" is active (TestMode2026). Sits
+     at the top so it never covers the bottom tab bar being reviewed. Tap to exit. -->
+<button id="exp-nav-preview-chip" type="button" onclick="endNavPreview()" aria-live="polite">
+  Real-user view · <span id="exp-nav-preview-secs">10</span>s · tap to exit
+</button>
 
 <!-- Experimental bottom tab bar (TestMode2026). Visibility + wiring handled in
      the script near the end of <body>; markup kept minimal/icon-based. -->
@@ -11308,6 +11338,44 @@ initThemeToggle();
     syncActive();
     setInterval(function() { syncRibbonHeight(); syncActive(); }, 350);
     window.addEventListener('resize', syncRibbonHeight);
+  })();
+</script>
+
+<!-- ════ "Preview real nav" (TestMode2026) ════════════════════════════════════
+     Temporarily removes the experiment banner + impact-test buttons so the tab
+     bar relocates to its real production position for a clean visual review. -->
+<script>
+  (function() {
+    var DURATION = 10; // seconds
+    function recomputeRibbonOffset() {
+      var rib = document.getElementById('experiment-ribbon');
+      document.documentElement.style.setProperty('--exp-ribbon-h', (rib ? rib.offsetHeight : 0) + 'px');
+    }
+    window.previewRealNav = function() {
+      var body = document.body;
+      if (body.classList.contains('exp-nav-preview')) return; // already running
+      body.classList.add('exp-nav-preview');
+      // Snap the bar flush immediately; the 350ms loop also keeps it at 0 while
+      // the (now hidden) banner measures as zero height.
+      document.documentElement.style.setProperty('--exp-ribbon-h', '0px');
+      var secsEl = document.getElementById('exp-nav-preview-secs');
+      var left = DURATION;
+      if (secsEl) secsEl.textContent = left;
+      clearInterval(window.__expNavPrevIv);
+      window.__expNavPrevIv = setInterval(function() {
+        left -= 1;
+        if (secsEl) secsEl.textContent = Math.max(0, left);
+        if (left <= 0) clearInterval(window.__expNavPrevIv);
+      }, 1000);
+      clearTimeout(window.__expNavPrevTo);
+      window.__expNavPrevTo = setTimeout(window.endNavPreview, DURATION * 1000);
+    };
+    window.endNavPreview = function() {
+      clearInterval(window.__expNavPrevIv);
+      clearTimeout(window.__expNavPrevTo);
+      document.body.classList.remove('exp-nav-preview');
+      recomputeRibbonOffset(); // banner is back — re-park the bar above it at once
+    };
   })();
 </script>
 
