@@ -1491,15 +1491,15 @@
     #exp-bottom-nav {
       position: fixed; left: 0; right: 0; bottom: var(--exp-ribbon-h, 0px);
       z-index: 8999;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       background: var(--paper-soft); border-top: 1px solid var(--line);
       box-shadow: 0 -4px 16px rgba(15, 34, 53, 0.06);
-      /* Inset the tabs to line up with the player cards, not the section edge.
-         Cards sit at the section gutter PLUS the .columns inner padding (12px at
-         ≤640px; the 641–768px value is overridden below). max() keeps clear of
-         the notch in landscape. Background/border still span full width. */
-      padding-left: max(calc(var(--gutter) + 12px), env(safe-area-inset-left, 0px));
-      padding-right: max(calc(var(--gutter) + 12px), env(safe-area-inset-right, 0px));
+      /* Five evenly-distributed tabs (repeat(5,1fr) with centered content) span
+         the width like a standard mobile tab bar. A modest edge pad keeps the
+         outer tabs off the rounded corners; max() also clears the notch in
+         landscape. Background/border still span full width. */
+      padding-left: max(8px, env(safe-area-inset-left, 0px));
+      padding-right: max(8px, env(safe-area-inset-right, 0px));
     }
     /* Flush at the screen edge → clear the home indicator. When stacked above
        the experiment ribbon, the ribbon already owns the safe-area inset. */
@@ -2004,12 +2004,6 @@
       .how-grid { grid-template-columns: 1fr 1fr; gap: 22px; }
       .how-step:nth-child(2)::after { display: none; }
       .columns { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-      /* .columns keeps its base 16px padding here, so player cards align at
-         gutter + 16px — match the tab bar to that. */
-      #exp-bottom-nav {
-        padding-left: max(calc(var(--gutter) + 16px), env(safe-area-inset-left, 0px));
-        padding-right: max(calc(var(--gutter) + 16px), env(safe-area-inset-right, 0px));
-      }
     }
 
     /* ═══════════════════════════════════════════════════════════
@@ -3094,11 +3088,15 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></svg>
     <span>Exposure</span>
   </button>
-  <button class="exp-tab" type="button" data-exp-tab="watch" aria-label="Watch priority">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-    <span>Watch</span>
+  <button class="exp-tab" type="button" data-exp-tab="schedule" aria-label="Schedule (watch priority)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></svg>
+    <span>Schedule</span>
   </button>
-  <button class="exp-tab" type="button" data-exp-tab="more" aria-label="More — account and site menu">
+  <button class="exp-tab" type="button" data-exp-tab="account" aria-label="Account">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg>
+    <span>Account</span>
+  </button>
+  <button class="exp-tab" type="button" data-exp-tab="more" aria-label="More — site menu">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
     <span>More</span>
   </button>
@@ -11306,13 +11304,14 @@ initThemeToggle();
     function syncActive() {
       var onBoard = visible('board');
       var onExpo = visible('view-exposure');
-      var onWatch = visible('view-watch');
-      // Account / Settings / Connections / About all live under the More drawer.
-      var onMore = visible('view-account') || visible('view-settings') ||
-                   visible('view-connections') || visible('view-about');
+      var onWatch = visible('view-watch');   // "Schedule" tab → watch-priority view
+      var onAccount = visible('view-account');
+      // Settings / Connections / About are reachable only via the More drawer.
+      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about');
       set('dashboard', onBoard && !onExpo && !onWatch);
       set('exposure', onExpo);
-      set('watch', onWatch);
+      set('schedule', onWatch);
+      set('account', onAccount);
       set('more', onMore);
     }
     function set(tab, on) {
@@ -11330,8 +11329,10 @@ initThemeToggle();
           else if (typeof window.showBoard === 'function') window.showBoard();
         } else if (tab === 'exposure') {
           if (typeof window.showExposure === 'function') window.showExposure();
-        } else if (tab === 'watch') {
+        } else if (tab === 'schedule') {
           if (typeof window.showWatch === 'function') window.showWatch();
+        } else if (tab === 'account') {
+          if (typeof window.showAccount === 'function') window.showAccount();
         } else if (tab === 'more') {
           // Open the existing slide-out drawer (Account + Site links live there).
           var trigger = document.getElementById('menu-trigger');
