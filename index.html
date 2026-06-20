@@ -1494,11 +1494,12 @@
       grid-template-columns: repeat(4, 1fr);
       background: var(--paper-soft); border-top: 1px solid var(--line);
       box-shadow: 0 -4px 16px rgba(15, 34, 53, 0.06);
-      /* Inset the tabs by the same gutter the content sections use, so the outer
-         tabs clear the phone's rounded corners. max() keeps clear of the notch
-         in landscape. The background/border still span full width (bar surface). */
-      padding-left: max(var(--gutter), env(safe-area-inset-left, 0px));
-      padding-right: max(var(--gutter), env(safe-area-inset-right, 0px));
+      /* Inset the tabs to line up with the player cards, not the section edge.
+         Cards sit at the section gutter PLUS the .columns inner padding (12px at
+         ≤640px; the 641–768px value is overridden below). max() keeps clear of
+         the notch in landscape. Background/border still span full width. */
+      padding-left: max(calc(var(--gutter) + 12px), env(safe-area-inset-left, 0px));
+      padding-right: max(calc(var(--gutter) + 12px), env(safe-area-inset-right, 0px));
     }
     /* Flush at the screen edge → clear the home indicator. When stacked above
        the experiment ribbon, the ribbon already owns the safe-area inset. */
@@ -2003,6 +2004,12 @@
       .how-grid { grid-template-columns: 1fr 1fr; gap: 22px; }
       .how-step:nth-child(2)::after { display: none; }
       .columns { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+      /* .columns keeps its base 16px padding here, so player cards align at
+         gutter + 16px — match the tab bar to that. */
+      #exp-bottom-nav {
+        padding-left: max(calc(var(--gutter) + 16px), env(safe-area-inset-left, 0px));
+        padding-right: max(calc(var(--gutter) + 16px), env(safe-area-inset-right, 0px));
+      }
     }
 
     /* ═══════════════════════════════════════════════════════════
