@@ -1479,6 +1479,45 @@
     .exp-only { display: none !important; }
     body.experiment-active .exp-only { display: revert !important; }
 
+    /* ── Experimental bottom tab bar (TestMode2026) ──────────────────────────
+       Surfaces the three core views (Dashboard / Exposure / Watch) on a
+       persistent mobile bar, with a More tab that opens the existing drawer
+       for Account + Site links. Hidden unless: experiment mode on, in-app
+       (not the landing/setup screen), and a mobile-width viewport. Sits just
+       above the experiment ribbon via --exp-ribbon-h (measured in JS). */
+    #exp-bottom-nav { display: none; }
+    #exp-bottom-nav {
+      position: fixed; left: 0; right: 0; bottom: var(--exp-ribbon-h, 64px);
+      z-index: 8999;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--paper-soft); border-top: 1px solid var(--line);
+      box-shadow: 0 -4px 16px rgba(15, 34, 53, 0.06);
+    }
+    .exp-tab {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 8px 2px 9px; background: transparent; border: 0; cursor: pointer;
+      color: var(--ink-500); font: 500 10px/1.1 var(--font-sans);
+      letter-spacing: 0.01em; -webkit-tap-highlight-color: transparent;
+      transition: color 0.15s var(--ease-out);
+    }
+    .exp-tab svg { width: 23px; height: 23px; display: block; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .exp-tab:active { transform: scale(0.94); }
+    .exp-tab.is-on { color: var(--coral-500); }
+    /* Show the bar only in-app, on mobile, while experimenting. The same
+       selector reserves bottom padding so content clears the bar + ribbon. */
+    @media (max-width: 768px) {
+      body.experiment-active:not(.nav-landing) #exp-bottom-nav { display: grid; }
+      body.experiment-active:not(.nav-landing) { padding-bottom: calc(var(--exp-ribbon-h, 64px) + 62px); }
+      /* !important to beat the inline display set by updateHeaderAuthControls(). */
+      body.experiment-active:not(.nav-landing) .site-header__menu-btn { display: none !important; }
+      /* Float the experiment impact-test harness above the tab bar, not under it. */
+      body.experiment-active:not(.nav-landing) #impact-test-ctl { bottom: calc(var(--exp-ribbon-h, 64px) + 74px); }
+      /* The three views now live on the tab bar — drop the drawer's redundant
+         "Views" section so More shows only Account + Site links. */
+      body.experiment-active:not(.nav-landing) .exp-tabbar-dupe { display: none !important; }
+    }
+    @media (prefers-reduced-motion: reduce) { .exp-tab { transition: none; } }
+
     /* ── Impact animation (experiment) — conflicted scoring sequence ──
        1) CONFLICTED splash (screen flash + branded pop-out)
        2) hero card: big point delta + big player name, no league data
@@ -2944,23 +2983,23 @@
         <span>Sign in</span>
       </button>
     </li>
-    <li class="menu-drawer__section-label menu-app-only" role="presentation">Views</li>
-    <li role="none" class="menu-app-only">
+    <li class="menu-drawer__section-label menu-app-only exp-tabbar-dupe" role="presentation">Views</li>
+    <li role="none" class="menu-app-only exp-tabbar-dupe">
       <button class="menu-drawer__item is-active" data-menu-action="dashboard" role="menuitem" type="button">
         <span>Dashboard</span>
       </button>
     </li>
-    <li role="none" class="menu-app-only">
+    <li role="none" class="menu-app-only exp-tabbar-dupe">
       <button class="menu-drawer__item" data-menu-action="exposure" role="menuitem" type="button">
         <span>Exposure map</span>
       </button>
     </li>
-    <li role="none" class="menu-app-only">
+    <li role="none" class="menu-app-only exp-tabbar-dupe">
       <button class="menu-drawer__item" data-menu-action="watch-priority" role="menuitem" type="button">
         <span>Watch priority</span>
       </button>
     </li>
-    <li role="presentation" class="menu-app-only"><hr class="menu-drawer__divider" aria-hidden="true"></li>
+    <li role="presentation" class="menu-app-only exp-tabbar-dupe"><hr class="menu-drawer__divider" aria-hidden="true"></li>
     <li role="none" class="menu-app-only">
       <button class="menu-drawer__item" data-menu-action="account" role="menuitem" type="button">
         <span>Account</span>
@@ -3001,6 +3040,27 @@
   <button class="xr-link" type="button" onclick="experimentGoDashboard()">Dashboard</button>
   <button class="xr-exit" type="button" onclick="exitExperiment()">Exit Experiment</button>
 </div>
+
+<!-- Experimental bottom tab bar (TestMode2026). Visibility + wiring handled in
+     the script near the end of <body>; markup kept minimal/icon-based. -->
+<nav id="exp-bottom-nav" aria-label="Primary">
+  <button class="exp-tab" type="button" data-exp-tab="dashboard" aria-label="Dashboard">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+    <span>Dashboard</span>
+  </button>
+  <button class="exp-tab" type="button" data-exp-tab="exposure" aria-label="Exposure map">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></svg>
+    <span>Exposure</span>
+  </button>
+  <button class="exp-tab" type="button" data-exp-tab="watch" aria-label="Watch priority">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+    <span>Watch</span>
+  </button>
+  <button class="exp-tab" type="button" data-exp-tab="more" aria-label="More — account and site menu">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
+    <span>More</span>
+  </button>
+</nav>
 
 <!-- ══ LANDING ═════════════════════════════════════════════════ -->
 <div id="setup-panel">
@@ -11173,6 +11233,81 @@ initThemeToggle();
         //   blog, contact
       });
     });
+  })();
+</script>
+
+<!-- ════ Experimental bottom tab bar wiring (TestMode2026) ════════════════════
+     Reuses the SAME global view-switch functions the drawer uses, so there's
+     one source of truth for navigation. "More" opens the existing slide-out
+     drawer (which holds Account + the Site links), so nothing is lost — the
+     hamburger just steps back behind a labelled tab on mobile. -->
+<script>
+  (function() {
+    var nav = document.getElementById('exp-bottom-nav');
+    if (!nav) return;
+    var ribbon = document.getElementById('experiment-ribbon');
+
+    function visible(id) {
+      var el = document.getElementById(id);
+      return !!(el && el.style.display && el.style.display !== 'none');
+    }
+
+    // Keep the bar parked directly above the experiment ribbon, whose height
+    // varies with the safe-area inset. Mirrors how the drawer foot offsets.
+    function syncRibbonHeight() {
+      var h = (ribbon && document.body.classList.contains('experiment-active'))
+        ? ribbon.offsetHeight : 0;
+      document.documentElement.style.setProperty('--exp-ribbon-h', h + 'px');
+    }
+
+    // Highlight the active tab off the same view-display state the drawer reads.
+    function syncActive() {
+      var onBoard = visible('board');
+      var onExpo = visible('view-exposure');
+      var onWatch = visible('view-watch');
+      // Account / Settings / Connections / About all live under the More drawer.
+      var onMore = visible('view-account') || visible('view-settings') ||
+                   visible('view-connections') || visible('view-about');
+      set('dashboard', onBoard && !onExpo && !onWatch);
+      set('exposure', onExpo);
+      set('watch', onWatch);
+      set('more', onMore);
+    }
+    function set(tab, on) {
+      var btn = nav.querySelector('[data-exp-tab="' + tab + '"]');
+      if (!btn) return;
+      btn.classList.toggle('is-on', !!on);
+      btn.setAttribute('aria-current', on ? 'page' : 'false');
+    }
+
+    nav.querySelectorAll('[data-exp-tab]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var tab = btn.getAttribute('data-exp-tab');
+        if (tab === 'dashboard') {
+          if (typeof window.goToDashboardOrSetup === 'function') window.goToDashboardOrSetup();
+          else if (typeof window.showBoard === 'function') window.showBoard();
+        } else if (tab === 'exposure') {
+          if (typeof window.showExposure === 'function') window.showExposure();
+        } else if (tab === 'watch') {
+          if (typeof window.showWatch === 'function') window.showWatch();
+        } else if (tab === 'more') {
+          // Open the existing slide-out drawer (Account + Site links live there).
+          var trigger = document.getElementById('menu-trigger');
+          if (trigger) trigger.click();
+          return; // don't scroll/sync — the drawer handles its own state
+        }
+        window.scrollTo(0, 0);
+        syncActive();
+      });
+    });
+
+    // Views switch through many code paths (drawer, deep links, board renders),
+    // so poll on the same cadence the demo/experiment ribbons already use rather
+    // than hooking every caller. Cheap: a handful of style reads every ~350ms.
+    syncRibbonHeight();
+    syncActive();
+    setInterval(function() { syncRibbonHeight(); syncActive(); }, 350);
+    window.addEventListener('resize', syncRibbonHeight);
   })();
 </script>
 
