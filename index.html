@@ -1502,8 +1502,9 @@
          in landscape. Background/border still span full width. */
       padding-left: max(14px, env(safe-area-inset-left, 0px));
       padding-right: max(14px, env(safe-area-inset-right, 0px));
-      /* Slide off the bottom on scroll-down, back on scroll-up (toggled in JS). */
-      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      /* Slide off the bottom on scroll-down, back on scroll-up (toggled in JS).
+         Long, gentle glide — slow enough to read as a slide, not a snap. */
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     }
     /* Hidden: travel own height + the ribbon gap below it, fully off-screen. */
     #exp-bottom-nav.cbnav-hidden { transform: translateY(calc(100% + var(--exp-ribbon-h, 0px) + 16px)); }
@@ -3099,9 +3100,9 @@
 <!-- Experimental bottom tab bar (TestMode2026). Visibility + wiring handled in
      the script near the end of <body>; markup kept minimal/icon-based. -->
 <nav id="exp-bottom-nav" aria-label="Primary">
-  <button class="cbnav-tab" type="button" data-exp-tab="dashboard" aria-label="Dashboard">
+  <button class="cbnav-tab" type="button" data-exp-tab="dashboard" aria-label="GameDay">
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
-    <span>Dashboard</span>
+    <span>GameDay</span>
   </button>
   <button class="cbnav-tab" type="button" data-exp-tab="exposure" aria-label="Exposure map">
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></svg></span>
