@@ -1549,6 +1549,40 @@
     }
     @media (prefers-reduced-motion: reduce) { .cbnav-tab, .cbnav-ico, #exp-bottom-nav { transition: none; } }
 
+    /* ── MORE bottom sheet ───────────────────────────────────────────────────
+       Slide-up grid of icon tiles (reuses the shared BottomSheet shell), styled
+       to echo the tab bar. Tiles laid out in rows; only About is live, the rest
+       are "Soon" placeholders. */
+    .cbmore-title { font: 700 13px/1 var(--font-sans); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-900); text-align: center; padding: 2px 4px 12px; }
+    .cbmore-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 0 2px 6px; }
+    .cbmore-tile {
+      display: flex; flex-direction: column; align-items: center; gap: 7px;
+      padding: 16px 6px 13px; background: var(--paper-soft); border: 1px solid var(--line);
+      border-radius: 12px; color: var(--ink-700); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s var(--ease-out), border-color 0.15s var(--ease-out), color 0.15s var(--ease-out);
+    }
+    .cbmore-tile:not(.is-soon):active { transform: scale(0.97); }
+    .cbmore-tile:not(.is-soon):hover { color: var(--navy-700); border-color: color-mix(in oklab, var(--navy-500) 40%, transparent); }
+    .cbmore-tile.is-soon { opacity: 0.5; cursor: default; }
+    .cbmore-ico { display: flex; align-items: center; justify-content: center; width: 44px; height: 30px; }
+    .cbmore-ico svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .cbmore-label { font: 700 10px/1 var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; }
+    .cbmore-badge { font: 600 8px/1 var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-500); border: 1px solid var(--line); border-radius: 10px; padding: 2px 6px; }
+
+    /* ── Bottom-nav / sheet occlusion (task #4) ──────────────────────────────
+       The tab bar (z 9001) sits above the sheets (z 901), so an open sheet would
+       be covered at the bottom. While any sheet is open, slide the bar away so it
+       never blocks the sheet's content. */
+    body.sheet-open #exp-bottom-nav { transform: translateY(calc(100% + var(--exp-ribbon-h, 0px) + 16px)); }
+    /* The experiment impact-test harness floats bottom-right; keep it off the sheet too. */
+    body.sheet-open #impact-test-ctl { display: none !important; }
+    /* Sheets render below the experiment ribbon (z 9000), so lift the whole sheet
+       above it in experiment mode — otherwise the bottom row hides under the
+       ribbon even when the content is short (padding only helps when scrolling). */
+    body.experiment-active .sheet,
+    body.experiment-active .exp-sheet { bottom: var(--exp-ribbon-h, 0px); }
+
     /* "Preview real nav" — strips the experiment chrome (banner + impact-test
        harness) for 10s so the tab bar drops to its true production position and
        reserves the iOS home-indicator inset, exactly as a normal user sees it.
@@ -3121,6 +3155,45 @@
     <span>More</span>
   </button>
 </nav>
+
+<!-- MORE tab → bottom slide-up drawer of icon tiles (reuses window.BottomSheet).
+     About is live (→ showAbout); Shop/Blog/Partners/Contact are "Soon" stubs. -->
+<script>
+  (function() {
+    var ITEMS = [
+      { key: 'about',    label: 'About',    soon: false, svg: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/>' },
+      { key: 'shop',     label: 'Shop',     soon: true,  svg: '<path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/>' },
+      { key: 'blog',     label: 'Blog',     soon: true,  svg: '<rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>' },
+      { key: 'partners', label: 'Partners', soon: true,  svg: '<circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/>' },
+      { key: 'contact',  label: 'Contact',  soon: true,  svg: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/>' }
+    ];
+    function renderMoreSheet() {
+      var tiles = ITEMS.map(function(it) {
+        var cls = 'cbmore-tile' + (it.soon ? ' is-soon' : '');
+        var attrs = it.soon ? 'aria-disabled="true"' : 'data-more-action="' + it.key + '"';
+        var badge = it.soon ? '<span class="cbmore-badge">Soon</span>' : '';
+        return '<button type="button" class="' + cls + '" ' + attrs + '>' +
+                 '<span class="cbmore-ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + it.svg + '</svg></span>' +
+                 '<span class="cbmore-label">' + it.label + '</span>' + badge +
+               '</button>';
+      }).join('');
+      return '<div class="cbmore-title">More</div><div class="cbmore-grid">' + tiles + '</div>';
+    }
+    window.renderMoreSheet = renderMoreSheet;
+    window.openMoreSheet = function() {
+      if (!window.BottomSheet) return;
+      window.BottomSheet.open(renderMoreSheet(), { owner: 'more-menu' });
+    };
+    // Delegated tile clicks (sheet body is re-rendered on each open).
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-more-action]');
+      if (!btn) return;
+      var action = btn.getAttribute('data-more-action');
+      if (window.BottomSheet) window.BottomSheet.close();
+      if (action === 'about' && typeof window.showAbout === 'function') { window.showAbout(); window.scrollTo(0, 0); }
+    });
+  })();
+</script>
 
 <!-- ══ LANDING ═════════════════════════════════════════════════ -->
 <div id="setup-panel">
@@ -11340,13 +11413,37 @@ initThemeToggle();
       btn.classList.toggle('is-on', !!on);
       btn.setAttribute('aria-current', on ? 'page' : 'false');
     }
+    // Which tab represents the currently visible view (mirrors syncActive order).
+    function currentTabKey() {
+      if (visible('view-exposure')) return 'exposure';
+      if (visible('view-watch')) return 'schedule';
+      if (visible('view-account')) return 'account';
+      if (visible('view-settings') || visible('view-connections') || visible('view-about')) return 'more';
+      if (visible('board')) return 'dashboard';
+      return null;
+    }
 
     nav.querySelectorAll('[data-exp-tab]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var tab = btn.getAttribute('data-exp-tab');
+        // Re-tapping the tab for the view you're already on must NOT re-navigate.
+        // For GameDay this previously bounced through goToDashboardOrSetup() →
+        // showSetup() (the landing page) whenever no league was connected. 'more'
+        // is a drawer toggle, not a view, so it's exempt from this guard.
+        if (tab !== 'more' && tab === currentTabKey()) return;
         if (tab === 'dashboard') {
-          if (typeof window.goToDashboardOrSetup === 'function') window.goToDashboardOrSetup();
-          else if (typeof window.showBoard === 'function') window.showBoard();
+          // The bottom nav is in-app navigation, so GameDay must NEVER route to
+          // the landing/setup screen (which sets .nav-landing and hides the bar).
+          // Show the board only when there's one to show; otherwise stay put.
+          var connectedOrDemo = (typeof isAnyProviderConnected === 'function' && isAnyProviderConnected())
+            || (typeof window.inDemoMode === 'function' && window.inDemoMode());
+          if (connectedOrDemo) {
+            if (typeof window.goToDashboardOrSetup === 'function') window.goToDashboardOrSetup();
+            else if (typeof window.showBoard === 'function') window.showBoard();
+          } else if (window.experimentEnabled && window.experimentEnabled() && typeof window.experimentGoDashboard === 'function') {
+            window.experimentGoDashboard(); // TestMode preview board — never the landing page
+          }
+          // else: no leagues connected → no dashboard to show; do nothing.
         } else if (tab === 'exposure') {
           if (typeof window.showExposure === 'function') window.showExposure();
         } else if (tab === 'schedule') {
@@ -11354,10 +11451,10 @@ initThemeToggle();
         } else if (tab === 'account') {
           if (typeof window.showAccount === 'function') window.showAccount();
         } else if (tab === 'more') {
-          // Open the existing slide-out drawer (Account + Site links live there).
-          var trigger = document.getElementById('menu-trigger');
-          if (trigger) trigger.click();
-          return; // don't scroll/sync — the drawer handles its own state
+          // Open the bottom slide-up drawer (About + Soon stubs). The old left
+          // slide-out drawer is no longer used on bottom-nav (hamburger-less) pages.
+          if (typeof window.openMoreSheet === 'function') window.openMoreSheet();
+          return; // don't scroll/sync — the sheet handles its own state
         }
         window.scrollTo(0, 0);
         syncActive();
