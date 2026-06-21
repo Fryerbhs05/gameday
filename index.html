@@ -1479,17 +1479,21 @@
     .exp-only { display: none !important; }
     body.experiment-active .exp-only { display: revert !important; }
 
-    /* ── Experimental bottom tab bar (TestMode2026) ──────────────────────────
+    /* ── Mobile bottom tab bar ───────────────────────────────────────────────
        Surfaces the three core views (Dashboard / Exposure / Watch) on a
-       persistent mobile bar, with a More tab that opens the existing drawer
-       for Account + Site links. Hidden unless: experiment mode on, in-app
-       (not the landing/setup screen), and a mobile-width viewport. Sits just
-       above the experiment ribbon via --exp-ribbon-h (measured in JS). With no
-       ribbon present (normal users) --exp-ribbon-h is 0, so the bar drops flush
-       to the bottom edge and instead reserves the iOS home-indicator inset. */
+       persistent mobile bar, with a More tab that opens a bottom sheet for
+       About + Site links. Shown in-app (not the landing/setup screen) on a
+       mobile-width viewport, for ALL users — promoted out of the TestMode2026
+       experiment gate 2026-06-21. Parks just above whichever pinned bottom
+       ribbon is active via --exp-ribbon-h (measured in JS): the experiment
+       ribbon, the demo ribbon, or — for a normal user with no ribbon —
+       --exp-ribbon-h is 0, so the bar drops flush to the bottom edge and
+       instead reserves the iOS home-indicator inset itself. */
     /* Tab-bar height (1.5× the original 58px). Kept in a var so the content
-       padding reservation and the PWA install banner can sit clear of it. */
-    :root { --cbnav-h: 87px; }
+       padding reservation and the PWA install banner can sit clear of it.
+       --exp-ribbon-h defaults to 0 here so prod (no ribbon) never over-reserves
+       before the JS measure runs; JS overrides it when a ribbon is active. */
+    :root { --cbnav-h: 87px; --exp-ribbon-h: 0px; }
     #exp-bottom-nav { display: none; }
     #exp-bottom-nav {
       position: fixed; left: 0; right: 0; bottom: var(--exp-ribbon-h, 0px);
@@ -1513,8 +1517,9 @@
     /* Hidden: travel own height + the ribbon gap below it, fully off-screen. */
     #exp-bottom-nav.cbnav-hidden { transform: translateY(calc(100% + var(--exp-ribbon-h, 0px) + 16px)); }
     /* Flush at the screen edge → clear the home indicator. When stacked above
-       the experiment ribbon, the ribbon already owns the safe-area inset. */
-    body:not(.experiment-active) #exp-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
+       a pinned ribbon (experiment OR demo), that ribbon already owns the
+       safe-area inset, so the bar must NOT add it again. */
+    body:not(.experiment-active):not(.demo-active) #exp-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
     .cbnav-tab {
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
       padding: 6px 2px 8px; background: transparent; border: 0; cursor: pointer;
@@ -1538,24 +1543,32 @@
       background: color-mix(in oklab, var(--navy-700) 14%, transparent);
       border-color: color-mix(in oklab, var(--navy-500) 40%, transparent);
     }
-    /* Show the bar only in-app, on mobile, while experimenting. The same
-       selector reserves bottom padding so content clears the bar + ribbon. */
+    /* Show the bar in-app, on mobile, for ALL users (no longer experiment-gated). */
     @media (max-width: 768px) {
-      body.experiment-active:not(.nav-landing) #exp-bottom-nav { display: grid; }
-      body.experiment-active:not(.nav-landing) { padding-bottom: calc(var(--exp-ribbon-h, 64px) + var(--cbnav-h) + 8px); }
-      /* !important to beat the inline display set by updateHeaderAuthControls(). */
-      body.experiment-active:not(.nav-landing) .site-header__menu-btn { display: none !important; }
-      /* Float the experiment impact-test harness above the tab bar, not under it. */
-      body.experiment-active:not(.nav-landing) #impact-test-ctl { bottom: calc(var(--exp-ribbon-h, 64px) + 74px); }
+      body:not(.nav-landing) #exp-bottom-nav { display: grid; }
+      /* Base content clearance for a normal user: no ribbon, so reserve just the
+         bar height + the iOS home-indicator inset (the bar carries that inset). */
+      body:not(.nav-landing) { padding-bottom: calc(var(--cbnav-h) + env(safe-area-inset-bottom, 0px) + 8px); }
+      /* When a pinned ribbon (experiment OR demo) is active it sits below the bar
+         and owns the safe-area inset, so reserve ribbon height + bar instead.
+         Two classes → outranks the single-class base rule above. */
+      body.experiment-active:not(.nav-landing),
+      body.demo-active:not(.nav-landing) { padding-bottom: calc(var(--exp-ribbon-h, 64px) + var(--cbnav-h) + 8px); }
+      /* !important to beat the inline display set by updateHeaderAuthControls().
+         The tab bar replaces the hamburger on mobile; More holds the site links. */
+      body:not(.nav-landing) .site-header__menu-btn { display: none !important; }
       /* The three views now live on the tab bar — drop the drawer's redundant
          "Views" section so More shows only Account + Site links. */
-      body.experiment-active:not(.nav-landing) .exp-tabbar-dupe { display: none !important; }
-      /* PWA "Add to home screen" banner must sit ABOVE the tab bar (and the
-         experiment ribbon), never on top of it. Keep its bottom:16px anchor (so
-         the hidden translateY(120%) still slides it fully off-screen) and lift
-         only the SHOWN state up past the bar + ribbon. */
-      body.experiment-active:not(.nav-landing) #conflicted-install-banner.cib-visible {
-        transform: translateX(-50%) translateY(calc(-1 * (var(--exp-ribbon-h, 0px) + var(--cbnav-h))));
+      body:not(.nav-landing) .exp-tabbar-dupe { display: none !important; }
+      /* Float the experiment impact-test harness above the tab bar — experiment
+         mode only, so this one stays gated to body.experiment-active. */
+      body.experiment-active:not(.nav-landing) #impact-test-ctl { bottom: calc(var(--exp-ribbon-h, 64px) + 74px); }
+      /* PWA "Add to home screen" banner must sit ABOVE the tab bar (and any
+         pinned ribbon), never on top of it. Keep its bottom:16px anchor (so the
+         hidden translateY(120%) still slides it fully off-screen) and lift only
+         the SHOWN state up past the bar + ribbon + home-indicator inset. */
+      body:not(.nav-landing) #conflicted-install-banner.cib-visible {
+        transform: translateX(-50%) translateY(calc(-1 * (var(--exp-ribbon-h, 0px) + var(--cbnav-h) + env(safe-area-inset-bottom, 0px))));
       }
     }
     @media (prefers-reduced-motion: reduce) { .cbnav-tab, .cbnav-ico, #exp-bottom-nav { transition: none; } }
@@ -11405,11 +11418,17 @@ initThemeToggle();
       return !!(el && el.style.display && el.style.display !== 'none');
     }
 
-    // Keep the bar parked directly above the experiment ribbon, whose height
-    // varies with the safe-area inset. Mirrors how the drawer foot offsets.
+    // Keep the bar parked directly above whichever pinned bottom ribbon is
+    // active — the experiment ribbon OR the demo ribbon (both are fixed,
+    // bottom:0, z-9000, ~64px and own the safe-area inset). Height varies with
+    // the inset. For a normal user with no ribbon, height is 0 and the bar
+    // drops flush to the edge. Mirrors how the drawer foot offsets.
+    var demoRibbon = document.getElementById('demo-ribbon');
     function syncRibbonHeight() {
-      var h = (ribbon && document.body.classList.contains('experiment-active'))
-        ? ribbon.offsetHeight : 0;
+      var active = (ribbon && document.body.classList.contains('experiment-active')) ? ribbon
+                 : (demoRibbon && document.body.classList.contains('demo-active')) ? demoRibbon
+                 : null;
+      var h = active ? active.offsetHeight : 0;
       document.documentElement.style.setProperty('--exp-ribbon-h', h + 'px');
     }
 
