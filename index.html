@@ -4330,6 +4330,15 @@ function hideAll(){
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('week-label').style.display='none';
   window.__connectionsViewActive=false;
+  /* Clear the Exposure/Watch "open" flags + Watch's light theme on every view
+     switch. Otherwise a nav target that isn't in the watch-flag wrap list (e.g.
+     showAccount) hides view-watch but leaves __conflictedWatchOpen=true, and the
+     post-render re-show hook paints view-watch back on top of the new view —
+     two views + two active tabs at once. showWatch/showExposure re-set their own
+     flag immediately after calling hideAll, so this is safe for them. */
+  window.__conflictedWatchOpen=false;
+  window.__conflictedExposureOpen=false;
+  document.body.classList.remove('wp-active');
 }
 function showAbout(){
   hideAll();
@@ -11432,6 +11441,12 @@ initThemeToggle();
         // is a drawer toggle, not a view, so it's exempt from this guard.
         if (tab !== 'more' && tab === currentTabKey()) return;
         if (tab === 'dashboard') {
+          // Clear any stale Watch/Exposure "open" flags first. experimentGoDashboard
+          // renders via renderBoard(), whose re-show hook would otherwise repaint the
+          // prior view (Watch/Exposure) instead of the board — making GameDay look dead.
+          window.__conflictedWatchOpen = false;
+          window.__conflictedExposureOpen = false;
+          document.body.classList.remove('wp-active');
           // The bottom nav is in-app navigation, so GameDay must NEVER route to
           // the landing/setup screen (which sets .nav-landing and hides the bar).
           // Show the board only when there's one to show; otherwise stay put.
