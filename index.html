@@ -1756,19 +1756,25 @@
       }
       /* Unselected tabs carry their bucket's color as a frame (green / red /
          gold); the selected tab keeps that frame and fills with the soft tint. */
+      /* Single row: count then label ("16 Cheer for"). One line instead of the
+         old stacked label-over-count, so the tab card is shorter. */
       .exp-tab {
-        flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 3px;
-        padding: 9px 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+        flex: 1 1 0; display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 5px;
+        padding: 11px 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
         background: transparent; border: 1px solid; border-radius: var(--radius-md);
         font: 600 13px/1 var(--font-sans); letter-spacing: -0.01em;
         transition: background var(--duration-fast) var(--ease-out),
                     color var(--duration-fast) var(--ease-out),
                     border-color var(--duration-fast) var(--ease-out);
       }
+      /* Count keeps its own mono treatment so number + label stay visually distinct. */
       .exp-tab .exp-tab-ct { font: 500 11px/1 var(--font-mono); opacity: 0.75; }
       .exp-tab[data-tab="cheer"]      { color: var(--cheer); border-color: var(--cheer); }
       .exp-tab[data-tab="enemy"]      { color: var(--enemy); border-color: var(--enemy); }
       .exp-tab[data-tab="conflicted"] { color: var(--split); border-color: var(--split); }
+      /* Selected tab: soft tint fill + a thicker border so the active bucket is
+         unmistakable. Padding drops 1px to absorb the extra border (no reflow). */
+      .exp-tab.is-active { border-width: 2px; padding: 10px 3px; }
       .exp-tab[data-tab="cheer"].is-active      { background: var(--cheer-soft); }
       .exp-tab[data-tab="enemy"].is-active      { background: var(--enemy-soft); }
       .exp-tab[data-tab="conflicted"].is-active { background: var(--split-soft); }
@@ -3353,9 +3359,9 @@
       <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">LOYAL</span><span class="loyalties-wordmark__b">TIES</span></div>
     </div>
     <div id="exp-tabbar" class="exp-tabbar" role="tablist" aria-label="Player buckets">
-      <button class="exp-tab" data-tab="cheer" role="tab" aria-selected="false"><span>Cheer for</span><span class="exp-tab-ct" id="exp-ct-cheer">0</span></button>
-      <button class="exp-tab is-active" data-tab="conflicted" role="tab" aria-selected="true"><span>Conflicted</span><span class="exp-tab-ct" id="exp-ct-conflicted">0</span></button>
-      <button class="exp-tab" data-tab="enemy" role="tab" aria-selected="false"><span>Enemy</span><span class="exp-tab-ct" id="exp-ct-enemy">0</span></button>
+      <button class="exp-tab" data-tab="cheer" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-cheer">0</span><span>Cheer for</span></button>
+      <button class="exp-tab is-active" data-tab="conflicted" role="tab" aria-selected="true"><span class="exp-tab-ct" id="exp-ct-conflicted">0</span><span>Conflicted</span></button>
+      <button class="exp-tab" data-tab="enemy" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-enemy">0</span><span>Enemy</span></button>
     </div>
     <div class="columns" id="columns" data-exp-tab="conflicted">
       <div class="column cheer">
@@ -3426,7 +3432,7 @@
   #board-skeleton .skel-section-title { width:120px; height:18px; margin:0 auto 14px; }
   #board-skeleton .skel-tabs { display:none; gap:6px; margin-bottom:12px; }
   @media (max-width:640px){ #board-skeleton .skel-tabs{ display:flex; } }
-  #board-skeleton .skel-tab { flex:1 1 0; height:42px; border-radius:var(--radius-md); }
+  #board-skeleton .skel-tab { flex:1 1 0; height:37px; border-radius:var(--radius-md); }
   @media (max-width:480px){ #board-skeleton .skel-frame{ padding:12px 10px; } }
 </style>
 
