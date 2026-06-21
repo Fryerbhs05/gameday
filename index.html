@@ -11655,7 +11655,7 @@ initThemeToggle();
     <line x1="60" y1="12" x2="60" y2="114" style="stroke:var(--ink-900,#15181C);stroke-width:1.5;"/>
   </svg>
   <div class="cib-text">
-    <span class="cib-title">The app is even better than the browser</span>
+    <span class="cib-title">The App Is Even Better</span>
     <span class="cib-sub">Add to your home screen for the full app experience.</span>
   </div>
   <button class="cib-action" type="button">Install</button>
@@ -11691,8 +11691,10 @@ initThemeToggle();
     var subEl = banner.querySelector('.cib-sub');
     var deferredPrompt = null;
 
-    // Gating state: only show after the user has been on the dashboard
-    // (#board) for a continuous 30 seconds.
+    // Gating state: arm a 30-second clock once the user first reaches the
+    // dashboard. The clock keeps running across tab navigation (Schedule,
+    // Exposure, Watch), and once it elapses the banner shows on whatever
+    // in-app tab the user is currently on — not just the dashboard.
     var DASHBOARD_DWELL_MS = 30000;
     var dashboardReady = false;
     var dwellTimer = null;
@@ -11706,6 +11708,13 @@ initThemeToggle();
       var d = b.style.display;
       if (d === 'none' || d === '') return false;
       return true;
+    }
+
+    // "In the app" = past the landing/setup screen. updateHeaderAuthControls()
+    // toggles body.nav-landing on for the landing/setup view and off once the
+    // user is inside (dashboard, Schedule, Exposure, Watch).
+    function isInApp() {
+      return !document.body.classList.contains('nav-landing');
     }
 
     function show() {
@@ -11728,7 +11737,7 @@ initThemeToggle();
 
     function maybeShow() {
       if (!dashboardReady) return;
-      if (!isOnDashboard()) return;
+      if (!isInApp()) return; // not on the landing/setup screen
       if (isInDemo()) return; // never prompt to install while in demo mode
       if (isIOS) { show(); return; }
       if (promptCaught) show();
@@ -11774,6 +11783,16 @@ initThemeToggle();
       }
     }
     hookDashboard();
+
+    // Re-evaluate whenever the user switches tabs. Once the dwell clock has
+    // elapsed, this lets the banner appear on whichever tab they land on
+    // (Schedule, Exposure, Watch), not only the dashboard.
+    var bottomNav = document.getElementById('exp-bottom-nav');
+    if (bottomNav) {
+      bottomNav.addEventListener('click', function() {
+        setTimeout(maybeShow, 0);
+      });
+    }
 
     closeBtn.addEventListener('click', dismiss);
 
