@@ -1487,12 +1487,16 @@
        above the experiment ribbon via --exp-ribbon-h (measured in JS). With no
        ribbon present (normal users) --exp-ribbon-h is 0, so the bar drops flush
        to the bottom edge and instead reserves the iOS home-indicator inset. */
+    /* Tab-bar height (1.5× the original 58px). Kept in a var so the content
+       padding reservation and the PWA install banner can sit clear of it. */
+    :root { --cbnav-h: 87px; }
     #exp-bottom-nav { display: none; }
     #exp-bottom-nav {
       position: fixed; left: 0; right: 0; bottom: var(--exp-ribbon-h, 0px);
       /* Above the experiment ribbon (z 9000) so the scroll-away slide is visible
          passing over it, rather than vanishing under it. */
       z-index: 9001;
+      min-height: var(--cbnav-h);
       grid-template-columns: repeat(5, minmax(0, 1fr));
       background: var(--paper-soft); border-top: 1px solid var(--line);
       box-shadow: 0 -4px 16px rgba(15, 34, 53, 0.06);
@@ -1512,7 +1516,7 @@
        the experiment ribbon, the ribbon already owns the safe-area inset. */
     body:not(.experiment-active) #exp-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
     .cbnav-tab {
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
       padding: 6px 2px 8px; background: transparent; border: 0; cursor: pointer;
       color: var(--ink-500); -webkit-tap-highlight-color: transparent;
       transition: color 0.15s var(--ease-out);
@@ -1538,7 +1542,7 @@
        selector reserves bottom padding so content clears the bar + ribbon. */
     @media (max-width: 768px) {
       body.experiment-active:not(.nav-landing) #exp-bottom-nav { display: grid; }
-      body.experiment-active:not(.nav-landing) { padding-bottom: calc(var(--exp-ribbon-h, 64px) + 62px); }
+      body.experiment-active:not(.nav-landing) { padding-bottom: calc(var(--exp-ribbon-h, 64px) + var(--cbnav-h) + 8px); }
       /* !important to beat the inline display set by updateHeaderAuthControls(). */
       body.experiment-active:not(.nav-landing) .site-header__menu-btn { display: none !important; }
       /* Float the experiment impact-test harness above the tab bar, not under it. */
@@ -1546,6 +1550,13 @@
       /* The three views now live on the tab bar — drop the drawer's redundant
          "Views" section so More shows only Account + Site links. */
       body.experiment-active:not(.nav-landing) .exp-tabbar-dupe { display: none !important; }
+      /* PWA "Add to home screen" banner must sit ABOVE the tab bar (and the
+         experiment ribbon), never on top of it. Keep its bottom:16px anchor (so
+         the hidden translateY(120%) still slides it fully off-screen) and lift
+         only the SHOWN state up past the bar + ribbon. */
+      body.experiment-active:not(.nav-landing) #conflicted-install-banner.cib-visible {
+        transform: translateX(-50%) translateY(calc(-1 * (var(--exp-ribbon-h, 0px) + var(--cbnav-h))));
+      }
     }
     @media (prefers-reduced-motion: reduce) { .cbnav-tab, .cbnav-ico, #exp-bottom-nav { transition: none; } }
 
