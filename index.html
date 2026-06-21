@@ -153,6 +153,12 @@
       --radius-sm:4px; --radius-md:8px; --radius-lg:12px; --radius-pill:999px;
       --max-width:980px; --max-width-wide:1320px; --gutter:24px;
       --ease-out:cubic-bezier(0.2,0.8,0.2,1); --duration-fast:120ms; --duration-base:200ms;
+      /* Shared section-header sizing — SCOREBOARD, LOYALTIES, and LIVE UPDATES
+         all read from these. Change here once to resize all three together.
+         (Mobile shrinks --section-wordmark-size in a 480px media query below.) */
+      --section-wordmark-size:22px;
+      --section-head-pad-bottom:10px;
+      --section-head-gap-bottom:12px;
     }
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) {
@@ -235,6 +241,9 @@
       background: var(--paper); border-bottom: 1px solid var(--line);
       height: 76px; position: sticky; top: 0; z-index: 100;
     }
+    /* Trim the sticky top bar on phones — still prominent, but reclaims ~16px
+       of permanent vertical space. Desktop keeps the fuller 76px. */
+    @media (max-width: 600px) { .site-header { height: 60px; } }
     .site-header__inner {
       max-width: var(--max-width-wide); margin: 0 auto; padding: 0 var(--gutter);
       height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px;
@@ -1042,13 +1051,13 @@
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       align-items: baseline;
-      gap: 12px; padding-bottom: 10px; margin-bottom: 12px;
+      gap: 12px; padding-bottom: var(--section-head-pad-bottom); margin-bottom: var(--section-head-gap-bottom);
       border-bottom: 1px solid var(--line);
     }
     .scoreboard-wordmark {
       grid-column: 2;
       display: inline-flex; align-items: baseline; gap: 0;
-      font: 700 22px/1 var(--font-sans);
+      font: 700 var(--section-wordmark-size)/1 var(--font-sans);
       letter-spacing: 0.06em;
       justify-self: center;
     }
@@ -1061,7 +1070,9 @@
       justify-self: end;
     }
     @media (max-width: 480px) {
-      .scoreboard-wordmark { font-size: 18px; }
+      /* Single knob: shrinks the wordmark for ALL three section headers
+         (SCOREBOARD / LOYALTIES / LIVE UPDATES) at once. */
+      :root { --section-wordmark-size: 18px; }
       .scoreboard-context { display: none; }
       .scoreboard-frame { padding: 10px 8px 8px; }
     }
@@ -1834,12 +1845,12 @@
     :root[data-theme="light"] .loyalties-section { border-color: var(--navy-900); }
     .loyalties-header {
       display: grid; place-items: center;
-      padding-bottom: 10px; margin-bottom: 12px;
+      padding-bottom: var(--section-head-pad-bottom); margin-bottom: var(--section-head-gap-bottom);
       border-bottom: 1px solid var(--line);
     }
     .loyalties-wordmark {
       display: inline-flex; align-items: baseline; gap: 0;
-      font: 700 22px/1 var(--font-sans); letter-spacing: 0.06em;
+      font: 700 var(--section-wordmark-size)/1 var(--font-sans); letter-spacing: 0.06em;
     }
     .loyalties-wordmark__a,
     .loyalties-wordmark__b { color: var(--ink-900); }
@@ -1854,7 +1865,7 @@
     .exp-tabbar { margin-top: 0; margin-bottom: 12px; }
     @media (max-width: 480px) {
       .loyalties-section { padding: 12px 10px; }
-      .loyalties-wordmark { font-size: 18px; }
+      /* Wordmark shrink handled globally via --section-wordmark-size (see scoreboard block). */
     }
 
     /* ── Collapsible sections — click the SCOREBOARD / LOYALTIES header to
@@ -3877,7 +3888,7 @@
 
 <!-- ══ SCRIPT ══════════════════════════════════════════════════ -->
 <script>
-const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#2B6FA8','#D85A30','#3D8B5C','#B27F1A','#7AA8D1','#A33D2E','#5F5E5A','#0F2235'];
+const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#7AA8D1','#5790C0','#2B6FA8','#3F5E78','#9E988A','#6E8BA8','#B0BEC9','#4A5A6A'];
 const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 let liveOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map();
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},hiddenLeagues=new Set(),isAnyProviderLoaded=false,liveToggleAvailable=false,leagueNamesCache=[];
@@ -5523,7 +5534,7 @@ function renderLeagueFilterSheet(){
     const rows=names.map((n,i)=>{
       const color=lc(n);const on=!hiddenLeagues.has(n);
       return `<div class="lf-row">`
-        +`<span class="lf-league"><span class="lf-dot" style="background:${color}"></span><span class="lf-name" style="color:${color}">${n}</span></span>`
+        +`<span class="lf-league"><span class="lf-dot" style="background:${color}"></span><span class="lf-name" style="color:var(--ink-700)">${n}</span></span>`
         +`<button class="live-toggle${on?' on':''}" data-lf-league="${i}" type="button" aria-label="Toggle ${n}"></button>`
         +`</div>`;
     }).join('');
@@ -5610,13 +5621,13 @@ function buildCardInner(player,isHist){
   const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
   let ptsHTML='';
   if(hasAnyPts){
-    const rows=Object.entries(lpd).map(([n,d])=>{const color=lc(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:${color}">${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
+    const rows=Object.entries(lpd).map(([n,d])=>{const color=lc(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:var(--ink-700)">${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
     ptsHTML=`<div style="display:flex;flex-direction:column;gap:4px">${rows}</div>`;
   }
   let rosterHTML='';
   if(!hasAnyPts){
-    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:${lc(n)}">${n}</span></div>`).join('');
-    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span style="color:${lc(n)};opacity:0.7">${n}</span></div>`).join('');
+    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:var(--ink-700)">${n}</span></div>`).join('');
+    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span style="color:var(--ink-500)">${n}</span></div>`).join('');
     rosterHTML=`<div class="league-context">${myL}${opL}</div>`;
   }
 
