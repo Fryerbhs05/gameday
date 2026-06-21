@@ -1157,6 +1157,16 @@
     }
     .score-cell__proj-you { color: var(--coral-500); }
     .score-cell__proj-opp { color: var(--navy-700); }
+    /* Empty/placeholder projection — no live matchup to project (no-matchup,
+       final, or a provider that returns no projections). Keeps the block and its
+       "Projected Final" label so every card is the same height, but renders an
+       inert muted track with em-dash values instead of a real coral/navy split.
+       The card's bottom state line already carries "No matchup". */
+    .score-cell__proj.is-empty .score-cell__proj-bar { background: color-mix(in oklab, var(--ink-500) 22%, transparent); }
+    .score-cell__proj.is-empty .score-cell__proj-fill,
+    .score-cell__proj.is-empty .score-cell__proj-mid { display: none; }
+    .score-cell__proj.is-empty .score-cell__proj-you,
+    .score-cell__proj.is-empty .score-cell__proj-opp { color: var(--ink-300); }
     /* Tappable matchup tiles — pointer cursor, subtle lift on hover, focus ring.
        Only applied to tiles with a real matchup (NO_MATCHUP tiles stay inert). */
     .score-cell.is-tappable {
@@ -5052,13 +5062,25 @@ function applyScoreCellProj(cell, ctx, st){
   if(!wrap)return;
   const myP=+ctx.myProjPts||0, oppP=+ctx.oppProjPts||0, total=myP+oppP;
   const showState = st==='LIVE'||st==='LOCKED_WIN'||st==='LOCKED_LOSS';
-  if(!showState || total<=0){ wrap.hidden=true; return; }
-  wrap.hidden=false;
-  // Your share of the combined projection, clamped so neither color vanishes.
-  const pct=Math.max(4,Math.min(96,(myP/total)*100));
   const fill=wrap.querySelector('.score-cell__proj-fill');
   const youEl=wrap.querySelector('.score-cell__proj-you');
   const oppEl=wrap.querySelector('.score-cell__proj-opp');
+  // Always render the block so every card keeps the same height and the
+  // "Projected Final" label stays put. When there's no live projection to draw
+  // — no matchup, a final, or a provider with no projections — show a muted,
+  // inert placeholder track with em-dash values instead of a real split. The
+  // card's bottom state line already says "No matchup"/"Final".
+  wrap.hidden=false;
+  if(!showState || total<=0){
+    wrap.classList.add('is-empty');
+    if(fill)fill.style.width='0%';
+    if(youEl)youEl.textContent='—';
+    if(oppEl)oppEl.textContent='—';
+    return;
+  }
+  wrap.classList.remove('is-empty');
+  // Your share of the combined projection, clamped so neither color vanishes.
+  const pct=Math.max(4,Math.min(96,(myP/total)*100));
   if(fill)fill.style.width=pct.toFixed(1)+'%';
   if(youEl)youEl.textContent=myP.toFixed(1);
   if(oppEl)oppEl.textContent=oppP.toFixed(1);
