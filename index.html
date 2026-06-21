@@ -11655,7 +11655,7 @@ initThemeToggle();
     <line x1="60" y1="12" x2="60" y2="114" style="stroke:var(--ink-900,#15181C);stroke-width:1.5;"/>
   </svg>
   <div class="cib-text">
-    <span class="cib-title">Install Conflicted</span>
+    <span class="cib-title">The app is even better than the browser</span>
     <span class="cib-sub">Add to your home screen for the full app experience.</span>
   </div>
   <button class="cib-action" type="button">Install</button>
@@ -11692,8 +11692,8 @@ initThemeToggle();
     var deferredPrompt = null;
 
     // Gating state: only show after the user has been on the dashboard
-    // (#board) for a continuous 10 seconds.
-    var DASHBOARD_DWELL_MS = 10000;
+    // (#board) for a continuous 30 seconds.
+    var DASHBOARD_DWELL_MS = 30000;
     var dashboardReady = false;
     var dwellTimer = null;
     var promptCaught = false;
@@ -11777,9 +11777,27 @@ initThemeToggle();
 
     closeBtn.addEventListener('click', dismiss);
 
+    // Inline glyphs reused by the manual instructions below.
+    var SHARE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
+
+    // Browser-aware iOS "Add to Home Screen" instructions. Many people miss the
+    // Share action in non-Safari browsers because it lives behind a "⋯" menu,
+    // so spell out that first step explicitly.
+    function manualInstructionsHTML() {
+      var ua = navigator.userAgent;
+      // Chrome / Edge / Firefox on iOS: Share lives inside the "⋯" menu.
+      if (/CriOS|EdgiOS|FxiOS/.test(ua)) {
+        return 'Tap <b>⋯</b> in the toolbar, then ' + SHARE_SVG +
+               ' <b>Share</b>, then choose <b>Add to Home Screen</b>.';
+      }
+      // Safari on iOS: Share button is in the toolbar.
+      return 'Tap the ' + SHARE_SVG + ' <b>Share</b> button in the toolbar, ' +
+             'then choose <b>Add to Home Screen</b>.';
+    }
+
     if (isIOS) {
-      // iOS Safari doesn't fire beforeinstallprompt — show manual instructions.
-      subEl.innerHTML = 'Tap the <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share button, then "Add to Home Screen".';
+      // iOS doesn't fire beforeinstallprompt — show manual instructions.
+      subEl.innerHTML = manualInstructionsHTML();
       actionBtn.hidden = true;
       // No immediate show — maybeShow() will fire once the dwell timer elapses.
     } else {
