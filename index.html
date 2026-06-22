@@ -1909,6 +1909,9 @@
        — so we park it at top-left, behind the share modal (z-index 1 < 9999) and
        non-interactive. It's only in the DOM for the ~1s render, then removed. */
     .share-stage { position: fixed; left: 0; top: 0; z-index: 1; pointer-events: none; }
+    /* Opaque cover over the on-screen render stage (z-index above the stage, below
+       the share modal at 9999) so the capture happens invisibly. */
+    .share-render-cover { position: fixed; inset: 0; z-index: 9000; pointer-events: none; }
     .share-stage .scoreboard-frame { margin: 0; }
     /* Full-width brand wordmark at the top of the exported image. */
     .share-head { width: 100%; margin-bottom: 14px; }
@@ -6886,15 +6889,25 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     if(document.fonts&&document.fonts.ready){try{await document.fonts.ready;}catch(e){}}
     const bg=pageBg();
     const wordmark=await loadWordmark();
-    /* Off-screen stage: brand wordmark header + a clone of the frame + URL footer
-       on a solid bg. */
+    /* On-screen render stage (Safari blanks off-screen nodes): brand wordmark
+       header + a clone of the frame + URL footer on a solid bg. */
     const stage=document.createElement('div');
     stage.className='share-stage';
-    stage.style.width=live.offsetWidth+'px';
+    const stageW=live.offsetWidth||320;
+    stage.style.width=stageW+'px';
     stage.style.background=bg;stage.style.padding='18px';stage.style.borderRadius='16px';
     if(wordmark){
       const head=document.createElement('div');head.className='share-head';
-      head.innerHTML=wordmark;                 /* full-width wordmark via .share-head svg */
+      head.innerHTML=wordmark;
+      /* The inline SVG carries only a viewBox (480×130); give it concrete pixel
+         dimensions so it doesn't collapse to zero height during capture. */
+      const svgEl=head.querySelector('svg');
+      if(svgEl){
+        const cw=Math.max(1,stageW-36);                 /* minus the 18px x2 padding */
+        const ch=Math.round(cw*130/480);
+        svgEl.setAttribute('width',cw);svgEl.setAttribute('height',ch);
+        svgEl.style.display='block';svgEl.style.width=cw+'px';svgEl.style.height=ch+'px';
+      }
       stage.appendChild(head);
     }
     const clone=live.cloneNode(true);clone.classList.remove('collapsed');
@@ -6903,6 +6916,11 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const foot=document.createElement('div');foot.className='share-foot';
     foot.innerHTML='<span class="share-foot__url">ConflictedApp.com</span>';
     stage.appendChild(foot);
+    /* Same-colour cover hides the on-screen stage during the ~1s render so the
+       user never sees a duplicate scoreboard flash over the page. */
+    const cover=document.createElement('div');
+    cover.className='share-render-cover';cover.style.background=bg;
+    document.body.appendChild(cover);
     document.body.appendChild(stage);
     const ratio=Math.min(2,window.devicePixelRatio||2);
     /* Safari/iOS returns a BLANK image on the first html-to-image pass (the
@@ -6927,7 +6945,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
           throw new Error('Image rendering timed out — please try again.');
         }
       }
-    }finally{ stage.remove(); }
+    }finally{ stage.remove(); cover.remove(); }
     if(!blob)throw new Error('Could not render the image.');
     return new File([blob],'conflicted-scoreboard.png',{type:'image/png'});
   }
