@@ -1909,10 +1909,11 @@
        — so we park it at top-left, behind the share modal (z-index 1 < 9999) and
        non-interactive. It's only in the DOM for the ~1s render, then removed. */
     /* Render stage must be ON-SCREEN (Safari blanks off-screen nodes) but hidden
-       from the user. z-index:-1 parks it BEHIND the page's opaque body background
-       (body { background: var(--paper) }), so it's captured but never seen — no
-       cover, no flash. */
-    .share-stage { position: fixed; left: 0; top: 0; z-index: -1; pointer-events: none; }
+       from the user. The wrapper is opacity:0 so nothing shows; html-to-image
+       captures the inner .share-stage node directly (which stays fully opaque in
+       the output), so the snapshot is unaffected — no cover, no flash, no bleed. */
+    .share-stage-wrap { position: fixed; left: 0; top: 0; opacity: 0; pointer-events: none; z-index: -1; }
+    .share-stage { display: block; }
     .share-stage .scoreboard-frame { margin: 0; }
     /* Full-width brand wordmark at the top of the exported image. */
     .share-head { width: 100%; margin-bottom: 14px; }
@@ -6921,7 +6922,10 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const foot=document.createElement('div');foot.className='share-foot';
     foot.innerHTML='<span class="share-foot__url">ConflictedApp.com</span>';
     stage.appendChild(foot);
-    document.body.appendChild(stage);
+    /* On-screen but invisible (opacity:0 wrapper) so it renders without showing. */
+    const wrap=document.createElement('div');wrap.className='share-stage-wrap';
+    wrap.appendChild(stage);
+    document.body.appendChild(wrap);
     const ratio=Math.min(2,window.devicePixelRatio||2);
     /* Safari/iOS returns a BLANK image on the first html-to-image pass (the
        embedded SVG snapshot hasn't decoded yet), so render several passes and
@@ -6945,7 +6949,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
           throw new Error('Image rendering timed out — please try again.');
         }
       }
-    }finally{ stage.remove(); }
+    }finally{ wrap.remove(); }
     if(!blob)throw new Error('Could not render the image.');
     return new File([blob],'conflicted-scoreboard.png',{type:'image/png'});
   }
