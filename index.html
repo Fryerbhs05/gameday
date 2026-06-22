@@ -6940,12 +6940,11 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     saveBtn.addEventListener('click',doSave);
     document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&modal.classList.contains('open'))closeModal(); });
   }
-  function openModal(){
+  function resetModal(){
     if(!modal)buildModal();
-    statusEl.textContent='Building image…';statusEl.classList.remove('is-error');statusEl.hidden=false;
+    statusEl.textContent='';statusEl.classList.remove('is-error');statusEl.hidden=true;
     previewEl.hidden=true;previewEl.removeAttribute('src');
     shareBtn.hidden=true;saveBtn.hidden=true;
-    modal.classList.add('open');
   }
   function closeModal(){
     if(modal)modal.classList.remove('open');
@@ -6953,6 +6952,22 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     curFile=null;
   }
   function showError(msg){ if(statusEl){statusEl.textContent=msg;statusEl.classList.add('is-error');statusEl.hidden=false;} }
+  /* Fallback modal — only shown if the direct one-tap share is blocked or the
+     render fails. The image is already rendered, so the modal's Share button
+     fires from a FRESH gesture, which iOS always honours. */
+  function showModalWithFile(file){
+    resetModal();
+    curFile=file;
+    if(curUrl)URL.revokeObjectURL(curUrl);
+    curUrl=URL.createObjectURL(file);
+    previewEl.src=curUrl;previewEl.hidden=false;
+    const canShareFiles=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+    shareBtn.hidden=!canShareFiles;
+    saveBtn.hidden=false;
+    saveBtn.textContent=canShareFiles?'Save image':'Download image';
+    modal.classList.add('open');
+  }
+  function showModalError(msg){ resetModal();showError(msg);modal.classList.add('open'); }
   async function doShare(){
     if(!curFile)return;
     if(navigator.canShare&&navigator.canShare({files:[curFile]})){
@@ -6967,24 +6982,35 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     if(iOS){ window.open(curUrl,'_blank'); }
     else{ const a=document.createElement('a');a.href=curUrl;a.download='conflicted-scoreboard.png';document.body.appendChild(a);a.click();a.remove(); }
   }
+  /* Hybrid one-tap: render the image, then go STRAIGHT to the native share sheet.
+     Only if iOS refuses it (activation window lost) or the render fails do we fall
+     back to the preview modal — so the common case feels like a single tap, but it
+     can never silently do nothing. */
+  let busy=false;
   async function onTap(){
     const live=document.getElementById('scoreboard-frame');
-    if(!live||live.classList.contains('collapsed'))return;
-    openModal();                              /* instant — always visible feedback */
+    if(!live||live.classList.contains('collapsed')||busy)return;
+    busy=true;btn.classList.add('is-busy');
+    let file=null;
     try{
-      const file=await buildPng(live);
-      curFile=file;
-      curUrl=URL.createObjectURL(file);
-      previewEl.src=curUrl;previewEl.hidden=false;
-      statusEl.hidden=true;
-      const canShareFiles=!!(navigator.canShare&&navigator.canShare({files:[file]}));
-      shareBtn.hidden=!canShareFiles;
-      saveBtn.hidden=false;
-      saveBtn.textContent=canShareFiles?'Save image':'Download image';
+      file=await buildPng(live);
     }catch(err){
       try{console.error('[share] build failed',err);}catch(e){}
-      showError((err&&err.message)?err.message:'Something went wrong building the image.');
+      busy=false;btn.classList.remove('is-busy');
+      showModalError((err&&err.message)?err.message:'Something went wrong building the image.');
+      return;
     }
+    busy=false;btn.classList.remove('is-busy');
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file]});
+        return;                               /* shared directly — no modal */
+      }catch(e){
+        if(e&&e.name==='AbortError')return;    /* user dismissed the sheet */
+        /* blocked (activation lost, etc.) → fall through to the modal */
+      }
+    }
+    showModalWithFile(file);
   }
   btn.addEventListener('click',e=>{e.stopPropagation();onTap();});
 })();
