@@ -1871,20 +1871,50 @@
     /* ── Collapsible sections — click the SCOREBOARD / LOYALTIES header to
        collapse the section to just its title bar. State is in-memory only
        (resets on reload), never persisted, since it hides data. ── */
-    .scoreboard-header, .loyalties-header { position: relative; cursor: pointer; }
+    .scoreboard-header, .loyalties-header { position: relative; }
+    .loyalties-header { cursor: pointer; }
+    /* On the SCOREBOARD, only the wordmark toggles collapse — not the whole row —
+       so the share button in the corner stays a separate target. */
+    .scoreboard-wordmark { cursor: pointer; }
     .scoreboard-header { padding-left: 22px; padding-right: 22px; }
     .loyalties-header  { padding-left: 22px; padding-right: 22px; }
-    .scoreboard-header::after, .loyalties-header::after {
+    .loyalties-header::after {
       content: ""; position: absolute; right: 4px; top: 42%;
       width: 8px; height: 8px;
       border-right: 2px solid var(--ink-500); border-bottom: 2px solid var(--ink-500);
       transform: translateY(-50%) rotate(45deg);
       transition: transform var(--duration-fast) var(--ease-out);
     }
-    .scoreboard-frame.collapsed .scoreboard-header::after,
     .loyalties-section.collapsed .loyalties-header::after {
       transform: translateY(-50%) rotate(-45deg);
     }
+    /* Share button — sits where the scoreboard caret used to be. */
+    .scoreboard-share {
+      position: absolute; right: 0; top: 42%; transform: translateY(-50%);
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; padding: 0; margin: 0;
+      background: transparent; border: none; cursor: pointer;
+      color: var(--ink-500); border-radius: var(--radius-pill);
+      -webkit-tap-highlight-color: transparent;
+      transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+    }
+    .scoreboard-share:hover { color: var(--ink-900); background: var(--line-soft); }
+    .scoreboard-share:active { transform: translateY(-50%) scale(0.9); }
+    .scoreboard-share svg { width: 18px; height: 18px; display: block; }
+    .scoreboard-share.is-busy { opacity: 0.45; pointer-events: none; }
+    /* Hide share when the section is collapsed (nothing to capture). */
+    .scoreboard-frame.collapsed .scoreboard-share { display: none; }
+    /* Off-screen render stage + branded footer for the exported image. */
+    .share-stage { position: fixed; left: -99999px; top: 0; z-index: -1; pointer-events: none; }
+    .share-stage .scoreboard-frame { margin: 0; }
+    .share-foot {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
+    }
+    .share-foot__mark { font: 800 15px/1 var(--font-sans); letter-spacing: 0.06em; }
+    .share-foot__mark .a { color: var(--ink-900); }
+    .share-foot__mark .b { color: var(--coral-500); }
+    .share-foot__url { font: 500 13px/1 var(--font-mono); color: var(--ink-500); }
     .scoreboard-frame.collapsed > :not(.scoreboard-header) { display: none; }
     .loyalties-section.collapsed > :not(.loyalties-header) { display: none; }
     .scoreboard-frame.collapsed .scoreboard-header,
@@ -3364,6 +3394,9 @@
       <div class="scoreboard-header">
         <div class="scoreboard-wordmark"><span class="scoreboard-wordmark__a">SCORE</span><span class="scoreboard-wordmark__b">BOARD</span></div>
         <span class="scoreboard-context" id="scoreboard-context"></span>
+        <button class="scoreboard-share" id="scoreboard-share" type="button" aria-label="Share scoreboard as an image" title="Share scoreboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+        </button>
       </div>
       <div class="scores-strip" id="scores-strip"></div>
       <div class="scores-empty" id="scores-empty" hidden>No matchups are set yet. Once lineups lock, every score that matters lands right here.</div>
@@ -6758,9 +6791,87 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     h.addEventListener('click',toggle);
     h.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
   }
-  wire('.scoreboard-header','scoreboard-frame');
+  /* SCOREBOARD collapses from the wordmark only (the corner is the share button). */
+  wire('.scoreboard-wordmark','scoreboard-frame');
   wire('.loyalties-header','loyalties-section');
   wire('.live-updates-header','live-updates-section');
+})();
+
+/* ══ Share scoreboard as an image ═════════════════════════════════════════════
+   Snapshots the live #scoreboard-frame exactly as the user sees it (the strip
+   already renders only the leagues on screen), drops it on a solid themed
+   background with a Conflicted footer, and hands a PNG to the native share
+   sheet. html2canvas is lazy-loaded on first tap so it never slows page load.
+   No remote images live in the strip, so the capture is clean (no CORS taint). */
+(function(){
+  const btn=document.getElementById('scoreboard-share');
+  if(!btn)return;
+  let h2cPromise=null;
+  function loadH2C(){
+    if(window.html2canvas)return Promise.resolve(window.html2canvas);
+    if(h2cPromise)return h2cPromise;
+    h2cPromise=new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      s.onload=()=>res(window.html2canvas);
+      s.onerror=()=>{h2cPromise=null;rej(new Error('snapshot library failed to load'));};
+      document.head.appendChild(s);
+    });
+    return h2cPromise;
+  }
+  function pageBg(){
+    /* Match the image background to what the user is actually looking at. */
+    const c=getComputedStyle(document.body).backgroundColor;
+    return (c&&c!=='rgba(0, 0, 0, 0)'&&c!=='transparent')?c:'#15181C';
+  }
+  async function shareScoreboard(){
+    const live=document.getElementById('scoreboard-frame');
+    if(!live||live.classList.contains('collapsed'))return;
+    btn.classList.add('is-busy');
+    try{
+      const html2canvas=await loadH2C();
+      if(document.fonts&&document.fonts.ready){try{await document.fonts.ready;}catch(e){}}
+      const bg=pageBg();
+      /* Off-screen stage: a clone of the frame + branded footer on a solid bg. */
+      const stage=document.createElement('div');
+      stage.className='share-stage';
+      stage.style.width=live.offsetWidth+'px';
+      stage.style.background=bg;
+      stage.style.padding='18px';
+      stage.style.borderRadius='16px';
+      const clone=live.cloneNode(true);
+      clone.classList.remove('collapsed');
+      const cShare=clone.querySelector('.scoreboard-share');if(cShare)cShare.remove();
+      stage.appendChild(clone);
+      const foot=document.createElement('div');
+      foot.className='share-foot';
+      foot.innerHTML='<span class="share-foot__mark"><span class="a">CONFLI</span><span class="b">CTED</span></span><span class="share-foot__url">conflicted.app</span>';
+      stage.appendChild(foot);
+      document.body.appendChild(stage);
+      let canvas;
+      try{
+        canvas=await html2canvas(stage,{backgroundColor:bg,scale:Math.min(2,window.devicePixelRatio||2),useCORS:true,logging:false});
+      }finally{ stage.remove(); }
+      const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+      if(!blob)throw new Error('could not render image');
+      const file=new File([blob],'conflicted-scoreboard.png',{type:'image/png'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        try{ await navigator.share({files:[file]}); }
+        catch(e){ /* user dismissed the share sheet — not an error */ }
+      }else{
+        /* Desktop / unsupported: download the PNG instead. */
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');a.href=url;a.download='conflicted-scoreboard.png';
+        document.body.appendChild(a);a.click();a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+      }
+    }catch(err){
+      try{console.error('[share] scoreboard share failed',err);}catch(e){}
+    }finally{
+      btn.classList.remove('is-busy');
+    }
+  }
+  btn.addEventListener('click',e=>{e.stopPropagation();shareScoreboard();});
 })();
 
 /* ══ LIVE UPDATES engine ═════════════════════════════════════════════════════
