@@ -1935,6 +1935,7 @@
     .share-modal__status { font: 500 14px/1.5 var(--font-sans); color: var(--ink-500); padding: 28px 8px; text-align: center; }
     .share-modal__status.is-error { color: var(--enemy); }
     .share-modal__preview { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line-soft); }
+    .share-modal__preview[hidden] { display: none !important; }
     .share-modal__actions { display: flex; gap: 10px; margin-top: 14px; }
     .share-modal__btn { flex: 1; font: 700 14px/1 var(--font-sans); padding: 13px 12px; border-radius: var(--radius-pill); cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink-900); }
     .share-modal__btn--primary { background: var(--coral-500); border-color: var(--coral-500); color: #fff; }
@@ -6832,21 +6833,24 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
 (function(){
   const btn=document.getElementById('scoreboard-share');
   if(!btn)return;
-  let h2cPromise=null;
-  function loadH2C(){
-    if(window.html2canvas)return Promise.resolve(window.html2canvas);
-    if(h2cPromise)return h2cPromise;
-    h2cPromise=new Promise((res,rej)=>{
+  /* html-to-image only snapshots the target subtree (not the whole page's
+     stylesheets), so it doesn't stall on the cross-origin Google Fonts sheet the
+     way html2canvas did. The global is window.htmlToImage. */
+  let libPromise=null;
+  function loadLib(){
+    if(window.htmlToImage)return Promise.resolve(window.htmlToImage);
+    if(libPromise)return libPromise;
+    libPromise=new Promise((res,rej)=>{
       const s=document.createElement('script');
-      s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-      s.onload=()=>res(window.html2canvas);
-      s.onerror=()=>{h2cPromise=null;rej(new Error('Snapshot library could not load — check your connection.'));};
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.js';
+      s.onload=()=>res(window.htmlToImage);
+      s.onerror=()=>{libPromise=null;rej(new Error('Snapshot library could not load — check your connection.'));};
       document.head.appendChild(s);
     });
-    return h2cPromise;
+    return libPromise;
   }
-  /* Warm html2canvas ahead of the tap so the preview renders fast. */
-  function warm(){ loadH2C().catch(()=>{}); }
+  /* Warm the library ahead of the tap so the preview renders fast. */
+  function warm(){ loadLib().catch(()=>{}); }
   if('requestIdleCallback'in window)requestIdleCallback(warm,{timeout:3000});else setTimeout(warm,1500);
   btn.addEventListener('pointerdown',warm,{once:true});
 
@@ -6854,9 +6858,16 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const c=getComputedStyle(document.body).backgroundColor;
     return (c&&c!=='rgba(0, 0, 0, 0)'&&c!=='transparent')?c:'#15181C';
   }
+  /* Never let a render hang the modal forever. */
+  function withTimeout(p,ms){
+    return new Promise((res,rej)=>{
+      const t=setTimeout(()=>rej(new Error('timeout')),ms);
+      p.then(v=>{clearTimeout(t);res(v);},e=>{clearTimeout(t);rej(e);});
+    });
+  }
   async function buildPng(live){
-    const html2canvas=await loadH2C();
-    if(typeof html2canvas!=='function')throw new Error('Snapshot library failed to initialise.');
+    const htmlToImage=await loadLib();
+    if(!htmlToImage||typeof htmlToImage.toBlob!=='function')throw new Error('Snapshot library failed to initialise.');
     if(document.fonts&&document.fonts.ready){try{await document.fonts.ready;}catch(e){}}
     const bg=pageBg();
     /* Off-screen stage: a clone of the frame + branded footer on a solid bg. */
@@ -6871,10 +6882,21 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     foot.innerHTML='<span class="share-foot__mark"><span class="a">CONFLI</span><span class="b">CTED</span></span><span class="share-foot__url">conflicted.app</span>';
     stage.appendChild(foot);
     document.body.appendChild(stage);
-    let canvas;
-    try{ canvas=await html2canvas(stage,{backgroundColor:bg,scale:Math.min(2,window.devicePixelRatio||2),useCORS:true,logging:false}); }
-    finally{ stage.remove(); }
-    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+    const ratio=Math.min(2,window.devicePixelRatio||2);
+    let blob=null;
+    try{
+      /* First try with embedded brand fonts; if that stalls or fails (font fetch),
+         retry skipping fonts so the image still renders in system fonts. */
+      try{
+        blob=await withTimeout(htmlToImage.toBlob(stage,{backgroundColor:bg,pixelRatio:ratio,cacheBust:true}),9000);
+      }catch(e){
+        try{
+          blob=await withTimeout(htmlToImage.toBlob(stage,{backgroundColor:bg,pixelRatio:ratio,skipFonts:true}),9000);
+        }catch(e2){
+          throw new Error('Image rendering timed out — please try again.');
+        }
+      }
+    }finally{ stage.remove(); }
     if(!blob)throw new Error('Could not render the image.');
     return new File([blob],'conflicted-scoreboard.png',{type:'image/png'});
   }
