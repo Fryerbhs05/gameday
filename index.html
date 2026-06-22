@@ -1908,10 +1908,11 @@
        back a BLANK canvas for anything positioned off-screen (e.g. left:-99999px)
        — so we park it at top-left, behind the share modal (z-index 1 < 9999) and
        non-interactive. It's only in the DOM for the ~1s render, then removed. */
-    .share-stage { position: fixed; left: 0; top: 0; z-index: 1; pointer-events: none; }
-    /* Opaque cover over the on-screen render stage (z-index above the stage, below
-       the share modal at 9999) so the capture happens invisibly. */
-    .share-render-cover { position: fixed; inset: 0; z-index: 9000; pointer-events: none; }
+    /* Render stage must be ON-SCREEN (Safari blanks off-screen nodes) but hidden
+       from the user. z-index:-1 parks it BEHIND the page's opaque body background
+       (body { background: var(--paper) }), so it's captured but never seen — no
+       cover, no flash. */
+    .share-stage { position: fixed; left: 0; top: 0; z-index: -1; pointer-events: none; }
     .share-stage .scoreboard-frame { margin: 0; }
     /* Full-width brand wordmark at the top of the exported image. */
     .share-head { width: 100%; margin-bottom: 14px; }
@@ -6855,16 +6856,17 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     });
     return libPromise;
   }
-  /* Fetch the brand wordmark SVG once and inline it (so its text renders in the
-     page's Inter font with the real bisected navy/coral split). Cached; on any
-     failure we just omit the header rather than block the image. */
+  /* Brand wordmark, hardcoded so the header NEVER depends on a network fetch (the
+     dark bisected navy/coral wordmark + tagline). We still try the live file first
+     to pick up any future brand edits, but fall back to this. */
+  const WORDMARK_SVG='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 130"><defs><clipPath id="lhDk"><rect x="0" y="0" width="240" height="130"/></clipPath><clipPath id="rhDk"><rect x="240" y="0" width="240" height="130"/></clipPath></defs><text x="240" y="70" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;" fill="#7AA8D1" clip-path="url(#lhDk)">CONFLICTED</text><text x="240" y="70" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;" fill="#E88761" clip-path="url(#rhDk)">CONFLICTED</text><line x1="240" y1="22" x2="240" y2="82" stroke="#F5EFE4" stroke-width="1.2"/><text x="240" y="110" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:500;font-size:11px;letter-spacing:0.25em;" fill="#9E988A">ALL YOUR LEAGUES, ONE PLACE</text></svg>';
   let wordmarkPromise=null;
   function loadWordmark(){
     if(wordmarkPromise)return wordmarkPromise;
     wordmarkPromise=fetch('/brand-kit/logo/conflicted-wordmark-dark.svg')
       .then(r=>r.ok?r.text():'')
-      .then(t=>(t&&t.indexOf('<svg')!==-1)?t:'')
-      .catch(()=>'');
+      .then(t=>(t&&t.indexOf('<svg')!==-1)?t:WORDMARK_SVG)
+      .catch(()=>WORDMARK_SVG);
     return wordmarkPromise;
   }
   /* Warm the library + wordmark ahead of the tap so the preview renders fast. */
@@ -6897,18 +6899,21 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     stage.style.width=stageW+'px';
     stage.style.background=bg;stage.style.padding='18px';stage.style.borderRadius='16px';
     if(wordmark){
+      /* Render the wordmark as an <img> data-URI rather than inline <svg>:
+         html-to-image rasterises data-URI images reliably, whereas inline SVG
+         was being dropped from the capture entirely. Sized to the content width
+         (minus the 18px×2 padding), aspect-locked to the 480×130 viewBox. */
+      const cw=Math.max(1,stageW-36);
+      const ch=Math.round(cw*130/480);
       const head=document.createElement('div');head.className='share-head';
-      head.innerHTML=wordmark;
-      /* The inline SVG carries only a viewBox (480×130); give it concrete pixel
-         dimensions so it doesn't collapse to zero height during capture. */
-      const svgEl=head.querySelector('svg');
-      if(svgEl){
-        const cw=Math.max(1,stageW-36);                 /* minus the 18px x2 padding */
-        const ch=Math.round(cw*130/480);
-        svgEl.setAttribute('width',cw);svgEl.setAttribute('height',ch);
-        svgEl.style.display='block';svgEl.style.width=cw+'px';svgEl.style.height=ch+'px';
-      }
+      const img=document.createElement('img');
+      img.width=cw;img.height=ch;img.alt='Conflicted';
+      img.style.display='block';img.style.width=cw+'px';img.style.height=ch+'px';
+      img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(wordmark);
+      head.appendChild(img);
       stage.appendChild(head);
+      /* Make sure the image is decoded before we capture, or it snapshots blank. */
+      try{ if(img.decode) await img.decode(); }catch(e){}
     }
     const clone=live.cloneNode(true);clone.classList.remove('collapsed');
     const cShare=clone.querySelector('.scoreboard-share');if(cShare)cShare.remove();
@@ -6916,11 +6921,6 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const foot=document.createElement('div');foot.className='share-foot';
     foot.innerHTML='<span class="share-foot__url">ConflictedApp.com</span>';
     stage.appendChild(foot);
-    /* Same-colour cover hides the on-screen stage during the ~1s render so the
-       user never sees a duplicate scoreboard flash over the page. */
-    const cover=document.createElement('div');
-    cover.className='share-render-cover';cover.style.background=bg;
-    document.body.appendChild(cover);
     document.body.appendChild(stage);
     const ratio=Math.min(2,window.devicePixelRatio||2);
     /* Safari/iOS returns a BLANK image on the first html-to-image pass (the
@@ -6945,7 +6945,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
           throw new Error('Image rendering timed out — please try again.');
         }
       }
-    }finally{ stage.remove(); cover.remove(); }
+    }finally{ stage.remove(); }
     if(!blob)throw new Error('Could not render the image.');
     return new File([blob],'conflicted-scoreboard.png',{type:'image/png'});
   }
