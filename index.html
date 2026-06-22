@@ -6883,15 +6883,24 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     stage.appendChild(foot);
     document.body.appendChild(stage);
     const ratio=Math.min(2,window.devicePixelRatio||2);
+    /* Safari/iOS returns a BLANK image on the first html-to-image pass (the
+       embedded SVG snapshot hasn't decoded yet), so render several passes and
+       keep the last — this is the documented WebKit workaround. */
+    async function passes(opts){
+      let b=null;
+      for(let i=0;i<3;i++){ b=await htmlToImage.toBlob(stage,opts); }
+      return b;
+    }
+    const base={backgroundColor:bg,pixelRatio:ratio};
     let blob=null;
     try{
       /* First try with embedded brand fonts; if that stalls or fails (font fetch),
          retry skipping fonts so the image still renders in system fonts. */
       try{
-        blob=await withTimeout(htmlToImage.toBlob(stage,{backgroundColor:bg,pixelRatio:ratio,cacheBust:true}),9000);
+        blob=await withTimeout(passes(Object.assign({cacheBust:true},base)),14000);
       }catch(e){
         try{
-          blob=await withTimeout(htmlToImage.toBlob(stage,{backgroundColor:bg,pixelRatio:ratio,skipFonts:true}),9000);
+          blob=await withTimeout(passes(Object.assign({skipFonts:true},base)),14000);
         }catch(e2){
           throw new Error('Image rendering timed out — please try again.');
         }
