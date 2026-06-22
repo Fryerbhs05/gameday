@@ -6819,54 +6819,81 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     });
     return h2cPromise;
   }
+  /* Warm the snapshot library BEFORE the user taps. iOS Safari only lets
+     navigator.share() fire inside a brief (~5s) user-activation window; on the
+     first tap the cold network fetch of html2canvas was eating that window, so
+     share() was being silently blocked (button greyed, no sheet). Pre-loading
+     keeps the tap path fast enough to stay inside the gesture. */
+  function warm(){ loadH2C().catch(()=>{}); }
+  if('requestIdleCallback'in window)requestIdleCallback(warm,{timeout:3000});else setTimeout(warm,1500);
+  btn.addEventListener('pointerdown',warm,{once:true});
   function pageBg(){
     /* Match the image background to what the user is actually looking at. */
     const c=getComputedStyle(document.body).backgroundColor;
     return (c&&c!=='rgba(0, 0, 0, 0)'&&c!=='transparent')?c:'#15181C';
   }
+  async function buildPng(live){
+    const html2canvas=await loadH2C();
+    if(document.fonts&&document.fonts.ready){try{await document.fonts.ready;}catch(e){}}
+    const bg=pageBg();
+    /* Off-screen stage: a clone of the frame + branded footer on a solid bg. */
+    const stage=document.createElement('div');
+    stage.className='share-stage';
+    stage.style.width=live.offsetWidth+'px';
+    stage.style.background=bg;
+    stage.style.padding='18px';
+    stage.style.borderRadius='16px';
+    const clone=live.cloneNode(true);
+    clone.classList.remove('collapsed');
+    const cShare=clone.querySelector('.scoreboard-share');if(cShare)cShare.remove();
+    stage.appendChild(clone);
+    const foot=document.createElement('div');
+    foot.className='share-foot';
+    foot.innerHTML='<span class="share-foot__mark"><span class="a">CONFLI</span><span class="b">CTED</span></span><span class="share-foot__url">conflicted.app</span>';
+    stage.appendChild(foot);
+    document.body.appendChild(stage);
+    let canvas;
+    try{
+      canvas=await html2canvas(stage,{backgroundColor:bg,scale:Math.min(2,window.devicePixelRatio||2),useCORS:true,logging:false});
+    }finally{ stage.remove(); }
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+    if(!blob)throw new Error('could not render image');
+    return new File([blob],'conflicted-scoreboard.png',{type:'image/png'});
+  }
+  function openFallback(file){
+    const url=URL.createObjectURL(file);
+    const ua=navigator.userAgent||'';
+    const iOS=/iP(hone|ad|od)/.test(ua)||(/Macintosh/.test(ua)&&'ontouchend'in document);
+    if(iOS){
+      window.open(url,'_blank');
+      try{showYahooToast('Opened the image — press and hold it to save or share.');}catch(e){}
+    }else{
+      const a=document.createElement('a');a.href=url;a.download='conflicted-scoreboard.png';
+      document.body.appendChild(a);a.click();a.remove();
+      try{showYahooToast('Scoreboard image downloaded.');}catch(e){}
+    }
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  }
   async function shareScoreboard(){
     const live=document.getElementById('scoreboard-frame');
     if(!live||live.classList.contains('collapsed'))return;
+    if(btn.classList.contains('is-busy'))return;
     btn.classList.add('is-busy');
     try{
-      const html2canvas=await loadH2C();
-      if(document.fonts&&document.fonts.ready){try{await document.fonts.ready;}catch(e){}}
-      const bg=pageBg();
-      /* Off-screen stage: a clone of the frame + branded footer on a solid bg. */
-      const stage=document.createElement('div');
-      stage.className='share-stage';
-      stage.style.width=live.offsetWidth+'px';
-      stage.style.background=bg;
-      stage.style.padding='18px';
-      stage.style.borderRadius='16px';
-      const clone=live.cloneNode(true);
-      clone.classList.remove('collapsed');
-      const cShare=clone.querySelector('.scoreboard-share');if(cShare)cShare.remove();
-      stage.appendChild(clone);
-      const foot=document.createElement('div');
-      foot.className='share-foot';
-      foot.innerHTML='<span class="share-foot__mark"><span class="a">CONFLI</span><span class="b">CTED</span></span><span class="share-foot__url">conflicted.app</span>';
-      stage.appendChild(foot);
-      document.body.appendChild(stage);
-      let canvas;
-      try{
-        canvas=await html2canvas(stage,{backgroundColor:bg,scale:Math.min(2,window.devicePixelRatio||2),useCORS:true,logging:false});
-      }finally{ stage.remove(); }
-      const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
-      if(!blob)throw new Error('could not render image');
-      const file=new File([blob],'conflicted-scoreboard.png',{type:'image/png'});
+      const file=await buildPng(live);
       if(navigator.canShare&&navigator.canShare({files:[file]})){
-        try{ await navigator.share({files:[file]}); }
-        catch(e){ /* user dismissed the share sheet — not an error */ }
+        try{
+          await navigator.share({files:[file]});
+        }catch(e){
+          if(e&&e.name==='AbortError')return; /* user dismissed the sheet — fine */
+          openFallback(file);                 /* activation lost / refused → show image */
+        }
       }else{
-        /* Desktop / unsupported: download the PNG instead. */
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement('a');a.href=url;a.download='conflicted-scoreboard.png';
-        document.body.appendChild(a);a.click();a.remove();
-        setTimeout(()=>URL.revokeObjectURL(url),1000);
+        openFallback(file);                   /* desktop or no file-share support */
       }
     }catch(err){
       try{console.error('[share] scoreboard share failed',err);}catch(e){}
+      try{showYahooToast('Couldn’t build the share image — please try again.',true);}catch(e){}
     }finally{
       btn.classList.remove('is-busy');
     }
