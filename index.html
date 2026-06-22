@@ -1904,8 +1904,11 @@
     .scoreboard-share.is-busy { opacity: 0.45; pointer-events: none; }
     /* Hide share when the section is collapsed (nothing to capture). */
     .scoreboard-frame.collapsed .scoreboard-share { display: none; }
-    /* Off-screen render stage + branded footer for the exported image. */
-    .share-stage { position: fixed; left: -99999px; top: 0; z-index: -1; pointer-events: none; }
+    /* Render stage for the exported image. Must sit ON-SCREEN — Safari/iOS hands
+       back a BLANK canvas for anything positioned off-screen (e.g. left:-99999px)
+       — so we park it at top-left, behind the share modal (z-index 1 < 9999) and
+       non-interactive. It's only in the DOM for the ~1s render, then removed. */
+    .share-stage { position: fixed; left: 0; top: 0; z-index: 1; pointer-events: none; }
     .share-stage .scoreboard-frame { margin: 0; }
     .share-foot {
       display: flex; align-items: center; justify-content: center; gap: 8px;
