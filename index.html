@@ -1910,13 +1910,13 @@
        non-interactive. It's only in the DOM for the ~1s render, then removed. */
     .share-stage { position: fixed; left: 0; top: 0; z-index: 1; pointer-events: none; }
     .share-stage .scoreboard-frame { margin: 0; }
+    /* Full-width brand wordmark at the top of the exported image. */
+    .share-head { width: 100%; margin-bottom: 14px; }
+    .share-head svg { display: block; width: 100%; height: auto; }
     .share-foot {
       display: flex; align-items: center; justify-content: center; gap: 8px;
       margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
     }
-    .share-foot__mark { font: 800 15px/1 var(--font-sans); letter-spacing: 0.06em; }
-    .share-foot__mark .a { color: var(--ink-900); }
-    .share-foot__mark .b { color: var(--coral-500); }
     .share-foot__url { font: 500 13px/1 var(--font-mono); color: var(--ink-500); }
     /* ── Share preview modal — opens instantly on tap (always-visible feedback);
        its own Share/Save buttons fire navigator.share from a fresh user gesture,
@@ -6852,8 +6852,20 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     });
     return libPromise;
   }
-  /* Warm the library ahead of the tap so the preview renders fast. */
-  function warm(){ loadLib().catch(()=>{}); }
+  /* Fetch the brand wordmark SVG once and inline it (so its text renders in the
+     page's Inter font with the real bisected navy/coral split). Cached; on any
+     failure we just omit the header rather than block the image. */
+  let wordmarkPromise=null;
+  function loadWordmark(){
+    if(wordmarkPromise)return wordmarkPromise;
+    wordmarkPromise=fetch('/brand-kit/logo/conflicted-wordmark-dark.svg')
+      .then(r=>r.ok?r.text():'')
+      .then(t=>(t&&t.indexOf('<svg')!==-1)?t:'')
+      .catch(()=>'');
+    return wordmarkPromise;
+  }
+  /* Warm the library + wordmark ahead of the tap so the preview renders fast. */
+  function warm(){ loadLib().catch(()=>{}); loadWordmark(); }
   if('requestIdleCallback'in window)requestIdleCallback(warm,{timeout:3000});else setTimeout(warm,1500);
   btn.addEventListener('pointerdown',warm,{once:true});
 
@@ -6873,16 +6885,23 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     if(!htmlToImage||typeof htmlToImage.toBlob!=='function')throw new Error('Snapshot library failed to initialise.');
     if(document.fonts&&document.fonts.ready){try{await document.fonts.ready;}catch(e){}}
     const bg=pageBg();
-    /* Off-screen stage: a clone of the frame + branded footer on a solid bg. */
+    const wordmark=await loadWordmark();
+    /* Off-screen stage: brand wordmark header + a clone of the frame + URL footer
+       on a solid bg. */
     const stage=document.createElement('div');
     stage.className='share-stage';
     stage.style.width=live.offsetWidth+'px';
     stage.style.background=bg;stage.style.padding='18px';stage.style.borderRadius='16px';
+    if(wordmark){
+      const head=document.createElement('div');head.className='share-head';
+      head.innerHTML=wordmark;                 /* full-width wordmark via .share-head svg */
+      stage.appendChild(head);
+    }
     const clone=live.cloneNode(true);clone.classList.remove('collapsed');
     const cShare=clone.querySelector('.scoreboard-share');if(cShare)cShare.remove();
     stage.appendChild(clone);
     const foot=document.createElement('div');foot.className='share-foot';
-    foot.innerHTML='<span class="share-foot__mark"><span class="a">CONFLI</span><span class="b">CTED</span></span><span class="share-foot__url">conflicted.app</span>';
+    foot.innerHTML='<span class="share-foot__url">ConflictedApp.com</span>';
     stage.appendChild(foot);
     document.body.appendChild(stage);
     const ratio=Math.min(2,window.devicePixelRatio||2);
