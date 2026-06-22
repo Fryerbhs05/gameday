@@ -1915,6 +1915,30 @@
     .share-foot__mark .a { color: var(--ink-900); }
     .share-foot__mark .b { color: var(--coral-500); }
     .share-foot__url { font: 500 13px/1 var(--font-mono); color: var(--ink-500); }
+    /* ── Share preview modal — opens instantly on tap (always-visible feedback);
+       its own Share/Save buttons fire navigator.share from a fresh user gesture,
+       which is the only reliable way to open the sheet on iOS/Safari. ── */
+    .share-modal { position: fixed; inset: 0; z-index: 9999; display: none; align-items: center; justify-content: center; padding: 18px; }
+    .share-modal.open { display: flex; }
+    .share-modal__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+    .share-modal__card {
+      position: relative; z-index: 1; width: 100%; max-width: 460px;
+      max-height: 88vh; overflow: auto;
+      background: var(--paper, #fff); color: var(--ink-900);
+      border: 1px solid var(--line); border-radius: 16px; padding: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    }
+    .share-modal__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .share-modal__title { font: 700 16px/1 var(--font-sans); letter-spacing: 0.02em; }
+    .share-modal__close { background: transparent; border: none; color: var(--ink-500); font-size: 24px; line-height: 1; cursor: pointer; padding: 0 4px; }
+    .share-modal__close:hover { color: var(--ink-900); }
+    .share-modal__status { font: 500 14px/1.5 var(--font-sans); color: var(--ink-500); padding: 28px 8px; text-align: center; }
+    .share-modal__status.is-error { color: var(--enemy); }
+    .share-modal__preview { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line-soft); }
+    .share-modal__actions { display: flex; gap: 10px; margin-top: 14px; }
+    .share-modal__btn { flex: 1; font: 700 14px/1 var(--font-sans); padding: 13px 12px; border-radius: var(--radius-pill); cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink-900); }
+    .share-modal__btn--primary { background: var(--coral-500); border-color: var(--coral-500); color: #fff; }
+    .share-modal__btn:disabled { opacity: 0.4; pointer-events: none; }
     .scoreboard-frame.collapsed > :not(.scoreboard-header) { display: none; }
     .loyalties-section.collapsed > :not(.loyalties-header) { display: none; }
     .scoreboard-frame.collapsed .scoreboard-header,
@@ -6798,11 +6822,13 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
 })();
 
 /* ══ Share scoreboard as an image ═════════════════════════════════════════════
-   Snapshots the live #scoreboard-frame exactly as the user sees it (the strip
-   already renders only the leagues on screen), drops it on a solid themed
-   background with a Conflicted footer, and hands a PNG to the native share
-   sheet. html2canvas is lazy-loaded on first tap so it never slows page load.
-   No remote images live in the strip, so the capture is clean (no CORS taint). */
+   Tapping the icon INSTANTLY opens a preview modal (so there's always visible
+   feedback), renders the live #scoreboard-frame to a PNG inside it, then lets
+   the user fire the native share sheet from the modal's OWN button. That button
+   tap is a fresh user gesture — the only thing iOS/Safari reliably accepts for
+   navigator.share(). The earlier "render then auto-share" approach was silently
+   blocked because the share() landed outside the tap's gesture window. No remote
+   images live in the strip, so the capture is clean (no CORS taint). */
 (function(){
   const btn=document.getElementById('scoreboard-share');
   if(!btn)return;
@@ -6814,91 +6840,119 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       const s=document.createElement('script');
       s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
       s.onload=()=>res(window.html2canvas);
-      s.onerror=()=>{h2cPromise=null;rej(new Error('snapshot library failed to load'));};
+      s.onerror=()=>{h2cPromise=null;rej(new Error('Snapshot library could not load — check your connection.'));};
       document.head.appendChild(s);
     });
     return h2cPromise;
   }
-  /* Warm the snapshot library BEFORE the user taps. iOS Safari only lets
-     navigator.share() fire inside a brief (~5s) user-activation window; on the
-     first tap the cold network fetch of html2canvas was eating that window, so
-     share() was being silently blocked (button greyed, no sheet). Pre-loading
-     keeps the tap path fast enough to stay inside the gesture. */
+  /* Warm html2canvas ahead of the tap so the preview renders fast. */
   function warm(){ loadH2C().catch(()=>{}); }
   if('requestIdleCallback'in window)requestIdleCallback(warm,{timeout:3000});else setTimeout(warm,1500);
   btn.addEventListener('pointerdown',warm,{once:true});
+
   function pageBg(){
-    /* Match the image background to what the user is actually looking at. */
     const c=getComputedStyle(document.body).backgroundColor;
     return (c&&c!=='rgba(0, 0, 0, 0)'&&c!=='transparent')?c:'#15181C';
   }
   async function buildPng(live){
     const html2canvas=await loadH2C();
+    if(typeof html2canvas!=='function')throw new Error('Snapshot library failed to initialise.');
     if(document.fonts&&document.fonts.ready){try{await document.fonts.ready;}catch(e){}}
     const bg=pageBg();
     /* Off-screen stage: a clone of the frame + branded footer on a solid bg. */
     const stage=document.createElement('div');
     stage.className='share-stage';
     stage.style.width=live.offsetWidth+'px';
-    stage.style.background=bg;
-    stage.style.padding='18px';
-    stage.style.borderRadius='16px';
-    const clone=live.cloneNode(true);
-    clone.classList.remove('collapsed');
+    stage.style.background=bg;stage.style.padding='18px';stage.style.borderRadius='16px';
+    const clone=live.cloneNode(true);clone.classList.remove('collapsed');
     const cShare=clone.querySelector('.scoreboard-share');if(cShare)cShare.remove();
     stage.appendChild(clone);
-    const foot=document.createElement('div');
-    foot.className='share-foot';
+    const foot=document.createElement('div');foot.className='share-foot';
     foot.innerHTML='<span class="share-foot__mark"><span class="a">CONFLI</span><span class="b">CTED</span></span><span class="share-foot__url">conflicted.app</span>';
     stage.appendChild(foot);
     document.body.appendChild(stage);
     let canvas;
-    try{
-      canvas=await html2canvas(stage,{backgroundColor:bg,scale:Math.min(2,window.devicePixelRatio||2),useCORS:true,logging:false});
-    }finally{ stage.remove(); }
+    try{ canvas=await html2canvas(stage,{backgroundColor:bg,scale:Math.min(2,window.devicePixelRatio||2),useCORS:true,logging:false}); }
+    finally{ stage.remove(); }
     const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
-    if(!blob)throw new Error('could not render image');
+    if(!blob)throw new Error('Could not render the image.');
     return new File([blob],'conflicted-scoreboard.png',{type:'image/png'});
   }
-  function openFallback(file){
-    const url=URL.createObjectURL(file);
+
+  /* ---- Preview modal (built once, reused) ---- */
+  let modal,statusEl,previewEl,shareBtn,saveBtn,curFile=null,curUrl=null;
+  function buildModal(){
+    modal=document.createElement('div');
+    modal.className='share-modal';
+    modal.innerHTML=
+      '<div class="share-modal__backdrop" data-close="1"></div>'+
+      '<div class="share-modal__card" role="dialog" aria-modal="true" aria-label="Share scoreboard">'+
+        '<div class="share-modal__head"><span class="share-modal__title">Share scoreboard</span>'+
+        '<button class="share-modal__close" type="button" aria-label="Close" data-close="1">×</button></div>'+
+        '<div class="share-modal__status" id="share-modal-status">Building image…</div>'+
+        '<img class="share-modal__preview" id="share-modal-preview" alt="Scoreboard preview" hidden>'+
+        '<div class="share-modal__actions">'+
+          '<button class="share-modal__btn share-modal__btn--primary" id="share-modal-share" type="button" hidden>Share</button>'+
+          '<button class="share-modal__btn" id="share-modal-save" type="button" hidden>Save image</button>'+
+        '</div>'+
+      '</div>';
+    document.body.appendChild(modal);
+    statusEl=modal.querySelector('#share-modal-status');
+    previewEl=modal.querySelector('#share-modal-preview');
+    shareBtn=modal.querySelector('#share-modal-share');
+    saveBtn=modal.querySelector('#share-modal-save');
+    modal.addEventListener('click',e=>{ if(e.target&&e.target.getAttribute('data-close'))closeModal(); });
+    shareBtn.addEventListener('click',doShare);
+    saveBtn.addEventListener('click',doSave);
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&modal.classList.contains('open'))closeModal(); });
+  }
+  function openModal(){
+    if(!modal)buildModal();
+    statusEl.textContent='Building image…';statusEl.classList.remove('is-error');statusEl.hidden=false;
+    previewEl.hidden=true;previewEl.removeAttribute('src');
+    shareBtn.hidden=true;saveBtn.hidden=true;
+    modal.classList.add('open');
+  }
+  function closeModal(){
+    if(modal)modal.classList.remove('open');
+    if(curUrl){URL.revokeObjectURL(curUrl);curUrl=null;}
+    curFile=null;
+  }
+  function showError(msg){ if(statusEl){statusEl.textContent=msg;statusEl.classList.add('is-error');statusEl.hidden=false;} }
+  async function doShare(){
+    if(!curFile)return;
+    if(navigator.canShare&&navigator.canShare({files:[curFile]})){
+      try{ await navigator.share({files:[curFile]}); closeModal(); }
+      catch(e){ if(!(e&&e.name==='AbortError'))showError('Sharing was blocked — use Save image instead.'); }
+    }else{ doSave(); }
+  }
+  function doSave(){
+    if(!curUrl)return;
     const ua=navigator.userAgent||'';
     const iOS=/iP(hone|ad|od)/.test(ua)||(/Macintosh/.test(ua)&&'ontouchend'in document);
-    if(iOS){
-      window.open(url,'_blank');
-      try{showYahooToast('Opened the image — press and hold it to save or share.');}catch(e){}
-    }else{
-      const a=document.createElement('a');a.href=url;a.download='conflicted-scoreboard.png';
-      document.body.appendChild(a);a.click();a.remove();
-      try{showYahooToast('Scoreboard image downloaded.');}catch(e){}
-    }
-    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    if(iOS){ window.open(curUrl,'_blank'); }
+    else{ const a=document.createElement('a');a.href=curUrl;a.download='conflicted-scoreboard.png';document.body.appendChild(a);a.click();a.remove(); }
   }
-  async function shareScoreboard(){
+  async function onTap(){
     const live=document.getElementById('scoreboard-frame');
     if(!live||live.classList.contains('collapsed'))return;
-    if(btn.classList.contains('is-busy'))return;
-    btn.classList.add('is-busy');
+    openModal();                              /* instant — always visible feedback */
     try{
       const file=await buildPng(live);
-      if(navigator.canShare&&navigator.canShare({files:[file]})){
-        try{
-          await navigator.share({files:[file]});
-        }catch(e){
-          if(e&&e.name==='AbortError')return; /* user dismissed the sheet — fine */
-          openFallback(file);                 /* activation lost / refused → show image */
-        }
-      }else{
-        openFallback(file);                   /* desktop or no file-share support */
-      }
+      curFile=file;
+      curUrl=URL.createObjectURL(file);
+      previewEl.src=curUrl;previewEl.hidden=false;
+      statusEl.hidden=true;
+      const canShareFiles=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+      shareBtn.hidden=!canShareFiles;
+      saveBtn.hidden=false;
+      saveBtn.textContent=canShareFiles?'Save image':'Download image';
     }catch(err){
-      try{console.error('[share] scoreboard share failed',err);}catch(e){}
-      try{showYahooToast('Couldn’t build the share image — please try again.',true);}catch(e){}
-    }finally{
-      btn.classList.remove('is-busy');
+      try{console.error('[share] build failed',err);}catch(e){}
+      showError((err&&err.message)?err.message:'Something went wrong building the image.');
     }
   }
-  btn.addEventListener('click',e=>{e.stopPropagation();shareScoreboard();});
+  btn.addEventListener('click',e=>{e.stopPropagation();onTap();});
 })();
 
 /* ══ LIVE UPDATES engine ═════════════════════════════════════════════════════
