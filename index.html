@@ -3909,7 +3909,7 @@
   .cf-card.cwin{border:1.5px solid var(--cs-green);box-shadow:0 0 18px rgba(93,202,165,.34);}
   .cf-card.closs{opacity:.5;border-left:3px solid var(--cs-dull);}
   .cf-c-row1{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
-  .cf-c-name{font-size:14px;font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cf-c-name{font-size:14px;font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;min-width:0;overflow-wrap:anywhere;}
   .cf-c-status{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.07em;flex:none;}
   .cf-c-score{display:flex;align-items:baseline;gap:9px;margin-bottom:8px;}
   .cf-c-sc{display:flex;align-items:baseline;gap:5px;}
@@ -3918,12 +3918,14 @@
   .cf-c-sc.you .pts{color:var(--cs-cream);}
   .cf-c-sc.opp .pts{color:var(--cs-ink-400);}
   .cf-c-vs{font-size:10px;color:var(--cs-ink-500);font-weight:700;}
-  .cf-c-tag{font-size:9px;color:var(--cs-ink-500);font-weight:700;letter-spacing:.03em;margin-left:auto;align-self:center;text-transform:uppercase;}
+  .cf-c-tag{font-size:9px;color:var(--cs-ink-500);font-weight:700;letter-spacing:.03em;margin-left:auto;align-self:center;text-transform:uppercase;white-space:nowrap;}
   .cf-c-barwrap{margin-bottom:8px;}
   .cf-c-bar{height:6px;border-radius:4px;background:var(--cs-navy-700);overflow:hidden;}
   .cf-c-bar i{height:100%;display:block;border-radius:4px;}
-  .cf-c-barlbl{display:flex;justify-content:space-between;margin-top:5px;font-size:10px;font-weight:700;}
+  .cf-c-barlbl{display:flex;justify-content:space-between;margin-top:5px;font-size:10px;font-weight:700;gap:8px;}
+  .cf-c-barlbl span{white-space:nowrap;}
   .cf-c-barlbl .muted{color:var(--cs-ink-500);}
+  .cf-c-detail.is-1line,.cf-c-detail.is-1line span{white-space:nowrap;}
   .cf-c-detail{font-size:12px;font-weight:600;color:var(--cs-ink-700);line-height:1.35;display:flex;align-items:flex-start;gap:6px;}
   .cf-c-detail b{color:var(--cs-cream);font-weight:800;}
   .cf-c-detail .nm{color:var(--cs-cream);font-weight:800;}
@@ -3939,16 +3941,16 @@
   .cf-t-row{display:flex;align-items:center;gap:6px;}
   .cf-t-stat{flex:1;text-align:center;font-size:25px;font-weight:900;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;}
   .cf-t-stat small{font-size:12px;font-weight:800;}
-  .cf-t-status{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;font-size:9px;font-weight:800;letter-spacing:.06em;}
+  .cf-t-status{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;font-size:9px;font-weight:800;letter-spacing:.06em;white-space:nowrap;}
   .cf-t-result{text-align:center;font-size:16px;font-weight:900;letter-spacing:-.02em;line-height:1.05;}
-  .cf-t-score{display:flex;align-items:baseline;justify-content:center;gap:5px;margin-top:6px;}
+  .cf-t-score{display:flex;align-items:baseline;justify-content:center;gap:5px;margin-top:6px;white-space:nowrap;}
   .cf-t-score .lbl{font-size:8px;font-weight:800;letter-spacing:.08em;color:var(--cs-ink-500);}
   .cf-t-score .you{font-size:13px;font-weight:900;color:var(--cs-cream);font-variant-numeric:tabular-nums;}
   .cf-t-score .dash{font-size:11px;font-weight:700;color:var(--cs-ink-500);}
   .cf-t-score .opp{font-size:13px;font-weight:800;color:var(--cs-ink-400);font-variant-numeric:tabular-nums;}
   .cf-snap-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--cs-navy-line);}
   .cf-snap-foot .cf-snap-brand svg{width:120px;height:auto;display:block;}
-  .cf-snap-foot-txt{font-size:9px;color:var(--cs-ink-500);font-weight:800;letter-spacing:.06em;}
+  .cf-snap-foot-txt{font-size:9px;color:var(--cs-ink-500);font-weight:800;letter-spacing:.06em;white-space:nowrap;}
 </style>
 <div id="view-snapshot">
   <div class="cf-snap-wrap">
@@ -12797,6 +12799,7 @@ initThemeToggle();
       var name=ctx.leagueName, ls=ctx.leagueState||'';
       var curMy=+ctx.myPoints||0, curOpp=+ctx.oppPoints||0;
       var projMy=+ctx.myProjPts||0, projOpp=+ctx.oppProjPts||0;
+      var hasProj=(projMy>0||projOpp>0);
       // starters on each side of THIS league
       var mine=[],opp=[];
       pool.forEach(function(p){
@@ -12816,6 +12819,7 @@ initThemeToggle();
 
       if(decided&&isWin){ state='cwin'; prob=1; }
       else if(decided&&(isLoss||isTie)){ state='closs'; prob=0; }
+      else if(pending&&!hasProj){ state='flip'; prob=0.5; }   // no projections + no scores → true unknown, not 0%
       else {
         var myRem=Math.max(0,projMy-curMy), oppRem=Math.max(0,projOpp-curOpp);
         var mu=(curMy-curOpp)+(myRem-oppRem), v=0;
@@ -12840,6 +12844,7 @@ initThemeToggle();
       rows.push({
         name:name, tier:tierOf(name), state:state, prob:prob,
         curMy:curMy, curOpp:curOpp, projMy:projMy, projOpp:projOpp,
+        hasProj:hasProj,
         pending:pending, live:live,
         isFinal:isFinal, myToGo:toGo(mine), oppToGo:toGo(opp)
       });
@@ -12872,28 +12877,34 @@ initThemeToggle();
   }
   function cardScore(r){
     var clinched=(r.state==='cwin'||r.state==='closs');
+    var noProj=r.pending&&!r.hasProj;
     var you=clinched?r.curMy:(r.pending?r.projMy:r.curMy), opp=clinched?r.curOpp:(r.pending?r.projOpp:r.curOpp);
-    var yl=r.pending?'PROJ':(clinched?'FINAL':'YOU'), ol=r.pending?'PROJ':(clinched?'':'OPP');
+    var youTxt=noProj?'&mdash;':nf(you), oppTxt=noProj?'&mdash;':nf(opp);
+    var yl=r.pending?(noProj?'':'PROJ'):(clinched?'FINAL':'YOU'), ol=r.pending?(noProj?'':'PROJ'):(clinched?'':'OPP');
     var tag=clinched?'LOCKED':(r.pending?'NOT STARTED':'');
-    return '<div class="cf-c-score"><div class="cf-c-sc you"><span class="who">'+yl+'</span><span class="pts">'+nf(you)+'</span></div>'
-      +'<span class="cf-c-vs">vs</span><div class="cf-c-sc opp"><span class="who">'+ol+'</span><span class="pts">'+nf(opp)+'</span></div>'
+    return '<div class="cf-c-score"><div class="cf-c-sc you"><span class="who">'+yl+'</span><span class="pts">'+youTxt+'</span></div>'
+      +'<span class="cf-c-vs">vs</span><div class="cf-c-sc opp"><span class="who">'+ol+'</span><span class="pts">'+oppTxt+'</span></div>'
       +(tag?'<span class="cf-c-tag">'+tag+'</span>':'')+'</div>';
   }
   function cardBar(r){
     var pct=Math.round(r.prob*100), fill=(r.state==='closs')?'#6b4a45':COL[r.state], w=(r.state==='cwin'||r.state==='closs')?100:pct, Lf,Rf;
     if(r.state==='cwin'){Lf='<span style="color:#5DCAA5">'+(r.isFinal?'Win secured':'Clinched')+'</span>';Rf='<span class="muted">+'+nf(margin(r))+' &mdash; can\'t be caught</span>';}
     else if(r.state==='closs'){Lf='<span style="color:#8a6a64">'+(r.isFinal?'Final':'Out of reach')+'</span>';Rf='<span class="muted">&minus;'+nf(margin(r))+'</span>';}
-    else{Lf='<span style="color:'+COL[r.state]+'">'+pct+'% win</span>';Rf='<span class="muted">'+(r.pending?'pre-kickoff projection':'projected')+'</span>';}
+    else{Lf='<span style="color:'+COL[r.state]+'">'+pct+'% win</span>';Rf='<span class="muted">'+(r.pending?(r.hasProj?'pre-kickoff projection':'not started yet'):'projected')+'</span>';}
     return '<div class="cf-c-barwrap"><div class="cf-c-bar"><i style="width:'+w+'%;background:'+fill+(r.state==='closs'?';opacity:.6':'')+'"></i></div><div class="cf-c-barlbl">'+Lf+Rf+'</div></div>';
   }
   function cardDetail(r){
     var ic,txt,gap=r.curMy-r.curOpp;
     if(r.state==='cwin'){ic='&#127942;';txt='Locked in. Nothing left to sweat here.';}
     else if(r.state==='closs'){ic='&#128577;';txt='Out of reach &mdash; <b>&minus;'+nf(margin(r))+'</b>.';}
-    else if(r.pending){var d=r.projMy-r.projOpp;ic='&#128197;';txt='Coin flip &mdash; projected to '+(d>=0?'edge it by <b>+'+nf(d)+'</b>':'lose by <b>'+nf(Math.abs(d))+'</b>')+'.';}
+    else if(r.pending){
+      ic='&#128197;';
+      if(!r.hasProj){ txt='Hasn’t kicked off yet.'; }
+      else { var d=r.projMy-r.projOpp; txt=(Math.abs(d)<0.1)?'Coin flip &mdash; dead even.':'Coin flip &mdash; projected <b>'+(d>=0?'+'+nf(d):'&minus;'+nf(Math.abs(d)))+'</b>.'; }
+    }
     else if(gap>=0){ic='&#9650;';txt='Up <b>'+nf(gap)+'</b>'+(r.oppToGo.length?' &mdash; they\'ve only got '+names(r.oppToGo)+' left.':' and pulling away.');}
     else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myToGo.length?' with '+names(r.myToGo)+' still to go.':'.');}
-    return '<div class="cf-c-detail"><span>'+ic+'</span><span>'+txt+'</span></div>';
+    return '<div class="cf-c-detail'+(r.pending?' is-1line':'')+'"><span>'+ic+'</span><span>'+txt+'</span></div>';
   }
   function cardHTML(r){
     return '<div class="cf-card '+r.state+'"><div class="cf-c-row1"><span class="cf-c-name">'+r.name+'</span>'+cardStatus(r)+'</div>'
@@ -12902,6 +12913,7 @@ initThemeToggle();
 
   /* ---- GRID tile ---- */
   function gridScore(r){
+    if(r.pending&&!r.hasProj)return '<div class="cf-t-score"><span class="lbl">NOT STARTED</span></div>';
     var clinched=(r.state==='cwin'||r.state==='closs');
     var you=clinched?r.curMy:r.projMy, opp=clinched?r.curOpp:r.projOpp, lbl=clinched?'FINAL':'PROJ';
     return '<div class="cf-t-score"><span class="lbl">'+lbl+'</span><span class="you">'+nf(you)+'</span><span class="dash">&ndash;</span><span class="opp">'+nf(opp)+'</span></div>';
