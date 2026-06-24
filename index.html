@@ -4604,6 +4604,40 @@ function hideAll(){
   window.__conflictedExposureOpen=false;
   document.body.classList.remove('wp-active');
 }
+/* ── Navigable-view registry ───────────────────────────────────────────────
+   Single source of truth for "is the user on a non-board overlay view, and how
+   do I repaint it with fresh data?". renderBoard() consults this on every
+   background data refresh so it (a) never bounces the user back to the
+   dashboard while they're on another view, and (b) repaints whatever view
+   they're on in place. Each navigable view registers ONCE below with:
+     id     – its panel element id
+     isOpen – returns true while the user is on it (reads its own flag)
+     render – repaints it from the latest data (resolved lazily at call time)
+     onShow – optional: extra DOM side-effects when re-showing (e.g. body class)
+   To add a FUTURE nav view, append one cfRegisterView(...) call here — no edits
+   to renderBoard are ever needed. This is the fix for the Snapshot "flash back
+   to dashboard on PWA open" bug: Snapshot used to be only half-wired. */
+window.__cfViewRegistry = window.__cfViewRegistry || [];
+window.cfRegisterView = function(spec){ if(spec&&spec.id)window.__cfViewRegistry.push(spec); };
+window.cfActiveView = function(){
+  return (window.__cfViewRegistry||[]).find(function(v){ try{return !!v.isOpen();}catch(e){return false;} }) || null;
+};
+window.cfRegisterView({
+  id:'view-exposure',
+  isOpen:function(){return !!window.__conflictedExposureOpen;},
+  render:function(){if(typeof window.renderExposureView==='function')window.renderExposureView();}
+});
+window.cfRegisterView({
+  id:'view-watch',
+  isOpen:function(){return !!window.__conflictedWatchOpen;},
+  render:function(){if(typeof window.renderWatchView==='function')window.renderWatchView();},
+  onShow:function(){document.body.classList.add('wp-active');}
+});
+window.cfRegisterView({
+  id:'view-snapshot',
+  isOpen:function(){return !!window.__cfSnapshotOpen;},
+  render:function(){if(typeof window.__cfRenderSnapshot==='function')window.__cfRenderSnapshot();}
+});
 function showAbout(){
   hideAll();
   const v=document.getElementById('view-about');
@@ -5954,7 +5988,12 @@ function renderBoard(data,username){
   // a "snap to dashboard" on every week/season change.
   const _boardEl=document.getElementById('board');
   const _alreadyOnBoard=!!(_boardEl && _boardEl.style.display && _boardEl.style.display!=='none');
-  if(!_expoOpen && !_watchOpen && !_alreadyOnBoard && !leagueMgmtViewOpen()){showBoard();}
+  /* Registry-driven: if the user is on ANY registered nav view (Exposure, Watch,
+     Snapshot, or any future view), do NOT call showBoard() — that would run
+     hideAll() and clobber them to the dashboard. The per-flag checks below are
+     kept as a defensive fallback in case the registry hasn't populated yet. */
+  const _activeView=(typeof window.cfActiveView==='function')?window.cfActiveView():null;
+  if(!_activeView && !_expoOpen && !_watchOpen && !window.__cfSnapshotOpen && !_alreadyOnBoard && !leagueMgmtViewOpen()){showBoard();}
   updateNavUI();
   (function(b){if(b)b.classList.toggle('visible',isDemoMode);})(document.getElementById('banner-demo'));
   document.getElementById('banner-offseason').classList.toggle('visible',!isDemoMode&&!!offseasonMode);
@@ -6053,10 +6092,22 @@ function renderBoard(data,username){
   reconcilePriorityOrder(currentContexts);
   updateSettingsPanel();
   if(shouldAutoLaunchPriority(currentContexts))showPriorityOnboarding(currentContexts);
-  if(window.__conflictedExposureOpen&&typeof renderExposureView==='function'){try{['setup-panel','loading-panel','error-panel','board','priority-panel','view-watch'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});var _vexp=document.getElementById('view-exposure');if(_vexp)_vexp.style.display='block';renderExposureView();}catch(e){console.warn('exposure rerender failed',e);}}
-  if(window.__conflictedWatchOpen&&typeof renderWatchView==='function'){try{['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});var _vwch=document.getElementById('view-watch');if(_vwch)_vwch.style.display='block';document.body.classList.add('wp-active');renderWatchView();}catch(e){console.warn('watch rerender failed',e);}}
-  /* Weekend Snapshot: keep it live on the same refresh tick the board uses. */
-  if(window.__cfSnapshotOpen&&typeof window.__cfRenderSnapshot==='function'){try{['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});var _vsnap=document.getElementById('view-snapshot');if(_vsnap)_vsnap.style.display='block';window.__cfRenderSnapshot();}catch(e){console.warn('snapshot rerender failed',e);}}
+  /* Registry-driven re-show: if the user navigated to any registered nav view
+     (Exposure / Watch / Snapshot / any future view), keep them on it and repaint
+     it with the fresh data on the same tick the board refreshes — instead of
+     leaving the board on top. Replaces the old per-view hardcoded blocks so new
+     views are covered automatically (see cfRegisterView near hideAll). */
+  var _av=(typeof window.cfActiveView==='function')?window.cfActiveView():null;
+  if(_av){
+    try{
+      var _hideIds=['setup-panel','loading-panel','error-panel','board','priority-panel']
+        .concat((window.__cfViewRegistry||[]).map(function(v){return v.id;}));
+      _hideIds.forEach(function(id){ if(id===_av.id)return; var el=document.getElementById(id); if(el)el.style.display='none'; });
+      var _avEl=document.getElementById(_av.id); if(_avEl)_avEl.style.display='block';
+      if(typeof _av.onShow==='function')_av.onShow();
+      if(typeof _av.render==='function')_av.render();
+    }catch(e){console.warn('active-view rerender failed',e);}
+  }
 }
 
 /* ── Yahoo data layer (unchanged from prior implementation) ── */
