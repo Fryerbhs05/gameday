@@ -3908,8 +3908,9 @@
   .cf-card.flip{border-left:3px solid var(--cs-blue);}
   .cf-card.cwin{border:1.5px solid var(--cs-green);box-shadow:0 0 18px rgba(93,202,165,.34);}
   .cf-card.closs{opacity:.5;border-left:3px solid var(--cs-dull);}
-  .cf-c-row1{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
-  .cf-c-name{font-size:14px;font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;min-width:0;overflow-wrap:anywhere;}
+  .cf-c-row1{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  .cf-c-name{font-size:14px;font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;flex:1 1 auto;min-width:0;line-height:1.25;overflow-wrap:break-word;}
+  .cf-c-status{margin-top:1px;}
   .cf-c-status{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.07em;flex:none;}
   .cf-c-score{display:flex;align-items:baseline;gap:9px;margin-bottom:8px;}
   .cf-c-sc{display:flex;align-items:baseline;gap:5px;}
@@ -12900,7 +12901,11 @@ initThemeToggle();
     else if(r.pending){
       ic='&#128197;';
       if(!r.hasProj){ txt='Hasn’t kicked off yet.'; }
-      else { var d=r.projMy-r.projOpp; txt=(Math.abs(d)<0.1)?'Coin flip &mdash; dead even.':'Coin flip &mdash; projected <b>'+(d>=0?'+'+nf(d):'&minus;'+nf(Math.abs(d)))+'</b>.'; }
+      else { var d=r.projMy-r.projOpp, mg='<b>'+(d>=0?'+'+nf(d):'&minus;'+nf(Math.abs(d)))+'</b>';
+        if(r.state==='flip'){ txt=(Math.abs(d)<0.1)?'Coin flip &mdash; dead even.':'Coin flip &mdash; projected '+mg+'.'; }
+        else if(d>=0){ txt='Favored &mdash; projected '+mg+'.'; }
+        else { txt='Underdog &mdash; projected '+mg+'.'; }
+      }
     }
     else if(gap>=0){ic='&#9650;';txt='Up <b>'+nf(gap)+'</b>'+(r.oppToGo.length?' &mdash; they\'ve only got '+names(r.oppToGo)+' left.':' and pulling away.');}
     else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myToGo.length?' with '+names(r.myToGo)+' still to go.':'.');}
