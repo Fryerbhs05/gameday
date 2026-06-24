@@ -1155,8 +1155,10 @@
       border-radius: var(--radius-pill) 0 0 var(--radius-pill);
       transition: width var(--duration-fast) var(--ease-out);
     }
-    /* White centerline marker — sits at the 50% point and extends slightly
-       above and below the bar so it reads as a clear midpoint tick. */
+    /* White divider tick — JS sets its `left` to the coral/navy boundary so it
+       rides the point where your projection meets your opponent's (no longer a
+       fixed 50% center). Extends slightly above/below the bar to read as a clear
+       split marker. The 50% here is just a pre-JS default. */
     .score-cell__proj-mid {
       position: absolute; left: 50%; top: -3px; bottom: -3px;
       width: 2px; transform: translateX(-1px);
@@ -5285,6 +5287,7 @@ function applyScoreCellProj(cell, ctx, st){
   const myP=+ctx.myProjPts||0, oppP=+ctx.oppProjPts||0, total=myP+oppP;
   const showState = st==='LIVE'||st==='LOCKED_WIN'||st==='LOCKED_LOSS';
   const fill=wrap.querySelector('.score-cell__proj-fill');
+  const mid=wrap.querySelector('.score-cell__proj-mid');
   const youEl=wrap.querySelector('.score-cell__proj-you');
   const oppEl=wrap.querySelector('.score-cell__proj-opp');
   // Always render the block so every card keeps the same height and the
@@ -5296,14 +5299,22 @@ function applyScoreCellProj(cell, ctx, st){
   if(!showState || total<=0){
     wrap.classList.add('is-empty');
     if(fill)fill.style.width='0%';
+    if(mid)mid.style.left='50%';
     if(youEl)youEl.textContent='—';
     if(oppEl)oppEl.textContent='—';
     return;
   }
   wrap.classList.remove('is-empty');
-  // Your share of the combined projection, clamped so neither color vanishes.
-  const pct=Math.max(4,Math.min(96,(myP/total)*100));
+  // Visual split is AMPLIFIED so projection margins read at a glance: a raw share
+  // of 53% (e.g. 160 vs 141) looks near-even, which undersells a 19-pt lead. We
+  // take your share's signed deviation from 50% and multiply it by
+  // PROJ_SENSITIVITY before clamping, so modest gaps tilt the bar noticeably.
+  // Bump PROJ_SENSITIVITY up for an even punchier bar, down toward 1 for literal.
+  const PROJ_SENSITIVITY=4;
+  const dev=(myP/total)-0.5;                                 // signed: + = you ahead
+  const pct=Math.max(6,Math.min(94,50+dev*100*PROJ_SENSITIVITY));
   if(fill)fill.style.width=pct.toFixed(1)+'%';
+  if(mid)mid.style.left=pct.toFixed(1)+'%';                  // divider rides the coral/navy boundary
   if(youEl)youEl.textContent=myP.toFixed(1);
   if(oppEl)oppEl.textContent=oppP.toFixed(1);
 }
