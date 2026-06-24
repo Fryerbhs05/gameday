@@ -3187,6 +3187,11 @@
       </button>
     </li>
     <li role="none" class="menu-app-only exp-tabbar-dupe">
+      <button class="menu-drawer__item" data-menu-action="snapshot" role="menuitem" type="button">
+        <span>Weekend Snapshot</span>
+      </button>
+    </li>
+    <li role="none" class="menu-app-only exp-tabbar-dupe">
       <button class="menu-drawer__item" data-menu-action="exposure" role="menuitem" type="button">
         <span>Exposure map</span>
       </button>
@@ -3252,9 +3257,9 @@
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></span>
     <span>GameDay</span>
   </button>
-  <button class="cbnav-tab" type="button" data-exp-tab="exposure" aria-label="Exposure map">
-    <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></svg></span>
-    <span>Exposure</span>
+  <button class="cbnav-tab" type="button" data-exp-tab="snapshot" aria-label="Weekend Snapshot">
+    <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M8 5l1.4-2h5.2L16 5"/></svg></span>
+    <span>Snapshot</span>
   </button>
   <button class="cbnav-tab" type="button" data-exp-tab="schedule" aria-label="Schedule (watch priority)">
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></svg></span>
@@ -3275,6 +3280,7 @@
 <script>
   (function() {
     var ITEMS = [
+      { key: 'exposure', label: 'Exposure', soon: false, svg: '<path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/>' },
       { key: 'about',    label: 'About',    soon: false, svg: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/>' },
       { key: 'shop',     label: 'Shop',     soon: true,  svg: '<path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/>' },
       { key: 'blog',     label: 'Blog',     soon: true,  svg: '<rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>' },
@@ -3305,6 +3311,7 @@
       var action = btn.getAttribute('data-more-action');
       if (window.BottomSheet) window.BottomSheet.close();
       if (action === 'about' && typeof window.showAbout === 'function') { window.showAbout(); window.scrollTo(0, 0); }
+      else if (action === 'exposure' && typeof window.showExposure === 'function') { window.showExposure(); window.scrollTo(0, 0); }
     });
   })();
 </script>
@@ -3861,6 +3868,135 @@
   </div>
 </div>
 
+<!-- ══ WEEKEND SNAPSHOT ════════════════════════════════════════ -->
+<style>
+  /* The snapshot is an always-dark, brand-locked share asset, so its colors are
+     hardcoded (independent of the app's light/dark theme) — same approach as the
+     scoreboard share image. */
+  #view-snapshot{display:none;max-width:var(--max-width);margin:0 auto;padding:18px var(--gutter) 96px;
+    --cs-navy-900:#0F2235;--cs-navy-800:#15293E;--cs-navy-700:#1A3A52;--cs-navy-card:#16304A;--cs-navy-line:#27425F;
+    --cs-coral:#E88761;--cs-cream:#F5EFE4;--cs-ink-700:#E0DACA;--cs-ink-500:#9E988A;--cs-ink-400:#7C8694;
+    --cs-green:#5DCAA5;--cs-red:#E07A6E;--cs-blue:#7AA8D1;--cs-dull:#6b4a45;}
+  .cf-snap-wrap{max-width:420px;margin:0 auto;}
+  .cf-snap-toggle{display:flex;background:var(--cs-navy-800);border:1px solid var(--cs-navy-line);border-radius:12px;padding:3px;gap:3px;margin-bottom:11px;}
+  .cf-snap-toggle button{flex:1;border:none;background:transparent;color:var(--cs-ink-400);font-family:var(--font-sans),'Inter',sans-serif;font-weight:800;font-size:12px;letter-spacing:.04em;padding:9px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,color .15s;}
+  .cf-snap-toggle button svg{width:14px;height:14px;}
+  .cf-snap-toggle button.is-on{background:var(--cs-navy-700);color:var(--cs-cream);}
+  .cf-snap-share{width:100%;border:none;background:var(--cs-coral);color:#0F2235;font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:13.5px;letter-spacing:.02em;padding:13px;border-radius:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;}
+  .cf-snap-share:active{transform:scale(.99);}
+  .cf-snap-share[hidden]{display:none;}
+  #cf-snap-frame{background:var(--cs-navy-900);border:1px solid var(--cs-navy-line);border-radius:20px;padding:20px 16px 16px;}
+  .cf-snap-wm{display:flex;justify-content:center;margin-bottom:7px;}
+  .cf-snap-wm svg{width:178px;height:auto;display:block;}
+  .cf-snap-kicker{text-align:center;font-size:9px;letter-spacing:.32em;font-weight:700;color:var(--cs-ink-500);margin-bottom:13px;}
+  .cf-snap-hero{text-align:center;margin-bottom:15px;}
+  .cf-snap-hero-big{font-size:29px;font-weight:900;color:var(--cs-cream);letter-spacing:-.02em;line-height:1.05;}
+  .cf-snap-hero-big span{color:var(--cs-green);}
+  .cf-snap-hero-sub{font-size:11px;font-weight:700;color:var(--cs-ink-400);letter-spacing:.03em;margin-top:6px;}
+  #view-snapshot .dot{width:6px;height:6px;border-radius:50%;flex:none;}
+  #view-snapshot .dot.pulse{transition:opacity .5s ease-in-out,transform .5s ease-in-out;}
+  #view-snapshot .dot.pulse.dim{opacity:.28;transform:scale(.6);}
+  /* check-back note */
+  .cf-snap-note{text-align:center;padding:26px 14px 30px;}
+  .cf-snap-note .ico{font-size:30px;}
+  .cf-snap-note h4{font-size:16px;font-weight:900;color:var(--cs-cream);margin:12px 0 6px;letter-spacing:-.01em;}
+  .cf-snap-note p{font-size:12.5px;font-weight:600;color:var(--cs-ink-500);line-height:1.45;max-width:260px;margin:0 auto;}
+  /* LIST cards */
+  .cf-card{background:var(--cs-navy-card);border:1px solid var(--cs-navy-line);border-radius:15px;padding:12px 14px 13px;margin-bottom:10px;}
+  .cf-card.win{border-left:3px solid var(--cs-green);}
+  .cf-card.loss{border-left:3px solid var(--cs-red);}
+  .cf-card.flip{border-left:3px solid var(--cs-blue);}
+  .cf-card.cwin{border:1.5px solid var(--cs-green);box-shadow:0 0 18px rgba(93,202,165,.34);}
+  .cf-card.closs{opacity:.5;border-left:3px solid var(--cs-dull);}
+  .cf-c-row1{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+  .cf-c-name{font-size:14px;font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cf-c-status{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.07em;flex:none;}
+  .cf-c-score{display:flex;align-items:baseline;gap:9px;margin-bottom:8px;}
+  .cf-c-sc{display:flex;align-items:baseline;gap:5px;}
+  .cf-c-sc .who{font-size:9px;font-weight:800;color:var(--cs-ink-500);letter-spacing:.06em;}
+  .cf-c-sc .pts{font-size:18px;font-weight:900;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+  .cf-c-sc.you .pts{color:var(--cs-cream);}
+  .cf-c-sc.opp .pts{color:var(--cs-ink-400);}
+  .cf-c-vs{font-size:10px;color:var(--cs-ink-500);font-weight:700;}
+  .cf-c-tag{font-size:9px;color:var(--cs-ink-500);font-weight:700;letter-spacing:.03em;margin-left:auto;align-self:center;text-transform:uppercase;}
+  .cf-c-barwrap{margin-bottom:8px;}
+  .cf-c-bar{height:6px;border-radius:4px;background:var(--cs-navy-700);overflow:hidden;}
+  .cf-c-bar i{height:100%;display:block;border-radius:4px;}
+  .cf-c-barlbl{display:flex;justify-content:space-between;margin-top:5px;font-size:10px;font-weight:700;}
+  .cf-c-barlbl .muted{color:var(--cs-ink-500);}
+  .cf-c-detail{font-size:12px;font-weight:600;color:var(--cs-ink-700);line-height:1.35;display:flex;align-items:flex-start;gap:6px;}
+  .cf-c-detail b{color:var(--cs-cream);font-weight:800;}
+  .cf-c-detail .nm{color:var(--cs-cream);font-weight:800;}
+  /* GRID tiles */
+  .cf-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+  .cf-tile{border-radius:13px;padding:10px 12px;min-height:84px;display:flex;flex-direction:column;justify-content:space-between;border:1px solid var(--cs-navy-line);background:var(--cs-navy-card);}
+  .cf-tile.win{background:rgba(93,202,165,.12);border-color:rgba(93,202,165,.5);}
+  .cf-tile.loss{background:rgba(224,122,110,.11);border-color:rgba(224,122,110,.5);}
+  .cf-tile.flip{background:rgba(122,168,209,.12);border-color:rgba(122,168,209,.5);}
+  .cf-tile.cwin{background:rgba(93,202,165,.22);border:1.5px solid var(--cs-green);box-shadow:0 0 16px rgba(93,202,165,.4);}
+  .cf-tile.closs{background:rgba(107,74,69,.15);border-color:var(--cs-dull);opacity:.5;}
+  .cf-t-name{font-size:11.5px;font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;text-align:center;}
+  .cf-t-row{display:flex;align-items:center;gap:6px;}
+  .cf-t-stat{flex:1;text-align:center;font-size:25px;font-weight:900;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;}
+  .cf-t-stat small{font-size:12px;font-weight:800;}
+  .cf-t-status{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;font-size:9px;font-weight:800;letter-spacing:.06em;}
+  .cf-t-result{text-align:center;font-size:16px;font-weight:900;letter-spacing:-.02em;line-height:1.05;}
+  .cf-t-score{display:flex;align-items:baseline;justify-content:center;gap:5px;margin-top:6px;}
+  .cf-t-score .lbl{font-size:8px;font-weight:800;letter-spacing:.08em;color:var(--cs-ink-500);}
+  .cf-t-score .you{font-size:13px;font-weight:900;color:var(--cs-cream);font-variant-numeric:tabular-nums;}
+  .cf-t-score .dash{font-size:11px;font-weight:700;color:var(--cs-ink-500);}
+  .cf-t-score .opp{font-size:13px;font-weight:800;color:var(--cs-ink-400);font-variant-numeric:tabular-nums;}
+  .cf-snap-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--cs-navy-line);}
+  .cf-snap-foot .cf-snap-brand svg{width:120px;height:auto;display:block;}
+  .cf-snap-foot-txt{font-size:9px;color:var(--cs-ink-500);font-weight:800;letter-spacing:.06em;}
+</style>
+<div id="view-snapshot">
+  <div class="cf-snap-wrap">
+    <div class="cf-snap-toggle" role="tablist" id="cf-snap-toggle">
+      <button id="cf-snap-btn-list" class="is-on" type="button" data-cf-view="list" role="tab">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>
+        List
+      </button>
+      <button id="cf-snap-btn-grid" type="button" data-cf-view="grid" role="tab">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+        Grid
+      </button>
+    </div>
+
+    <div id="cf-snap-frame">
+      <div class="cf-snap-wm">
+        <svg viewBox="0 0 480 78" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Conflicted">
+          <defs><clipPath id="cfsnapHL"><rect x="0" y="0" width="240" height="78"/></clipPath><clipPath id="cfsnapHR"><rect x="240" y="0" width="240" height="78"/></clipPath></defs>
+          <text x="240" y="54" text-anchor="middle" clip-path="url(#cfsnapHL)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#7AA8D1">CONFLICTED</text>
+          <text x="240" y="54" text-anchor="middle" clip-path="url(#cfsnapHR)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#E88761">CONFLICTED</text>
+          <line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/>
+        </svg>
+      </div>
+      <div class="cf-snap-kicker" id="cf-snap-kicker">WEEKEND SNAPSHOT</div>
+      <div class="cf-snap-hero">
+        <div class="cf-snap-hero-big" id="cf-snap-hero">&nbsp;</div>
+        <div class="cf-snap-hero-sub" id="cf-snap-sub"></div>
+      </div>
+
+      <div id="cf-snap-content"></div>
+
+      <div class="cf-snap-foot">
+        <div class="cf-snap-brand">
+          <svg viewBox="0 0 480 78" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Conflicted">
+            <defs><clipPath id="cfsnapFL"><rect x="0" y="0" width="240" height="78"/></clipPath><clipPath id="cfsnapFR"><rect x="240" y="0" width="240" height="78"/></clipPath></defs>
+            <text x="240" y="54" text-anchor="middle" clip-path="url(#cfsnapFL)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#7AA8D1">CONFLICTED</text>
+            <text x="240" y="54" text-anchor="middle" clip-path="url(#cfsnapFR)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#E88761">CONFLICTED</text>
+            <line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/>
+          </svg>
+        </div>
+        <div class="cf-snap-foot-txt" id="cf-snap-footcount"></div>
+      </div>
+    </div>
+
+    <button class="cf-snap-share" id="cf-snap-share" type="button">&#x2197;&nbsp; Share my weekend</button>
+  </div>
+</div>
+
 <!-- ══ EXPOSURE MAP ════════════════════════════════════════════ -->
 <div id="view-exposure">
   <div class="exp-head">
@@ -4089,6 +4225,10 @@ async function fetchNflGameStates(season,week){
   }catch(e){console.warn('NFL game state fetch failed:',e.message);}
 }
 function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.team)==='in';}
+/* Accessors so the Weekend Snapshot script (separate IIFE) can read the
+   module-scoped NFL game maps. 'pre' | 'in' | 'post' | null. */
+window.__cfGameState=function(team){try{return (team&&nflGameStates.get(team))||null;}catch(e){return null;}};
+window.__cfGameClock=function(team){try{return (team&&nflGameClocks.get(team))||'';}catch(e){return'';}};
 function loadLiveOnlyState(){try{liveOnly=localStorage.getItem(LIVE_ONLY_KEY)==='1';}catch(e){liveOnly=false;}}
 function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1':'0');}catch(e){}}
 function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();applyFilters();}
@@ -4443,7 +4583,8 @@ function ctxBadge(sig,isHist){
 }
 
 function hideAll(){
-  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch','view-settings','view-connections','view-account','view-account-delete','view-about'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-snapshot','view-exposure','view-watch','view-settings','view-connections','view-account','view-account-delete','view-about'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  window.__cfSnapshotOpen=false;
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('week-label').style.display='none';
   window.__connectionsViewActive=false;
@@ -5899,6 +6040,8 @@ function renderBoard(data,username){
   if(shouldAutoLaunchPriority(currentContexts))showPriorityOnboarding(currentContexts);
   if(window.__conflictedExposureOpen&&typeof renderExposureView==='function'){try{['setup-panel','loading-panel','error-panel','board','priority-panel','view-watch'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});var _vexp=document.getElementById('view-exposure');if(_vexp)_vexp.style.display='block';renderExposureView();}catch(e){console.warn('exposure rerender failed',e);}}
   if(window.__conflictedWatchOpen&&typeof renderWatchView==='function'){try{['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});var _vwch=document.getElementById('view-watch');if(_vwch)_vwch.style.display='block';document.body.classList.add('wp-active');renderWatchView();}catch(e){console.warn('watch rerender failed',e);}}
+  /* Weekend Snapshot: keep it live on the same refresh tick the board uses. */
+  if(window.__cfSnapshotOpen&&typeof window.__cfRenderSnapshot==='function'){try{['setup-panel','loading-panel','error-panel','board','priority-panel','view-exposure','view-watch'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});var _vsnap=document.getElementById('view-snapshot');if(_vsnap)_vsnap.style.display='block';window.__cfRenderSnapshot();}catch(e){console.warn('snapshot rerender failed',e);}}
 }
 
 /* ── Yahoo data layer (unchanged from prior implementation) ── */
@@ -6320,13 +6463,13 @@ async function loadData(){
     lg.myPlayers.forEach(p=>{
       const e=ensure(p);
       if(!e.myLeagues.includes(lg.leagueName))e.myLeagues.push(lg.leagueName);
-      const k=ptsKey(p);const pts=ctx?.myPP[k]??null,proj=projForPlayer(p);
+      const k=ptsKey(p);const pts=ctx?.myPP[k]??null,proj=(ctx&&ctx.myProjPP&&ctx.myProjPP[k]!=null)?ctx.myProjPP[k]:projForPlayer(p);
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
     });
     lg.oppPlayers.forEach(p=>{
       const e=ensure(p);
       if(!e.againstLeagues.includes(lg.leagueName))e.againstLeagues.push(lg.leagueName);
-      const k=ptsKey(p);const pts=ctx?.oppPP[k]??null,proj=projForPlayer(p);
+      const k=ptsKey(p);const pts=ctx?.oppPP[k]??null,proj=(ctx&&ctx.oppProjPP&&ctx.oppProjPP[k]!=null)?ctx.oppProjPP[k]:projForPlayer(p);
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
     });
     (lg.myBench||[]).forEach(p=>{
@@ -6726,7 +6869,7 @@ async function run(){
        refresh, or a non-dashboard view), keep it — replacing a populated screen
        with the full-page error panel is worse than silently staying stale. The
        error panel is reserved for cold loads where there's nothing to show. */
-    if(isDashboardVisible()||window.__conflictedExposureOpen||window.__conflictedWatchOpen||leagueMgmtViewOpen()){
+    if(isDashboardVisible()||window.__conflictedExposureOpen||window.__conflictedWatchOpen||window.__cfSnapshotOpen||leagueMgmtViewOpen()){
       console.warn('refresh failed; keeping current view:',err.message);
     }else{
       showError(err.message||'Something went wrong on our end. Refreshing usually fixes it.');
@@ -7445,6 +7588,7 @@ function parseEspnLeague(data,season,week,isHist){
 
   let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0;
   let myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0;
+  let myProjPP={},oppProjPP={};   // per-player ESPN projections (statSourceId 1), for the Weekend Snapshot win-prob engine
 
   if(matchup){
     hasMatchup=true;
@@ -7483,9 +7627,12 @@ function parseEspnLeague(data,season,week,isHist){
 
     /* Project totals derived per-player from ESPN's projection rows, then
        fed into the same calcLiveState/calcHistoricalState helpers Sleeper
-       uses — keeps state-decision logic identical across providers. */
-    const myProj=myStarters.reduce((s,e)=>s+(espnPlayerStat(e,week,1)||0),0);
-    const oppProj=oppStarters.reduce((s,e)=>s+(espnPlayerStat(e,week,1)||0),0);
+       uses — keeps state-decision logic identical across providers. We also
+       keep the PER-PLAYER projections (not just the sum) so the Weekend
+       Snapshot win-prob engine can read remaining/to-go data like Sleeper. */
+    let myProj=0,oppProj=0;
+    myStarters.forEach(e=>{const obj=espnPlayerObj(e);if(!obj)return;const pr=espnPlayerStat(e,week,1);if(pr!==null){myProjPP[obj.player_key]=pr;myProj+=pr;}});
+    oppStarters.forEach(e=>{const obj=espnPlayerObj(e);if(!obj)return;const pr=espnPlayerStat(e,week,1);if(pr!==null){oppProjPP[obj.player_key]=pr;oppProj+=pr;}});
     myProjPts=myProj;oppProjPts=oppProj;
     leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,myProj,oppProj);
   }else{
@@ -7501,7 +7648,7 @@ function parseEspnLeague(data,season,week,isHist){
 
   return{
     lg:{leagueName,myPlayers,oppPlayers,myBench,oppBench,hasMatchup,fmt},
-    ctx:{leagueName,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,fmt},
+    ctx:{leagueName,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,myProjPP,oppProjPP,fmt},
     dbg:{name:leagueName,leagueId,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr:false}
   };
 }
@@ -8954,6 +9101,17 @@ const PRIORITY_SET_KEY='gd_priority_set',PRIORITY_ORDER_KEY='gd_priority_order',
 let currentContexts=[];
 let currentLeagues=[]; // per-league rosters (myPlayers, oppPlayers, myBench, oppBench, hasMatchup, fmt) — used by the dashboard matchup drawer
 let priorityOrder=[];
+/* Tier accessor for the Weekend Snapshot sort (separate IIFE). Mirrors
+   imTierFromName: 1 = top priority. Tier is used ONLY for sorting — it is
+   never displayed in the snapshot. */
+window.__cfTier=function(name){
+  try{
+    if(typeof priorityEqual!=='undefined'&&priorityEqual)return 1;
+    if(typeof priorityTiers!=='undefined'&&priorityTiers&&priorityTiers[name]!=null)return priorityTiers[name];
+    var idx=(typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder))?priorityOrder.indexOf(name):-1;
+    var rank=idx<0?99:idx+1;return rank===1?1:(rank===2?2:3);
+  }catch(e){return 1;}
+};
 let priorityTiers={};        // { leagueName: tierNumber (1 = top) }
 let priorityEqual=false;
 let priorityDraftOrder=[];
@@ -11640,12 +11798,14 @@ initThemeToggle();
 
     function syncActive() {
       var board = document.getElementById('board');
+      var snap = document.getElementById('view-snapshot');
       var expo = document.getElementById('view-exposure');
       var watch = document.getElementById('view-watch');
       var account = document.getElementById('view-account');
       var settings = document.getElementById('view-settings');
       var connections = document.getElementById('view-connections');
       var onBoard = !!(board && board.style.display && board.style.display !== 'none');
+      var onSnap = !!(snap && snap.style.display && snap.style.display !== 'none');
       var onExpo = !!(expo && expo.style.display && expo.style.display !== 'none');
       var onWatch = !!(watch && watch.style.display && watch.style.display !== 'none');
       var onAccount = !!(account && account.style.display && account.style.display !== 'none');
@@ -11655,7 +11815,10 @@ initThemeToggle();
       var onAbout = !!(aboutEl && aboutEl.style.display && aboutEl.style.display !== 'none');
       drawer.querySelectorAll('[data-menu-action="about"]').forEach(function(btn){ btn.classList.toggle('is-active', onAbout); });
       drawer.querySelectorAll('[data-menu-action="dashboard"]').forEach(function(btn) {
-        btn.classList.toggle('is-active', onBoard && !onExpo && !onWatch);
+        btn.classList.toggle('is-active', onBoard && !onSnap && !onExpo && !onWatch);
+      });
+      drawer.querySelectorAll('[data-menu-action="snapshot"]').forEach(function(btn) {
+        btn.classList.toggle('is-active', onSnap);
       });
       drawer.querySelectorAll('[data-menu-action="exposure"]').forEach(function(btn) {
         btn.classList.toggle('is-active', onExpo);
@@ -11707,6 +11870,8 @@ initThemeToggle();
         if (action === 'dashboard') {
           if (typeof window.goToDashboardOrSetup === 'function') window.goToDashboardOrSetup();
           else if (typeof window.showBoard === 'function') window.showBoard();
+        } else if (action === 'snapshot') {
+          if (typeof window.showSnapshot === 'function') window.showSnapshot();
         } else if (action === 'exposure') {
           if (typeof window.showExposure === 'function') window.showExposure();
         } else if (action === 'watch-priority') {
@@ -11767,13 +11932,14 @@ initThemeToggle();
     // Highlight the active tab off the same view-display state the drawer reads.
     function syncActive() {
       var onBoard = visible('board');
+      var onSnap = visible('view-snapshot');
       var onExpo = visible('view-exposure');
       var onWatch = visible('view-watch');   // "Schedule" tab → watch-priority view
       var onAccount = visible('view-account');
-      // Settings / Connections / About are reachable only via the More drawer.
-      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about');
-      set('dashboard', onBoard && !onExpo && !onWatch);
-      set('exposure', onExpo);
+      // Settings / Connections / About / Exposure are reachable only via the More drawer.
+      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || onExpo;
+      set('dashboard', onBoard && !onSnap && !onExpo && !onWatch);
+      set('snapshot', onSnap);
       set('schedule', onWatch);
       set('account', onAccount);
       set('more', onMore);
@@ -11786,10 +11952,10 @@ initThemeToggle();
     }
     // Which tab represents the currently visible view (mirrors syncActive order).
     function currentTabKey() {
-      if (visible('view-exposure')) return 'exposure';
+      if (visible('view-snapshot')) return 'snapshot';
       if (visible('view-watch')) return 'schedule';
       if (visible('view-account')) return 'account';
-      if (visible('view-settings') || visible('view-connections') || visible('view-about')) return 'more';
+      if (visible('view-settings') || visible('view-connections') || visible('view-about') || visible('view-exposure')) return 'more';
       if (visible('board')) return 'dashboard';
       return null;
     }
@@ -11808,6 +11974,7 @@ initThemeToggle();
           // prior view (Watch/Exposure) instead of the board — making GameDay look dead.
           window.__conflictedWatchOpen = false;
           window.__conflictedExposureOpen = false;
+          window.__cfSnapshotOpen = false;
           document.body.classList.remove('wp-active');
           // The bottom nav is in-app navigation, so GameDay must NEVER route to
           // the landing/setup screen (which sets .nav-landing and hides the bar).
@@ -11821,8 +11988,8 @@ initThemeToggle();
             window.experimentGoDashboard(); // TestMode preview board — never the landing page
           }
           // else: no leagues connected → no dashboard to show; do nothing.
-        } else if (tab === 'exposure') {
-          if (typeof window.showExposure === 'function') window.showExposure();
+        } else if (tab === 'snapshot') {
+          if (typeof window.showSnapshot === 'function') window.showSnapshot();
         } else if (tab === 'schedule') {
           if (typeof window.showWatch === 'function') window.showWatch();
         } else if (tab === 'account') {
@@ -12582,6 +12749,303 @@ initThemeToggle();
   /* Tapping the overlay backdrop (only clickable while paused) dismisses. */
   document.addEventListener('DOMContentLoaded',syncToggle);
   document.addEventListener('visibilitychange',function(){if(document.hidden&&running)skipAll();});
+})();
+</script>
+
+<!-- ════ WEEKEND SNAPSHOT — engine + views + share ═══════════════════════════
+     Reads the live data object (window.__conflictedLastData) and the NFL game
+     maps (via window.__cfGameState / __cfGameClock) to render a single-screen,
+     shareable matchup board. Two views (List / Grid) behind a persisted toggle;
+     Share rasterises ONLY #cf-snap-frame (the toggle + button sit outside it). -->
+<script>
+(function(){
+  var SD={QB:7.5,RB:6.5,WR:6.5,TE:5.0,DST:6.0,DEF:6.0,K:3.0,FLEX:6.5,PK:3.0};
+  var TUNE=1.0;                 // global decisiveness knob (raise => softer %)
+  var COL={win:'#5DCAA5',loss:'#E07A6E',flip:'#7AA8D1',cwin:'#5DCAA5',closs:'#6b4a45'};
+  var VIEW_KEY='cf_snapshot_view';
+
+  function ncdf(z){ var t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);
+    var p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274)))); return z>0?1-p:p; }
+  function gameState(team){ try{ return (window.__cfGameState&&window.__cfGameState(team))||null; }catch(e){ return null; } }
+  function clockFrac(team){
+    try{
+      var c=(window.__cfGameClock&&window.__cfGameClock(team))||'';
+      if(!c)return 0.5; if(/final/i.test(c))return 0;
+      var qm=c.match(/Q(\d)/i), q=qm?parseInt(qm[1],10):0;
+      if(/OT/i.test(c))return 0.08;
+      var tm=c.match(/(\d{1,2}):(\d{2})/), mins=tm?(parseInt(tm[1],10)+parseInt(tm[2],10)/60):7.5;
+      if(!q)return 0.5;
+      var rem=(4-q)*15+mins; return Math.max(0,Math.min(1,rem/60));
+    }catch(e){ return 0.5; }
+  }
+  function shortName(p){
+    var pos=(p.position||'').toUpperCase();
+    if(pos==='DEF'||pos==='DST')return (p.team||p.full_name||'').toUpperCase();
+    var n=(p.full_name||'').trim(); if(!n)return ''; var parts=n.split(/\s+/); return parts[parts.length-1];
+  }
+  function tierOf(name){ try{ return (window.__cfTier&&window.__cfTier(name))||1; }catch(e){ return 1; } }
+
+  /* Build one row per league matchup from the live data object. */
+  function buildRows(){
+    var data=window.__conflictedLastData||null;
+    if(!data||data.noData||data.offseasonMode)return {rows:[],week:(data&&data.debugInfo&&data.debugInfo.week)||null,nodata:true};
+    var contexts=Array.isArray(data.contexts)?data.contexts:[];
+    var pool=Array.isArray(data.allRostered)?data.allRostered:[].concat(data.cheerFor||[],data.conflicted||[],data.enemies||[]);
+    var rows=[];
+    contexts.forEach(function(ctx){
+      if(!ctx||ctx.leagueState==='NO_MATCHUP')return;
+      var name=ctx.leagueName, ls=ctx.leagueState||'';
+      var curMy=+ctx.myPoints||0, curOpp=+ctx.oppPoints||0;
+      var projMy=+ctx.myProjPts||0, projOpp=+ctx.oppProjPts||0;
+      // starters on each side of THIS league
+      var mine=[],opp=[];
+      pool.forEach(function(p){
+        if(p.myLeagues&&p.myLeagues.indexOf(name)!==-1)mine.push(p);
+        else if(p.againstLeagues&&p.againstLeagues.indexOf(name)!==-1)opp.push(p);
+      });
+      var isFinal=ls.indexOf('FINAL')===0, isLocked=ls.indexOf('LOCKED')===0;
+      var isWin=ls.indexOf('WIN')!==-1, isLoss=ls.indexOf('LOSS')!==-1, isTie=ls.indexOf('TIE')!==-1;
+      var decided=isFinal||isLocked;
+      var pending=!decided && curMy<=0 && curOpp<=0;   // live state but nothing scored → pre-kickoff
+      var live=!decided && !pending;
+      // per-side remaining fraction — the variance fallback for players whose NFL
+      // game state is unknown (demo mode, or a team not in the scoreboard map yet)
+      var myRemFrac=Math.max(0,Math.min(1,(projMy-curMy)/Math.max(1,projMy)));
+      var oppRemFrac=Math.max(0,Math.min(1,(projOpp-curOpp)/Math.max(1,projOpp)));
+      var state,prob;
+
+      if(decided&&isWin){ state='cwin'; prob=1; }
+      else if(decided&&(isLoss||isTie)){ state='closs'; prob=0; }
+      else {
+        var myRem=Math.max(0,projMy-curMy), oppRem=Math.max(0,projOpp-curOpp);
+        var mu=(curMy-curOpp)+(myRem-oppRem), v=0;
+        function addVar(list,remFrac){ list.forEach(function(p){
+          var gs=gameState(p.team);
+          var frac=(gs==='post')?0:(gs==='in')?clockFrac(p.team):(gs==='pre'?1:remFrac);
+          if(frac<=0)return; var sd=SD[(p.position||'').toUpperCase()]||6.5; v+=sd*sd*frac;
+        }); }
+        addVar(mine,myRemFrac); addVar(opp,oppRemFrac);
+        var sigma=Math.sqrt(v)*TUNE;
+        prob=sigma<0.5?(mu>0?1:0):ncdf(mu/sigma);
+        prob=Math.max(0,Math.min(1,prob));
+        state=prob>=0.55?'win':(prob<=0.45?'loss':'flip');
+      }
+
+      // to-go names (not yet final), strongest projection first
+      function toGo(list){
+        return list.filter(function(p){ return gameState(p.team)!=='post'; })
+          .sort(function(a,b){ var pa=(a.leaguePoints&&a.leaguePoints[name]&&a.leaguePoints[name].proj)||0, pb=(b.leaguePoints&&b.leaguePoints[name]&&b.leaguePoints[name].proj)||0; return pb-pa; })
+          .map(shortName).filter(Boolean).slice(0,2);
+      }
+      rows.push({
+        name:name, tier:tierOf(name), state:state, prob:prob,
+        curMy:curMy, curOpp:curOpp, projMy:projMy, projOpp:projOpp,
+        pending:pending, live:live,
+        isFinal:isFinal, myToGo:toGo(mine), oppToGo:toGo(opp)
+      });
+    });
+    // sort: clinched wins top, clinched losses bottom; middle by tier → win → live → tiebreak
+    function rank(s){ return s==='cwin'?0:(s==='closs'?2:1); }
+    rows.sort(function(a,b){
+      if(rank(a.state)!==rank(b.state))return rank(a.state)-rank(b.state);
+      if(a.tier!==b.tier)return a.tier-b.tier;
+      if(rank(a.state)===1){
+        var aw=a.prob>0.5,bw=b.prob>0.5; if(aw!==bw)return aw?-1:1;
+        if(!!a.live!==!!b.live)return a.live?-1:1;
+        return aw?a.prob-b.prob:b.prob-a.prob;
+      }
+      return 0;
+    });
+    return {rows:rows, week:(data.debugInfo&&data.debugInfo.week)||null, nodata:false};
+  }
+
+  function nf(v){ return (Math.round(v*10)/10).toFixed(1); }
+  function names(arr){ return arr.map(function(n){return '<span class="nm">'+n+'</span>';}).join(' &amp; '); }
+  function margin(r){ return Math.abs(r.curMy-r.curOpp); }
+
+  /* ---- LIST card ---- */
+  function cardStatus(r){
+    if(r.state==='cwin')return '<span class="cf-c-status" style="color:#5DCAA5">&#10003; '+(r.isFinal?'WON':'CLINCHED')+'</span>';
+    if(r.state==='closs')return '<span class="cf-c-status" style="color:#8a6a64">&#10005; '+(r.isFinal?'FINAL':'OUT OF REACH')+'</span>';
+    if(r.pending)return '<span class="cf-c-status" style="color:#7AA8D1"><span class="dot" style="background:#7AA8D1"></span>PENDING</span>';
+    var c=COL[r.state]; return '<span class="cf-c-status" style="color:'+c+'"><span class="dot pulse" style="background:'+c+'"></span>LIVE</span>';
+  }
+  function cardScore(r){
+    var clinched=(r.state==='cwin'||r.state==='closs');
+    var you=clinched?r.curMy:(r.pending?r.projMy:r.curMy), opp=clinched?r.curOpp:(r.pending?r.projOpp:r.curOpp);
+    var yl=r.pending?'PROJ':(clinched?'FINAL':'YOU'), ol=r.pending?'PROJ':(clinched?'':'OPP');
+    var tag=clinched?'LOCKED':(r.pending?'NOT STARTED':'');
+    return '<div class="cf-c-score"><div class="cf-c-sc you"><span class="who">'+yl+'</span><span class="pts">'+nf(you)+'</span></div>'
+      +'<span class="cf-c-vs">vs</span><div class="cf-c-sc opp"><span class="who">'+ol+'</span><span class="pts">'+nf(opp)+'</span></div>'
+      +(tag?'<span class="cf-c-tag">'+tag+'</span>':'')+'</div>';
+  }
+  function cardBar(r){
+    var pct=Math.round(r.prob*100), fill=(r.state==='closs')?'#6b4a45':COL[r.state], w=(r.state==='cwin'||r.state==='closs')?100:pct, Lf,Rf;
+    if(r.state==='cwin'){Lf='<span style="color:#5DCAA5">'+(r.isFinal?'Win secured':'Clinched')+'</span>';Rf='<span class="muted">+'+nf(margin(r))+' &mdash; can\'t be caught</span>';}
+    else if(r.state==='closs'){Lf='<span style="color:#8a6a64">'+(r.isFinal?'Final':'Out of reach')+'</span>';Rf='<span class="muted">&minus;'+nf(margin(r))+'</span>';}
+    else{Lf='<span style="color:'+COL[r.state]+'">'+pct+'% win</span>';Rf='<span class="muted">'+(r.pending?'pre-kickoff projection':'projected')+'</span>';}
+    return '<div class="cf-c-barwrap"><div class="cf-c-bar"><i style="width:'+w+'%;background:'+fill+(r.state==='closs'?';opacity:.6':'')+'"></i></div><div class="cf-c-barlbl">'+Lf+Rf+'</div></div>';
+  }
+  function cardDetail(r){
+    var ic,txt,gap=r.curMy-r.curOpp;
+    if(r.state==='cwin'){ic='&#127942;';txt='Locked in. Nothing left to sweat here.';}
+    else if(r.state==='closs'){ic='&#128577;';txt='Out of reach &mdash; <b>&minus;'+nf(margin(r))+'</b>.';}
+    else if(r.pending){var d=r.projMy-r.projOpp;ic='&#128197;';txt='Coin flip &mdash; projected to '+(d>=0?'edge it by <b>+'+nf(d)+'</b>':'lose by <b>'+nf(Math.abs(d))+'</b>')+'.';}
+    else if(gap>=0){ic='&#9650;';txt='Up <b>'+nf(gap)+'</b>'+(r.oppToGo.length?' &mdash; they\'ve only got '+names(r.oppToGo)+' left.':' and pulling away.');}
+    else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myToGo.length?' with '+names(r.myToGo)+' still to go.':'.');}
+    return '<div class="cf-c-detail"><span>'+ic+'</span><span>'+txt+'</span></div>';
+  }
+  function cardHTML(r){
+    return '<div class="cf-card '+r.state+'"><div class="cf-c-row1"><span class="cf-c-name">'+r.name+'</span>'+cardStatus(r)+'</div>'
+      +cardScore(r)+cardBar(r)+cardDetail(r)+'</div>';
+  }
+
+  /* ---- GRID tile ---- */
+  function gridScore(r){
+    var clinched=(r.state==='cwin'||r.state==='closs');
+    var you=clinched?r.curMy:r.projMy, opp=clinched?r.curOpp:r.projOpp, lbl=clinched?'FINAL':'PROJ';
+    return '<div class="cf-t-score"><span class="lbl">'+lbl+'</span><span class="you">'+nf(you)+'</span><span class="dash">&ndash;</span><span class="opp">'+nf(opp)+'</span></div>';
+  }
+  function gridStatus(r){
+    if(r.pending)return '<span class="cf-t-status" style="color:#7AA8D1"><span class="dot" style="background:#7AA8D1"></span>PENDING</span>';
+    if(r.live){var c=COL[r.state];return '<span class="cf-t-status" style="color:'+c+'"><span class="dot pulse" style="background:'+c+'"></span>LIVE</span>';}
+    return '<span class="cf-t-status" style="color:#9E988A">UPCOMING</span>';
+  }
+  function tileHTML(r){
+    var inner;
+    if(r.state==='cwin'||r.state==='closs'){
+      var m=r.curMy-r.curOpp, won=m>=0;
+      var label=won?(r.isFinal?'Won by +':'Clinched +')+nf(Math.abs(m)):(r.isFinal?'Lost by ':'Out by ')+nf(Math.abs(m));
+      inner='<div class="cf-t-result" style="color:'+(won?'#5DCAA5':'#8a6a64')+'">'+label+'</div>'+gridScore(r);
+    }else{
+      inner='<div class="cf-t-row"><div class="cf-t-stat" style="color:'+COL[r.state]+'">'+Math.round(r.prob*100)+'<small>%</small></div>'+gridStatus(r)+'</div>'+gridScore(r);
+    }
+    return '<div class="cf-tile '+r.state+'"><div class="cf-t-name">'+r.name+'</div>'+inner+'</div>';
+  }
+
+  /* ---- render ---- */
+  var pulseTimer=null;
+  function startPulse(){
+    if(pulseTimer)return;
+    pulseTimer=setInterval(function(){
+      var d=document.querySelectorAll('#view-snapshot .dot.pulse');
+      for(var i=0;i<d.length;i++)d[i].classList.toggle('dim');
+    },850);
+  }
+  function getView(){ try{ var v=localStorage.getItem(VIEW_KEY); return (v==='grid')?'grid':'list'; }catch(e){ return 'list'; } }
+
+  function render(){
+    var frame=document.getElementById('cf-snap-frame'); if(!frame)return;
+    var built=buildRows(), rows=built.rows;
+    var kicker=document.getElementById('cf-snap-kicker');
+    if(kicker)kicker.textContent='WEEKEND SNAPSHOT'+(built.week?(' · WEEK '+built.week):'');
+    var toggle=document.getElementById('cf-snap-toggle');
+    var shareBtn=document.getElementById('cf-snap-share');
+    var hero=document.getElementById('cf-snap-hero');
+    var sub=document.getElementById('cf-snap-sub');
+    var foot=document.getElementById('cf-snap-footcount');
+    var content=document.getElementById('cf-snap-content');
+
+    if(built.nodata||!rows.length){
+      if(toggle)toggle.style.display='none';
+      if(shareBtn)shareBtn.hidden=true;
+      if(hero)hero.innerHTML='Your weekend, one screen';
+      if(sub)sub.textContent='';
+      if(foot)foot.textContent='';
+      if(content)content.innerHTML='<div class="cf-snap-note"><div class="ico">&#127944;</div><h4>No games to watch yet</h4><p>Your Weekend Snapshot lights up once the NFL week kicks off. Check back when the games begin.</p></div>';
+      return;
+    }
+    if(toggle)toggle.style.display='flex';
+    if(shareBtn)shareBtn.hidden=false;
+
+    var wins=rows.filter(function(r){return r.state==='cwin'||r.prob>0.5;}).length;
+    if(hero)hero.innerHTML='Winning <span>'+wins+'</span> of '+rows.length;
+    var parts=[],nC=rows.filter(function(r){return r.state==='cwin';}).length,
+        nLive=rows.filter(function(r){return r.live;}).length,
+        nP=rows.filter(function(r){return r.pending;}).length,
+        nL=rows.filter(function(r){return r.state==='closs';}).length;
+    if(nC)parts.push(nC+' clinched'); if(nLive)parts.push(nLive+' live now'); if(nP)parts.push(nP+' pending'); if(nL)parts.push(nL+' lost');
+    if(sub)sub.textContent=parts.join('  ·  ');
+    if(foot)foot.textContent=rows.length+' LEAGUE'+(rows.length===1?'':'S')+' · ONE SCREEN';
+
+    var view=getView();
+    document.getElementById('cf-snap-btn-list').classList.toggle('is-on',view==='list');
+    document.getElementById('cf-snap-btn-grid').classList.toggle('is-on',view==='grid');
+    if(view==='grid')content.innerHTML='<div class="cf-grid">'+rows.map(tileHTML).join('')+'</div>';
+    else content.innerHTML=rows.map(cardHTML).join('');
+    startPulse();
+  }
+  window.__cfRenderSnapshot=render;
+
+  function setView(v){ try{localStorage.setItem(VIEW_KEY,v);}catch(e){} render(); }
+
+  function showSnapshot(){
+    if(typeof window.hideAll==='function')window.hideAll();
+    var v=document.getElementById('view-snapshot'); if(v)v.style.display='block';
+    window.__cfSnapshotOpen=true;
+    render();
+    window.scrollTo(0,0);
+  }
+  window.showSnapshot=showSnapshot;
+
+  /* ---- PNG share: rasterise ONLY #cf-snap-frame (toggle + button excluded) ---- */
+  var htiPromise=null;
+  function loadHTI(){
+    if(window.htmlToImage)return Promise.resolve(window.htmlToImage);
+    if(htiPromise)return htiPromise;
+    htiPromise=new Promise(function(res,rej){
+      var s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.js';
+      s.onload=function(){res(window.htmlToImage);};
+      s.onerror=function(){htiPromise=null;rej(new Error('Snapshot library could not load.'));};
+      document.head.appendChild(s);
+    });
+    return htiPromise;
+  }
+  var sharing=false;
+  function setShareLabel(t){ var b=document.getElementById('cf-snap-share'); if(b)b.innerHTML=t; }
+  async function buildPng(){
+    var hti=await loadHTI();
+    if(!hti||typeof hti.toBlob!=='function')throw new Error('Snapshot library failed.');
+    if(document.fonts&&document.fonts.ready){try{await document.fonts.ready;}catch(e){}}
+    var frame=document.getElementById('cf-snap-frame');
+    var ratio=Math.min(2,window.devicePixelRatio||2);
+    var opts={backgroundColor:'#0F2235',pixelRatio:ratio,cacheBust:true};
+    var blob=null;
+    for(var i=0;i<3;i++){ blob=await hti.toBlob(frame,opts); }   // WebKit blanks the first pass
+    if(!blob)throw new Error('Could not render the image.');
+    return new File([blob],'conflicted-weekend-snapshot.png',{type:'image/png'});
+  }
+  async function doShare(){
+    if(sharing)return; sharing=true;
+    var orig='&#x2197;&nbsp; Share my weekend'; setShareLabel('Building image…');
+    try{
+      var file=await buildPng();
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        try{ await navigator.share({files:[file]}); }
+        catch(e){ if(e&&e.name==='AbortError'){/* user cancelled */} else { saveFile(file); } }
+      } else { saveFile(file); }
+    }catch(err){ setShareLabel('Couldn’t build image — tap to retry'); sharing=false;
+      setTimeout(function(){setShareLabel(orig);},1800); return; }
+    setShareLabel(orig); sharing=false;
+  }
+  function saveFile(file){
+    var url=URL.createObjectURL(file);
+    var ua=navigator.userAgent||'', iOS=/iP(hone|ad|od)/.test(ua)||(/Macintosh/.test(ua)&&'ontouchend'in document);
+    if(iOS){ window.open(url,'_blank'); }
+    else { var a=document.createElement('a');a.href=url;a.download='conflicted-weekend-snapshot.png';document.body.appendChild(a);a.click();a.remove(); }
+    setTimeout(function(){URL.revokeObjectURL(url);},4000);
+  }
+
+  /* ---- wiring ---- */
+  document.addEventListener('DOMContentLoaded',function(){
+    var t=document.getElementById('cf-snap-toggle');
+    if(t)t.addEventListener('click',function(e){ var b=e.target.closest('[data-cf-view]'); if(!b)return; setView(b.getAttribute('data-cf-view')); });
+    var sb=document.getElementById('cf-snap-share');
+    if(sb)sb.addEventListener('click',doShare);
+    /* warm the rasteriser ahead of the first share tap */
+    if('requestIdleCallback'in window)requestIdleCallback(function(){loadHTI().catch(function(){});},{timeout:4000});
+  });
 })();
 </script>
 </body>
