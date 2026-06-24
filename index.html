@@ -3882,7 +3882,7 @@
   .cf-snap-toggle button{flex:1;border:none;background:transparent;color:var(--cs-ink-400);font-family:var(--font-sans),'Inter',sans-serif;font-weight:800;font-size:12px;letter-spacing:.04em;padding:9px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,color .15s;}
   .cf-snap-toggle button svg{width:14px;height:14px;}
   .cf-snap-toggle button.is-on{background:var(--cs-navy-700);color:var(--cs-cream);}
-  .cf-snap-share{width:100%;border:none;background:var(--cs-coral);color:#0F2235;font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:13.5px;letter-spacing:.02em;padding:13px;border-radius:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;}
+  .cf-snap-share{width:100%;border:none;background:var(--cs-coral);color:#0F2235;font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:12.5px;letter-spacing:.02em;padding:8px 13px;border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;}
   .cf-snap-share:active{transform:scale(.99);}
   .cf-snap-share[hidden]{display:none;}
   #cf-snap-frame{background:var(--cs-navy-900);border:1px solid var(--cs-navy-line);border-radius:20px;padding:20px 16px 16px;}
@@ -3956,6 +3956,7 @@
 </style>
 <div id="view-snapshot">
   <div class="cf-snap-wrap">
+    <button class="cf-snap-share" id="cf-snap-share" type="button">&#x2197;&nbsp; Share my weekend</button>
     <div class="cf-snap-toggle" role="tablist" id="cf-snap-toggle">
       <button id="cf-snap-btn-list" class="is-on" type="button" data-cf-view="list" role="tab">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>
@@ -3997,7 +3998,6 @@
       </div>
     </div>
 
-    <button class="cf-snap-share" id="cf-snap-share" type="button">&#x2197;&nbsp; Share my weekend</button>
   </div>
 </div>
 
