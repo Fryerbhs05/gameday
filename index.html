@@ -1562,6 +1562,12 @@
     .cbnav-ico svg { width: 23px; height: 23px; display: block; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .cbnav-tab:active .cbnav-ico { transform: scale(0.92); }
     .cbnav-tab.is-on { color: var(--navy-700); }
+    /* Experiment swap: Conflict Card takes Schedule's slot in the bar for
+       experiment users; Schedule moves to the More sheet. Normal users keep
+       Schedule in the bar and never see Conflict here. */
+    .cbnav-conflict { display: none; }
+    body.experiment-active .cbnav-conflict { display: flex; }
+    body.experiment-active .cbnav-schedule { display: none; }
     .cbnav-tab.is-on .cbnav-ico {
       background: color-mix(in oklab, var(--navy-700) 14%, transparent);
       border-color: color-mix(in oklab, var(--navy-500) 40%, transparent);
@@ -3193,6 +3199,11 @@
         <span>Weekend Snapshot</span>
       </button>
     </li>
+    <li role="none" class="menu-app-only exp-only">
+      <button class="menu-drawer__item" data-menu-action="conflict" role="menuitem" type="button">
+        <span>Conflict Card</span>
+      </button>
+    </li>
     <li role="none" class="menu-app-only exp-tabbar-dupe">
       <button class="menu-drawer__item" data-menu-action="exposure" role="menuitem" type="button">
         <span>Exposure map</span>
@@ -3263,7 +3274,11 @@
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M8 5l1.4-2h5.2L16 5"/></svg></span>
     <span>Snapshot</span>
   </button>
-  <button class="cbnav-tab" type="button" data-exp-tab="schedule" aria-label="Schedule (watch priority)">
+  <button class="cbnav-tab cbnav-conflict" type="button" data-exp-tab="conflict" aria-label="Conflict Card">
+    <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg></span>
+    <span>Conflict</span>
+  </button>
+  <button class="cbnav-tab cbnav-schedule" type="button" data-exp-tab="schedule" aria-label="Schedule (watch priority)">
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></svg></span>
     <span>Schedule</span>
   </button>
@@ -3282,6 +3297,7 @@
 <script>
   (function() {
     var ITEMS = [
+      { key: 'schedule', label: 'Schedule', soon: false, expOnly: true, svg: '<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/>' },
       { key: 'exposure', label: 'Exposure', soon: false, svg: '<path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/>' },
       { key: 'about',    label: 'About',    soon: false, svg: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/>' },
       { key: 'shop',     label: 'Shop',     soon: true,  svg: '<path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/>' },
@@ -3290,7 +3306,8 @@
       { key: 'contact',  label: 'Contact',  soon: true,  svg: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/>' }
     ];
     function renderMoreSheet() {
-      var tiles = ITEMS.map(function(it) {
+      var expOn = !!(window.experimentEnabled && window.experimentEnabled());
+      var tiles = ITEMS.filter(function(it){ return !it.expOnly || expOn; }).map(function(it) {
         var cls = 'cbmore-tile' + (it.soon ? ' is-soon' : '');
         var attrs = it.soon ? 'aria-disabled="true"' : 'data-more-action="' + it.key + '"';
         var badge = it.soon ? '<span class="cbmore-badge">Soon</span>' : '';
@@ -3314,6 +3331,7 @@
       if (window.BottomSheet) window.BottomSheet.close();
       if (action === 'about' && typeof window.showAbout === 'function') { window.showAbout(); window.scrollTo(0, 0); }
       else if (action === 'exposure' && typeof window.showExposure === 'function') { window.showExposure(); window.scrollTo(0, 0); }
+      else if (action === 'schedule' && typeof window.showWatch === 'function') { window.showWatch(); window.scrollTo(0, 0); }
     });
   })();
 </script>
@@ -4642,8 +4660,9 @@ function ctxBadge(sig,isHist){
 }
 
 function hideAll(){
-  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-snapshot','view-exposure','view-watch','view-settings','view-connections','view-account','view-account-delete','view-about'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-snapshot','view-conflict','view-exposure','view-watch','view-settings','view-connections','view-account','view-account-delete','view-about'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   window.__cfSnapshotOpen=false;
+  window.__cfConflictOpen=false;
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('week-label').style.display='none';
   window.__connectionsViewActive=false;
@@ -12001,6 +12020,8 @@ initThemeToggle();
           else if (typeof window.showBoard === 'function') window.showBoard();
         } else if (action === 'snapshot') {
           if (typeof window.showSnapshot === 'function') window.showSnapshot();
+        } else if (action === 'conflict') {
+          if (typeof window.showConflictCard === 'function') window.showConflictCard();
         } else if (action === 'exposure') {
           if (typeof window.showExposure === 'function') window.showExposure();
         } else if (action === 'watch-priority') {
@@ -12064,12 +12085,16 @@ initThemeToggle();
       var onSnap = visible('view-snapshot');
       var onExpo = visible('view-exposure');
       var onWatch = visible('view-watch');   // "Schedule" tab → watch-priority view
+      var onConflict = visible('view-conflict');
       var onAccount = visible('view-account');
-      // Settings / Connections / About / Exposure are reachable only via the More drawer.
-      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || onExpo;
-      set('dashboard', onBoard && !onSnap && !onExpo && !onWatch);
+      // Settings / Connections / About / Exposure reachable via More. In experiment
+      // mode Schedule (watch) also lives in More, so it lights the More tab there.
+      var schedInBar = !document.body.classList.contains('experiment-active');
+      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || onExpo || (!schedInBar && onWatch);
+      set('dashboard', onBoard && !onSnap && !onExpo && !onWatch && !onConflict);
       set('snapshot', onSnap);
-      set('schedule', onWatch);
+      set('conflict', onConflict);
+      set('schedule', schedInBar && onWatch);
       set('account', onAccount);
       set('more', onMore);
     }
@@ -12082,7 +12107,8 @@ initThemeToggle();
     // Which tab represents the currently visible view (mirrors syncActive order).
     function currentTabKey() {
       if (visible('view-snapshot')) return 'snapshot';
-      if (visible('view-watch')) return 'schedule';
+      if (visible('view-conflict')) return 'conflict';
+      if (visible('view-watch')) return document.body.classList.contains('experiment-active') ? 'more' : 'schedule';
       if (visible('view-account')) return 'account';
       if (visible('view-settings') || visible('view-connections') || visible('view-about') || visible('view-exposure')) return 'more';
       if (visible('board')) return 'dashboard';
@@ -12119,6 +12145,8 @@ initThemeToggle();
           // else: no leagues connected → no dashboard to show; do nothing.
         } else if (tab === 'snapshot') {
           if (typeof window.showSnapshot === 'function') window.showSnapshot();
+        } else if (tab === 'conflict') {
+          if (typeof window.showConflictCard === 'function') window.showConflictCard();
         } else if (tab === 'schedule') {
           if (typeof window.showWatch === 'function') window.showWatch();
         } else if (tab === 'account') {
@@ -13190,6 +13218,227 @@ initThemeToggle();
     if('requestIdleCallback'in window)requestIdleCallback(function(){loadHTI().catch(function(){});},{timeout:4000});
   });
 })();
+</script>
+<!-- ════════════════════════════════════════════════════════════════════════
+     CONFLICT CARD (End-of-Week) — engine inline + view + nav registration.
+     Slot-derivation (SNF/MNF from schedule) and Sleeper-projection fill-in for
+     Yahoo players land in a follow-up pass; cfTeamSlot is stubbed for now.
+     ════════════════════════════════════════════════════════════════════════ -->
+<style>
+  #view-conflict{display:none;max-width:var(--max-width,520px);margin:0 auto;padding:18px var(--gutter,16px) 96px;
+    --c-navy900:#0F2235;--c-navy800:#15293E;--c-navy700:#1A3A52;--c-card:#16304A;--c-line:#27425F;
+    --c-coral:#E88761;--c-cream:#F5EFE4;--c-ink500:#9E988A;--c-ink400:#7C8694;
+    --c-green:#6BBF8C;--c-yellow:#D9A445;--c-red:#D86A5C;--c-blue:#7AA8D1;color:var(--c-cream);}
+  #view-conflict .cfc-frame{background:var(--c-navy900);border:1px solid var(--c-line);border-radius:18px;padding:18px 15px 14px;}
+  #view-conflict .cfc-kick{text-align:center;font-size:9px;letter-spacing:.28em;font-weight:800;color:var(--c-ink500);margin-bottom:14px;white-space:nowrap;}
+  #view-conflict .cfc-toggle{display:flex;gap:5px;background:#0b1722;border:1px solid var(--c-line);border-radius:11px;padding:4px;margin-bottom:14px;}
+  #view-conflict .cfc-toggle button{flex:1;font:inherit;font-size:11px;font-weight:900;letter-spacing:.05em;color:var(--c-ink400);background:transparent;border:none;border-radius:8px;padding:8px 6px;cursor:pointer;}
+  #view-conflict .cfc-toggle button.on{color:var(--c-cream);background:var(--c-navy700);}
+  #view-conflict .cfc-prov{display:flex;gap:7px;background:rgba(122,168,209,.10);border:1px solid rgba(122,168,209,.30);border-radius:10px;padding:8px 11px;margin-bottom:13px;font-size:10px;line-height:1.4;font-weight:700;color:var(--c-blue);}
+  #view-conflict .cfc-prov b{color:var(--c-cream);}
+  #view-conflict .cfc-cl{background:var(--c-navy800);border:1px solid var(--c-line);border-radius:13px;padding:13px 12px;margin-bottom:12px;}
+  #view-conflict .cfc-cl.feat{border-color:#33526f;}
+  #view-conflict .cfc-sent{font-size:13px;font-weight:700;font-style:italic;line-height:1.45;color:var(--c-cream);margin-bottom:11px;}
+  #view-conflict .cfc-sent b{font-style:normal;font-weight:900;color:var(--c-green);}
+  #view-conflict .cfc-chip{display:flex;justify-content:center;gap:8px;margin-bottom:12px;font-size:11px;font-weight:900;letter-spacing:.04em;}
+  #view-conflict .cfc-chip .pts{color:var(--c-cream);font-variant-numeric:tabular-nums;}
+  #view-conflict .cfc-chip .tag{padding:3px 11px;border-radius:999px;border:1px solid currentColor;}
+  #view-conflict .cfc-chip.s-in .tag{color:var(--c-green);}#view-conflict .cfc-chip.s-build .tag{color:var(--c-yellow);}#view-conflict .cfc-chip.s-hot .tag{color:var(--c-red);}
+  #view-conflict .cfc-players{display:flex;gap:7px;margin-bottom:14px;}
+  #view-conflict .cfc-p{flex:1;background:var(--c-card);border:1px solid var(--c-line);border-radius:10px;padding:8px;text-align:center;min-width:0;}
+  #view-conflict .cfc-p .nm{font-size:12px;font-weight:900;color:var(--c-cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #view-conflict .cfc-p .mt{font-size:8.5px;font-weight:700;color:var(--c-ink400);letter-spacing:.04em;margin-top:2px;white-space:nowrap;}
+  #view-conflict .cfc-bar{height:18px;border-radius:9px;overflow:hidden;position:relative;background:var(--c-navy800);}
+  #view-conflict .cfc-barwrap{position:relative;margin:0 2px;}
+  #view-conflict .cfc-live{position:absolute;top:-9px;height:36px;width:3px;background:var(--c-cream);transform:translateX(-50%);border-radius:2px;}
+  #view-conflict .cfc-live .lab{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:900;color:var(--c-cream);white-space:nowrap;}
+  #view-conflict .cfc-ghost{position:absolute;top:-2px;height:22px;border-left:2px dashed var(--c-ink400);transform:translateX(-50%);opacity:.6;}
+  #view-conflict .cfc-ticks{position:relative;margin-top:8px;height:24px;}
+  #view-conflict .cfc-ticks span{position:absolute;transform:translateX(-50%);font-size:11px;font-weight:900;color:var(--c-cream);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  #view-conflict .cfc-ticks span small{color:var(--c-ink500);font-size:8px;display:block;text-align:center;margin-top:1px;letter-spacing:.04em;}
+  #view-conflict .cfc-why{margin-top:16px;display:flex;flex-direction:column;gap:6px;}
+  #view-conflict .cfc-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--c-card);border:1px solid var(--c-line);border-radius:9px;padding:7px 11px;white-space:nowrap;}
+  #view-conflict .cfc-row.mine{border-left:3px solid var(--c-green);}#view-conflict .cfc-row.opp{border-left:3px solid var(--c-red);}
+  #view-conflict .cfc-row .nm{font-size:11.5px;font-weight:800;color:var(--c-cream);overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  #view-conflict .cfc-row .side{font-size:8.5px;font-weight:700;color:var(--c-ink500);margin-left:6px;}
+  #view-conflict .cfc-row .req{font-size:11px;font-weight:900;flex:none;padding:2px 8px;border-radius:6px;font-variant-numeric:tabular-nums;}
+  #view-conflict .cfc-row.mine .req{color:var(--c-green);background:rgba(107,191,140,.13);}#view-conflict .cfc-row.opp .req{color:var(--c-red);background:rgba(216,106,92,.13);}
+  #view-conflict .cfc-stack-h{text-align:center;font-size:9px;font-weight:900;letter-spacing:.16em;color:var(--c-ink500);margin:6px 0 10px;}
+  #view-conflict .cfc-nowin{margin-top:11px;background:rgba(217,164,69,.09);border:1px solid rgba(217,164,69,.30);border-radius:9px;padding:9px 11px;font-size:10.5px;line-height:1.45;font-weight:700;color:var(--c-yellow);}
+  #view-conflict .cfc-term{text-align:center;padding:26px 10px;}
+  #view-conflict .cfc-term .ico{font-size:30px;margin-bottom:10px;}
+  #view-conflict .cfc-term h4{font-size:17px;font-weight:900;color:var(--c-cream);margin-bottom:8px;}
+  #view-conflict .cfc-term p{font-size:12px;line-height:1.55;color:var(--c-ink500);max-width:300px;margin:0 auto 16px;}
+  #view-conflict .cfc-term a{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:900;color:#0F2235;background:var(--c-coral);border-radius:10px;padding:9px 16px;text-decoration:none;cursor:pointer;}
+</style>
+<div id="view-conflict"></div>
+<script>
+/* ── inlined Conflict Engine (mirror of repo conflict-engine.js) ── */
+(function (root) {
+  var DECIDED = ['LOCKED_WIN','LOCKED_LOSS','FINAL_WIN','FINAL_LOSS','FINAL_TIE'];
+  var TIER_W = { 1:1.0, 2:0.5, 3:0.25 };
+  function isDecided(s){ return DECIDED.indexOf(s)!==-1; }
+  function isLiveLeague(s){ return s && s!=='NO_MATCHUP' && !isDecided(s); }
+  function tierWeight(tierOf,n){ return TIER_W[tierOf?tierOf(n):3] || 0.25; }
+  function nightSlot(teamSlot,team){ var s=teamSlot?teamSlot(team):null; if(!s||s.state==='post')return null; return (s.slot==='snf'||s.slot==='mnf')?s.slot:null; }
+  function signatureOf(p,ctxByName){ var sig={};
+    (p.myLeagues||[]).forEach(function(n){ if(ctxByName[n]&&isLiveLeague(ctxByName[n].leagueState))sig[n]='mine'; });
+    (p.againstLeagues||[]).forEach(function(n){ if(ctxByName[n]&&isLiveLeague(ctxByName[n].leagueState))sig[n]='opp'; }); return sig; }
+  function sigKey(sig){ return Object.keys(sig).sort().map(function(n){return n+':'+sig[n];}).join('|'); }
+  function cProjIn(players,n){ var p=0; players.forEach(function(pl){ var lp=pl.leaguePoints&&pl.leaguePoints[n]; if(lp&&lp.proj!=null)p+=lp.proj; }); return p; }
+  function cLiveIn(players,n){ var p=0,any=false; players.forEach(function(pl){ var lp=pl.leaguePoints&&pl.leaguePoints[n]; if(lp&&lp.pts!=null){p+=lp.pts;any=true;} }); return any?p:null; }
+  function round1(v){ return Math.round(v*10)/10; }
+  function projAcross(pl,sig){ var a=[]; Object.keys(sig).forEach(function(n){ var lp=pl.leaguePoints&&pl.leaguePoints[n]; if(lp&&lp.proj!=null)a.push(lp.proj); }); return a.length?round1(a.reduce(function(x,y){return x+y;},0)/a.length):0; }
+  function buildCluster(players,sig,ctxByName,tierOf,slot){
+    var leagues=[],floors=[],ceils=[],projParts=[],liveParts=[];
+    Object.keys(sig).forEach(function(name){
+      var ctx=ctxByName[name],side=sig[name],P=cProjIn(players,name),margin=(ctx.myProjPts||0)-(ctx.oppProjPts||0);
+      projParts.push(P); var live=cLiveIn(players,name); if(live!=null)liveParts.push(live);
+      var e={name:name,side:side,weight:tierWeight(tierOf,name),proj:P};
+      if(side==='mine'){ e.floor=P-margin; e.req='NEED '+Math.max(0,Math.round(e.floor))+'+'; floors.push(e.floor); }
+      else { e.ceiling=P+margin; e.req='UNDER '+Math.round(e.ceiling); ceils.push(e.ceiling); }
+      leagues.push(e);
+    });
+    var floor=floors.length?Math.max.apply(null,floors):-Infinity, ceiling=ceils.length?Math.min.apply(null,ceils):Infinity;
+    var projC=projParts.length?projParts.reduce(function(a,b){return a+b;},0)/projParts.length:0;
+    var liveC=liveParts.length?liveParts.reduce(function(a,b){return a+b;},0)/liveParts.length:null;
+    return { slot:slot, players:players.map(function(p){return {name:p.full_name,pos:p.position,team:p.team,proj:projAcross(p,sig)};}),
+      signature:sig, leagues:leagues.sort(function(a,b){return (a.side==='mine'?0:1)-(b.side==='mine'?0:1);}),
+      window:{floor:floor,ceiling:ceiling,hasGreen:floor<ceiling}, projCombined:round1(projC), liveCombined:liveC==null?null:round1(liveC) };
+  }
+  function phi(z){ return 1/(1+Math.exp(-1.702*z)); }
+  function staircaseLoss(cluster,x,edgeSigma){ var sg=edgeSigma||1.6,loss=0;
+    cluster.leagues.forEach(function(lg){ var bk=(lg.side==='mine')?lg.floor:lg.ceiling;
+      var pL=(lg.side==='mine')?(1-phi((x-bk)/sg)):phi((x-bk)/sg); loss+=lg.weight*pL; }); return loss; }
+  function computeConflictCards(input){
+    var conflicted=input.conflictedPlayers||[],contexts=input.contexts||[],teamSlot=input.teamSlot,tierOf=input.tierOf;
+    var ctxByName={}; contexts.forEach(function(c){ ctxByName[c.leagueName]=c; });
+    var bySlotSig={snf:{},mnf:{}};
+    conflicted.forEach(function(pl){ var slot=nightSlot(teamSlot,pl.team); if(!slot)return; var sig=signatureOf(pl,ctxByName);
+      if(!Object.keys(sig).length)return; var key=sigKey(sig);
+      (bySlotSig[slot][key]=bySlotSig[slot][key]||{sig:sig,players:[]}).players.push(pl); });
+    function clustersFor(slot){ return Object.keys(bySlotSig[slot]).map(function(key){ var g=bySlotSig[slot][key]; return buildCluster(g.players,g.sig,ctxByName,tierOf,slot); })
+      .sort(function(a,b){ return (b.leagues.length-a.leagues.length)||(b.leagues.reduce(function(s,l){return s+l.weight;},0)-a.leagues.reduce(function(s,l){return s+l.weight;},0)); }); }
+    var snf=clustersFor('snf'),mnf=clustersFor('mnf'),terminal=!snf.length&&!mnf.length;
+    var anyLive=contexts.some(function(c){return isLiveLeague(c.leagueState);});
+    return { snf:snf, mnf:mnf, terminal:terminal, terminalReason:terminal?(anyLive?'no-conflict-left':'all-settled'):null, staircaseLoss:staircaseLoss };
+  }
+  root.ConflictEngine = { computeConflictCards:computeConflictCards, staircaseLoss:staircaseLoss, signatureOf:signatureOf, isLiveLeague:isLiveLeague };
+})(window);
+
+/* ── gradient bar painter (solid green window, ramp outside) ── */
+(function(){
+  var GREEN=[107,191,140],YELLOW=[217,164,69],RED=[216,106,92];
+  function lerp(a,b,t){return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];}
+  function rgb(c){return 'rgb('+Math.round(c[0])+','+Math.round(c[1])+','+Math.round(c[2])+')';}
+  function maxW(c){return c.leagues.reduce(function(s,l){return s+l.weight;},0)||1;}
+  function colorAt(c,x){ var w=c.window;
+    if(w.hasGreen && x>=w.floor && x<=w.ceiling) return GREEN;
+    var t=Math.min(1, window.ConflictEngine.staircaseLoss(c,x)/maxW(c));
+    return (t<=0.45)?lerp(GREEN,YELLOW,t/0.45):lerp(YELLOW,RED,(t-0.45)/0.55); }
+  window.__cfBarGradient=function(c,min,max){ var s=[],N=46; for(var i=0;i<=N;i++){ var x=min+(max-min)*i/N; s.push(rgb(colorAt(c,x))+' '+(100*i/N).toFixed(1)+'%'); } return 'linear-gradient(90deg,'+s.join(',')+')'; };
+})();
+
+/* ── data + slot accessors ── */
+function cfTeamSlot(team){
+  /* TODO (next pass): derive SNF/MNF from the NFL schedule + window.__cfGameState.
+     For now an optional manual override map lets us test before that lands. */
+  try{ if(window.__cfSlotOverride && window.__cfSlotOverride[team]) return window.__cfSlotOverride[team]; }catch(e){}
+  return null;
+}
+window.cfTeamSlot=cfTeamSlot;
+function cfData(){ var d=window.__conflictedLastData||{};
+  return { players:Array.isArray(d.conflicted)?d.conflicted:[], contexts:Array.isArray(d.contexts)?d.contexts:(window.currentContexts||[]) }; }
+
+/* ── HTML builders ── */
+function cfEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function cfClamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function cfBarRange(c){
+  var pts=[c.window.floor,c.window.ceiling,c.projCombined]; if(c.liveCombined!=null)pts.push(c.liveCombined);
+  pts=pts.filter(function(x){return isFinite(x);});
+  var lo=Math.min.apply(null,pts),hi=Math.max.apply(null,pts);
+  var pad=Math.max(8,(c.window.hasGreen?(c.window.ceiling-c.window.floor):6));
+  return { min:Math.max(0,lo-pad), max:hi+pad };
+}
+function cfPct(r,v){ return cfClamp((v-r.min)/(r.max-r.min)*100,0,100); }
+function cfClusterHTML(c,idx,featured){
+  var names=c.players.map(function(p){return cfEsc(p.name);}).join(' &amp; ');
+  var win = c.window.hasGreen ? (Math.round(c.window.floor)+'&ndash;'+Math.round(c.window.ceiling)) : 'your best available split';
+  var sent = '"I need '+names+' '+(c.window.hasGreen?('<b>'+win+'</b>'):('<b>'+win+'</b>'))+' tonight to win my weekend."';
+  var live = c.liveCombined==null?0:c.liveCombined;
+  var tag,cls;
+  if(!c.window.hasGreen){ tag='NO CLEAN WINDOW'; cls='s-build'; }
+  else if(live < c.window.floor){ tag='NEED AT LEAST '+Math.round(c.window.floor)+' POINTS'; cls='s-build'; }
+  else if(live <= c.window.ceiling){ tag='IN THE WINDOW'; cls='s-in'; }
+  else { tag='COLLATERAL DAMAGE'; cls='s-hot'; }
+  var players = c.players.map(function(p){ return '<div class="cfc-p"><div class="nm">'+cfEsc(p.name)+'</div><div class="mt">'+cfEsc(p.pos)+' &middot; '+cfEsc(p.team)+'</div></div>'; }).join('');
+  var rows = c.leagues.map(function(lg){ return '<div class="cfc-row '+(lg.side==='mine'?'mine':'opp')+'"><div class="nm">'+cfEsc(lg.name)+'<span class="side">'+(lg.side==='mine'?'yours':'theirs')+'</span></div><div class="req">'+lg.req+'</div></div>'; }).join('');
+  var nowin = c.window.hasGreen ? '' : '<div class="cfc-nowin">No single score wins all of them tonight &mdash; here\'s your best available window.</div>';
+  return '<div class="cfc-cl'+(featured?' feat':'')+'">'+
+    '<div class="cfc-sent">'+sent+'</div>'+
+    '<div class="cfc-chip '+cls+'"><span class="pts">LIVE '+live.toFixed(1)+'</span><span class="tag">'+tag+'</span></div>'+
+    (featured?('<div class="cfc-players">'+players+'</div>'):'')+
+    '<div class="cfc-barwrap"><div class="cfc-bar" id="cfc-bar-'+idx+'"></div>'+
+      '<div class="cfc-ghost" id="cfc-ghost-'+idx+'"></div>'+
+      '<div class="cfc-live" id="cfc-live-'+idx+'"><span class="lab">'+live.toFixed(1)+'</span></div></div>'+
+    '<div class="cfc-ticks" id="cfc-ticks-'+idx+'"></div>'+
+    nowin + (featured?('<div class="cfc-why">'+rows+'</div>'):'') +
+  '</div>';
+}
+function cfPaintBar(c,idx){
+  var r=cfBarRange(c), bar=document.getElementById('cfc-bar-'+idx); if(!bar)return;
+  bar.style.background=window.__cfBarGradient(c,r.min,r.max);
+  var live=c.liveCombined==null?0:c.liveCombined;
+  var lm=document.getElementById('cfc-live-'+idx); if(lm)lm.style.left=cfPct(r,live)+'%';
+  var gh=document.getElementById('cfc-ghost-'+idx); if(gh)gh.style.left=cfPct(r,c.projCombined)+'%';
+  var tk=document.getElementById('cfc-ticks-'+idx);
+  if(tk && c.window.hasGreen){ tk.innerHTML=
+    '<span style="left:'+cfPct(r,c.window.floor)+'%">'+Math.round(c.window.floor)+'<small>FLOOR</small></span>'+
+    '<span style="left:'+cfPct(r,c.window.ceiling)+'%">'+Math.round(c.window.ceiling)+'<small>CEILING</small></span>'; }
+  else if(tk){ tk.innerHTML=''; }
+}
+function cfTerminalHTML(reason){
+  var p = (reason==='all-settled')
+    ? 'Every league is decided &mdash; nothing left to root for or against. Enjoy the games.'
+    : 'None of your remaining players are split across your leagues tonight, so there\'s no score to root for or against here. Any matchups you\'ve still got riding are clean, one-way cheers &mdash; track them on your Weekend Snapshot.';
+  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD</div><div class="cfc-term"><div class="ico">&#127944;</div><h4>No conflicts left to sweat</h4><p>'+p+'</p><a id="cfc-snaplink">&#128202;&nbsp; See your Weekend Snapshot</a></div></div>';
+}
+function cfRenderConflictCard(){
+  var host=document.getElementById('view-conflict'); if(!host||!window.ConflictEngine)return;
+  var d=cfData();
+  var res=window.ConflictEngine.computeConflictCards({ conflictedPlayers:d.players, contexts:d.contexts, teamSlot:window.cfTeamSlot, tierOf:window.__cfTier });
+  if(res.terminal){ host.innerHTML=cfTerminalHTML(res.terminalReason); var sl=document.getElementById('cfc-snaplink'); if(sl)sl.onclick=function(){ if(window.showSnapshot)window.showSnapshot(); }; return; }
+  var haveSnf=res.snf.length>0, haveMnf=res.mnf.length>0;
+  if(!window.__cfConflictSlot)window.__cfConflictSlot='snf';
+  if(window.__cfConflictSlot==='snf'&&!haveSnf&&haveMnf)window.__cfConflictSlot='mnf';
+  if(window.__cfConflictSlot==='mnf'&&!haveMnf&&haveSnf)window.__cfConflictSlot='snf';
+  var slot=window.__cfConflictSlot, clusters=(slot==='mnf')?res.mnf:res.snf;
+  var kick='CONFLICT CARD &middot; '+(slot==='mnf'?'MONDAY NIGHT':'SUNDAY NIGHT')+(clusters.length>1?(' &middot; '+clusters.length+' CONFLICTS'):'');
+  var toggle = (haveSnf&&haveMnf) ? ('<div class="cfc-toggle"><button data-cfslot="snf" class="'+(slot==='snf'?'on':'')+'">SUNDAY NIGHT</button><button data-cfslot="mnf" class="'+(slot==='mnf'?'on':'')+'">MONDAY NIGHT</button></div>') : '';
+  var prov = (slot==='mnf') ? '<div class="cfc-prov"><span>&#9432;</span><span><b>Provisional.</b> Sunday-night results still feed these leagues, so this can shift before kickoff.</span></div>' : '';
+  host.innerHTML='<div class="cfc-frame"><div class="cfc-kick">'+kick+'</div>'+toggle+prov+
+    cfClusterHTML(clusters[0],0,true)+
+    (clusters.length>1?('<div class="cfc-stack-h">'+(clusters.length-1)+' MORE CONFLICT'+(clusters.length-1>1?'S':'')+' TONIGHT</div>'+clusters.slice(1).map(function(c,i){return cfClusterHTML(c,i+1,false);}).join('')):'')+
+    '</div>';
+  clusters.forEach(function(c,i){ cfPaintBar(c,i); });
+  host.querySelectorAll('[data-cfslot]').forEach(function(btn){ btn.onclick=function(){ window.__cfConflictSlot=btn.getAttribute('data-cfslot'); cfRenderConflictCard(); }; });
+}
+window.__cfRenderConflictCard=cfRenderConflictCard;
+
+function showConflictCard(){
+  if(typeof window.hideAll==='function')window.hideAll();
+  var v=document.getElementById('view-conflict'); if(v)v.style.display='block';
+  window.__cfConflictOpen=true;
+  cfRenderConflictCard();
+  window.scrollTo(0,0);
+}
+window.showConflictCard=showConflictCard;
+
+/* register as a nav view so it inherits the live 60s recompute + in-place repaint */
+if(typeof window.cfRegisterView==='function'){
+  window.cfRegisterView({ id:'view-conflict', isOpen:function(){return !!window.__cfConflictOpen;},
+    render:function(){ if(typeof window.__cfRenderConflictCard==='function')window.__cfRenderConflictCard(); } });
+}
 </script>
 </body>
 </html>
