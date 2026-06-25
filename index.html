@@ -3626,6 +3626,33 @@
       </div>
     </div>
 
+    <!-- Card 3b · Legal & help (placeholder rows; pages not yet wired) -->
+    <div class="settings-panel" style="display:block;margin:0 0 16px;">
+      <div class="settings-body" style="display:block;">
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="FAQ">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">FAQ</div>
+            <div class="settings-row-sub">Answers to common questions about Conflicted.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Privacy Policy">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Privacy Policy</div>
+            <div class="settings-row-sub">How your data is collected, used, and protected.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Terms of Use">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Terms of Use</div>
+            <div class="settings-row-sub">The terms you agree to when using Conflicted.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Card 4 · Account actions -->
     <div class="settings-panel" style="display:block;margin:0;">
       <div class="settings-body" style="display:block;">
@@ -3680,6 +3707,32 @@
           <div class="settings-row-meta">
             <div class="settings-row-title">Settings</div>
             <div class="settings-row-sub">Appearance and league priority.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
+      </div>
+    </div>
+    <!-- Legal & help (placeholder rows; pages not yet wired) -->
+    <div class="settings-panel" style="display:block;margin:16px 0 0;">
+      <div class="settings-body" style="display:block;">
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="FAQ">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">FAQ</div>
+            <div class="settings-row-sub">Answers to common questions about Conflicted.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Privacy Policy">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Privacy Policy</div>
+            <div class="settings-row-sub">How your data is collected, used, and protected.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Terms of Use">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Terms of Use</div>
+            <div class="settings-row-sub">The terms you agree to when using Conflicted.</div>
           </div>
           <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
@@ -6989,11 +7042,21 @@ function clearBoardSnapshot(){try{localStorage.removeItem(BOARD_SNAPSHOT_KEY);}c
 const REFRESH_MS=60*1000;let refreshTimer=null;let lastFetchTime=0;let isFetching=false;
 function shouldAutoRefresh(){return !isDemoMode && isAnyProviderConnected() && !isHistoricalWeek();}
 function isDashboardVisible(){const b=document.getElementById('board');if(!b)return false;const d=b.style.display;return !(d==='none'||d==='');}
+/* Keep the live poll alive on the dashboard AND on any registered, data-driven
+   nav view (Snapshot / Exposure / Watch / future Conflict Card). renderBoard()
+   already repaints the active view IN PLACE on each tick (see the cfActiveView
+   block), so live recompute on those views never bounces the user back to the
+   dashboard. Non-data views (settings/account/about) aren't in the registry, so
+   they still let the poll idle. */
+function isLiveDataViewVisible(){
+  if(isDashboardVisible())return true;
+  try{return !!(typeof window.cfActiveView==='function' && window.cfActiveView());}catch(e){return false;}
+}
 function startAutoRefresh(){
   stopAutoRefresh(); if(!shouldAutoRefresh())return;
   refreshTimer=setInterval(async()=>{
     if(document.hidden)return;
-    if(!isDashboardVisible())return; // pause polling when user is on exposure map / any non-dashboard view
+    if(!isLiveDataViewVisible())return; // poll on dashboard + registered live views; idle on static views
     if(Date.now()-lastFetchTime>=REFRESH_MS){
       lastFetchTime=Date.now(); // claim the slot before awaiting so the next tick won't fire
       try{renderBoard(await loadData(),getPrimaryDisplayName());}
@@ -7004,7 +7067,7 @@ function startAutoRefresh(){
 function stopAutoRefresh(){if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}}
 document.addEventListener('visibilitychange',async()=>{
   if(document.hidden)return; if(!shouldAutoRefresh())return;
-  if(!isDashboardVisible())return; // don't yank user off exposure map when tab regains focus
+  if(!isLiveDataViewVisible())return; // refresh in place on dashboard + registered live views
   if(Date.now()-lastFetchTime>=REFRESH_MS){
     lastFetchTime=Date.now(); // claim the slot before awaiting
     try{renderBoard(await loadData(),getPrimaryDisplayName());}
