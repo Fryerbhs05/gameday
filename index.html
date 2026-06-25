@@ -2726,8 +2726,9 @@
       min-height: 100vh;
     }
     .wp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
-    .wp-head__title h2 { font: 700 20px/1.1 var(--font-sans); margin: 0 0 3px; color: var(--surf-text); letter-spacing: -0.02em; }
-    .wp-head__title p { font: 400 12px/1.4 var(--font-sans); color: var(--surf-muted); margin: 0; max-width: 56ch; }
+    .wp-head__kicker { display: block; font-size: 9px; font-weight: 700; letter-spacing: .32em; color: var(--surf-muted); text-transform: uppercase; margin-bottom: 6px; }
+    .wp-head__title h2 { font: 900 28px/1.05 var(--font-sans); margin: 0 0 4px; color: var(--surf-text); letter-spacing: -0.02em; }
+    .wp-head__title p { font: 700 11px/1.4 var(--font-sans); color: var(--surf-muted); margin: 0; max-width: 56ch; letter-spacing: .03em; }
     .wp-head__controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .wp-view-toggle { display: inline-flex; border: 1px solid var(--surf-border); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--surf-panel); }
     .wp-view-toggle button { background: transparent; border: 0; padding: 8px 12px; color: var(--surf-muted); cursor: pointer; font: 500 12px/1 var(--font-sans); transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
@@ -3071,7 +3072,7 @@
     @media (max-width: 640px) {
       #view-watch { padding: 12px 12px 48px; }
       .wp-head { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 10px; }
-      .wp-head__title h2 { font-size: 18px; }
+      .wp-head__title h2 { font-size: 22px; }
       /* Row 1 — context bar: selects left, settings right (mirrors Exposure) */
       .wp-head__controls { width: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
       .wp-head__controls .exp-select-group { flex: 1 1 auto; }
@@ -4147,6 +4148,7 @@
 <div id="view-watch">
   <div class="wp-head">
     <div class="wp-head__title">
+      <span class="wp-head__kicker">Schedule</span>
       <h2 id="wp-title">Watch priority</h2>
       <p id="wp-subtitle">NFL games ranked by how many of your players are on the field.</p>
     </div>
