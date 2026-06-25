@@ -108,37 +108,24 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Conflicted" />
 
-  <!-- ============ Theme: dark by default, user can opt into light ============
+  <!-- ============ Theme: always dark ============
        Inlined in <head> so it runs before paint and avoids a flash. -->
-  <script>
-    (function() {
-      try {
-        var stored = localStorage.getItem('conflicted-theme'); // 'dark' | 'light' | null
-        var theme = (stored === 'light') ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', theme);
-        var meta = document.getElementById('meta-theme-color');
-        if (meta) meta.setAttribute('content', theme === 'light' ? '#F5EFE4' : '#0F1B26');
-      } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      }
-    })();
-  </script>
+  <script>document.documentElement.setAttribute('data-theme','dark');</script>
 
   <style>
     /* ============================================================
-       Conflicted — design tokens (drop-in from brand-kit)
-       Light mode default. Dark via [data-theme="dark"] or OS pref.
+       Conflicted — design tokens (always dark)
        ============================================================ */
     :root {
-      --navy-900:#0F2235;  --navy-700:#1A3A52;  --navy-500:#2B6FA8;  --navy-300:#7AA8D1;
-      --coral-700:#B0451F; --coral-500:#D85A30; --coral-400:#E26538; --coral-200:#F4C4B0;
-      --paper:#F5EFE4;     --paper-soft:#FAF6EC; --paper-deep:#EDE5D4;
-      --ink-900:#15181C;   --ink-700:#2C2C2A;    --ink-500:#5F5E5A;   --ink-300:#A8A6A0;
-      --line:#D8D2C4;      --line-soft:#E5DFD0;
-      --cheer:#3D8B5C;     --cheer-soft:#D9E8DD;
-      --enemy:#A33D2E;     --enemy-soft:#EFD5CE;
-      --split:#B27F1A;     --split-soft:#F0E2BF;
-      --neutral:#7A7770;   --neutral-soft:#E8E3D5;
+      --navy-900:#0F2235;  --navy-700:#7AA8D1;  --navy-500:#5790C0;  --navy-300:#2B6FA8;
+      --coral-700:#D85A30; --coral-500:#E88761; --coral-400:#F0997B; --coral-200:#F4C4B0;
+      --paper:#0F1B26;     --paper-soft:#162635; --paper-deep:#0A1019;
+      --ink-900:#F5EFE4;   --ink-700:#E0DACA;    --ink-500:#9E988A;   --ink-300:#5F5E5A;
+      --line:#2A3949;      --line-soft:#1F2C3A;
+      --cheer:#6BBF8C;     --cheer-soft:#1F3329;
+      --enemy:#D86A5C;     --enemy-soft:#3A1F1A;
+      --split:#D9A445;     --split-soft:#3A2D14;
+      --neutral:#9E988A;   --neutral-soft:#1F2530;
       /* Fixed dark-surface palette — single source of truth for always-dark UI
          (Watch Priority takeover, demo/experiment ribbons, GOTW). Intentionally
          does NOT theme-flip: identical in light and dark. */
@@ -159,30 +146,6 @@
       --section-wordmark-size:22px;
       --section-head-pad-bottom:10px;
       --section-head-gap-bottom:12px;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root:not([data-theme="light"]) {
-        --navy-700:#7AA8D1; --navy-500:#5790C0; --navy-300:#2B6FA8;
-        --coral-500:#E88761; --coral-400:#F0997B; --coral-700:#D85A30;
-        --paper:#0F1B26; --paper-soft:#162635; --paper-deep:#0A1019;
-        --ink-900:#F5EFE4; --ink-700:#E0DACA; --ink-500:#9E988A; --ink-300:#5F5E5A;
-        --line:#2A3949; --line-soft:#1F2C3A;
-        --cheer:#6BBF8C; --cheer-soft:#1F3329;
-        --enemy:#D86A5C; --enemy-soft:#3A1F1A;
-        --split:#D9A445; --split-soft:#3A2D14;
-        --neutral:#9E988A; --neutral-soft:#1F2530;
-      }
-    }
-    :root[data-theme="dark"] {
-      --navy-700:#7AA8D1; --navy-500:#5790C0; --navy-300:#2B6FA8;
-      --coral-500:#E88761; --coral-400:#F0997B; --coral-700:#D85A30;
-      --paper:#0F1B26; --paper-soft:#162635; --paper-deep:#0A1019;
-      --ink-900:#F5EFE4; --ink-700:#E0DACA; --ink-500:#9E988A; --ink-300:#5F5E5A;
-      --line:#2A3949; --line-soft:#1F2C3A;
-      --cheer:#6BBF8C; --cheer-soft:#1F3329;
-      --enemy:#D86A5C; --enemy-soft:#3A1F1A;
-      --split:#D9A445; --split-soft:#3A2D14;
-      --neutral:#9E988A; --neutral-soft:#1F2530;
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1037,9 +1000,7 @@
       background: transparent;
       transition: border-color 1.3s var(--ease-out);
     }
-    @media (prefers-color-scheme: dark) { .scoreboard-frame { border-color: var(--navy-300); } }
-    :root[data-theme="dark"] .scoreboard-frame { border-color: var(--navy-300); }
-    :root[data-theme="light"] .scoreboard-frame { border-color: var(--navy-900); }
+    .scoreboard-frame { border-color: var(--navy-300); }
     /* Green border flash on LIVE-button refresh (mirrors the synced timestamp) —
        snaps to cheer, then the base transition fades it back to the frame color.
        !important clears the theme-specific border-color rules while flashing. */
@@ -1719,9 +1680,7 @@
 
     /* Columns — colored bottom borders, namesake "Conflicted" gets the split treatment */
     .columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 8px; border: 1px solid var(--navy-900); border-radius: var(--radius-lg); padding: 16px; background: transparent; transition: border-color 1.3s var(--ease-out); }
-    @media (prefers-color-scheme: dark) { .columns { border-color: var(--navy-300); } }
-    :root[data-theme="dark"] .columns { border-color: var(--navy-300); }
-    :root[data-theme="light"] .columns { border-color: var(--navy-900); }
+    .columns { border-color: var(--navy-300); }
     .column-header {
       display: flex; align-items: baseline; gap: 10px;
       padding: 0 4px 12px; border-bottom: 2px solid;
@@ -1832,9 +1791,7 @@
       border-color: var(--navy-900);
       border-radius: var(--radius-lg);
     }
-    @media (prefers-color-scheme: dark) { .nav-controls { border-color: var(--navy-300); } }
-    :root[data-theme="dark"]  .nav-controls { border-color: var(--navy-300); }
-    :root[data-theme="light"] .nav-controls { border-color: var(--navy-900); }
+    .nav-controls { border-color: var(--navy-300); }
 
     /* ──────────────────────────────────────────────────────────────
        "LOYALTIES" buckets section title + section frame (all users).
@@ -1848,9 +1805,7 @@
       margin-top: 14px;
       transition: border-color 1.3s var(--ease-out);
     }
-    @media (prefers-color-scheme: dark) { .loyalties-section { border-color: var(--navy-300); } }
-    :root[data-theme="dark"]  .loyalties-section { border-color: var(--navy-300); }
-    :root[data-theme="light"] .loyalties-section { border-color: var(--navy-900); }
+    .loyalties-section { border-color: var(--navy-300); }
     .loyalties-header {
       display: grid; place-items: center;
       padding-bottom: var(--section-head-pad-bottom); margin-bottom: var(--section-head-gap-bottom);
@@ -3540,9 +3495,7 @@
      change, not just the bucket cards. */
   #board-skeleton .skel-frame { border:1px solid var(--navy-900); border-radius:var(--radius-lg);
     padding:16px; margin-bottom:14px; }
-  @media (prefers-color-scheme: dark){ #board-skeleton .skel-frame{ border-color:var(--navy-300); } }
-  :root[data-theme="dark"]  #board-skeleton .skel-frame{ border-color:var(--navy-300); }
-  :root[data-theme="light"] #board-skeleton .skel-frame{ border-color:var(--navy-900); }
+  #board-skeleton .skel-frame{ border-color:var(--navy-300); }
   #board-skeleton .skel-scores { margin-bottom:0; }
   #board-skeleton .skel-section-title { width:120px; height:18px; margin:0 auto 14px; }
   #board-skeleton .skel-tabs { display:none; gap:6px; margin-bottom:12px; }
@@ -3638,7 +3591,7 @@
              aria-label="Settings">
           <div class="settings-row-meta">
             <div class="settings-row-title">Settings</div>
-            <div class="settings-row-sub">Appearance and league priority.</div>
+            <div class="settings-row-sub">League priority.</div>
           </div>
           <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
@@ -3725,7 +3678,7 @@
              aria-label="Settings">
           <div class="settings-row-meta">
             <div class="settings-row-title">Settings</div>
-            <div class="settings-row-sub">Appearance and league priority.</div>
+            <div class="settings-row-sub">League priority.</div>
           </div>
           <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
@@ -3800,17 +3753,10 @@
 <div id="view-settings" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
   <div style="margin-bottom:20px;">
     <h2 style="font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);margin:0 0 6px;">Settings</h2>
-    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">Appearance and league priority.</p>
+    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">League priority.</p>
   </div>
   <div class="settings-panel" style="display:block;margin:0;">
     <div class="settings-body" style="display:block;">
-      <div class="settings-row">
-        <div class="settings-row-meta">
-          <div class="settings-row-title">Appearance</div>
-          <div class="settings-row-sub">Conflicted defaults to dark mode. Flip this on for light mode.</div>
-        </div>
-        <button class="live-toggle" id="theme-toggle" onclick="toggleTheme()" type="button" aria-label="Toggle light mode"></button>
-      </div>
       <div class="settings-row">
         <div class="settings-row-meta">
           <div class="settings-row-title">League priority</div>
@@ -4312,22 +4258,7 @@ function loadLiveOnlyState(){try{liveOnly=localStorage.getItem(LIVE_ONLY_KEY)===
 function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1':'0');}catch(e){}}
 function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();applyFilters();}
 
-/* ── Theme (light/dark) ───────────────────────────────────────
-   Default = dark. User can opt into light via Settings → Appearance.
-   The initial data-theme attribute is set by the inline script in <head>
-   so the page never paints in the wrong theme. */
-const THEME_KEY='conflicted-theme';
-function getTheme(){return document.documentElement.getAttribute('data-theme')||'dark';}
-function setTheme(theme){
-  document.documentElement.setAttribute('data-theme',theme);
-  try{localStorage.setItem(THEME_KEY,theme);}catch(e){}
-  const m=document.getElementById('meta-theme-color');
-  if(m)m.setAttribute('content',theme==='light'?'#F5EFE4':'#0F1B26');
-  const t=document.getElementById('theme-toggle');
-  if(t)t.classList.toggle('on',theme==='light');
-}
-function toggleTheme(){setTheme(getTheme()==='light'?'dark':'light');}
-function initThemeToggle(){const t=document.getElementById('theme-toggle');if(t)t.classList.toggle('on',getTheme()==='light');}
+
 const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
 const getNFLState=()=>apiFetch(`${BASE}/state/nfl`);
 const getLeagues=(uid,s)=>apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
@@ -4723,10 +4654,7 @@ function showSettings(){
   hideAll();
   const v=document.getElementById('view-settings');
   if(v)v.style.display='block';
-  /* Refresh both surfaces (canonical + legacy) and re-sync the theme toggle
-     since the new toggle element is now visible. */
   try{updateSettingsPanel();}catch(e){}
-  try{initThemeToggle();}catch(e){}
 }
 window.showSettings = showSettings;
 
@@ -9493,7 +9421,6 @@ function renderSettingsPriorityList(list,order,equal){
 loadPriorityState();
 loadLiveOnlyState();
 loadExperimentState();
-initThemeToggle();
 
 (async()=>{
   const _bootParams=new URLSearchParams(window.location.search);
@@ -11657,8 +11584,6 @@ initThemeToggle();
     hideAllForWatch();
     var v = document.getElementById('view-watch');
     if (v) v.style.display = 'block';
-    /* Pin the whole page to the LIGHT brand theme while Watch Priority is open,
-       so the cream-paper panels aren't framed by dark-mode body navy. */
     document.body.classList.add('wp-active');
     window.__conflictedWatchOpen = true;
     /* Use current dashboard activeSeason/activeWeek — read the live `let`
