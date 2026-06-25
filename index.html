@@ -6553,7 +6553,17 @@ async function loadData(){
   }
   /* Best-effort fetch of NFL game states for the live-only toggle. Doesn't block on failure. */
   if(!isHist)await fetchNflGameStates(activeSeason,activeWeek);
+  /* Per-player projections via Sleeper's public, auth-free feed. Fetch
+     UNCONDITIONALLY (not only when a Sleeper league is connected) so Yahoo/ESPN
+     players also get per-player projections — the Conflict Card window math needs
+     them, and Yahoo has no projections of its own. */
+  if(!isHist && Object.keys(sleeperProjections).length===0){
+    try{ const _pj=await getProjections(activeSeason,activeWeek); if(_pj&&Object.keys(_pj).length){ sleeperProjections=_pj; hasProj=true; } }catch(e){}
+  }
   const projPts=id=>{const p=sleeperProjections[id];return p?(p.pts_ppr??p.pts_std??p.pts_half_ppr??null):null;};
+  /* Format-aware Sleeper projection: pick PPR / Half-PPR / Std by the league's fmt. */
+  function sleeperFmtField(fmt){const f=(''+(fmt||'')).toLowerCase();if(f.indexOf('half')>=0)return'pts_half_ppr';if(f.indexOf('std')>=0||f.indexOf('standard')>=0)return'pts_std';return'pts_ppr';}
+  function projPtsFmt(id,fmt){const p=sleeperProjections[id];if(!p)return null;const f=sleeperFmtField(fmt);return p[f]??p.pts_ppr??p.pts_half_ppr??p.pts_std??null;}
   const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
   const playerDB=await getPlayerDB();setLoading('Classifying players.');
   /* Expose to delegated handlers (matchup drawer) that need to hydrate raw
@@ -6601,13 +6611,17 @@ async function loadData(){
     lg.myPlayers.forEach(p=>{
       const e=ensure(p);
       if(!e.myLeagues.includes(lg.leagueName))e.myLeagues.push(lg.leagueName);
-      const k=ptsKey(p);const pts=ctx?.myPP[k]??null,proj=(ctx&&ctx.myProjPP&&ctx.myProjPP[k]!=null)?ctx.myProjPP[k]:projForPlayer(p);
+      const k=ptsKey(p);const pts=ctx?.myPP[k]??null;
+      let proj=(ctx&&ctx.myProjPP&&ctx.myProjPP[k]!=null)?ctx.myProjPP[k]:projForPlayer(p);
+      if(proj==null&&!isHist&&e.sleeperId)proj=projPtsFmt(e.sleeperId,lg.fmt); // Yahoo/ESPN fill-in via Sleeper
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
     });
     lg.oppPlayers.forEach(p=>{
       const e=ensure(p);
       if(!e.againstLeagues.includes(lg.leagueName))e.againstLeagues.push(lg.leagueName);
-      const k=ptsKey(p);const pts=ctx?.oppPP[k]??null,proj=(ctx&&ctx.oppProjPP&&ctx.oppProjPP[k]!=null)?ctx.oppProjPP[k]:projForPlayer(p);
+      const k=ptsKey(p);const pts=ctx?.oppPP[k]??null;
+      let proj=(ctx&&ctx.oppProjPP&&ctx.oppProjPP[k]!=null)?ctx.oppProjPP[k]:projForPlayer(p);
+      if(proj==null&&!isHist&&e.sleeperId)proj=projPtsFmt(e.sleeperId,lg.fmt); // Yahoo/ESPN fill-in via Sleeper
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
     });
     (lg.myBench||[]).forEach(p=>{
@@ -10948,6 +10962,34 @@ initThemeToggle();
     return { key: 'sp:' + wd.toLowerCase(), label: dayFull + ' Special', shortLabel: dayFull };
   }
 
+  /* ── Conflict Card slot map ─────────────────────────────────────
+     Expose a team→{slot,state} map for the End-of-Week Conflict Card, reusing
+     this module's fetch+cache and the slot classifier above. Live week only.
+     slot: 'snf' | 'mnf' | 'early' | 'late' | 'thu' | 'other'; state: 'pre'|'in'|'post'. */
+  function cfNormalizeSlot(key){
+    return key === 'sun_n' ? 'snf' : key === 'mon' ? 'mnf'
+         : key === 'thu' ? 'thu' : key === 'sun_e' ? 'early' : key === 'sun_a' ? 'late' : (key || 'other');
+  }
+  function cfBuildSlotMap(games){
+    var m = {};
+    (games || []).forEach(function(g){
+      var slot = cfNormalizeSlot(slotIdentityForGame(g).key);
+      var st = g.status || 'pre';
+      [g.away, g.home].forEach(function(t){ if(t) m[('' + t).toUpperCase().trim()] = { slot: slot, state: st, kickoffUtc: g.kickoffUtc }; });
+    });
+    return m;
+  }
+  window.__cfEnsureSlots = function(){
+    var season, week;
+    try{ season = liveSeason; week = liveWeek; }catch(e){}
+    if(!season){ try{ season = activeSeason; week = activeWeek; }catch(e){} }
+    if(!season) return Promise.resolve(window.__cfTeamSlotMap || {});
+    return fetchWeekGames(season, week).then(function(games){
+      window.__cfTeamSlotMap = cfBuildSlotMap(games);
+      return window.__cfTeamSlotMap;
+    }).catch(function(){ return window.__cfTeamSlotMap || {}; });
+  };
+
   function kickoffLabel(g){
     if (!g.kickoffUtc) return '';
     var d = new Date(g.kickoffUtc);
@@ -13341,9 +13383,10 @@ initThemeToggle();
 
 /* ── data + slot accessors ── */
 function cfTeamSlot(team){
-  /* TODO (next pass): derive SNF/MNF from the NFL schedule + window.__cfGameState.
-     For now an optional manual override map lets us test before that lands. */
+  /* Manual override (testing) wins; otherwise read the live team→slot map the
+     Watch Priority schedule module builds via window.__cfEnsureSlots(). */
   try{ if(window.__cfSlotOverride && window.__cfSlotOverride[team]) return window.__cfSlotOverride[team]; }catch(e){}
+  try{ var m=window.__cfTeamSlotMap; if(m){ var s=m[(''+team).toUpperCase().trim()]; if(s)return s; } }catch(e){}
   return null;
 }
 window.cfTeamSlot=cfTeamSlot;
@@ -13403,10 +13446,45 @@ function cfTerminalHTML(reason){
     : 'None of your remaining players are split across your leagues tonight, so there\'s no score to root for or against here. Any matchups you\'ve still got riding are clean, one-way cheers &mdash; track them on your Weekend Snapshot.';
   return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD</div><div class="cfc-term"><div class="ico">&#127944;</div><h4>No conflicts left to sweat</h4><p>'+p+'</p><a id="cfc-snaplink">&#128202;&nbsp; See your Weekend Snapshot</a></div></div>';
 }
+/* Afternoon-suppression: the End-of-Week card only draws precise night windows
+   once the Sunday afternoon slate is final (then floors/ceilings are computed
+   against real margins, not projections). Returns:
+     'none'        — no schedule loaded (offseason / not fetched) → let the engine
+                     fall through to its terminal state.
+     'pre-evening' — there's a Sunday afternoon slate still unfinished → hold the
+                     card behind the placeholder below.
+     'ready'       — afternoon final (or no afternoon slate this week) → show windows. */
+function cfScheduleState(){
+  var m=window.__cfTeamSlotMap;
+  if(!m||!Object.keys(m).length) return 'none';
+  var afternoon=Object.keys(m).filter(function(t){ var s=m[t].slot; return s==='early'||s==='late'; });
+  if(!afternoon.length) return 'ready';
+  return afternoon.every(function(t){ return m[t].state==='post'; }) ? 'ready' : 'pre-evening';
+}
+function cfPreEveningHTML(nightCount){
+  var teaser = nightCount>0
+    ? (nightCount+' conflict'+(nightCount>1?'s are':' is')+' brewing for tonight. Once the afternoon games go final, this card locks in your exact target windows &mdash; floor and ceiling &mdash; for the night slate.')
+    : 'Once the Sunday afternoon games go final, this card locks in your exact target windows for the night slate.';
+  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; SUNDAY</div>'+
+    '<div class="cfc-term"><div class="ico">&#127769;</div><h4>Sharpening for tonight</h4><p>'+teaser+'</p>'+
+    '<a id="cfc-snaplink">&#128202;&nbsp; Meanwhile, see your Weekend Snapshot</a></div></div>';
+}
 function cfRenderConflictCard(){
   var host=document.getElementById('view-conflict'); if(!host||!window.ConflictEngine)return;
+  /* Ensure the live-week SNF/MNF slot map is loaded; refresh at most ~once a
+     minute and re-render when a fresh fetch resolves (guarded against loops). */
+  if(typeof window.__cfEnsureSlots==='function' && !window.__cfSlotsLoading && (!window.__cfTeamSlotMap || (Date.now()-(window.__cfSlotsAt||0)>55000))){
+    window.__cfSlotsLoading=true;
+    window.__cfEnsureSlots().then(function(){ window.__cfSlotsAt=Date.now(); window.__cfSlotsLoading=false; if(window.__cfConflictOpen)cfRenderConflictCard(); }).catch(function(){ window.__cfSlotsLoading=false; });
+  }
   var d=cfData();
   var res=window.ConflictEngine.computeConflictCards({ conflictedPlayers:d.players, contexts:d.contexts, teamSlot:window.cfTeamSlot, tierOf:window.__cfTier });
+  /* Hold the card behind the placeholder until the Sunday afternoon slate is final. */
+  if(cfScheduleState()==='pre-evening'){
+    host.innerHTML=cfPreEveningHTML(res.snf.length+res.mnf.length);
+    var slp=document.getElementById('cfc-snaplink'); if(slp)slp.onclick=function(){ if(window.showSnapshot)window.showSnapshot(); };
+    return;
+  }
   if(res.terminal){ host.innerHTML=cfTerminalHTML(res.terminalReason); var sl=document.getElementById('cfc-snaplink'); if(sl)sl.onclick=function(){ if(window.showSnapshot)window.showSnapshot(); }; return; }
   var haveSnf=res.snf.length>0, haveMnf=res.mnf.length>0;
   if(!window.__cfConflictSlot)window.__cfConflictSlot='snf';
