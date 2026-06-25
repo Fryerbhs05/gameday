@@ -6468,7 +6468,15 @@ async function loadData(){
   const _boardEl=document.getElementById('board');
   const _boardVisible=!!(_boardEl && _boardEl.style.display && _boardEl.style.display!=='none');
   const _expoOpen=!!window.__conflictedExposureOpen;
-  if(!_boardVisible && !_expoOpen && !leagueMgmtViewOpen()) showLoading('Pulling your leagues.');
+  /* A registered nav view (Snapshot / Watch / Conflict Card / Exposure) counts as
+     "content already on screen" too — we must NOT flash the loading panel over it.
+     This check has to happen BEFORE showLoading(), because showLoading()->hideAll()
+     wipes every view-open flag; after that cfActiveView() returns null, the
+     registry re-show in renderBoard() never fires, and renderBoard falls through to
+     showBoard() — dumping the user back on the dashboard. That was the 60s
+     flash-to-dashboard regression. Capture the active view while flags are intact. */
+  const _navViewOpen=(typeof window.cfActiveView==='function') && !!window.cfActiveView();
+  if(!_boardVisible && !_expoOpen && !_navViewOpen && !leagueMgmtViewOpen()) showLoading('Pulling your leagues.');
   const state=await getNFLState();
   const _hasLiveWeek=(state.week>=1&&state.week<=MAX_WEEK);
   liveWeek=_hasLiveWeek?state.week:1;liveSeason=state.season;
