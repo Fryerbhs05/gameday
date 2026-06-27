@@ -2152,6 +2152,36 @@
     .yahoo-toast.toast-error { background: var(--enemy); }
     @keyframes yahoo-toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
+    /* "New version available" prompt — floats above the bottom tab bar so it
+       never sits under it. On the landing/login screen (no tab bar) it drops to
+       the bottom edge. Dark surface palette so it reads on any view. */
+    .cf-update-toast {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      bottom: calc(var(--cbnav-h, 87px) + var(--exp-ribbon-h, 0px) + env(safe-area-inset-bottom, 0px) + 14px);
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surf-panel); color: var(--surf-text);
+      border: 1px solid var(--surf-border-strong);
+      font: 500 13px/1.2 var(--font-sans);
+      padding: 9px 10px 9px 16px; border-radius: var(--radius-pill);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      z-index: 10000; max-width: calc(100vw - 32px);
+      animation: cf-update-in 0.28s var(--ease-out);
+    }
+    body.nav-landing .cf-update-toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
+    .cf-update-toast__btn {
+      flex: 0 0 auto; border: none; cursor: pointer;
+      background: var(--coral-500); color: var(--paper);
+      font: 700 12px/1 var(--font-sans); letter-spacing: 0.02em;
+      padding: 8px 14px; border-radius: var(--radius-pill);
+    }
+    .cf-update-toast__btn:disabled { opacity: 0.6; cursor: default; }
+    .cf-update-toast__x {
+      flex: 0 0 auto; background: none; border: none; cursor: pointer;
+      color: var(--surf-muted); font-size: 18px; line-height: 1; padding: 2px 6px;
+    }
+    @keyframes cf-update-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @media (prefers-reduced-motion: reduce) { .cf-update-toast { animation: none; } }
+
     /* ═══════════════════════════════════════════════════════════
        MOBILE
     ═══════════════════════════════════════════════════════════ */
@@ -12432,10 +12462,68 @@ loadExperimentState();
 
 <script>
   (function() {
-    /* ---- Service worker registration ---- */
+    /* ---- Service worker registration + "new version available" prompt ----
+       With the cache-first shell, a freshly deployed index.html is cached by the
+       new SW but the OPEN page keeps running the old shell until it reloads. So
+       when an updated SW finishes installing and is waiting, we surface a small
+       "Refresh" toast; tapping it tells the waiting SW to take over, and the
+       controllerchange below reloads the page once into the new version. */
     if ('serviceWorker' in navigator) {
+      var _updatePromptShown = false;
+      var _userTriggeredUpdate = false;
+      var _reloadingForUpdate = false;
+
+      function showUpdatePrompt(worker) {
+        if (_updatePromptShown || !worker) return;
+        _updatePromptShown = true;
+        var t = document.createElement('div');
+        t.className = 'cf-update-toast';
+        t.setAttribute('role', 'status');
+        var label = document.createElement('span');
+        label.className = 'cf-update-toast__label';
+        label.textContent = 'New version available';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'cf-update-toast__btn';
+        btn.textContent = 'Refresh';
+        btn.addEventListener('click', function() {
+          btn.disabled = true;
+          _userTriggeredUpdate = true; // only THEN should controllerchange reload
+          worker.postMessage({ type: 'SKIP_WAITING' });
+        });
+        var x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'cf-update-toast__x';
+        x.setAttribute('aria-label', 'Dismiss');
+        x.innerHTML = '&times;';
+        x.addEventListener('click', function() { t.remove(); });
+        t.appendChild(label); t.appendChild(btn); t.appendChild(x);
+        document.body.appendChild(t);
+      }
+
+      // Reload once the new SW takes control — but ONLY if the user tapped
+      // Refresh. (A first-ever install also fires controllerchange via
+      // clients.claim(); we must not reload the page out from under them then.)
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (!_userTriggeredUpdate || _reloadingForUpdate) return;
+        _reloadingForUpdate = true;
+        window.location.reload();
+      });
+
       window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js').catch(function(err) {
+        navigator.serviceWorker.register('/sw.js').then(function(reg) {
+          // An update may already be waiting from a previous visit.
+          if (reg.waiting && navigator.serviceWorker.controller) showUpdatePrompt(reg.waiting);
+          // Or one may finish installing while this page is open.
+          reg.addEventListener('updatefound', function() {
+            var nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', function() {
+              // 'installed' + an existing controller == an UPDATE (not first install).
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) showUpdatePrompt(nw);
+            });
+          });
+        }).catch(function(err) {
           console.warn('Conflicted SW registration failed:', err);
         });
       });

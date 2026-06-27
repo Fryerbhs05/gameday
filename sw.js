@@ -29,7 +29,13 @@ const PRECACHE_ASSETS = [
   '/brand-kit/logo/conflicted-favicon.svg'
 ];
 
-/* ---- Install: pre-cache the shell + offline page + brand assets ---- */
+/* ---- Install: pre-cache the shell + offline page + brand assets ----
+   NOTE: we deliberately do NOT call skipWaiting() here. On an UPDATE (an old
+   SW is still controlling open tabs) the new SW installs and then WAITS, so the
+   page can show a "new version available — tap to refresh" prompt and activate
+   it on the user's command (see the SKIP_WAITING message handler below). On a
+   first-ever install there's no controller to replace, so it activates normally
+   and clients.claim() (in activate) takes control of the open page. */
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
@@ -39,8 +45,12 @@ self.addEventListener('install', (event) => {
           cache.add(url).catch((e) => console.warn('precache skip', url, e && e.message))
         )
       ))
-      .then(() => self.skipWaiting())
   );
+});
+
+/* ---- Activate the waiting worker on demand (user tapped "Refresh") ---- */
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 /* ---- Activate: clean up old caches from prior versions ---- */
