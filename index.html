@@ -112,6 +112,27 @@
        Inlined in <head> so it runs before paint and avoids a flash. -->
   <script>document.documentElement.setAttribute('data-theme','dark');</script>
 
+  <!-- ============ Boot splash gate ============
+       On a resumed/backgrounded PWA, iOS reloads the whole page. The default
+       pre-JS paint is the LOGIN screen (setup-panel is display:flex by default),
+       so before the boot code at the bottom of this file runs, the user stares
+       at the login page — then it flashes to the board. This inline script puts
+       up a neutral branded splash IMMEDIATELY (before first paint) so the user
+       never sees a misleading login flash on resume. The boot IIFE calls
+       endBoot() the moment it has painted the real surface (board / skeleton /
+       setup), which fades the splash out. A failsafe removes it after 8s so a
+       stalled or thrown boot can never trap the user behind the splash. -->
+  <script>
+    (function(){
+      try{
+        var d=document.documentElement;
+        d.classList.add('booting');
+        /* Failsafe: never let the splash trap the user if boot stalls or throws. */
+        window.__bootSplashFailsafe=setTimeout(function(){d.classList.remove('booting');},8000);
+      }catch(e){}
+    })();
+  </script>
+
   <style>
     /* ============================================================
        Conflicted — design tokens (always dark)
@@ -955,6 +976,51 @@
     .spinner { width: 40px; height: 40px; border: 3px solid var(--line); border-top-color: var(--coral-500); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .loading-msg { font: 400 14px/1.4 var(--font-sans); color: var(--ink-500); }
+
+    /* ═══════════════════════════════════════════════════════════
+       BOOT SPLASH  (resume-jank fix — see <head> boot gate)
+       Covers the whole screen during the resume reload so the user
+       never sees the default login paint flash. Hidden by default;
+       only visible while <html class="booting">. endBoot() removes
+       the class and the splash fades out over the painted surface.
+    ═══════════════════════════════════════════════════════════ */
+    #boot-splash {
+      position: fixed; inset: 0; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--paper);
+      opacity: 0; visibility: hidden; pointer-events: none;
+      transition: opacity 260ms var(--ease-out), visibility 0s linear 260ms;
+    }
+    html.booting #boot-splash {
+      opacity: 1; visibility: visible; pointer-events: auto;
+      transition: none; /* must be up instantly on first paint */
+    }
+    /* Belt-and-suspenders: while booting, keep the default login paint from
+       peeking even if the splash background were ever translucent. */
+    html.booting #setup-panel { display: none !important; }
+    .boot-splash__inner { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+    .boot-splash__wordmark {
+      font: 900 30px/1 var(--font-sans); letter-spacing: -0.02em; color: var(--ink-900);
+    }
+    .boot-splash__spinner {
+      width: 32px; height: 32px; border: 3px solid var(--line);
+      border-top-color: var(--coral-500); border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .boot-splash__spinner { animation: none; }
+      #boot-splash { transition: none; }
+    }
+
+    /* Soft crossfade (#4): when a surface goes from display:none → shown, its
+       CSS animation restarts, giving a gentle fade-in instead of a hard cut.
+       In-place 60s refreshes don't toggle display, so they never re-trigger. */
+    @media (prefers-reduced-motion: no-preference) {
+      @keyframes surfaceFadeIn { from { opacity: 0; } to { opacity: 1; } }
+      #setup-panel, #board, #loading-panel, #error-panel {
+        animation: surfaceFadeIn 220ms var(--ease-out);
+      }
+    }
     #error-panel { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 64px); gap: 16px; padding: 40px; text-align: center; }
     .error-msg {
       font: 400 14px/1.55 var(--font-sans); color: var(--enemy);
@@ -3069,6 +3135,14 @@
 </head>
 <body>
 
+<!-- ── Boot splash (covers the resume reload; faded out by endBoot()) ── -->
+<div id="boot-splash" aria-hidden="true">
+  <div class="boot-splash__inner">
+    <div class="boot-splash__wordmark">Conflicted</div>
+    <div class="boot-splash__spinner" aria-hidden="true"></div>
+  </div>
+</div>
+
 <!-- ── Header ─────────────────────────────────────────────────── -->
 <header class="site-header">
   <div class="site-header__inner">
@@ -5168,13 +5242,17 @@ window.handleDisconnectAll=handleDisconnectAll;
 window.exitConnections=exitConnections;
 window.applyConnectionsAndView=applyConnectionsAndView;
 
-function showSetup(){hideAll();isDemoMode=false;document.getElementById('setup-panel').style.display='flex';try{window.__wizardActive=false;if(typeof stopYahooPoll==='function')stopYahooPoll();}catch(e){}try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}try{updateHeaderAuthControls(true);}catch(e){}}
+function showSetup(){hideAll();isDemoMode=false;try{localStorage.setItem('conflicted_last_surface','setup');}catch(e){}document.getElementById('setup-panel').style.display='flex';try{window.__wizardActive=false;if(typeof stopYahooPoll==='function')stopYahooPoll();}catch(e){}try{renderSetupProviders();}catch(e){console.warn('renderSetupProviders failed:',e.message);}try{updateHeaderAuthControls(true);}catch(e){}}
 window.showSetup=showSetup;
 function showLoading(msg){hideAll();document.getElementById('loading-panel').style.display='flex';document.getElementById('loading-msg').textContent=msg||'Pulling your leagues.';}
 function setLoading(msg){document.getElementById('loading-msg').textContent=msg;}
 function showError(msg){hideAll();document.getElementById('error-panel').style.display='flex';document.getElementById('error-msg').textContent=msg;}
 function showBoard(){
   hideAll();document.getElementById('board').style.display='block';
+  /* Remember that the user landed on a real board this session, so the next
+     resume can paint a board skeleton instead of the login screen. Guarded so
+     demo/preview boards don't make a logged-out user boot into a skeleton. */
+  try{if(!isDemoMode&&typeof isAnyProviderConnected==='function'&&isAnyProviderConnected())localStorage.setItem('conflicted_last_surface','board');}catch(e){}
   try{updateHeaderAuthControls(false);}catch(e){}
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='inline-flex');
   document.getElementById('week-label').style.display='block';
@@ -6404,7 +6482,17 @@ async function loadData(){
      showBoard() — dumping the user back on the dashboard. That was the 60s
      flash-to-dashboard regression. Capture the active view while flags are intact. */
   const _navViewOpen=(typeof window.cfActiveView==='function') && !!window.cfActiveView();
-  if(!_boardVisible && !_expoOpen && !_navViewOpen && !leagueMgmtViewOpen()) showLoading('Pulling your leagues.');
+  if(!_boardVisible && !_expoOpen && !_navViewOpen && !leagueMgmtViewOpen()){
+    /* For a logged-in cold load, show the board SKELETON (feels like the
+       dashboard filling in) instead of the full-screen "Pulling your leagues"
+       panel. renderBoard() tears the skeleton down when data lands. Anyone not
+       connected (true first run) still gets the loading panel. */
+    if(typeof isAnyProviderConnected==='function' && isAnyProviderConnected() && !isDemoMode){
+      try{showBoard();showBoardSkeleton();}catch(e){showLoading('Pulling your leagues.');}
+    }else{
+      showLoading('Pulling your leagues.');
+    }
+  }
   const state=await getNFLState();
   const _hasLiveWeek=(state.week>=1&&state.week<=MAX_WEEK);
   liveWeek=_hasLiveWeek?state.week:1;liveSeason=state.season;
@@ -9426,6 +9514,15 @@ loadExperimentState();
   const _bootParams=new URLSearchParams(window.location.search);
   const cameFromYahooOAuth=_bootParams.get('yahoo')==='connected';
   const justSignedOut=_bootParams.get('account')==='signed_out';
+  /* Dismiss the boot splash (see <head> gate). Idempotent — called the moment a
+     real surface (board / skeleton / setup) has been painted underneath it; the
+     splash then fades out via its CSS transition. Also clears the 8s failsafe. */
+  let _bootEnded=false;
+  function endBoot(){
+    if(_bootEnded)return;_bootEnded=true;
+    try{clearTimeout(window.__bootSplashFailsafe);}catch(e){}
+    try{document.documentElement.classList.remove('booting');}catch(e){}
+  }
   consumeYahooReturnParam();
   consumeEspnReturnParam();
   /* Local (localStorage) connections first, so the account hydration below sees
@@ -9467,8 +9564,26 @@ loadExperimentState();
         renderBoard(snap.data,snap.username||'');
         bootedFromSnapshot=true;
         const btn=document.getElementById('refresh-btn');if(btn)btn.classList.add('syncing');
+        endBoot(); // real board is up — fade the splash to it
       }catch(e){console.warn('snapshot boot failed, falling back to cold boot:',e.message);clearBoardSnapshot();}
     }
+  }
+  /* No snapshot, but the last session ended on the board and a provider is
+     already present from the local rehydrate above: paint the board SKELETON now
+     (under the splash) and dismiss the splash, so the resume reads as the
+     dashboard filling in — not login → loading panel → board. The run() below
+     replaces the skeleton with real cards. Falls through silently if anything is
+     off (logged out, demo, no local provider yet → splash stays until decision). */
+  let bootedSkeleton=false;
+  if(!bootedFromSnapshot&&!cameFromYahooOAuth&&!justSignedOut){
+    try{
+      if(localStorage.getItem('conflicted_last_surface')==='board'
+         && typeof isAnyProviderConnected==='function' && isAnyProviderConnected() && !isDemoMode){
+        showBoard();showBoardSkeleton();
+        bootedSkeleton=true;
+        endBoot();
+      }
+    }catch(e){}
   }
   /* AWAIT account hydration before the run()/showSetup() decision below. It must
      finish first or an account-only connection (e.g. Sleeper synced from another
@@ -9481,10 +9596,11 @@ loadExperimentState();
      latency of two sequential round-trips before deciding what to render. */
   await Promise.all([checkYahooStatus(),checkEspnStatus()]);
   const _endSnapshotSync=()=>{const btn=document.getElementById('refresh-btn');if(btn)btn.classList.remove('syncing');};
-  if(cameFromYahooOAuth)showSetup();
+  if(cameFromYahooOAuth){showSetup();endBoot();}
   else if(isAnyProviderConnected()){
     const ok=await run();
     _endSnapshotSync();
+    endBoot(); // safety: clears splash on the cold-load path (no snapshot/skeleton)
     if(bootedFromSnapshot&&ok)flashSyncedFeedback(); // same green snap as a manual sync
   }
   else{
@@ -9493,7 +9609,7 @@ loadExperimentState();
        sessions) — the snapshot no longer represents this user. Drop it so the
        next boot doesn't flash a board they can't have. */
     if(bootedFromSnapshot)clearBoardSnapshot();
-    showSetup();
+    showSetup();endBoot();
   }
 })();
 </script>
