@@ -999,9 +999,8 @@
        peeking even if the splash background were ever translucent. */
     html.booting #setup-panel { display: none !important; }
     .boot-splash__inner { display: flex; flex-direction: column; align-items: center; gap: 22px; }
-    .boot-splash__wordmark {
-      font: 900 30px/1 var(--font-sans); letter-spacing: -0.02em; color: var(--ink-900);
-    }
+    .boot-splash__wordmark { width: 220px; max-width: 70vw; }
+    .boot-splash__wordmark svg { display: block; width: 100%; height: auto; aspect-ratio: 480 / 90; }
     .boot-splash__spinner {
       width: 32px; height: 32px; border: 3px solid var(--line);
       border-top-color: var(--coral-500); border-radius: 50%;
@@ -3168,7 +3167,21 @@
 <!-- ── Boot splash (covers the resume reload; faded out by endBoot()) ── -->
 <div id="boot-splash" aria-hidden="true">
   <div class="boot-splash__inner">
-    <div class="boot-splash__wordmark">Conflicted</div>
+    <div class="boot-splash__wordmark">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 90" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Conflicted">
+        <defs>
+          <clipPath id="splashLeftHalf"><rect x="0" y="0" width="240" height="90"/></clipPath>
+          <clipPath id="splashRightHalf"><rect x="240" y="0" width="240" height="90"/></clipPath>
+        </defs>
+        <text x="240" y="64" text-anchor="middle"
+              style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:72px;letter-spacing:-0.04em;fill:var(--navy-700,#1A3A52);"
+              clip-path="url(#splashLeftHalf)">CONFLICTED</text>
+        <text x="240" y="64" text-anchor="middle"
+              style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:72px;letter-spacing:-0.04em;fill:var(--coral-500,#D85A30);"
+              clip-path="url(#splashRightHalf)">CONFLICTED</text>
+        <line x1="240" y1="14" x2="240" y2="78" style="stroke:var(--ink-900,#15181C);stroke-width:1.4;"/>
+      </svg>
+    </div>
     <div class="boot-splash__spinner" aria-hidden="true"></div>
   </div>
 </div>
