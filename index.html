@@ -3325,7 +3325,6 @@
 <!-- Pinned experiment ribbon: persistent exit affordance while experimental features are unlocked -->
 <div id="experiment-ribbon" role="status" aria-live="polite">
   <span class="xr-text">Experimental Mode — testing unreleased features</span>
-  <button class="xr-link" type="button" onclick="experimentGoDashboard()">Dashboard</button>
   <button class="xr-link" type="button" onclick="previewRealNav()" title="Hide the experiment banner + test buttons for 10s to see the tab bar where a normal user sees it">Preview real nav</button>
   <button class="xr-exit" type="button" onclick="exitExperiment()">Exit Experiment</button>
 </div>
@@ -3623,11 +3622,10 @@
 
 <!-- ══ IMPACT ANIMATION OVERLAY (experiment) ══════════════════ -->
 <div id="impact-overlay" aria-hidden="true"><div id="ia-live" role="status" aria-live="polite"></div></div>
-<div id="impact-test-ctl" aria-label="Impact animation test harness">
-  <button type="button" onclick="window.__impactTest&&window.__impactTest.next()">▶ Next play</button>
-  <button type="button" onclick="window.__impactTestGap&&window.__impactTestGap()">⏱ Simulate gap</button>
-  <button type="button" id="impact-test-loop-btn" onclick="window.__impactTestLoopToggle&&window.__impactTestLoopToggle(this)">↻ Loop 25s</button>
-</div>
+<!-- Impact-animation test buttons removed: Replay Mode (🎬 chip) is the test
+     harness now — real scoring events flow through the live pipeline, so the
+     animation triggers naturally (or on demand via "+ TD now"). The
+     window.__impactTest API remains available from the console. -->
 
 <!-- ══ ACCOUNT VIEW (opens from hamburger → Account) ══════════ -->
 <div id="view-account" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
@@ -7009,8 +7007,14 @@ const CF_REPLAY_TEAM_ALIAS={WSH:'WAS',JAC:'JAX',LA:'LAR',OAK:'LV',SD:'LAC',STL:'
 
 /* ── RECORDER ── */
 async function cfRecordReplaySnapshot(){
+  /* Only REAL connected-league data may be recorded. The TestMode preview board
+     and demo mode both render getDemoData() into __conflictedLastData — a
+     recording of that would replay fake rosters and defeat the whole point. */
+  if(isDemoMode||!(typeof isAnyProviderConnected==='function'&&isAnyProviderConnected()))
+    throw new Error('Sign in and connect your real leagues first — the demo/preview board can’t be recorded.');
   const d=window.__conflictedLastData;
   if(!d||d.noData||!d.leagues||!d.leagues.length)throw new Error('Load a week with league data first (pick a past season + week).');
+  if(!d.leagues.some(l=>l.platform))throw new Error('This board is demo data — load your real leagues, then record.');
   const db=window.playerDB||await getPlayerDB();window.playerDB=db;
   let sleeperLk=null;try{sleeperLk=buildSleeperIdLookup(db);}catch(e){}
   const projRng=__cfReplayCore.seededRng('cf-proj:'+activeSeason+'-'+activeWeek);
