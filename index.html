@@ -1693,6 +1693,11 @@
        Ephemeral v1. Only painted while board is the active view + experiment on. */
     #impact-overlay { position: fixed; inset: 0; z-index: 150; pointer-events: none; overflow: hidden; display: none; }
     body.experiment-active #impact-overlay.active { display: block; }
+    /* Fixed in-flow stage for phases 2–4 (top of Live Updates). Cards are
+       absolutely positioned children; overflow clips the hero's rise-in from
+       below and the net card's float-out through the top. */
+    #ia-stage { position: relative; overflow: hidden; height: 0; transition: height 0.3s ease; pointer-events: none; }
+    @media (prefers-reduced-motion: reduce) { #ia-stage { display: none !important; } }
     #ia-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     /* Phase 1 — splash */
     .ia-flash { position: absolute; inset: 0; background: var(--coral-500); opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
@@ -3599,6 +3604,11 @@
         <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">LIVE</span><span class="loyalties-wordmark__b">&nbsp;UPDATES</span></div>
       </div>
       <div class="lu-sub">Scoring changes · all relevant players</div>
+      <!-- Impact-animation stage: phases 2–4 (hero → league split → net card)
+           play INSIDE this fixed area, scrolling with the section. Opens to its
+           row height while a batch runs, collapses to 0 after. Phase 1 (flash +
+           CONFLICTED splash) stays on the full-screen #impact-overlay. -->
+      <div id="ia-stage" aria-hidden="true"></div>
       <div id="live-updates-log" class="lu-log"></div>
       <div class="lu-empty" id="lu-empty">No scoring changes yet — updates appear here as your players score.</div>
     </div>
@@ -13310,18 +13320,38 @@ loadExperimentState();
     return { mood:mood, intensity:imClamp(gross/IM_INT_DIV,0,1), color:(mood>=0), joy:joy, hope:(hope&&anchorMood>0), label:imLabel(mood,anchorMood,joy,hope) };
   }
 
+  /* ── Fixed stage (top of Live Updates) — hosts phases 2–4 ── */
+  function stageEl(){return document.getElementById('ia-stage');}
+  function openStage(h){
+    var st=stageEl(); if(!st)return null;
+    /* Auto-expand a collapsed Live Updates section so the stage isn't hidden.
+       Deliberately NO auto-scroll — if the section is off-screen the batch
+       plays in place and the full-screen flash is the only interruption. */
+    try{
+      var sec=document.getElementById('live-updates-section');
+      if(sec&&sec.classList.contains('collapsed')){
+        sec.classList.remove('collapsed');
+        var hd=sec.querySelector('.live-updates-header'); if(hd)hd.setAttribute('aria-expanded','true');
+      }
+    }catch(e){}
+    st.style.height=h+'px';
+    return st;
+  }
+  function closeStage(){var st=stageEl(); if(st)st.style.height='0px';}
+
   function skipAll(){
     clearTimers(); paused=false;
     nodes.forEach(function(n){if(n&&n.parentNode)n.parentNode.removeChild(n);}); nodes=[];
     var bd=document.getElementById('ia-breakdown'); if(bd)bd.remove();
     var o=overlay(); if(o){o.style.pointerEvents='none';}
+    closeStage();
     running=false; drain();
   }
 
   function drain(){
     var o=overlay();
     if(running)return;
-    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}return;}
+    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}closeStage();return;}
     var batch=queue.shift(); runBatch(batch);
   }
 
@@ -13337,12 +13367,15 @@ loadExperimentState();
     after(1060,function(){if(sp.parentNode)sp.remove();if(flash.parentNode)flash.remove();if(cb)cb();});
   }
 
-  /* Phases 2-4 per player: hero card → league split → merge to net card. */
-  function runPlayer(ev,cx,cy,slotW,rowBudget,leagueScale,done){
-    var vh=window.innerHeight, o=overlay();
+  /* Phases 2-4 per player: hero card → league split → merge to net card.
+     Cards are children of the STAGE (in-flow, scrolls with Live Updates);
+     coordinates are stage-relative. `stageH` = the stage's opened height, so
+     the hero rises in from below the clipped bottom edge. */
+  function runPlayer(ev,cx,cy,slotW,rowBudget,leagueScale,host,stageH,done){
+    var o=host||overlay();
     var heroW=220, vCap=(rowBudget-14)/150;
     var heroScale=Math.min(1,(slotW-16)/heroW,vCap), hx=cx-heroW/2;
-    var heroY=cy, riseStartY=vh+40;
+    var heroY=cy, riseStartY=(stageH||rowBudget)+30;
     /* Phase 2 — hero card */
     var hero=document.createElement('div'); hero.className='ia-hero'; hero.style.transformOrigin='top center';
     hero.innerHTML='<div class="ia-hero__delta">'+fmt(ev.delta)+'</div><div class="ia-hero__name">'+esc(ev.name)+'</div>';
@@ -13402,25 +13435,29 @@ loadExperimentState();
   function runBatch(events){
     running=true; paused=false;
     var o=overlay(); if(!o){running=false;return;}
-    o.classList.add('active');
-    /* Players from the same tick stack VERTICALLY (one row each, e.g. QB + WR on
-       a TD pass); within a row the league cards fan out horizontally by count. */
-    var vw=window.innerWidth, vh=window.innerHeight, maxConc=3;
+    o.classList.add('active'); // hosts the phase-1 flash/splash only
+    /* Players from the same tick stack VERTICALLY inside the stage (one row
+       each, e.g. QB + WR on a TD pass); within a row the league cards fan out
+       horizontally by count. Rows shrink as the batch grows so the stage stays
+       compact at the top of Live Updates. */
+    var maxConc=3;
     var show=events.slice(0,maxConc), rest=events.slice(maxConc);
     if(rest.length)queue.unshift(rest);
     var P=show.length;
-    var rowSpacing=Math.min(vh*0.5/P, 200);
-    var startY=vh*0.42-(rowSpacing*P)/2;
+    var rowH=(P===1)?170:(P===2?146:124);
+    var stageH=rowH*P;
+    var st=openStage(stageH);
+    var sw=(st&&(st.clientWidth||(st.parentNode&&st.parentNode.clientWidth)))||window.innerWidth;
     /* Equal-size rule: every league card across the batch uses ONE scale — the
        smallest, driven by whichever player is in the most leagues. */
-    var vCap=(rowSpacing-14)/150, heroW=220, gap=10, maxN=1;
+    var vCap=(rowH-14)/150, heroW=220, gap=10, maxN=1;
     show.forEach(function(e){if(e.legs.length>maxN)maxN=e.legs.length;});
-    var leagueScale=Math.min(1,(vw-16)/(maxN*heroW+(maxN-1)*gap),vCap);
+    var leagueScale=Math.min(1,(sw-16)/(maxN*heroW+(maxN-1)*gap),vCap);
     runSplash(function(){
       var pending=P;
       show.forEach(function(ev,ri){
-        var cy=startY+rowSpacing*(ri+0.5);
-        runPlayer(ev, vw/2, cy, vw, rowSpacing, leagueScale, function(){if(--pending<=0){running=false;drain();}});
+        var cy=rowH*ri+7; // card top within its stage row
+        runPlayer(ev, sw/2, cy, sw, rowH, leagueScale, st, stageH, function(){if(--pending<=0){running=false;drain();}});
       });
     });
   }
