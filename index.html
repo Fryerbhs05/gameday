@@ -7188,12 +7188,13 @@ const cfReplay=(function(){
     (bonuses[u]||[]).forEach(e=>{if(e.t<=vt)pts+=e.pts;});
     return +pts.toFixed(2);
   }
-  function liveProjOf(p,cur){
-    const kick=(teamKick[p.team]!=null)?teamKick[p.team]:3885;
-    const prog=__cfReplayCore.teamProg(vt,kick);
-    if(prog>=1)return +cur.toFixed(1);
-    return +((cur+((p.proj!=null?p.proj:(p.pts||0))*(1-prog)))).toFixed(1);
-  }
+  /* Projections are STATIC pregame values, exactly like prod: providers feed
+     fixed per-player projections and ctx.myProjPts never moves during games.
+     Downstream consumers (Weekend Snapshot win-prob, player cards) compute
+     their own remaining-math from proj − current. A live-drifting projection
+     here made Snapshot's numbers slide every tick and collapse to equal the
+     final score once games ended. */
+  function staticProjOf(p){return +(p.proj!=null?p.proj:(p.pts||0)).toFixed(1);}
 
   /* Assemble a full loadData()-shaped result for "now" (mirrors getDemoData,
      but from the recorded snapshot with the virtual clock applied). */
@@ -7210,8 +7211,8 @@ const cfReplay=(function(){
       if(!colorMap[lg.name])colorMap[lg.name]=LC_COLORS[i%LC_COLORS.length];
       const myPP={},oppPP={},myProjPP={},oppProjPP={};
       let myPts=0,oppPts=0,myProj=0,oppProj=0,allPost=true;
-      lg.my.forEach(x=>{const c=currentPts(x);myPP[x.id]=c;myPts+=c;const lp=liveProjOf(x,c);myProjPP[x.id]=lp;myProj+=lp;if(__cfReplayCore.teamState(vt,(teamKick[x.team]!=null)?teamKick[x.team]:3885)!=='post')allPost=false;});
-      lg.opp.forEach(x=>{const c=currentPts(x);oppPP[x.id]=c;oppPts+=c;const lp=liveProjOf(x,c);oppProjPP[x.id]=lp;oppProj+=lp;if(__cfReplayCore.teamState(vt,(teamKick[x.team]!=null)?teamKick[x.team]:3885)!=='post')allPost=false;});
+      lg.my.forEach(x=>{const c=currentPts(x);myPP[x.id]=c;myPts+=c;const sp=staticProjOf(x);myProjPP[x.id]=sp;myProj+=sp;if(__cfReplayCore.teamState(vt,(teamKick[x.team]!=null)?teamKick[x.team]:3885)!=='post')allPost=false;});
+      lg.opp.forEach(x=>{const c=currentPts(x);oppPP[x.id]=c;oppPts+=c;const sp=staticProjOf(x);oppProjPP[x.id]=sp;oppProj+=sp;if(__cfReplayCore.teamState(vt,(teamKick[x.team]!=null)?teamKick[x.team]:3885)!=='post')allPost=false;});
       const state=allPost?(myPts>oppPts?'LOCKED_WIN':'LOCKED_LOSS'):'LIVE';
       contexts.push({leagueName:lg.name,platform:lg.platform,leagueState:state,fmt:lg.fmt,
         myPoints:+myPts.toFixed(2),oppPoints:+oppPts.toFixed(2),
