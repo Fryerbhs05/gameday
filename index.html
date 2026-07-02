@@ -332,6 +332,11 @@
     .menu-signedout-only { display: none; }
     body.nav-can-signin .menu-signedout-only { display: block; }
     body.nav-landing .menu-app-only { display: none; }
+    /* Snapshot + Conflict Card are signed-in features. Without this gate they
+       leak into the drawer for signed-out states that sit off the landing page
+       (demo mode, TestMode preview board). body.nav-signedin is synced from
+       window.__account on an interval alongside the ribbon syncs. */
+    body:not(.nav-signedin) .menu-signedin-only { display: none !important; }
     .menu-drawer__section-label {
       font: 500 10px/1 var(--font-mono); color: var(--ink-500);
       letter-spacing: 0.16em; text-transform: uppercase;
@@ -3267,12 +3272,12 @@
         <span>Dashboard</span>
       </button>
     </li>
-    <li role="none" class="menu-app-only exp-tabbar-dupe">
+    <li role="none" class="menu-app-only exp-tabbar-dupe menu-signedin-only">
       <button class="menu-drawer__item" data-menu-action="snapshot" role="menuitem" type="button">
         <span>Weekend Snapshot</span>
       </button>
     </li>
-    <li role="none" class="menu-app-only exp-only">
+    <li role="none" class="menu-app-only exp-only menu-signedin-only">
       <button class="menu-drawer__item" data-menu-action="conflict" role="menuitem" type="button">
         <span>Conflict Card</span>
       </button>
@@ -3375,17 +3380,31 @@
       { key: 'shop',     label: 'Shop',     soon: true,  svg: '<path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/>' },
       { key: 'blog',     label: 'Blog',     soon: true,  svg: '<rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>' },
       { key: 'partners', label: 'Partners', soon: true,  svg: '<circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/>' },
-      { key: 'contact',  label: 'Contact',  soon: true,  svg: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/>' }
+      { key: 'contact',  label: 'Contact',  soon: true,  svg: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/>' },
+      /* Admin-only shortcut into experiment mode — avoids the sign-out →
+         type-code → sign-back-in dance. Client-side email gate is purely a
+         convenience filter (the TestMode code path still exists); it is NOT
+         a security boundary and mustn't guard anything sensitive. */
+      { key: 'experiment', label: 'Experiment', soon: false, adminOnly: true, svg: '<path d="M10 3h4"/><path d="M10 3v6l-5.2 9.2A2 2 0 0 0 6.5 21h11a2 2 0 0 0 1.7-2.8L14 9V3"/><path d="M7.3 15h9.4"/>' }
     ];
+    var ADMIN_EMAILS = ['fryerm@net.elmhurst.edu'];
+    function isAdminUser() {
+      try {
+        var a = window.__account;
+        return !!(a && a.signedIn && a.email && ADMIN_EMAILS.indexOf(String(a.email).trim().toLowerCase()) >= 0);
+      } catch (e) { return false; }
+    }
     function renderMoreSheet() {
       var expOn = !!(window.experimentEnabled && window.experimentEnabled());
-      var tiles = ITEMS.filter(function(it){ return !it.expOnly || expOn; }).map(function(it) {
+      var adminOk = isAdminUser();
+      var tiles = ITEMS.filter(function(it){ return (!it.expOnly || expOn) && (!it.adminOnly || adminOk); }).map(function(it) {
         var cls = 'cbmore-tile' + (it.soon ? ' is-soon' : '');
         var attrs = it.soon ? 'aria-disabled="true"' : 'data-more-action="' + it.key + '"';
         var badge = it.soon ? '<span class="cbmore-badge">Soon</span>' : '';
+        var label = (it.key === 'experiment' && expOn) ? 'Exit Exp.' : it.label;
         return '<button type="button" class="' + cls + '" ' + attrs + '>' +
                  '<span class="cbmore-ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + it.svg + '</svg></span>' +
-                 '<span class="cbmore-label">' + it.label + '</span>' + badge +
+                 '<span class="cbmore-label">' + label + '</span>' + badge +
                '</button>';
       }).join('');
       return '<div class="cbmore-title">More</div><div class="cbmore-grid">' + tiles + '</div>';
@@ -3404,6 +3423,12 @@
       if (action === 'about' && typeof window.showAbout === 'function') { window.showAbout(); window.scrollTo(0, 0); }
       else if (action === 'exposure' && typeof window.showExposure === 'function') { window.showExposure(); window.scrollTo(0, 0); }
       else if (action === 'schedule' && typeof window.showWatch === 'function') { window.showWatch(); window.scrollTo(0, 0); }
+      else if (action === 'experiment') {
+        /* Toggle experiment mode. Both paths reload the page (existing
+           enable/exit behavior) so gated UI appears/tears down cleanly. */
+        if (window.experimentEnabled && window.experimentEnabled()) { if (typeof window.exitExperiment === 'function') window.exitExperiment(); }
+        else if (typeof window.enableExperimentMode === 'function') { window.enableExperimentMode(); }
+      }
     });
   })();
 </script>
@@ -7439,6 +7464,7 @@ function enableExperimentMode(){isExperimentMode=true;try{localStorage.setItem(E
   /* Reload so any experimental UI that gates at boot/render time appears cleanly,
      mirroring the exit path. The flag is already persisted, so it survives. */
   try{location.reload();}catch(e){}}
+window.enableExperimentMode=enableExperimentMode; /* More-sheet Experiment tile (separate script) needs it */
 function exitExperiment(){isExperimentMode=false;try{localStorage.removeItem(EXPERIMENT_LS_KEY);}catch(e){}syncExperimentRibbon();
   /* Reload so any experimental UI that was rendered tears down cleanly, exactly
      as it would for a normal (locked) visitor. */
@@ -9307,7 +9333,12 @@ function updateHeaderAuthControls(showSignin){
   const signedIn = !!(window.__account && window.__account.signedIn);
   document.body.classList.toggle('nav-landing', !!showSignin);
   document.body.classList.toggle('nav-can-signin', !!showSignin && !signedIn);
+  document.body.classList.toggle('nav-signedin', signedIn);
 }
+/* Safety-net sync for .nav-signedin (gates signed-in-only drawer items):
+   __account can flip outside updateHeaderAuthControls (magic-link return,
+   background /me restore), so mirror the ribbons' interval pattern. */
+try{setInterval(function(){try{document.body.classList.toggle('nav-signedin',!!(window.__account&&window.__account.signedIn));}catch(e){}},400);}catch(e){}
 window.updateHeaderAuthControls = updateHeaderAuthControls;
 
 /* Header "Sign in" entry. Two explicit paths:
