@@ -6492,6 +6492,10 @@ function __histSig(){
 function __histKey(season,week){return season+'|'+week+'|'+__histSig();}
 function clearHistCache(){__histCache.clear();}
 async function loadData(){
+  /* Replay Mode (experiment-only offseason harness) supplies the entire
+     dataset synthetically — no network, works with zero providers connected.
+     This covers EVERY loadData call site (run, auto-refresh, tab-return). */
+  if(window.__cfReplay&&window.__cfReplay.active())return window.__cfReplay.data();
   if(!isAnyProviderConnected()){
     return{noData:true,noDataReason:'No providers connected.',cheerFor:[],conflicted:[],enemies:[],allRostered:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
   }
@@ -6939,6 +6943,438 @@ function getDemoData(){
   return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,leagues:demoLeagues,debugInfo:null,allRostered:Array.from(map.values()),cheerFor,conflicted,enemies};
 }
 
+/* ══ REPLAY MODE (experiment-only) ═══════════════════════════════════════════
+   Offseason testing harness. Two halves:
+   1) RECORDER — while viewing a real historic week (any platform mix), captures
+      the loaded rosters + final per-player points into replay-snapshot.json
+      (downloaded AND stashed in localStorage), plus the real NFL slate for that
+      week from the ESPN scoreboard (kickoff time per team).
+   2) ENGINE — replays that snapshot as if the games were live: a virtual clock
+      walks the real slate (Thu → Sun early → Sun late → SNF → MNF), every
+      player's final points are dealt out in seeded, bursty scoring events, and
+      the board is re-rendered through the SAME classification pipeline
+      (calcSignal / classifyPlayer / ctxBadge) the live app uses. nflGameStates /
+      nflGameClocks are driven directly so "● Live" badges, the live-only
+      toggle, Snapshot win-prob, and Conflict Card windows all behave.
+   Entirely client-side (zero serverless functions). Gated behind
+   window.experimentEnabled(). Exactly three prod seams know it exists:
+   loadData() short-circuit, saveBoardSnapshot() skip, shouldAutoRefresh() guard. */
+/*__CF_REPLAY_CORE_START__*/
+const __cfReplayCore=(function(){
+  'use strict';
+  const GAME_MIN=195; // kickoff → final whistle, in slate minutes
+  /* Deterministic per-string RNG (FNV-1a seed → mulberry32) so pausing,
+     scrubbing, or re-rendering always sees the identical scoring timeline. */
+  function seededRng(str){
+    let h=2166136261>>>0;
+    for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}
+    return function(){h+=0x6D2B79F5;h>>>=0;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};
+  }
+  /* Per-player scoring timeline: N event times (minutes into THEIR game) with
+     weights summing to exactly 1. cumWeight(mins) is multiplied by each
+     league's FINAL points, so one NFL performance scales consistently across
+     PPR / Half / Std finals in different leagues. */
+  function buildTimeline(playerId,finalHint){
+    const rng=seededRng('cf-replay:'+playerId);
+    const n=Math.max(2,Math.min(9,3+Math.floor(Math.abs(finalHint||8)/6)));
+    const raw=[];let wsum=0;
+    for(let i=0;i<n;i++){const w=0.35+rng();raw.push({t:5+rng()*(GAME_MIN-15),w});wsum+=w;}
+    return raw.map(e=>({t:e.t,w:e.w/wsum})).sort((a,b)=>a.t-b.t);
+  }
+  function cumWeight(evts,minsIntoGame){
+    if(minsIntoGame<0)return 0;
+    if(minsIntoGame>=GAME_MIN)return 1; // lands exactly on the recorded final
+    let c=0;for(let i=0;i<evts.length;i++){if(evts[i].t<=minsIntoGame)c+=evts[i].w;}
+    return c;
+  }
+  function teamProg(vt,kick){return Math.max(0,Math.min(1,(vt-kick)/GAME_MIN));}
+  function teamState(vt,kick){if(vt<kick)return'pre';return teamProg(vt,kick)>=1?'post':'in';}
+  function teamClock(vt,kick){
+    const st=teamState(vt,kick);
+    if(st==='pre')return'';
+    if(st==='post')return'Final';
+    const p=teamProg(vt,kick)*4;
+    const per=Math.min(4,Math.floor(p)+1);
+    const rem=15*(1-(p-Math.floor(p)));
+    const mm=Math.floor(rem),ss=Math.floor((rem-mm)*60);
+    return'Q'+per+' '+mm+':'+(ss<10?'0':'')+ss;
+  }
+  return{GAME_MIN,seededRng,buildTimeline,cumWeight,teamProg,teamState,teamClock};
+})();
+/*__CF_REPLAY_CORE_END__*/
+
+const REPLAY_LS_KEY='conflicted_replay_snapshot_v1';
+/* ESPN scoreboard team abbrs that differ from Sleeper/Yahoo conventions. */
+const CF_REPLAY_TEAM_ALIAS={WSH:'WAS',JAC:'JAX',LA:'LAR',OAK:'LV',SD:'LAC',STL:'LAR'};
+
+/* ── RECORDER ── */
+async function cfRecordReplaySnapshot(){
+  const d=window.__conflictedLastData;
+  if(!d||d.noData||!d.leagues||!d.leagues.length)throw new Error('Load a week with league data first (pick a past season + week).');
+  const db=window.playerDB||await getPlayerDB();window.playerDB=db;
+  let sleeperLk=null;try{sleeperLk=buildSleeperIdLookup(db);}catch(e){}
+  const projRng=__cfReplayCore.seededRng('cf-proj:'+activeSeason+'-'+activeWeek);
+  function norm(p,pp,projpp,isBench){
+    let id,name,pos,team,slot,inj=null,sleeperId=null;
+    if(typeof p==='string'){
+      const info=db[p]||{};
+      id=p;sleeperId=p;
+      name=info.full_name||info.last_name||('Player '+p);
+      pos=info.position||(p.length<=4?'DEF':'—');
+      team=info.team||'';slot=pos;
+      inj=info.injury_status||null;
+    }else{
+      id=String(p.player_key||p.id||p.full_name||p.name||'p');
+      name=p.full_name||p.name||'Player';
+      pos=p.position||'—';team=p.team||'';slot=p.slot||p.position||'—';
+      inj=p.injuryStatus||null;
+      try{const u=unifiedPlayerKey(name,team,pos);if(u&&sleeperLk&&sleeperLk[u])sleeperId=sleeperLk[u];}catch(e){}
+    }
+    const k=(typeof p==='string')?p:(p.player_key||id);
+    const pts=isBench?0:+(((pp&&pp[k])!=null?pp[k]:0)).toFixed(2);
+    let proj=(!isBench&&projpp&&projpp[k]!=null)?+(+projpp[k]).toFixed(1):null;
+    /* Historic weeks carry no projections — synthesize a plausible one around
+       the actual final so Conflict Card window math + win prob have inputs. */
+    if(proj==null&&!isBench){const base=Math.abs(pts)>2?pts:(2+8*projRng());proj=+((base*(0.8+0.4*projRng()))).toFixed(1);}
+    return{id,name,pos,team,slot,pts,proj,inj,sleeperId};
+  }
+  const leagues=d.leagues.map(lg=>{
+    const ctx=(d.contexts||[]).find(c=>c.leagueName===lg.leagueName&&(!lg.platform||!c.platform||c.platform===lg.platform))||{};
+    return{
+      name:lg.leagueName,platform:lg.platform||'sleeper',fmt:lg.fmt||'PPR',
+      my:(lg.myPlayers||[]).map(p=>norm(p,ctx.myPP,ctx.myProjPP,false)),
+      opp:(lg.oppPlayers||[]).map(p=>norm(p,ctx.oppPP,ctx.oppProjPP,false)),
+      myBench:(lg.myBench||[]).map(p=>norm(p,null,null,true)),
+      oppBench:(lg.oppBench||[]).map(p=>norm(p,null,null,true)),
+    };
+  });
+  /* Real slate: kickoff ISO per team from the ESPN scoreboard (works for past
+     weeks year-round). Failure is fine — the engine synthesizes a slate. */
+  const kicks={};
+  try{
+    const r=await fetch(`${ESPN_SCOREBOARD}?dates=${activeSeason}&seasontype=2&week=${activeWeek}`);
+    if(r.ok){
+      const j=await r.json();
+      (j.events||[]).forEach(ev=>{
+        const comp=ev.competitions&&ev.competitions[0];if(!comp)return;
+        const iso=ev.date||comp.date;if(!iso)return;
+        (comp.competitors||[]).forEach(c=>{
+          const ab=c.team&&c.team.abbreviation;if(!ab)return;
+          kicks[ab]=iso;
+          const alias=CF_REPLAY_TEAM_ALIAS[ab];if(alias)kicks[alias]=iso;
+        });
+      });
+    }
+  }catch(e){console.warn('replay: slate fetch failed, engine will synthesize:',e.message);}
+  const snap={version:1,season:activeSeason,week:activeWeek,recordedAt:new Date().toISOString(),kicks,leagues};
+  try{localStorage.setItem(REPLAY_LS_KEY,JSON.stringify(snap));}catch(e){console.warn('replay: localStorage stash failed (snapshot still downloads):',e.message);}
+  try{
+    const blob=new Blob([JSON.stringify(snap)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='replay-snapshot.json';
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){try{URL.revokeObjectURL(a.href);a.remove();}catch(e){}},2000);
+  }catch(e){}
+  return snap;
+}
+
+/* ── ENGINE + CONTROL PANEL ── */
+const cfReplay=(function(){
+  'use strict';
+  const GM=__cfReplayCore.GAME_MIN;
+  let snap=null,active=false,playing=false,timer=null;
+  let vt=0,total=600,speed=1.5;         // vt/speed in slate-minutes (per real second)
+  let baseMs=null,teamKick={},segs=[],timelines={},bonuses={},lastBuckets=null;
+
+  function setup(s){
+    snap=s;teamKick={};timelines={};bonuses={};baseMs=null;
+    const teams=new Set();
+    s.leagues.forEach(l=>['my','opp','myBench','oppBench'].forEach(k=>(l[k]||[]).forEach(p=>{if(p.team)teams.add(p.team);})));
+    const kicks=s.kicks||{};
+    const ms=Object.values(kicks).map(x=>Date.parse(x)).filter(x=>!isNaN(x));
+    if(ms.length)baseMs=Math.min.apply(null,ms);
+    teams.forEach(t=>{
+      const iso=kicks[t]||kicks[CF_REPLAY_TEAM_ALIAS[t]];
+      if(iso&&baseMs!=null&&!isNaN(Date.parse(iso)))teamKick[t]=(Date.parse(iso)-baseMs)/60000;
+    });
+    /* Teams the scoreboard didn't cover (abbr mismatch / fetch failed / bye
+       carry-over): drop them into a synthetic Sunday. Offsets are minutes from
+       a Thu 8:15p kick: Sun 1:00p = 3885, Sun 4:25p = 4090. */
+    teams.forEach(t=>{
+      if(teamKick[t]==null){
+        const r=__cfReplayCore.seededRng('cf-slate:'+t)();
+        teamKick[t]=r<0.6?3885:4090;
+      }
+    });
+    s.leagues.forEach(l=>['my','opp'].forEach(k=>(l[k]||[]).forEach(p=>{
+      if(!timelines[p.id])timelines[p.id]=__cfReplayCore.buildTimeline(p.id,p.pts);
+    })));
+    const kickVals=Object.keys(teamKick).map(t=>teamKick[t]);
+    total=(kickVals.length?Math.max.apply(null,kickVals):0)+GM+10;
+    /* Scrub axis = only the interesting spans (games ±5 min), merged. */
+    const spans=kickVals.map(k=>[k-5,k+GM+5]).sort((a,b)=>a[0]-b[0]);
+    segs=[];spans.forEach(sp=>{const last=segs[segs.length-1];if(last&&sp[0]<=last[1])last[1]=Math.max(last[1],sp[1]);else segs.push([sp[0],sp[1]]);});
+  }
+  function segTotal(){let t=0;segs.forEach(s=>t+=s[1]-s[0]);return Math.max(1,t);}
+  function vtToSlider(v){let acc=0;for(const s of segs){if(v>s[1])acc+=s[1]-s[0];else if(v>=s[0]){acc+=v-s[0];break;}else break;}return Math.round(1000*acc/segTotal());}
+  function sliderToVt(x){let target=(x/1000)*segTotal();for(const s of segs){const len=s[1]-s[0];if(target<=len)return s[0]+target;target-=len;}return total;}
+  function nextKick(){let best=null;Object.keys(teamKick).forEach(t=>{const k=teamKick[t];if(k>vt&&(best==null||k<best))best=k;});return best;}
+  function anyLive(){return Object.keys(teamKick).some(t=>__cfReplayCore.teamState(vt,teamKick[t])==='in');}
+  function liveCount(){const seen=new Set();Object.keys(teamKick).forEach(t=>{if(__cfReplayCore.teamState(vt,teamKick[t])==='in')seen.add(teamKick[t]);});return seen.size;}
+  function clusters(){
+    const ks=[];Object.keys(teamKick).forEach(t=>{if(ks.indexOf(teamKick[t])<0)ks.push(teamKick[t]);});
+    ks.sort((a,b)=>a-b);
+    const cl=[];ks.forEach(k=>{const last=cl[cl.length-1];if(last&&k-last.start<=90)last.n++;else cl.push({start:k,n:1});});
+    return cl;
+  }
+  function fmtVt(v){
+    if(baseMs!=null){
+      try{return new Date(baseMs+v*60000).toLocaleString('en-US',{weekday:'short',hour:'numeric',minute:'2-digit'});}catch(e){}
+    }
+    return'T+'+Math.floor(v/60)+'h'+String(Math.floor(v%60)).padStart(2,'0');
+  }
+
+  function currentPts(p){
+    const kick=(teamKick[p.team]!=null)?teamKick[p.team]:3885;
+    let pts=(p.pts||0)*__cfReplayCore.cumWeight(timelines[p.id]||[],vt-kick);
+    (bonuses[p.id]||[]).forEach(e=>{if(e.t<=vt)pts+=e.pts;});
+    return +pts.toFixed(2);
+  }
+  function liveProjOf(p,cur){
+    const kick=(teamKick[p.team]!=null)?teamKick[p.team]:3885;
+    const prog=__cfReplayCore.teamProg(vt,kick);
+    if(prog>=1)return +cur.toFixed(1);
+    return +((cur+((p.proj!=null?p.proj:(p.pts||0))*(1-prog)))).toFixed(1);
+  }
+
+  /* Assemble a full loadData()-shaped result for "now" (mirrors getDemoData,
+     but from the recorded snapshot with the virtual clock applied). */
+  function build(){
+    const toDP=x=>({id:x.id,player_key:x.id,full_name:x.name,position:x.pos,team:x.team,slot:x.slot});
+    const contexts=[],leagues=[];
+    const map=new Map();
+    function ensure(x){
+      if(!map.has(x.id))map.set(x.id,{id:x.id,full_name:x.name,position:x.pos,team:x.team,injuryStatus:x.inj||null,sleeperId:x.sleeperId||null,myLeagues:[],againstLeagues:[],myBenchLeagues:[],againstBenchLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
+      const e=map.get(x.id);if(x.inj&&!e.injuryStatus)e.injuryStatus=x.inj;if(x.sleeperId&&!e.sleeperId)e.sleeperId=x.sleeperId;return e;
+    }
+    snap.leagues.forEach((lg,i)=>{
+      if(!colorMap[lg.name])colorMap[lg.name]=LC_COLORS[i%LC_COLORS.length];
+      const myPP={},oppPP={},myProjPP={},oppProjPP={};
+      let myPts=0,oppPts=0,myProj=0,oppProj=0,allPost=true;
+      lg.my.forEach(x=>{const c=currentPts(x);myPP[x.id]=c;myPts+=c;const lp=liveProjOf(x,c);myProjPP[x.id]=lp;myProj+=lp;if(__cfReplayCore.teamState(vt,(teamKick[x.team]!=null)?teamKick[x.team]:3885)!=='post')allPost=false;});
+      lg.opp.forEach(x=>{const c=currentPts(x);oppPP[x.id]=c;oppPts+=c;const lp=liveProjOf(x,c);oppProjPP[x.id]=lp;oppProj+=lp;if(__cfReplayCore.teamState(vt,(teamKick[x.team]!=null)?teamKick[x.team]:3885)!=='post')allPost=false;});
+      const state=allPost?(myPts>oppPts?'LOCKED_WIN':'LOCKED_LOSS'):'LIVE';
+      contexts.push({leagueName:lg.name,platform:lg.platform,leagueState:state,fmt:lg.fmt,
+        myPoints:+myPts.toFixed(2),oppPoints:+oppPts.toFixed(2),
+        myProjPts:+myProj.toFixed(1),oppProjPts:+oppProj.toFixed(1),
+        myPP,oppPP,myProjPP,oppProjPP});
+      leagues.push({leagueName:lg.name,platform:lg.platform,fmt:lg.fmt,hasMatchup:true,
+        myPlayers:lg.my.map(toDP),oppPlayers:lg.opp.map(toDP),
+        myBench:(lg.myBench||[]).map(toDP),oppBench:(lg.oppBench||[]).map(toDP)});
+      lg.my.forEach(x=>{const e=ensure(x);if(!e.myLeagues.includes(lg.name))e.myLeagues.push(lg.name);e.leaguePoints[lg.name]={pts:myPP[x.id],proj:myProjPP[x.id],fmt:lg.fmt};});
+      lg.opp.forEach(x=>{const e=ensure(x);if(!e.againstLeagues.includes(lg.name))e.againstLeagues.push(lg.name);e.leaguePoints[lg.name]={pts:oppPP[x.id],proj:oppProjPP[x.id],fmt:lg.fmt};});
+      (lg.myBench||[]).forEach(x=>{const e=ensure(x);if(!e.myBenchLeagues.includes(lg.name))e.myBenchLeagues.push(lg.name);});
+      (lg.oppBench||[]).forEach(x=>{const e=ensure(x);if(!e.againstBenchLeagues.includes(lg.name))e.againstBenchLeagues.push(lg.name);});
+    });
+    /* Drive the module NFL maps directly so isPlayerLive / __cfGameState /
+       __cfGameClock (live badges, live-only toggle, Snapshot, Watch) all see
+       the virtual slate. Real fetch is bypassed while replay is active. */
+    const m=new Map(),clk=new Map();
+    Object.keys(teamKick).forEach(t=>{
+      m.set(t,__cfReplayCore.teamState(vt,teamKick[t]));
+      const c=__cfReplayCore.teamClock(vt,teamKick[t]);if(c)clk.set(t,c);
+    });
+    nflGameStates=m;nflGameClocks=clk;nflGameStatesKey='replay';nflGameStatesAt=Date.now();
+    const liveLeagues=new Set();
+    map.forEach(p=>{
+      if(!isPlayerLive(p))return;
+      p.myLeagues.forEach(n=>liveLeagues.add(n));
+      p.againstLeagues.forEach(n=>liveLeagues.add(n));
+    });
+    contexts.forEach(c=>{c.liveOnField=liveLeagues.has(c.leagueName);});
+    const cheerFor=[],conflicted=[],enemies=[];
+    map.forEach(pl=>{
+      if(!pl.myLeagues.length&&!pl.againstLeagues.length)return;
+      const sig=calcSignal(pl,contexts);
+      const cls=classifyPlayer(pl,sig);
+      if(!cls)return;
+      pl.bucket=cls.bucket;pl.clinched=cls.clinched;
+      pl.contextBadge=ctxBadge(sig,false);
+      if(cls.bucket==='cheer')cheerFor.push(pl);
+      else if(cls.bucket==='conflicted')conflicted.push(pl);
+      else enemies.push(pl);
+    });
+    lastBuckets={cheerFor,conflicted,enemies};
+    return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,leagues,debugInfo:null,allRostered:Array.from(map.values()),cheerFor,conflicted,enemies,__replay:true};
+  }
+
+  function render(){
+    try{renderBoard(build(),(typeof getPrimaryDisplayName==='function'&&getPrimaryDisplayName())||'Replay');}catch(e){console.warn('replay render failed:',e);}
+  }
+  function tick(){
+    if(!active||!playing||document.hidden)return;
+    vt+=speed*2; // tick interval is 2s
+    if(!anyLive()&&vt<total){const nk=nextKick();if(nk!=null&&vt<nk-2)vt=nk-2;} // skip Fri/Sat + dead windows
+    if(vt>=total){vt=total;playing=false;}
+    render();updatePanel();
+  }
+  function jump(v){vt=Math.max(0,Math.min(total,v));render();updatePanel();}
+
+  async function start(){
+    let s=null;
+    try{const raw=localStorage.getItem(REPLAY_LS_KEY);if(raw)s=JSON.parse(raw);}catch(e){}
+    if(!s){try{const r=await fetch('/replay-snapshot.json',{cache:'no-store'});if(r.ok)s=await r.json();}catch(e){}}
+    if(!s||!s.leagues||!s.leagues.length){setStatus('No snapshot yet. Open a past season + week, then tap “Record this week”.');return false;}
+    try{if(!window.playerDB)getPlayerDB().then(db=>{window.playerDB=db;_sleeperIdLookupCache=null;_sleeperNamePosCache=null;if(active)render();}).catch(function(){});}catch(e){}
+    setup(s);
+    active=true;playing=true;
+    const cl=clusters();
+    vt=cl.length?cl[0].start-2:0; // open just before the first kickoff
+    try{stopAutoRefresh();}catch(e){}
+    if(timer)clearInterval(timer);
+    timer=setInterval(tick,2000);
+    render();updatePanel();
+    setStatus('Replaying '+(s.season||'?')+' Week '+(s.week||'?')+' — recorded '+((s.recordedAt||'').slice(0,10)||'earlier')+'.');
+    return true;
+  }
+  function stop(){
+    if(!active)return;
+    active=false;playing=false;
+    if(timer){clearInterval(timer);timer=null;}
+    nflGameStatesKey='';nflGameStatesAt=0; // force a real game-state refetch on the next live load
+    updatePanel();
+    setStatus('Replay stopped.');
+    try{
+      if(typeof isAnyProviderConnected==='function'&&isAnyProviderConnected()&&!isDemoMode)run();
+      else if(typeof experimentGoDashboard==='function')experimentGoDashboard();
+    }catch(e){}
+  }
+
+  /* ── panel UI ── */
+  let ui=null;
+  function el(tag,cls,txt){const n=document.createElement(tag);if(cls)n.className=cls;if(txt!=null)n.textContent=txt;return n;}
+  function setStatus(msg){if(ui)ui.status.textContent=msg;}
+  function buildUI(){
+    if(ui)return ui;
+    const css=document.createElement('style');
+    css.textContent=[
+      '#cf-replay-chip{position:fixed;right:14px;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:9500;display:none;align-items:center;gap:6px;padding:9px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:#101826;color:#f4efe6;font:600 12px/1 Inter,system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.35);cursor:pointer;}',
+      '#cf-replay-chip.rec{border-color:#ff6b5e;}',
+      '#cf-replay-panel{position:fixed;right:12px;bottom:calc(140px + env(safe-area-inset-bottom,0px));z-index:9501;display:none;width:min(330px,calc(100vw - 24px));padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:#0d1420;color:#f4efe6;font:12px/1.45 Inter,system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.5);}',
+      '#cf-replay-panel h4{margin:0 0 2px;font-size:13px;letter-spacing:.02em;}',
+      '#cf-replay-panel .cfr-time{font:600 12px/1.3 "JetBrains Mono",monospace;color:#ffb4ab;margin:6px 0 2px;}',
+      '#cf-replay-panel .cfr-status{color:#9fb0c3;min-height:15px;margin-bottom:8px;}',
+      '#cf-replay-panel input[type=range]{width:100%;accent-color:#ff6b5e;margin:2px 0 8px;}',
+      '#cf-replay-panel .cfr-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;}',
+      '#cf-replay-panel button{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:#182338;color:#f4efe6;font:600 11px/1 Inter,system-ui,sans-serif;cursor:pointer;}',
+      '#cf-replay-panel button.cfr-primary{background:#ff6b5e;border-color:#ff6b5e;color:#101826;}',
+      '#cf-replay-panel button:disabled{opacity:.45;cursor:default;}',
+      '#cf-replay-panel select{max-width:150px;padding:5px 6px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:#182338;color:#f4efe6;font:11px Inter,system-ui,sans-serif;}',
+      '#cf-replay-panel .cfr-label{color:#9fb0c3;font-size:10px;text-transform:uppercase;letter-spacing:.06em;width:100%;margin-bottom:-2px;}'
+    ].join('\n');
+    document.head.appendChild(css);
+    const chip=el('button',null,'');chip.id='cf-replay-chip';chip.type='button';chip.textContent='🎬 Replay';
+    const panel=el('div');panel.id='cf-replay-panel';
+    const h=el('h4',null,'Replay Mode');
+    const time=el('div','cfr-time','—');
+    const status=el('div','cfr-status','');
+    const scrub=document.createElement('input');scrub.type='range';scrub.min='0';scrub.max='1000';scrub.value='0';
+    const rowMain=el('div','cfr-row');
+    const btnStart=el('button','cfr-primary','Start replay');btnStart.type='button';
+    const btnPlay=el('button',null,'⏸');btnPlay.type='button';
+    const selSpeed=document.createElement('select');
+    [['0.5','Slow'],['1.5','Normal'],['5','Fast'],['15','Blitz']].forEach(o=>{const op=document.createElement('option');op.value=o[0];op.textContent=o[1];if(o[0]==='1.5')op.selected=true;selSpeed.appendChild(op);});
+    rowMain.appendChild(btnStart);rowMain.appendChild(btnPlay);rowMain.appendChild(selSpeed);
+    const rowJumpLabel=el('div','cfr-label','Jump to');
+    const rowJump=el('div','cfr-row');
+    const rowEvtLabel=el('div','cfr-label','Force a scoring event');
+    const rowEvt=el('div','cfr-row');
+    const selPlayer=document.createElement('select');
+    const btnTD=el('button',null,'+ TD now');btnTD.type='button';
+    rowEvt.appendChild(selPlayer);rowEvt.appendChild(btnTD);
+    const rowRec=el('div','cfr-row');
+    const btnRec=el('button',null,'Record this week');btnRec.type='button';
+    rowRec.appendChild(btnRec);
+    panel.appendChild(h);panel.appendChild(time);panel.appendChild(status);panel.appendChild(scrub);
+    panel.appendChild(rowMain);panel.appendChild(rowJumpLabel);panel.appendChild(rowJump);
+    panel.appendChild(rowEvtLabel);panel.appendChild(rowEvt);panel.appendChild(rowRec);
+    document.body.appendChild(chip);document.body.appendChild(panel);
+    chip.addEventListener('click',function(){panel.style.display=(panel.style.display==='block')?'none':'block';if(panel.style.display==='block')updatePanel();});
+    btnStart.addEventListener('click',function(){if(active)stop();else start();});
+    btnPlay.addEventListener('click',function(){if(!active)return;playing=!playing;updatePanel();});
+    selSpeed.addEventListener('change',function(){speed=parseFloat(selSpeed.value)||1.5;});
+    scrub.addEventListener('input',function(){if(!active)return;playing=false;jump(sliderToVt(parseInt(scrub.value,10)||0));});
+    btnTD.addEventListener('click',function(){
+      if(!active)return;
+      const pid=selPlayer.value;if(!pid)return;
+      if(!bonuses[pid])bonuses[pid]=[];
+      bonuses[pid].push({t:vt,pts:+(5.5+Math.random()*3.5).toFixed(1)});
+      render();updatePanel();
+      setStatus('Scoring event injected.');
+    });
+    btnRec.addEventListener('click',async function(){
+      btnRec.disabled=true;setStatus('Recording…');
+      try{const s=await cfRecordReplaySnapshot();setStatus('Recorded '+s.season+' Week '+s.week+' ('+s.leagues.length+' leagues). Saved on this device + downloaded — upload replay-snapshot.json to the repo root to use it on other devices.');}
+      catch(e){setStatus(e.message||'Recording failed.');}
+      btnRec.disabled=false;
+    });
+    ui={chip,panel,time,status,scrub,btnStart,btnPlay,selSpeed,rowJump,selPlayer,btnRec};
+    return ui;
+  }
+  function updatePanel(){
+    if(!ui||ui.panel.style.display!=='block')return;
+    ui.btnStart.textContent=active?'Stop replay':'Start replay';
+    ui.btnPlay.textContent=playing?'⏸':'▶';
+    ui.btnPlay.disabled=!active;
+    ui.chip.classList.toggle('rec',active);
+    if(active){
+      ui.time.textContent=fmtVt(vt)+' · '+liveCount()+' game'+(liveCount()===1?'':'s')+' live';
+      ui.scrub.value=String(vtToSlider(vt));
+      /* jump presets */
+      ui.rowJump.innerHTML='';
+      const addJump=(label,v)=>{const b=el('button',null,label);b.type='button';b.addEventListener('click',function(){playing=false;jump(v);});ui.rowJump.appendChild(b);};
+      const cl=clusters();
+      cl.forEach(c=>addJump(fmtVt(c.start),c.start+8));
+      if(cl.length){let big=cl[0];cl.forEach(c=>{if(c.n>big.n)big=c;});addJump('Endgame',big.start+172);}
+      addJump('All final',total);
+      /* player list — conflicted first (impact animation / Conflict Card fodder) */
+      const cur=ui.selPlayer.value;
+      ui.selPlayer.innerHTML='';
+      const opts=[];
+      if(lastBuckets){
+        lastBuckets.conflicted.forEach(p=>opts.push(['⚔ '+p.full_name,p.id]));
+        lastBuckets.cheerFor.forEach(p=>opts.push(['✓ '+p.full_name,p.id]));
+        lastBuckets.enemies.forEach(p=>opts.push(['✗ '+p.full_name,p.id]));
+      }
+      opts.forEach(o=>{const op=document.createElement('option');op.textContent=o[0];op.value=o[1];ui.selPlayer.appendChild(op);});
+      if(cur&&opts.some(o=>o[1]===cur))ui.selPlayer.value=cur;
+    }else{
+      ui.time.textContent='—';
+      ui.rowJump.innerHTML='';
+      ui.selPlayer.innerHTML='';
+    }
+  }
+  /* Chip visibility mirrors the experiment ribbons' bulletproof interval sync. */
+  function syncChip(){
+    try{
+      const on=(typeof window.experimentEnabled==='function'&&window.experimentEnabled())&&!(typeof window.inDemoMode==='function'&&window.inDemoMode());
+      const u=buildUI();
+      u.chip.style.display=on?'flex':'none';
+      if(!on&&u.panel.style.display==='block')u.panel.style.display='none';
+      if(!on&&active)stop();
+    }catch(e){}
+  }
+  function init(){try{buildUI();setInterval(syncChip,800);syncChip();}catch(e){console.warn('replay UI init failed:',e);}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+
+  return{
+    active:function(){return active;},
+    data:function(){return build();},
+    start:start,stop:stop,jump:jump,
+  };
+})();
+window.__cfReplay=cfReplay;
+
 async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected()){schedulePeriodSkeleton();await run();}}
 async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected()){schedulePeriodSkeleton();await run();}}
 async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};hiddenLeagues.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected()){schedulePeriodSkeleton();await run();}}
@@ -7113,6 +7549,9 @@ const BOARD_SNAPSHOT_KEY='conflicted_board_snapshot_v1';
 const BOARD_SNAPSHOT_MAX_AGE_MS=24*60*60*1000; // older than a day → cold boot
 function saveBoardSnapshot(data,username){
   try{
+    /* Replay Mode data must never persist as the boot snapshot — it looks like
+       a live board but is synthetic, and would paint fake scores on next boot. */
+    if((data&&data.__replay)||(window.__cfReplay&&window.__cfReplay.active()))return;
     /* A LIVE no-data render (e.g. every league toggled off, or genuinely no
        leagues this season) must DROP any stale snapshot — otherwise the next
        boot paints the old board for a moment before the no-data state resolves.
@@ -7142,7 +7581,7 @@ function readBoardSnapshot(){
 function clearBoardSnapshot(){try{localStorage.removeItem(BOARD_SNAPSHOT_KEY);}catch(e){}}
 
 const REFRESH_MS=60*1000;let refreshTimer=null;let lastFetchTime=0;let isFetching=false;
-function shouldAutoRefresh(){return !isDemoMode && isAnyProviderConnected() && !isHistoricalWeek();}
+function shouldAutoRefresh(){return !isDemoMode && !(window.__cfReplay&&window.__cfReplay.active()) && isAnyProviderConnected() && !isHistoricalWeek();}
 function isDashboardVisible(){const b=document.getElementById('board');if(!b)return false;const d=b.style.display;return !(d==='none'||d==='');}
 /* Keep the live poll alive on the dashboard AND on any registered, data-driven
    nav view (Snapshot / Exposure / Watch / future Conflict Card). renderBoard()
