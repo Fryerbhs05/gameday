@@ -7040,7 +7040,11 @@ async function cfRecordReplaySnapshot(){
     /* Historic weeks carry no projections — synthesize a plausible one around
        the actual final so Conflict Card window math + win prob have inputs. */
     if(proj==null&&!isBench){const base=Math.abs(pts)>2?pts:(2+8*projRng());proj=+((base*(0.8+0.4*projRng()))).toFixed(1);}
-    return{id,name,pos,team,slot,pts,proj,inj,sleeperId};
+    /* uid = the same cross-platform merge key loadData uses. Without it the
+       same human rostered on Sleeper AND Yahoo/ESPN replays as two different
+       players — conflicted entries split into cheer + enemy duplicates. */
+    let uid=null;try{uid=unifiedPlayerKey(name,team,pos)||null;}catch(e){}
+    return{id,uid,name,pos,team,slot,pts,proj,inj,sleeperId};
   }
   const leagues=d.leagues.map(lg=>{
     const ctx=(d.contexts||[]).find(c=>c.leagueName===lg.leagueName&&(!lg.platform||!c.platform||c.platform===lg.platform))||{};
@@ -7089,6 +7093,18 @@ const cfReplay=(function(){
   let vt=0,total=600,speed=1.5;         // vt/speed in slate-minutes (per real second)
   let baseMs=null,teamKick={},segs=[],timelines={},bonuses={},lastBuckets=null;
 
+  /* Cross-platform merge key — MUST match how loadData unifies players, or the
+     same human on two platforms replays as two people. Prefers the recorded
+     uid; falls back to computing it live (covers snapshots recorded before uid
+     existed); last resort is the platform-specific id. */
+  function mk(p){
+    if(p.__mk)return p.__mk;
+    let u=p.uid||null;
+    if(!u){try{u=unifiedPlayerKey(p.name,p.team,p.pos)||null;}catch(e){}}
+    p.__mk=u||p.id;
+    return p.__mk;
+  }
+
   function setup(s){
     snap=s;teamKick={};timelines={};bonuses={};baseMs=null;
     const teams=new Set();
@@ -7109,8 +7125,11 @@ const cfReplay=(function(){
         teamKick[t]=r<0.6?3885:4090;
       }
     });
+    /* One scoring timeline per HUMAN (merge key), not per platform id — the
+       same player must score at the same moments in every league. */
     s.leagues.forEach(l=>['my','opp'].forEach(k=>(l[k]||[]).forEach(p=>{
-      if(!timelines[p.id])timelines[p.id]=__cfReplayCore.buildTimeline(p.id,p.pts);
+      const u=mk(p);
+      if(!timelines[u])timelines[u]=__cfReplayCore.buildTimeline(u,p.pts);
     })));
     const kickVals=Object.keys(teamKick).map(t=>teamKick[t]);
     total=(kickVals.length?Math.max.apply(null,kickVals):0)+GM+10;
@@ -7139,8 +7158,9 @@ const cfReplay=(function(){
 
   function currentPts(p){
     const kick=(teamKick[p.team]!=null)?teamKick[p.team]:3885;
-    let pts=(p.pts||0)*__cfReplayCore.cumWeight(timelines[p.id]||[],vt-kick);
-    (bonuses[p.id]||[]).forEach(e=>{if(e.t<=vt)pts+=e.pts;});
+    const u=mk(p);
+    let pts=(p.pts||0)*__cfReplayCore.cumWeight(timelines[u]||[],vt-kick);
+    (bonuses[u]||[]).forEach(e=>{if(e.t<=vt)pts+=e.pts;});
     return +pts.toFixed(2);
   }
   function liveProjOf(p,cur){
@@ -7157,8 +7177,9 @@ const cfReplay=(function(){
     const contexts=[],leagues=[];
     const map=new Map();
     function ensure(x){
-      if(!map.has(x.id))map.set(x.id,{id:x.id,full_name:x.name,position:x.pos,team:x.team,injuryStatus:x.inj||null,sleeperId:x.sleeperId||null,myLeagues:[],againstLeagues:[],myBenchLeagues:[],againstBenchLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
-      const e=map.get(x.id);if(x.inj&&!e.injuryStatus)e.injuryStatus=x.inj;if(x.sleeperId&&!e.sleeperId)e.sleeperId=x.sleeperId;return e;
+      const key=mk(x); // merge the same human across platforms, like loadData
+      if(!map.has(key))map.set(key,{id:key,full_name:x.name,position:x.pos,team:x.team,injuryStatus:x.inj||null,sleeperId:x.sleeperId||null,myLeagues:[],againstLeagues:[],myBenchLeagues:[],againstBenchLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
+      const e=map.get(key);if(x.inj&&!e.injuryStatus)e.injuryStatus=x.inj;if(x.sleeperId&&!e.sleeperId)e.sleeperId=x.sleeperId;return e;
     }
     snap.leagues.forEach((lg,i)=>{
       if(!colorMap[lg.name])colorMap[lg.name]=LC_COLORS[i%LC_COLORS.length];
