@@ -1139,10 +1139,10 @@
     .score-cell__league {
       font: 700 14px/1.2 var(--font-sans); color: var(--ink-900);
       letter-spacing: -0.01em; text-transform: none;
-      margin-bottom: 11px; display: flex; align-items: center; gap: 6px;
+      margin-bottom: 11px; display: flex; align-items: center;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .score-cell__league-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .score-cell__league-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     /* Full-Inter scoreboard: score rows use Inter (matches bucket cards) instead
        of monospace. */
     .score-cell__row {
@@ -5654,7 +5654,7 @@ function renderScoresStrip(contexts){
       cell=document.createElement('div');cell.className='score-cell';
       cell.dataset.league=ctx.leagueName;
       cell.innerHTML=`
-      <div class="score-cell__league"><span class="score-cell__league-dot" style="background:${color}"></span><span class="score-cell__league-name">${ctx.leagueName}</span></div>
+      <div class="score-cell__league"><span class="score-cell__league-name">${ctx.leagueName}</span></div>
       <div class="score-cell__row"><span class="score-cell__label">You</span><span class="score-cell__points score-cell__points--you">${ctx.myPoints.toFixed(2)}</span></div>
       <div class="score-cell__row"><span class="score-cell__label">Opp</span><span class="score-cell__points score-cell__points--opp">${ctx.oppPoints.toFixed(2)}</span></div>
       <div class="score-cell__divider"></div>

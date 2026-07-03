@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v20'; // v20: canonical player identity (Sleeper-ID, team-agnostic) — fixes duplicate/split player cards; gold conflicted edge in Cheer/Enemy tabs
+const CACHE_VERSION = 'conflicted-v21'; // v21: scoreboard full-Inter type + league names styled like bucket player names; removed league dot to widen name (less truncation)
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
