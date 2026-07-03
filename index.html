@@ -2068,7 +2068,12 @@
     .lu-group.lu-held { visibility: hidden; }
     .lu-group.lu-reveal { animation: lu-reveal-in 0.5s var(--ease-out); }
     @keyframes lu-reveal-in { from { opacity: 0; transform: translateY(-7px); } to { opacity: 1; transform: translateY(0); } }
-    @media (prefers-reduced-motion: reduce) { .lu-group.lu-held { visibility: visible; } .lu-group.lu-reveal { animation: none; } }
+    /* Log-freeze gate: non-animating rows of a batch that arrives mid-animation
+       are held out of the flow until the animation queue drains, then fade in. */
+    .lu-group.lu-gate { display: none; }
+    .lu-group.lu-degate { animation: lu-degate-in 0.4s var(--ease-out); }
+    @keyframes lu-degate-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) { .lu-group.lu-held { visibility: visible; } .lu-group.lu-reveal, .lu-group.lu-degate { animation: none; } }
     .lu-ghead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
     .lu-gname { font: 500 14px/1.2 var(--font-sans); color: var(--ink-900); }
     .lu-gpos { font: 400 11px/1 var(--font-sans); color: var(--ink-500); margin-left: 3px; }
@@ -8117,6 +8122,9 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   let luDay=null;                     // local date string of the current feed (midnight-wipe guard)
   let luTestTot=Object.create(null);  // test harness: "<name>|<league>" -> running total
   let luTestClk=3600;                 // test harness: synthetic game seconds remaining (counts down)
+  let luSeq=0;                        // monotonic live-batch id — drives the freeze gate
+  let luRevealedThrough=0;            // highest batch seq cleared to fully reveal
+  let luGateTimer=null;               // safety fallback: un-gate even if idle never fires
 
   function nflClockFor(team){try{return (team&&nflGameClocks.get(team))||'';}catch(e){return'';}}
   function localDayStr(d){d=d||new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
@@ -8202,7 +8210,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const gl='0 0 '+Math.round(6+i*26)+'px color-mix(in oklab, '+cv+' '+Math.round((0.10+i*0.40)*100)+'%, transparent)';
     return 'border:'+bw+'px solid '+bc+';box-shadow:'+gl+';';
   }
-  function groupHtml(g,isNew){
+  function groupHtml(g,isNew,gated){
     const net=g.net||{pos:true,intensity:0.1,label:''};
     const cv=net.pos?'var(--cheer)':'var(--enemy)';
     const head='<div class="lu-ghead"><span class="lu-gname">'+esc(g.name)
@@ -8211,7 +8219,23 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     /* data-pid + hold: lets the impact animation find this entry and morph its
        net card into it. Held = this player's animation is still in flight. */
     const held=!!(window.__iaHold&&window.__iaHold.has&&window.__iaHold.has(String(g.id)));
-    return '<div class="lu-group'+(isNew?' lu-new':'')+(held?' lu-held':'')+'" data-pid="'+esc(String(g.id))+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
+    /* A gated batch hides its NON-animating rows (display:none) until the
+       animation drains; held (animating) rows are left to their glide-dock. */
+    const gateCls=(gated&&!held)?' lu-gate':'';
+    return '<div class="lu-group'+(isNew?' lu-new':'')+(held?' lu-held':'')+gateCls+'" data-pid="'+esc(String(g.id))+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
+  }
+
+  /* Freeze rule (matched to the impact animation): while a card animation is
+     running or queued, a newer live batch's non-animating rows are gated out of
+     the flow. The animating player's own row still lands via its glide-dock.
+     When the animation queue drains, revealGated() fades the held-back rows in.
+     A safety timer un-gates even if the idle signal never arrives. */
+  function revealGated(){
+    luRevealedThrough=luSeq;
+    if(luGateTimer){clearTimeout(luGateTimer);luGateTimer=null;}
+    const log=document.getElementById('live-updates-log');if(!log)return;
+    const els=log.querySelectorAll('.lu-gate');
+    for(let i=0;i<els.length;i++){els[i].classList.remove('lu-gate');els[i].classList.add('lu-degate');}
   }
 
   function render(latestBatchIdx){
@@ -8237,7 +8261,8 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         // Live — net-impact framed groups, one per player.
         html+='<div class="lu-synchead"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
         const flashThis=(bi===latestBatchIdx);
-        (b.groups||[]).forEach(g=>{html+=groupHtml(g,flashThis);});
+        const gatedBatch=(b.seq!=null&&b.seq>luRevealedThrough);
+        (b.groups||[]).forEach(g=>{html+=groupHtml(g,flashThis,gatedBatch);});
       }
     });
     log.innerHTML=html;
@@ -8298,8 +8323,18 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
           groups.sort((a,b)=>(b.net.intensity||0)-(a.net.intensity||0)); // biggest swing first
           batch={t:t,stale:false,groups:groups};
         }
+        batch.seq=++luSeq;
         luLog.unshift(batch);
         if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
+        // Freeze the log behind any in-flight card animation (live batches only).
+        // Its animating rows still land via glide-dock; the rest wait for idle.
+        if(!batch.stale && window.__iaBusy && window.__iaBusy()){
+          if(window.__iaWhenIdle)window.__iaWhenIdle(revealGated);
+          if(luGateTimer)clearTimeout(luGateTimer);
+          luGateTimer=setTimeout(revealGated,12000);
+        }else{
+          luRevealedThrough=luSeq;
+        }
       }
       luLastSyncAt=nowMs;
       render(rows.length?0:-1);
@@ -13421,6 +13456,15 @@ loadExperimentState();
   function clearTimers(){timers.forEach(function(t){clearTimeout(t);});timers=[];}
   function after(ms,fn){var t=setTimeout(fn,ms);timers.push(t);return t;}
 
+  /* Busy/idle signals for the Live Updates log freeze. Busy = a card animation
+     is on screen or waiting in the queue. __iaWhenIdle fires once the batch
+     (and any queued behind it) fully clears — that's the log's cue to reveal
+     rows it held back while the animation played. */
+  var idleCbs=[];
+  function fireIdle(){var cbs=idleCbs;idleCbs=[];cbs.forEach(function(f){try{f();}catch(e){}});}
+  window.__iaBusy=function(){return !!(running||queue.length);};
+  window.__iaWhenIdle=function(cb){try{if(typeof cb!=='function')return;if(!(running||queue.length)){cb();}else{idleCbs.push(cb);}}catch(e){}};
+
   /* ── Impact model: tiered, loss-averse, hope/nerves-buffered anchor ────────
      Full emotional model (designed + calibrated with Matt). See
      conflicted-emotional-model.md and project memory for the why. Output is a
@@ -13530,7 +13574,7 @@ loadExperimentState();
   function drain(){
     var o=overlay();
     if(running)return;
-    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}closeStage();return;}
+    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}closeStage();fireIdle();return;}
     var batch=queue.shift(); runBatch(batch);
   }
 

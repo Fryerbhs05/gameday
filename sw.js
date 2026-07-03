@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v22'; // v22: center league names on score cards
+const CACHE_VERSION = 'conflicted-v23'; // v23: Live Updates freeze — new rows wait for the card animation to finish
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
