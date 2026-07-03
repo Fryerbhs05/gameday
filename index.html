@@ -8238,6 +8238,24 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     for(let i=0;i<els.length;i++){els[i].classList.remove('lu-gate');els[i].classList.add('lu-degate');}
   }
 
+  /* Assign a batch its seq and, if a card animation is in flight, freeze it
+     (hold its rows out of the flow) until the animation queue drains. Shared by
+     the live detector AND the experiment test harness so the freeze rule holds
+     in both. A stale "catch-up" batch is never gated in render, so while busy we
+     leave revealedThrough untouched — bumping it would prematurely reveal a live
+     batch already gated behind the running animation. */
+  function gateBatch(batch){
+    batch.seq=++luSeq;
+    const busy=!!(window.__iaBusy&&window.__iaBusy());
+    if(busy&&!batch.stale){
+      if(window.__iaWhenIdle)window.__iaWhenIdle(revealGated);
+      if(luGateTimer)clearTimeout(luGateTimer);
+      luGateTimer=setTimeout(revealGated,12000);
+    }else if(!busy){
+      luRevealedThrough=luSeq;
+    }
+  }
+
   function render(latestBatchIdx){
     const log=document.getElementById('live-updates-log');
     const empty=document.getElementById('lu-empty');
@@ -8323,18 +8341,9 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
           groups.sort((a,b)=>(b.net.intensity||0)-(a.net.intensity||0)); // biggest swing first
           batch={t:t,stale:false,groups:groups};
         }
-        batch.seq=++luSeq;
+        gateBatch(batch); // seq + freeze behind any in-flight card animation
         luLog.unshift(batch);
         if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
-        // Freeze the log behind any in-flight card animation (live batches only).
-        // Its animating rows still land via glide-dock; the rest wait for idle.
-        if(!batch.stale && window.__iaBusy && window.__iaBusy()){
-          if(window.__iaWhenIdle)window.__iaWhenIdle(revealGated);
-          if(luGateTimer)clearTimeout(luGateTimer);
-          luGateTimer=setTimeout(revealGated,12000);
-        }else{
-          luRevealedThrough=luSeq;
-        }
       }
       luLastSyncAt=nowMs;
       render(rows.length?0:-1);
@@ -8364,7 +8373,9 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       const clk=testClk(false);
       const groups=inGroups.map(function(g){return {id:'t_'+g.name,name:g.name,pos:g.pos,team:g.team||'',net:g.net,rows:g.rows.map(function(r){return testRow(g.name,r,clk);})};});
       const t=new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
-      luLog.unshift({t:t,stale:false,groups:groups});
+      const b={t:t,stale:false,groups:groups};
+      gateBatch(b); // experiment: same freeze rule when the harness injects live rows
+      luLog.unshift(b);
       if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
       render(0);
     }catch(e){console.warn('Live Updates test (live) failed:',e&&e.message);}
@@ -8378,7 +8389,9 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       const groups=inGroups.map(function(g){return {id:'t_'+g.name,name:g.name,pos:g.pos,team:g.team||'',rows:g.rows.map(function(r){return testRow(g.name,r,clk);})};});
       const nowMs=Date.now(), gapMs=25*60000;
       const t=new Date(nowMs).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
-      luLog.unshift({t:t,stale:true,from:fmtClock(nowMs-gapMs),to:fmtClock(nowMs),groups:groups});
+      const b={t:t,stale:true,from:fmtClock(nowMs-gapMs),to:fmtClock(nowMs),groups:groups};
+      gateBatch(b);
+      luLog.unshift(b);
       if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
       render(-1);
     }catch(e){console.warn('Live Updates test (gap) failed:',e&&e.message);}

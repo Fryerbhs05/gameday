@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v23'; // v23: Live Updates freeze — new rows wait for the card animation to finish
+const CACHE_VERSION = 'conflicted-v24'; // v24: log-freeze rule now also applies in the experiment test harness
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
