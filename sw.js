@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v19'; // v19: impact-anim handoff reworked to glide & dock (smooth net card → live-updates row)
+const CACHE_VERSION = 'conflicted-v20'; // v20: canonical player identity (Sleeper-ID, team-agnostic) — fixes duplicate/split player cards; gold conflicted edge in Cheer/Enemy tabs
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

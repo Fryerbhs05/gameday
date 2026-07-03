@@ -1858,9 +1858,14 @@
 
       /* Gold/yellow left-edge indicator for conflicted players wherever they
          appear — the dedicated Conflicted tab AND mixed into Cheer / Enemy.
-         Left bar only; the rest of the card frame stays default. */
+         Left bar only; the rest of the card frame stays default.
+         Anchored to #columns: the per-column edge rules
+         (.column.cheer .player-card etc.) carry 3-class specificity and were
+         silently overriding the bare 2-class .conflicted-player rule, so gold
+         never rendered inside Cheer/Enemy — conflicted cards there looked like
+         ordinary (mis-bucketed) green/red cards. */
       #conflicted-list .player-card,
-      .player-card.conflicted-player {
+      #columns .column .player-card.conflicted-player {
         border-left-color: var(--split);
       }
     }
@@ -6596,13 +6601,49 @@ async function loadYahooLeague(yLeague, week, isHist) {
     debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: matchupActuallyValid, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
   };
 }
+/* Team abbreviation conventions differ per platform (ESPN WSH vs Sleeper WAS,
+   JAC vs JAX, LA vs LAR...). Normalize before ANY identity or lookup use. */
+const CF_TEAM_ALIAS={WSH:'WAS',JAC:'JAX',LA:'LAR',OAK:'LV',SD:'LAC',STL:'LAR'};
+function cfNormTeam(t){const T=String(t||'').toUpperCase();return CF_TEAM_ALIAS[T]||T;}
 function unifiedPlayerKey(name, team, pos) {
-  const P = (pos || '').toUpperCase(); const T = (team || '').toUpperCase();
+  const P = (pos || '').toUpperCase(); const T = cfNormTeam(team);
   if (P === 'DEF' || P === 'DST') return T ? 'DST|' + T : null;
   if (!name) return null;
   let N = String(name).toLowerCase();
   N = N.replace(/[.'`,]/g, '').replace(/-/g, ' ').replace(/\s+(jr|sr|ii|iii|iv|v)\.?\b/g, '').replace(/\s+/g, ' ').trim();
   return N + '|' + T + '|' + P;
+}
+
+/* ── CANONICAL PLAYER IDENTITY ──────────────────────────────────────────────
+   THE one way every path (live loadData, historic, recorder, replay) decides
+   "these roster rows are the same human". Platforms report a player's TEAM
+   independently and disagree constantly — free agents, trades, stale editorial
+   data, abbr conventions — so team must NEVER be part of a skill player's
+   identity (it split Keenan Allen / James Cook into duplicate entries,
+   2026-07-03). Resolution order:
+     1. DEF/DST → 'DST|<normalized team>' (for a defense, team IS the identity).
+     2. Known Sleeper ID → 'sl:<id>' immediately.
+     3. Resolve a Sleeper ID via resolveSleeperId — the same trusted two-tier
+        lookup the headshots use (strict name|team|pos, then teamless
+        name|pos with active-player preference). Multi-eligibility positions
+        from Yahoo ("QB,TE") try each segment.
+     4. No DB match → TEAMLESS 'name||POS' so two non-Sleeper platforms still
+        merge with each other even when the Sleeper DB can't vouch.
+     5. No name at all → null (caller falls back to its platform-scoped key,
+        which can never cross-merge but also never wrongly merges). */
+function canonicalPlayerKey(name, team, pos, sleeperId){
+  const P0=(pos||'').toUpperCase();
+  if(P0==='DEF'||P0==='DST'){
+    const T=cfNormTeam(team||(typeof sleeperId==='string'?sleeperId:''));
+    return T?'DST|'+T:null;
+  }
+  if(sleeperId&&/^\d+$/.test(String(sleeperId)))return'sl:'+String(sleeperId);
+  const segs=P0?P0.split(',').map(s=>s.trim()).filter(Boolean):[''];
+  for(const seg of segs){
+    const sid=resolveSleeperId({full_name:name,team:team||'',position:seg});
+    if(sid&&/^\d+$/.test(String(sid)))return'sl:'+String(sid);
+  }
+  return unifiedPlayerKey(name,'',segs[0]||'');
 }
 
 /* ══ LAZY PER-PERIOD HISTORIC CACHE ═════════════════════════════════════════
@@ -6778,7 +6819,6 @@ async function loadData(){
   setLoading('Computing season ranks.');
   const seasonStats=await fetchSeasonStats(activeSeason);
   const posRankByLeague=computePosRankByLeague(seasonStats,playerDB,leagueContexts);
-  const sleeperIdLookup=buildSleeperIdLookup(playerDB);
   const map=new Map();
   function ensure(p){
     let key,full_name,position,team,injuryStatus,sleeperId=null;
@@ -6790,15 +6830,19 @@ async function loadData(){
       const inj=info.injury_status||info.status||null;
       const unhealthy=['Questionable','Doubtful','Out','Injured Reserve','IR','PUP','Suspended','NFI','DNR','NA'];
       injuryStatus=unhealthy.includes(inj)?inj:null;
-      key=unifiedPlayerKey(full_name,team,position)||('sl:'+p);
       sleeperId=p; // Sleeper-rostered players carry their own Sleeper ID
+      /* Canonical identity: 'sl:<id>' for skill players, 'DST|<team>' for
+         defenses (Sleeper DEF string ids ARE the team abbr). */
+      key=canonicalPlayerKey(full_name,team||p,position,p)||('sl:'+p);
     }else{
       full_name=p.name;position=p.position;team=p.team;injuryStatus=p.injuryStatus||null;
-      key=unifiedPlayerKey(full_name,team,position)||('yh:'+p.player_key);
-      /* Yahoo/ESPN players: resolve to Sleeper ID via name+team+pos so we can
-         look them up in seasonStats / posRankByLeague. */
-      const ulookup=unifiedPlayerKey(full_name,team,position);
-      if(ulookup&&sleeperIdLookup[ulookup])sleeperId=sleeperIdLookup[ulookup];
+      /* Yahoo/ESPN players resolve to the SAME canonical identity — via
+         Sleeper-ID resolution that tolerates team drift (free agents, trades,
+         abbr conventions). Team is never part of a skill player's identity. */
+      key=canonicalPlayerKey(full_name,team,position,null)||('yh:'+p.player_key);
+      const m=/^sl:(\d+)$/.exec(key);
+      if(m)sleeperId=m[1]; // feeds seasonStats / posRank / projection fill-ins
+      else if(/^DST\|/.test(key))sleeperId=key.slice(4); // Sleeper DST ids ARE the team abbr (proj fill-in parity)
     }
     if(!map.has(key)){
       map.set(key,{id:key,full_name,position,team,injuryStatus,sleeperId,myLeagues:[],againstLeagues:[],myBenchLeagues:[],againstBenchLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
@@ -7135,8 +7179,9 @@ const __cfReplayCore=(function(){
 /*__CF_REPLAY_CORE_END__*/
 
 const REPLAY_LS_KEY='conflicted_replay_snapshot_v1';
-/* ESPN scoreboard team abbrs that differ from Sleeper/Yahoo conventions. */
-const CF_REPLAY_TEAM_ALIAS={WSH:'WAS',JAC:'JAX',LA:'LAR',OAK:'LV',SD:'LAC',STL:'LAR'};
+/* ESPN scoreboard team abbrs that differ from Sleeper/Yahoo conventions.
+   Same map the canonical-identity layer uses — one source of truth. */
+const CF_REPLAY_TEAM_ALIAS=CF_TEAM_ALIAS;
 
 /* ── RECORDER ── */
 async function cfRecordReplaySnapshot(){
@@ -7149,7 +7194,7 @@ async function cfRecordReplaySnapshot(){
   if(!d||d.noData||!d.leagues||!d.leagues.length)throw new Error('Load a week with league data first (pick a past season + week).');
   if(!d.leagues.some(l=>l.platform))throw new Error('This board is demo data — load your real leagues, then record.');
   const db=window.playerDB||await getPlayerDB();window.playerDB=db;
-  let sleeperLk=null;try{sleeperLk=buildSleeperIdLookup(db);}catch(e){}
+  _sleeperIdLookupCache=null;_sleeperNamePosCache=null; // rebuild resolver caches on the freshest DB
   const projRng=__cfReplayCore.seededRng('cf-proj:'+activeSeason+'-'+activeWeek);
   function norm(p,pp,projpp,isBench){
     let id,name,pos,team,slot,inj=null,sleeperId=null;
@@ -7165,7 +7210,7 @@ async function cfRecordReplaySnapshot(){
       name=p.full_name||p.name||'Player';
       pos=p.position||'—';team=p.team||'';slot=p.slot||p.position||'—';
       inj=p.injuryStatus||null;
-      try{const u=unifiedPlayerKey(name,team,pos);if(u&&sleeperLk&&sleeperLk[u])sleeperId=sleeperLk[u];}catch(e){}
+      try{const u=canonicalPlayerKey(name,team,pos,null);const m=u&&/^sl:(\d+)$/.exec(u);if(m)sleeperId=m[1];else if(u&&/^DST\|/.test(u))sleeperId=u.slice(4);}catch(e){}
     }
     const k=(typeof p==='string')?p:(p.player_key||id);
     const pts=isBench?0:+(((pp&&pp[k])!=null?pp[k]:0)).toFixed(2);
@@ -7173,10 +7218,10 @@ async function cfRecordReplaySnapshot(){
     /* Historic weeks carry no projections — synthesize a plausible one around
        the actual final so Conflict Card window math + win prob have inputs. */
     if(proj==null&&!isBench){const base=Math.abs(pts)>2?pts:(2+8*projRng());proj=+((base*(0.8+0.4*projRng()))).toFixed(1);}
-    /* uid = the same cross-platform merge key loadData uses. Without it the
-       same human rostered on Sleeper AND Yahoo/ESPN replays as two different
-       players — conflicted entries split into cheer + enemy duplicates. */
-    let uid=null;try{uid=unifiedPlayerKey(name,team,pos)||null;}catch(e){}
+    /* uid = the CANONICAL cross-platform identity (canonicalPlayerKey), the
+       same key loadData uses. Team-based keys split the same human into
+       duplicate cheer/enemy entries whenever platforms disagreed on team. */
+    let uid=null;try{uid=canonicalPlayerKey(name,team,pos,(typeof p==='string')?p:sleeperId)||null;}catch(e){}
     return{id,uid,name,pos,team,slot,pts,proj,inj,sleeperId};
   }
   const leagues=d.leagues.map(lg=>{
@@ -7227,19 +7272,26 @@ const cfReplay=(function(){
   let baseMs=null,teamKick={},segs=[],timelines={},bonuses={},lastBuckets=null;
 
   /* Cross-platform merge key — MUST match how loadData unifies players, or the
-     same human on two platforms replays as two people. Prefers the recorded
-     uid; falls back to computing it live (covers snapshots recorded before uid
-     existed); last resort is the platform-specific id. */
+     same human on two platforms replays as two people. Recomputes the CANONICAL
+     identity live (canonicalPlayerKey — Sleeper-ID first, team never part of a
+     skill player's identity), which also repairs old snapshots recorded with
+     team-based uids; falls back to the recorded uid, then the platform id. */
   function mk(p){
     if(p.__mk)return p.__mk;
-    let u=p.uid||null;
-    if(!u){try{u=unifiedPlayerKey(p.name,p.team,p.pos)||null;}catch(e){}}
-    p.__mk=u||p.id;
+    let u=null;
+    try{u=canonicalPlayerKey(p.name,p.team,p.pos,p.sleeperId||null)||null;}catch(e){}
+    p.__mk=u||p.uid||p.id;
     return p.__mk;
   }
 
   function setup(s){
     snap=s;teamKick={};timelines={};bonuses={};baseMs=null;
+    /* Freeze every player's merge key NOW, in one pass (starters + bench).
+       mk() caches per object; computing them all at the same instant means a
+       playerDB that finishes loading mid-replay can never produce a different
+       key for a leg processed later — identity stays consistent for the whole
+       session. */
+    s.leagues.forEach(l=>['my','opp','myBench','oppBench'].forEach(k=>(l[k]||[]).forEach(p=>{delete p.__mk;mk(p);})));
     const teams=new Set();
     s.leagues.forEach(l=>['my','opp','myBench','oppBench'].forEach(k=>(l[k]||[]).forEach(p=>{if(p.team)teams.add(p.team);})));
     const kicks=s.kicks||{};
