@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v18'; // v18: scoreboard full-Inter type + league names styled like bucket player names
+const CACHE_VERSION = 'conflicted-v19'; // v19: impact-anim handoff reworked to glide & dock (smooth net card → live-updates row)
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

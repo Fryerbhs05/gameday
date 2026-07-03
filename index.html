@@ -2061,8 +2061,8 @@
        reveal it. Holds are registered in window.__iaHold by the impact module
        and always released on skip/reset (never a permanently hidden entry). */
     .lu-group.lu-held { visibility: hidden; }
-    .lu-group.lu-reveal { animation: lu-reveal-in 0.45s var(--ease-out); }
-    @keyframes lu-reveal-in { from { opacity: 0.15; transform: scale(0.965); } to { opacity: 1; transform: scale(1); } }
+    .lu-group.lu-reveal { animation: lu-reveal-in 0.5s var(--ease-out); }
+    @keyframes lu-reveal-in { from { opacity: 0; transform: translateY(-7px); } to { opacity: 1; transform: translateY(0); } }
     @media (prefers-reduced-motion: reduce) { .lu-group.lu-held { visibility: visible; } .lu-group.lu-reveal { animation: none; } }
     .lu-ghead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
     .lu-gname { font: 500 14px/1.2 var(--font-sans); color: var(--ink-900); }
@@ -13595,13 +13595,18 @@ loadExperimentState();
               var o2=overlay();
               if(o2){o2.classList.add('active');o2.appendChild(clone);nodes.push(clone);}
               if(fin.parentNode)fin.parentNode.removeChild(fin);
+              /* Glide & dock: the net card descends into its log slot with a
+                 decelerating ease, scaling UNIFORMLY (no squish) to the row's
+                 width, and cross-fades out as the persistent row eases up into
+                 place beneath it. Smooth handoff — no flip, no pop. */
+              var uscale=tr.width/fr.width;
               requestAnimationFrame(function(){requestAnimationFrame(function(){
-                clone.style.transition='transform 0.55s cubic-bezier(.3,.7,.25,1), opacity 0.5s ease';
-                clone.style.transform='translate('+tr.left+'px,'+tr.top+'px) scale('+(tr.width/fr.width)+','+(tr.height/fr.height)+')';
-                clone.style.opacity='0.25';
+                clone.style.transition='transform 0.6s cubic-bezier(.16,1,.3,1), opacity 0.42s ease 0.16s';
+                clone.style.transform='translate('+tr.left+'px,'+tr.top+'px) scale('+uscale+')';
+                clone.style.opacity='0';
               });});
-              after(540,function(){revealHold(ev.id);}); // reveal as the card settles onto it
-              after(640,function(){if(clone.parentNode)clone.parentNode.removeChild(clone);if(done)done();});
+              after(340,function(){revealHold(ev.id);}); // row docks in beneath the descending card
+              after(700,function(){if(clone.parentNode)clone.parentNode.removeChild(clone);if(done)done();});
             }else{
               /* No log entry to land on (test slate, gated log, hidden board) —
                  classic float-up exit; release the hold either way. */
