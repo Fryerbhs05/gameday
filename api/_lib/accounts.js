@@ -434,6 +434,7 @@ module.exports = {
   accountsConfigured,
   emailConfigured,
   appUrl,
+  sbFetch, // exposed for api/track.js (events insert + last_seen_at touch)
   encrypt,
   decrypt,
   parseCookies,
