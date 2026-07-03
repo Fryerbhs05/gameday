@@ -2050,6 +2050,15 @@
     .lu-group { border-radius: var(--radius-md); padding: 9px 11px 6px; margin-bottom: 10px; background: var(--paper-soft); box-sizing: border-box; }
     .lu-group.lu-new { animation: lu-flash 1.4s var(--ease-out); }
     @media (prefers-reduced-motion: reduce) { .lu-group.lu-new { animation: none; } }
+    /* Impact-animation handoff: while a player's card sequence is still playing
+       in the stage, their fresh log entry is HELD — invisible but keeping its
+       layout slot — so the net card can morph into its exact position, then
+       reveal it. Holds are registered in window.__iaHold by the impact module
+       and always released on skip/reset (never a permanently hidden entry). */
+    .lu-group.lu-held { visibility: hidden; }
+    .lu-group.lu-reveal { animation: lu-reveal-in 0.45s var(--ease-out); }
+    @keyframes lu-reveal-in { from { opacity: 0.15; transform: scale(0.965); } to { opacity: 1; transform: scale(1); } }
+    @media (prefers-reduced-motion: reduce) { .lu-group.lu-held { visibility: visible; } .lu-group.lu-reveal { animation: none; } }
     .lu-ghead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
     .lu-gname { font: 500 14px/1.2 var(--font-sans); color: var(--ink-900); }
     .lu-gpos { font: 400 11px/1 var(--font-sans); color: var(--ink-500); margin-left: 3px; }
@@ -7278,7 +7287,15 @@ const cfReplay=(function(){
     if(vt>=total){vt=total;playing=false;}
     render();updatePanel();
   }
-  function jump(v){vt=Math.max(0,Math.min(total,v));render();updatePanel();}
+  /* Any discontinuous clock move must re-seed the impact-animation detector and
+     the Live Updates tracker BEFORE the next render — otherwise the score snap
+     reads as scoring/corrections and fires cards + log entries for the jump
+     itself. Organic ticks and "+ TD now" still animate normally. */
+  function resetDetectors(){
+    try{window.__resetImpacts&&window.__resetImpacts();}catch(e){}
+    try{window.__resetLiveUpdates&&window.__resetLiveUpdates();}catch(e){}
+  }
+  function jump(v){vt=Math.max(0,Math.min(total,v));resetDetectors();render();updatePanel();}
 
   async function start(){
     let s=null;
@@ -7290,6 +7307,7 @@ const cfReplay=(function(){
     active=true;playing=true;
     const cl=clusters();
     vt=cl.length?cl[0].start-2:0; // open just before the first kickoff
+    resetDetectors(); // entering replay = a clock jump; seed silently
     try{stopAutoRefresh();}catch(e){}
     if(timer)clearInterval(timer);
     timer=setInterval(tick,2000);
@@ -7302,6 +7320,7 @@ const cfReplay=(function(){
     active=false;playing=false;
     if(timer){clearInterval(timer);timer=null;}
     nflGameStatesKey='';nflGameStatesAt=0; // force a real game-state refetch on the next live load
+    resetDetectors(); // leaving replay = a clock jump back to reality; seed silently
     updatePanel();
     setStatus('Replay stopped.');
     try{
@@ -8046,7 +8065,10 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const head='<div class="lu-ghead"><span class="lu-gname">'+esc(g.name)
       +(g.pos?'<span class="lu-gpos">'+esc(g.pos)+(g.team?' · '+esc(g.team):'')+'</span>':'')+'</span>'
       +(net.label?'<span class="lu-gnet" style="color:'+cv+'">'+esc(net.label)+'</span>':'')+'</div>';
-    return '<div class="lu-group'+(isNew?' lu-new':'')+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
+    /* data-pid + hold: lets the impact animation find this entry and morph its
+       net card into it. Held = this player's animation is still in flight. */
+    const held=!!(window.__iaHold&&window.__iaHold.has&&window.__iaHold.has(String(g.id)));
+    return '<div class="lu-group'+(isNew?' lu-new':'')+(held?' lu-held':'')+'" data-pid="'+esc(String(g.id))+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
   }
 
   function render(latestBatchIdx){
@@ -13344,6 +13366,7 @@ loadExperimentState();
     nodes.forEach(function(n){if(n&&n.parentNode)n.parentNode.removeChild(n);}); nodes=[];
     var bd=document.getElementById('ia-breakdown'); if(bd)bd.remove();
     var o=overlay(); if(o){o.style.pointerEvents='none';}
+    releaseAllHolds(); // cancelled mid-flight → un-hide any held log entries
     closeStage();
     running=false; drain();
   }
@@ -13354,6 +13377,31 @@ loadExperimentState();
     if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}closeStage();return;}
     var batch=queue.shift(); runBatch(batch);
   }
+
+  /* ── Log-handoff holds ─────────────────────────────────────────────────────
+     While a player's card sequence is in flight, their freshly-logged Live
+     Updates entry is held invisible (.lu-held, layout slot kept) so the net
+     card can morph into its exact position. Registered at queue time (the log
+     renders AFTER the detector on the same tick), released on landing, skip,
+     or reset — a held entry can never be orphaned invisible. */
+  window.__iaHold=new Set();
+  function revealHold(id){
+    try{
+      if(id==null)return;
+      window.__iaHold.delete(String(id));
+      var els=document.querySelectorAll('.lu-group.lu-held');
+      for(var i=0;i<els.length;i++){
+        if(els[i].getAttribute('data-pid')===String(id)){els[i].classList.remove('lu-held');els[i].classList.add('lu-reveal');}
+      }
+    }catch(e){}
+  }
+  function releaseAllHolds(){try{Array.from(window.__iaHold).forEach(revealHold);}catch(e){}}
+
+  /* Time-travel reset (Replay Mode start/stop/jump/scrub): silently re-seed the
+     delta tracker and cancel anything mid-flight. Without this, rewinding the
+     virtual clock reads as a big negative "stat correction" and fires cards for
+     players whose games haven't kicked off yet (bucket correctly shows 0.00). */
+  window.__resetImpacts=function(){try{prev=null;prevCtx=null;queue.length=0;skipAll();}catch(e){}};
 
   /* Phase 1 — the big "CONFLICTED" moment (once per batch). */
   function runSplash(cb){
@@ -13423,9 +13471,41 @@ loadExperimentState();
           after(200,function(){fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+restScale+')';});
           after(260,function(){cards.forEach(function(cd){if(cd.el.parentNode)cd.el.parentNode.removeChild(cd.el);});});
           after(2200,function(){
-            fin.style.transition='transform 0.55s ease,opacity 0.55s ease';
-            fin.style.transform='translate('+nhx+'px,'+(nhy-200)+'px) scale('+restScale+')'; fin.style.opacity='0';
-            after(580,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
+            /* Handoff: morph the net card into this player's HELD Live Updates
+               entry so the animation lands as the persistent log row. The clone
+               flies on the fixed overlay (stage overflow would clip it); rects
+               are measured at handoff time so log growth mid-animation is fine. */
+            var target=null;
+            try{
+              var els=document.querySelectorAll('.lu-group.lu-held');
+              for(var ti=0;ti<els.length;ti++){if(els[ti].getAttribute('data-pid')===String(ev.id)){target=els[ti];break;}}
+            }catch(e){}
+            var fr=null,tr=null;
+            if(target){try{fr=fin.getBoundingClientRect();tr=target.getBoundingClientRect();}catch(e){}}
+            if(fr&&tr&&fr.width>2&&tr.width>2){
+              var clone=fin.cloneNode(true);
+              clone.style.transition='none';clone.style.margin='0';clone.style.left='0';clone.style.top='0';
+              clone.style.width=fr.width+'px';clone.style.height=fr.height+'px';clone.style.minHeight='0';
+              clone.style.transformOrigin='top left';clone.style.transform='translate('+fr.left+'px,'+fr.top+'px)';
+              clone.style.opacity='1';clone.style.willChange='transform,opacity';
+              var o2=overlay();
+              if(o2){o2.classList.add('active');o2.appendChild(clone);nodes.push(clone);}
+              if(fin.parentNode)fin.parentNode.removeChild(fin);
+              requestAnimationFrame(function(){requestAnimationFrame(function(){
+                clone.style.transition='transform 0.55s cubic-bezier(.3,.7,.25,1), opacity 0.5s ease';
+                clone.style.transform='translate('+tr.left+'px,'+tr.top+'px) scale('+(tr.width/fr.width)+','+(tr.height/fr.height)+')';
+                clone.style.opacity='0.25';
+              });});
+              after(540,function(){revealHold(ev.id);}); // reveal as the card settles onto it
+              after(640,function(){if(clone.parentNode)clone.parentNode.removeChild(clone);if(done)done();});
+            }else{
+              /* No log entry to land on (test slate, gated log, hidden board) —
+                 classic float-up exit; release the hold either way. */
+              revealHold(ev.id);
+              fin.style.transition='transform 0.55s ease,opacity 0.55s ease';
+              fin.style.transform='translate('+nhx+'px,'+(nhy-200)+'px) scale('+restScale+')'; fin.style.opacity='0';
+              after(580,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
+            }
           });
         });
       });
@@ -13497,7 +13577,12 @@ loadExperimentState();
       });
       prev=cur; prevCtx=ctx;
       if(isHist)return;
-      if(events.length&&canAnimate()){queue.push(events);drain();}
+      if(events.length&&canAnimate()){
+        /* Register handoff holds BEFORE the log builds this tick's entries
+           (renderBoard calls __detectImpacts, then __buildLiveUpdates). */
+        events.forEach(function(e){if(e.id!=null)window.__iaHold.add(String(e.id));});
+        queue.push(events);drain();
+      }
     }catch(e){}
   };
 
