@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v24'; // v24: log-freeze rule now also applies in the experiment test harness
+const CACHE_VERSION = 'conflicted-v25'; // v25: freeze holds cleanly in Replay — landed rows stay put, frozen batches hide their timestamps
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

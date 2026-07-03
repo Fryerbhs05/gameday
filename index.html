@@ -2070,10 +2070,10 @@
     @keyframes lu-reveal-in { from { opacity: 0; transform: translateY(-7px); } to { opacity: 1; transform: translateY(0); } }
     /* Log-freeze gate: non-animating rows of a batch that arrives mid-animation
        are held out of the flow until the animation queue drains, then fade in. */
-    .lu-group.lu-gate { display: none; }
-    .lu-group.lu-degate { animation: lu-degate-in 0.4s var(--ease-out); }
+    .lu-group.lu-gate, .lu-synchead.lu-gate { display: none; }
+    .lu-group.lu-degate, .lu-synchead.lu-degate { animation: lu-degate-in 0.4s var(--ease-out); }
     @keyframes lu-degate-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-    @media (prefers-reduced-motion: reduce) { .lu-group.lu-held { visibility: visible; } .lu-group.lu-reveal, .lu-group.lu-degate { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .lu-group.lu-held { visibility: visible; } .lu-group.lu-reveal, .lu-group.lu-degate, .lu-synchead.lu-degate { animation: none; } }
     .lu-ghead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
     .lu-gname { font: 500 14px/1.2 var(--font-sans); color: var(--ink-900); }
     .lu-gpos { font: 400 11px/1 var(--font-sans); color: var(--ink-500); margin-left: 3px; }
@@ -8219,9 +8219,13 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     /* data-pid + hold: lets the impact animation find this entry and morph its
        net card into it. Held = this player's animation is still in flight. */
     const held=!!(window.__iaHold&&window.__iaHold.has&&window.__iaHold.has(String(g.id)));
+    /* A row that has already landed (its glide-dock finished) stays visible even
+       while its batch is still gated behind later animations — without this it
+       would re-hide on the next re-render (very visible in Replay). */
+    const landed=!!(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(String(g.id)));
     /* A gated batch hides its NON-animating rows (display:none) until the
-       animation drains; held (animating) rows are left to their glide-dock. */
-    const gateCls=(gated&&!held)?' lu-gate':'';
+       animation drains; held (animating) + landed rows are left visible. */
+    const gateCls=(gated&&!held&&!landed)?' lu-gate':'';
     return '<div class="lu-group'+(isNew?' lu-new':'')+(held?' lu-held':'')+gateCls+'" data-pid="'+esc(String(g.id))+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
   }
 
@@ -8233,6 +8237,8 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   function revealGated(){
     luRevealedThrough=luSeq;
     if(luGateTimer){clearTimeout(luGateTimer);luGateTimer=null;}
+    // Everything is revealed now — the landed-id set has served its purpose.
+    try{if(window.__iaLanded)window.__iaLanded.clear();}catch(e){}
     const log=document.getElementById('live-updates-log');if(!log)return;
     const els=log.querySelectorAll('.lu-gate');
     for(let i=0;i<els.length;i++){els[i].classList.remove('lu-gate');els[i].classList.add('lu-degate');}
@@ -8277,9 +8283,17 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         html+='</div>';
       }else{
         // Live — net-impact framed groups, one per player.
-        html+='<div class="lu-synchead"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
-        const flashThis=(bi===latestBatchIdx);
         const gatedBatch=(b.seq!=null&&b.seq>luRevealedThrough);
+        // A gated batch that has a row currently landing (held) or already landed
+        // keeps its timestamp so the landed card has context; a purely-frozen
+        // batch (nothing animating in it) hides its header too — no orphan
+        // timestamps stacking up while the animation plays (matters in Replay,
+        // which re-renders every virtual tick).
+        let batchHasReveal=false;
+        if(gatedBatch){(b.groups||[]).forEach(g=>{const gid=String(g.id);if((window.__iaHold&&window.__iaHold.has&&window.__iaHold.has(gid))||(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gid)))batchHasReveal=true;});}
+        const gateHead=gatedBatch&&!batchHasReveal;
+        html+='<div class="lu-synchead'+(gateHead?' lu-gate':'')+'"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
+        const flashThis=(bi===latestBatchIdx);
         (b.groups||[]).forEach(g=>{html+=groupHtml(g,flashThis,gatedBatch);});
       }
     });
@@ -13598,10 +13612,12 @@ loadExperimentState();
      renders AFTER the detector on the same tick), released on landing, skip,
      or reset — a held entry can never be orphaned invisible. */
   window.__iaHold=new Set();
+  window.__iaLanded=new Set(); // ids whose card has finished landing — stay visible while the log is still gated
   function revealHold(id){
     try{
       if(id==null)return;
       window.__iaHold.delete(String(id));
+      window.__iaLanded.add(String(id));
       var els=document.querySelectorAll('.lu-group.lu-held');
       for(var i=0;i<els.length;i++){
         if(els[i].getAttribute('data-pid')===String(id)){els[i].classList.remove('lu-held');els[i].classList.add('lu-reveal');}
@@ -13614,7 +13630,7 @@ loadExperimentState();
      delta tracker and cancel anything mid-flight. Without this, rewinding the
      virtual clock reads as a big negative "stat correction" and fires cards for
      players whose games haven't kicked off yet (bucket correctly shows 0.00). */
-  window.__resetImpacts=function(){try{prev=null;prevCtx=null;queue.length=0;skipAll();}catch(e){}};
+  window.__resetImpacts=function(){try{prev=null;prevCtx=null;queue.length=0;skipAll();if(window.__iaLanded)window.__iaLanded.clear();}catch(e){}};
 
   /* Phase 1 — the big "CONFLICTED" moment (once per batch). */
   function runSplash(cb){
