@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v15'; // v15: cfTrack analytics + referral attribution
+const CACHE_VERSION = 'conflicted-v16'; // v16: onboarding funnel step events (Phase 2.1)
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

@@ -4315,6 +4315,12 @@
      so this is the entire referral loop. Best-effort: some share targets drop
      the text when files are present; that costs attribution, never the share. */
   window.cfShareRefUrl=function(){try{return location.origin+'/?ref='+window.cfRefCode();}catch(e){return '';}};
+  /* Funnel steps re-render constantly (toggles, Yahoo polling), so wizard events
+     dedupe to once per key per page load. */
+  var seen={};
+  window.cfTrackOnce=function(key,name,props){
+    try{ if(seen[key])return; seen[key]=1; window.cfTrack(name,props); }catch(e){}
+  };
   window.cfStoredRef=function(){try{return localStorage.getItem(REF)||null;}catch(e){return null;}};
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='hidden')flush(true);
@@ -8800,6 +8806,7 @@ const PROVIDERS={
            an advisory instead of the (unusable-on-phone) paste modal. The link we
            email at the end of onboarding lets them finish ESPN on a computer, and
            it syncs back here. */
+        try{cfTrackOnce('espn_mob','espn_mobile_deferred',{wizard:!!window.__wizardActive});}catch(e){}
         rootEl.innerHTML=`<div class="provider-mobile-note">ESPN needs a <strong>one-time setup on a computer</strong>. Finish here, then open the link we email you on a desktop to connect ESPN — it'll sync back to your phone automatically.</div>`;
       }else{
         rootEl.innerHTML=`<button class="btn-espn provider-connect-btn" onclick="handleProviderConnect('espn')"><span class="btn-espn-icon">E</span><span>Connect to ESPN</span></button>`;
@@ -8903,6 +8910,7 @@ function renderWizardSelection(){
   setDemoVisible(true);
   window.__wizView = 'select';
   const needIdentity = onboardingGateActive();
+  try{cfTrackOnce('onb_start','onboarding_started',{identity_required:needIdentity,mobile:isMobileDevice()});}catch(e){}
   window.__wizIdentityShown = needIdentity;
   const sub = document.getElementById('getstarted-sub');
   if(sub) sub.textContent = needIdentity
@@ -9045,6 +9053,7 @@ async function wizardBegin(){
   window.__wizQueue = order.filter(id=>window.__wizSelected.has(id));
   window.__wizIdx = 0;
   if(!window.__wizQueue.length) return;
+  try{cfTrack('onboarding_platforms_chosen',{platforms:window.__wizQueue,mobile:isMobileDevice()});}catch(e){}
   renderWizardStep();
 }
 function renderWizardStep(){
@@ -9058,6 +9067,7 @@ function renderWizardStep(){
   const id = q[i];
   const p = PROVIDERS[id];
   const connected = !!(connectionState[id] && connectionState[id].connected);
+  try{cfTrackOnce('step_'+id,'wizard_step_viewed',{platform:id,mobile:isMobileDevice()});}catch(e){}
   const last = (i+1 >= q.length);
   // Once connected, the forward action is the emphasized (primary) one. When NOT
   // connected, the forward action is just a skip — keep it quiet (ghost), so it
@@ -9097,6 +9107,11 @@ function wizardNext(){
   stopYahooPoll();
   const q = window.__wizQueue || [];
   let i = window.__wizIdx || 0;
+  try{
+    const cur=q[i];
+    if(cur && !(connectionState[cur]&&connectionState[cur].connected))
+      cfTrack('wizard_skipped',{platform:cur,mobile:isMobileDevice()});
+  }catch(e){}
   if(i+1 < q.length){ window.__wizIdx = i+1; renderWizardStep(); }
   else { finishWizard(); }
 }
@@ -9108,6 +9123,7 @@ function finishWizard(){
   }
   stopYahooPoll();
   window.__wizardActive = false;
+  try{cfTrack('onboarding_finished',{platforms:(typeof getConnectedProviders==='function')?getConnectedProviders():[],mobile:isMobileDevice()});}catch(e){}
   handleContinue();
 }
 function wizardConnectYahoo(){
@@ -9167,6 +9183,7 @@ async function submitIdentityInline(){
     }else if(r.ok && j.mode === 'link_sent'){
       // Existing account with connections — we emailed a link instead of granting
       // a session, to prevent takeover by typing someone else's email.
+      try{cfTrack('signup_link_sent',null);}catch(e){}
       const root = document.getElementById('wizard-root');
       if(root){
         root.innerHTML = `<div class="provider-mobile-note" style="border-style:solid">You already have a Conflicted account. We emailed a sign-in link to <strong>${email}</strong> — open it to pick up where you left off. It works once and expires in 15 minutes.</div>`;
@@ -9246,7 +9263,7 @@ function maybeSendCrossDeviceLink(){
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ email })
   }).then(r=>{
-    if(r.ok) showYahooToast('We emailed you a link to use Conflicted on another device.');
+    if(r.ok){ showYahooToast('We emailed you a link to use Conflicted on another device.'); try{cfTrack('cross_device_link_sent',null);}catch(e){} }
   }).catch(()=>{ /* non-critical; silent */ });
 }
 
