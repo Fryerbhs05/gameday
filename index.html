@@ -4092,6 +4092,9 @@
   .cf-c-status{margin-top:1px;}
   .cf-c-status{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.07em;flex:none;white-space:nowrap;}
   .cf-c-score{display:flex;align-items:baseline;gap:9px;margin-bottom:8px;white-space:nowrap;}
+  /* Muted projected-final line under a LIVE row's actual scores (mirrors the
+     dashboard scoreboard's actual + PROJECTED FINAL pairing). */
+  .cf-c-proj{font-size:11px;font-weight:700;color:var(--cs-ink-500);font-variant-numeric:tabular-nums;margin:-4px 0 8px;}
   .cf-c-sc{display:flex;align-items:baseline;gap:5px;}
   .cf-c-sc .who{font-size:9px;font-weight:800;color:var(--cs-ink-500);letter-spacing:.06em;}
   .cf-c-sc .pts{font-size:18px;font-weight:900;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
@@ -4271,6 +4274,74 @@
   </div>
   <div id="wp-slots"></div>
 </div>
+
+<!-- ══ ANALYTICS ═══════════════════════════════════════════════ -->
+<script>
+/* cfTrack — lightweight product analytics (2026 plan, Phase 1.1 + 1.2).
+   Batches events to POST /api/track; sendBeacon on tab-hide so nothing is
+   lost. The server attaches user_id from the account cookie; cf_anon ties a
+   device's pre-signup events together. No PII ever goes in props.
+   NOTE: cf_anon / cf_ref are identity plumbing, NOT content-hiding filters
+   (the localStorage ban in feedback_filter_persistence doesn't apply). */
+(function(){
+  var KEY='cf_anon', REF='cf_ref';
+  function anonId(){
+    try{
+      var v=localStorage.getItem(KEY);
+      if(!v){v=Math.random().toString(36).slice(2,10)+Date.now().toString(36);localStorage.setItem(KEY,v);}
+      return v;
+    }catch(e){return null;}
+  }
+  var q=[],timer=null;
+  function flush(useBeacon){
+    if(!q.length)return;
+    var payload=JSON.stringify({anon_id:anonId(),events:q.splice(0,20)});
+    try{
+      if(useBeacon&&navigator.sendBeacon){navigator.sendBeacon('/api/track',payload);return;}
+      fetch('/api/track',{method:'POST',credentials:'include',keepalive:true,
+        headers:{'Content-Type':'application/json'},body:payload}).catch(function(){});
+    }catch(e){}
+  }
+  window.cfTrack=function(name,props){
+    try{
+      q.push({name:name,props:props||null});
+      if(q.length>=10){flush(false);return;}
+      clearTimeout(timer);timer=setTimeout(function(){flush(false);},1500);
+    }catch(e){}
+  };
+  /* Short device code stamped onto shared links (?ref=…) for attribution. */
+  window.cfRefCode=function(){return (anonId()||'').slice(0,8);};
+  /* Link text attached alongside shared images — a PNG alone carries no URL,
+     so this is the entire referral loop. Best-effort: some share targets drop
+     the text when files are present; that costs attribution, never the share. */
+  window.cfShareRefUrl=function(){try{return location.origin+'/?ref='+window.cfRefCode();}catch(e){return '';}};
+  window.cfStoredRef=function(){try{return localStorage.getItem(REF)||null;}catch(e){return null;}};
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='hidden')flush(true);
+  });
+  /* Referral attribution: landing with ?ref=<code> records the visit and
+     remembers the code so signup_completed can carry it. */
+  try{
+    var ref=new URLSearchParams(location.search).get('ref');
+    if(ref){ref=String(ref).slice(0,16);localStorage.setItem(REF,ref);window.cfTrack('referred_visit',{ref:ref});}
+  }catch(e){}
+  /* app_open — once per page load, after boot settles. */
+  window.addEventListener('load',function(){
+    setTimeout(function(){
+      try{
+        var platforms=(typeof getConnectedProviders==='function')?getConnectedProviders():[];
+        window.cfTrack('app_open',{
+          platforms:platforms,
+          connected:platforms.length>0,
+          demo:(typeof window.inDemoMode==='function')?!!window.inDemoMode():false,
+          pwa:!!(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches),
+          ref:window.cfStoredRef()
+        });
+      }catch(e){}
+    },800);
+  });
+})();
+</script>
 
 <!-- ══ SCRIPT ══════════════════════════════════════════════════ -->
 <script>
@@ -7528,7 +7599,7 @@ function experimentGoDashboard(){
   window.scrollTo(0,0);
 }
 window.experimentGoDashboard=experimentGoDashboard;
-function handleDemo(){isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};hiddenLeagues.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);ensureDemoHeadshots();}
+function handleDemo(){try{cfTrack('demo_started');}catch(e){}isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};hiddenLeagues.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);ensureDemoHeadshots();}
 /* Demo player cards fall back to initials because demo rosters carry no Sleeper
    ID and the player DB (which the name→ID resolver needs) isn't loaded outside a
    real connection. The demo uses real player names/teams, so loading the DB lets
@@ -7906,7 +7977,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   async function doShare(){
     if(!curFile)return;
     if(navigator.canShare&&navigator.canShare({files:[curFile]})){
-      try{ await navigator.share({files:[curFile]}); closeModal(); }
+      try{ await navigator.share({files:[curFile],text:window.cfShareRefUrl?cfShareRefUrl():undefined}); try{cfTrack('share_completed',{surface:'scoreboard_modal'});}catch(_e){} closeModal(); }
       catch(e){ if(!(e&&e.name==='AbortError'))showError('Sharing was blocked — use Save image instead.'); }
     }else{ doSave(); }
   }
@@ -7925,6 +7996,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   async function onTap(){
     const live=document.getElementById('scoreboard-frame');
     if(!live||live.classList.contains('collapsed')||busy)return;
+    try{cfTrack('share_tapped',{surface:'scoreboard'});}catch(e){}
     busy=true;btn.classList.add('is-busy');
     let file=null;
     try{
@@ -7938,7 +8010,8 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     busy=false;btn.classList.remove('is-busy');
     if(navigator.canShare&&navigator.canShare({files:[file]})){
       try{
-        await navigator.share({files:[file]});
+        await navigator.share({files:[file],text:window.cfShareRefUrl?cfShareRefUrl():undefined});
+        try{cfTrack('share_completed',{surface:'scoreboard'});}catch(e){}
         return;                               /* shared directly — no modal */
       }catch(e){
         if(e&&e.name==='AbortError')return;    /* user dismissed the sheet */
@@ -9085,6 +9158,7 @@ async function submitIdentityInline(){
       // Signed in on this device. Remember email so we can email a cross-device
       // link once they've connected (handleContinue).
       window.__account = { ...(window.__account||{}), signedIn:true, enabled:true, email: j.email || email };
+      try{cfTrack('signup_completed',{ref:window.cfStoredRef()});}catch(e){}
       window.__identityDone = true;
       window.__onboardEmail = j.email || email;
       window.__onboardedThisVisit = true;
@@ -9124,13 +9198,14 @@ async function handleProviderConnect(id,el){
     if(err){err.style.display='none';err.textContent='';}
     const val=inp?.value?.trim()||'';
     const res=await p.connect(val);
-    if(res.success){__pendingDiscoverDone=false;pendingLeaguesSeen=[];refreshConnectUI();}
+    if(res.success){try{cfTrack('platform_connected',{platform:id});}catch(e){}__pendingDiscoverDone=false;pendingLeaguesSeen=[];refreshConnectUI();}
     else if(err){err.textContent=res.error||'Could not connect.';err.style.display='block';}
   }else{
     /* Modal-based (ESPN) and OAuth-redirect (Yahoo) flows. Yahoo navigates
        away so the renderSetupProviders() call is effectively a no-op there;
        ESPN's modal resolves locally and we want the UI to update immediately. */
     const res=await p.connect();
+    if(res&&res.success===true){try{cfTrack('platform_connected',{platform:id});}catch(e){}}
     if(!res||res.success!==false)refreshConnectUI();
   }
 }
@@ -9448,7 +9523,7 @@ window.openSignInModal = openSignInModal;
 function consumeYahooReturnParam(){
   const params = new URLSearchParams(window.location.search);
   const flag = params.get('yahoo');
-  if(flag === 'connected') showYahooToast('Yahoo connected');
+  if(flag === 'connected'){ showYahooToast('Yahoo connected'); try{cfTrack('platform_connected',{platform:'yahoo'});}catch(e){} }
   else if(flag === 'disconnected') showYahooToast('Yahoo disconnected');
   if(flag){
     params.delete('yahoo');
@@ -13849,9 +13924,13 @@ loadExperimentState();
     var youTxt=noProj?'&mdash;':nf(you), oppTxt=noProj?'&mdash;':nf(opp);
     var yl=r.pending?(noProj?'':'PROJ'):(clinched?'FINAL':'YOU'), ol=r.pending?(noProj?'':'PROJ'):(clinched?'':'OPP');
     var tag=clinched?'LOCKED':(r.pending?'NOT STARTED':'');
+    /* Live rows: actuals stay the big numbers; add the projected finals as a
+       muted secondary line ("where is this heading?"). Pending stays PROJ-only,
+       decided stays FINAL-only — a stale pregame proj next to a final is noise. */
+    var projLine=(r.live&&r.hasProj)?'<div class="cf-c-proj">proj '+nf(r.projMy)+' &ndash; '+nf(r.projOpp)+'</div>':'';
     return '<div class="cf-c-score"><div class="cf-c-sc you"><span class="who">'+yl+'</span><span class="pts">'+youTxt+'</span></div>'
       +'<span class="cf-c-vs">vs</span><div class="cf-c-sc opp"><span class="who">'+ol+'</span><span class="pts">'+oppTxt+'</span></div>'
-      +(tag?'<span class="cf-c-tag">'+tag+'</span>':'')+'</div>';
+      +(tag?'<span class="cf-c-tag">'+tag+'</span>':'')+'</div>'+projLine;
   }
   function cardBar(r){
     var pct=Math.round(r.prob*100), fill=(r.state==='closs')?'#6b4a45':COL[r.state], w=(r.state==='cwin'||r.state==='closs')?100:pct, Lf,Rf;
@@ -13886,7 +13965,9 @@ loadExperimentState();
   function gridScore(r){
     if(r.pending&&!r.hasProj)return '<div class="cf-t-score"><span class="lbl">NOT STARTED</span></div>';
     var clinched=(r.state==='cwin'||r.state==='closs');
-    var you=clinched?r.curMy:r.projMy, opp=clinched?r.curOpp:r.projOpp, lbl=clinched?'FINAL':'PROJ';
+    /* Live tiles show ACTUALS (the static pregame PROJ never moved all day —
+       exactly when you want the real score); pregame keeps PROJ, decided FINAL. */
+    var you=clinched?r.curMy:(r.live?r.curMy:r.projMy), opp=clinched?r.curOpp:(r.live?r.curOpp:r.projOpp), lbl=clinched?'FINAL':(r.live?'LIVE':'PROJ');
     return '<div class="cf-t-score"><span class="lbl">'+lbl+'</span><span class="you">'+nf(you)+'</span><span class="dash">&ndash;</span><span class="opp">'+nf(opp)+'</span></div>';
   }
   function gridStatus(r){
@@ -14001,11 +14082,12 @@ loadExperimentState();
   }
   async function doShare(){
     if(sharing)return; sharing=true;
+    try{cfTrack('share_tapped',{surface:'snapshot'});}catch(e){}
     var orig='&#x2197;&nbsp; Share my weekend'; setShareLabel('Building image…');
     try{
       var file=await buildPng();
       if(navigator.canShare&&navigator.canShare({files:[file]})){
-        try{ await navigator.share({files:[file]}); }
+        try{ await navigator.share({files:[file],text:window.cfShareRefUrl?cfShareRefUrl():undefined}); try{cfTrack('share_completed',{surface:'snapshot'});}catch(_e){} }
         catch(e){ if(e&&e.name==='AbortError'){/* user cancelled */} else { saveFile(file); } }
       } else { saveFile(file); }
     }catch(err){ setShareLabel('Couldn’t build image — tap to retry'); sharing=false;
