@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v25'; // v25: freeze holds cleanly in Replay — landed rows stay put, frozen batches hide their timestamps
+const CACHE_VERSION = 'conflicted-v26'; // v26: held rows fully hidden (no blank reserved rows in Replay); glide-dock measures target on the fly
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

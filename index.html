@@ -2061,11 +2061,12 @@
     .lu-group.lu-new { animation: lu-flash 1.4s var(--ease-out); }
     @media (prefers-reduced-motion: reduce) { .lu-group.lu-new { animation: none; } }
     /* Impact-animation handoff: while a player's card sequence is still playing
-       in the stage, their fresh log entry is HELD — invisible but keeping its
-       layout slot — so the net card can morph into its exact position, then
-       reveal it. Holds are registered in window.__iaHold by the impact module
-       and always released on skip/reset (never a permanently hidden entry). */
-    .lu-group.lu-held { visibility: hidden; }
+       in the stage, their fresh log entry is HELD — fully out of the flow
+       (display:none, NOT visibility:hidden) so queued animations don't leave
+       blank reserved rows stacking up (very visible in Replay). The glide-dock
+       measures its target on the fly at landing time. Holds are registered in
+       window.__iaHold by the impact module and always released on skip/reset. */
+    .lu-group.lu-held { display: none; }
     .lu-group.lu-reveal { animation: lu-reveal-in 0.5s var(--ease-out); }
     @keyframes lu-reveal-in { from { opacity: 0; transform: translateY(-7px); } to { opacity: 1; transform: translateY(0); } }
     /* Log-freeze gate: non-animating rows of a batch that arrives mid-animation
@@ -2073,7 +2074,7 @@
     .lu-group.lu-gate, .lu-synchead.lu-gate { display: none; }
     .lu-group.lu-degate, .lu-synchead.lu-degate { animation: lu-degate-in 0.4s var(--ease-out); }
     @keyframes lu-degate-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-    @media (prefers-reduced-motion: reduce) { .lu-group.lu-held { visibility: visible; } .lu-group.lu-reveal, .lu-group.lu-degate, .lu-synchead.lu-degate { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .lu-group.lu-held { display: block; } .lu-group.lu-reveal, .lu-group.lu-degate, .lu-synchead.lu-degate { animation: none; } }
     .lu-ghead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
     .lu-gname { font: 500 14px/1.2 var(--font-sans); color: var(--ink-900); }
     .lu-gpos { font: 400 11px/1 var(--font-sans); color: var(--ink-500); margin-left: 3px; }
@@ -8284,13 +8285,12 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       }else{
         // Live — net-impact framed groups, one per player.
         const gatedBatch=(b.seq!=null&&b.seq>luRevealedThrough);
-        // A gated batch that has a row currently landing (held) or already landed
-        // keeps its timestamp so the landed card has context; a purely-frozen
-        // batch (nothing animating in it) hides its header too — no orphan
-        // timestamps stacking up while the animation plays (matters in Replay,
-        // which re-renders every virtual tick).
+        // A gated batch shows its timestamp only once one of its rows has LANDED;
+        // until then (rows held = display:none, or purely frozen) the header is
+        // hidden too, so no orphan/blank timestamped rows stack up while the
+        // animation plays (matters in Replay, which re-renders every virtual tick).
         let batchHasReveal=false;
-        if(gatedBatch){(b.groups||[]).forEach(g=>{const gid=String(g.id);if((window.__iaHold&&window.__iaHold.has&&window.__iaHold.has(gid))||(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gid)))batchHasReveal=true;});}
+        if(gatedBatch){(b.groups||[]).forEach(g=>{const gid=String(g.id);if(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gid))batchHasReveal=true;});}
         const gateHead=gatedBatch&&!batchHasReveal;
         html+='<div class="lu-synchead'+(gateHead?' lu-gate':'')+'"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
         const flashThis=(bi===latestBatchIdx);
@@ -13620,7 +13620,13 @@ loadExperimentState();
       window.__iaLanded.add(String(id));
       var els=document.querySelectorAll('.lu-group.lu-held');
       for(var i=0;i<els.length;i++){
-        if(els[i].getAttribute('data-pid')===String(id)){els[i].classList.remove('lu-held');els[i].classList.add('lu-reveal');}
+        if(els[i].getAttribute('data-pid')===String(id)){
+          els[i].classList.remove('lu-held');els[i].classList.add('lu-reveal');
+          /* Un-gate this row's batch timestamp so the landed card has its header
+             (the batch was frozen; only this row is revealing now). */
+          var p=els[i].previousElementSibling;
+          while(p){if(p.classList&&p.classList.contains('lu-synchead')){if(p.classList.contains('lu-gate')){p.classList.remove('lu-gate');p.classList.add('lu-degate');}break;}p=p.previousElementSibling;}
+        }
       }
     }catch(e){}
   }
@@ -13710,7 +13716,16 @@ loadExperimentState();
               for(var ti=0;ti<els.length;ti++){if(els[ti].getAttribute('data-pid')===String(ev.id)){target=els[ti];break;}}
             }catch(e){}
             var fr=null,tr=null;
-            if(target){try{fr=fin.getBoundingClientRect();tr=target.getBoundingClientRect();}catch(e){}}
+            if(target){try{
+              fr=fin.getBoundingClientRect();
+              /* The held target is display:none (no reserved blank row), so give
+                 it layout for a single synchronous measurement — invisible, no
+                 paint between set and restore, so nothing flashes. */
+              var _d=target.style.display,_v=target.style.visibility;
+              target.style.visibility='hidden';target.style.display='block';
+              tr=target.getBoundingClientRect();
+              target.style.display=_d;target.style.visibility=_v;
+            }catch(e){}}
             if(fr&&tr&&fr.width>2&&tr.width>2){
               var clone=fin.cloneNode(true);
               clone.style.transition='none';clone.style.margin='0';clone.style.left='0';clone.style.top='0';
