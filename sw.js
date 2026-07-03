@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v16'; // v16: onboarding funnel step events (Phase 2.1)
+const CACHE_VERSION = 'conflicted-v18'; // v18: scoreboard full-Inter type + league names styled like bucket player names
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

@@ -1133,16 +1133,21 @@
     .score-cell[data-status="split"]    { border-top: 3px solid var(--split); }
     .score-cell[data-status="final"]    { border-top: 3px solid var(--neutral); }
     .score-cell[data-status="live"]     { border-top: 3px solid var(--coral-500); }
+    /* League name mirrors the bucket .player-name treatment — bright white,
+       bold Inter, mixed case (not the old muted-grey uppercase mono-ish label)
+       so the scoreboard reads consistently with the LOYALTIES buckets. */
     .score-cell__league {
-      font: 500 11px/1 var(--font-sans); color: var(--ink-500);
-      letter-spacing: 0.08em; text-transform: uppercase;
-      margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+      font: 700 14px/1.2 var(--font-sans); color: var(--ink-900);
+      letter-spacing: -0.01em; text-transform: none;
+      margin-bottom: 11px; display: flex; align-items: center; gap: 6px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .score-cell__league-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    /* Full-Inter scoreboard: score rows use Inter (matches bucket cards) instead
+       of monospace. */
     .score-cell__row {
       display: flex; justify-content: space-between; align-items: baseline;
-      font: 500 18px/1.2 var(--font-mono); margin-bottom: 4px;
+      font: 700 18px/1.2 var(--font-sans); letter-spacing: -0.01em; margin-bottom: 4px;
     }
     .score-cell__label { font: 400 12px/1 var(--font-sans); color: var(--ink-500); }
     .score-cell__points { color: var(--navy-700); }
@@ -1157,7 +1162,7 @@
       pointer-events: none;
     }
     .score-cell__state {
-      font: 500 10px/1 var(--font-mono); margin-top: 8px;
+      font: 600 10px/1 var(--font-sans); margin-top: 8px;
       letter-spacing: 0.08em; text-transform: uppercase; text-align: center;
     }
     .score-cell__state.live   { color: var(--coral-500); }
@@ -1172,7 +1177,7 @@
        fill crosses past it, the stronger your projected win. */
     .score-cell__proj { margin-top: 10px; }
     .score-cell__proj-label {
-      font: 500 9px/1 var(--font-mono); color: var(--ink-500);
+      font: 600 9px/1 var(--font-sans); color: var(--ink-500);
       letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px;
       text-align: center;
     }
@@ -1197,7 +1202,7 @@
     }
     .score-cell__proj-vals {
       display: flex; justify-content: space-between;
-      font: 500 11px/1 var(--font-mono); margin-top: 5px;
+      font: 600 11px/1 var(--font-sans); margin-top: 5px;
     }
     .score-cell__proj-you { color: var(--coral-500); }
     .score-cell__proj-opp { color: var(--navy-700); }
@@ -4811,12 +4816,19 @@ function calcSignal(player,contexts){
 }
 
 function classifyPlayer(player,sig){
+  /* Bucket = pure roster membership, full stop. On both sides of ANY matchup →
+     Conflicted, the namesake bucket — regardless of net signal or whether the
+     matchups are decided. Decided/undecided and net rooting interest only shape
+     IMPACT surfaces (ctxBadge "Need them"/"Avoid points"/"Settled", the mood
+     model, clinched), never the bucket. The conflict impact animation is fed
+     only this bucket, so it now sees every divided-loyalty player.
+     Returns null for players on neither side (bench-only stays out of buckets). */
   const mine=player.myLeagues.length>0,theirs=player.againstLeagues.length>0;
-  if(!sig){if(mine&&!theirs)return{bucket:'cheer',clinched:false};if(mine&&theirs)return{bucket:'conflicted',clinched:false};if(theirs)return{bucket:'enemy',clinched:false};return null;}
-  const{signal,allDecided}=sig;
-  if(signal>0)return{bucket:'cheer',clinched:allDecided};if(signal<0)return{bucket:'enemy',clinched:allDecided};
-  if(mine&&!theirs)return{bucket:'cheer',clinched:allDecided};if(!mine&&theirs)return{bucket:'enemy',clinched:allDecided};
-  return{bucket:'conflicted',clinched:allDecided};
+  const clinched=sig?sig.allDecided:false;
+  if(mine&&theirs)return{bucket:'conflicted',clinched};
+  if(mine)return{bucket:'cheer',clinched};
+  if(theirs)return{bucket:'enemy',clinched};
+  return null;
 }
 
 function ctxBadge(sig,isHist){
