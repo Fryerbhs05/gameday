@@ -3410,19 +3410,20 @@
 <script>
   (function() {
     var ITEMS = [
-      /* More-menu icons are normalized to a uniform drawn height that matches
-         the 'experiment' flask (its artwork reads more compact than the others
-         inside the shared 24×24 box). Each non-flask icon is wrapped in a
-         transform group that scales it about center (12,12) to ~14u tall so
-         every tile reads the same visual height. Applies to all mobile users
-         (not gated). See icon-height normalization change 2026-07-04. */
-      { key: 'schedule', label: 'Schedule', soon: false, expOnly: true, svg: '<g transform="translate(12,12) scale(0.7778) translate(-12,-11.5)"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></g>' },
-      { key: 'exposure', label: 'Exposure', soon: false, svg: '<g transform="translate(12,12) scale(0.8000) translate(-12,-11.75)"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></g>' },
-      { key: 'about',    label: 'About',    soon: false, svg: '<g transform="translate(12,12) scale(0.7778) translate(-12,-12)"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/></g>' },
-      { key: 'shop',     label: 'Shop',     soon: true,  svg: '<g transform="translate(12,12) scale(0.8485) translate(-12,-11.25)"><path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/></g>' },
-      { key: 'blog',     label: 'Blog',     soon: true,  svg: '<g transform="translate(12,12) scale(0.8750) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
-      { key: 'partners', label: 'Partners', soon: true,  svg: '<g transform="translate(12,12) scale(1.0769) translate(-12,-12.5)"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/></g>' },
-      { key: 'contact',  label: 'Contact',  soon: true,  svg: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/>' },
+      /* More-menu icons are normalized to match the 'experiment' flask's visual
+         BODY height (~12u), not its bounding box. The flask's thin neck makes
+         its box ~18u tall, but the wide part the eye reads is only ~12u — so
+         each non-flask icon is wrapped in a transform group that scales it
+         about center (12,12) down to 12u tall. This makes every tile read the
+         same short height as the flask. Applies to all mobile users (not
+         gated). See icon-height normalization change 2026-07-04 (T=12). */
+      { key: 'schedule', label: 'Schedule', soon: false, expOnly: true, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-11.5)"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></g>' },
+      { key: 'exposure', label: 'Exposure', soon: false, svg: '<g transform="translate(12,12) scale(0.6857) translate(-12,-11.75)"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></g>' },
+      { key: 'about',    label: 'About',    soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-12)"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/></g>' },
+      { key: 'shop',     label: 'Shop',     soon: true,  svg: '<g transform="translate(12,12) scale(0.7273) translate(-12,-11.25)"><path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/></g>' },
+      { key: 'blog',     label: 'Blog',     soon: true,  svg: '<g transform="translate(12,12) scale(0.7500) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
+      { key: 'partners', label: 'Partners', soon: true,  svg: '<g transform="translate(12,12) scale(0.9231) translate(-12,-12.5)"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/></g>' },
+      { key: 'contact',  label: 'Contact',  soon: true,  svg: '<g transform="translate(12,12) scale(0.8571) translate(-12,-12)"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></g>' },
       /* Admin-only shortcut into experiment mode — avoids the sign-out →
          type-code → sign-back-in dance. Client-side email gate is purely a
          convenience filter (the TestMode code path still exists); it is NOT
@@ -13874,7 +13875,10 @@ loadExperimentState();
        whose row was built (held, display:none) on an earlier tick, so measureRow
        finds a real slot instead of falling back to a fixed position. */
     show.forEach(function(ev){markAnimating(ev.key||ev.id,true);});
-    var sw=(o&&o.clientWidth)||window.innerWidth;
+    /* Scale to the LIVE UPDATES BOX width (the log), NOT the full viewport — else
+       a 3-league fan-out overflows the frame on wide desktop. */
+    var logEl=document.getElementById('live-updates-log');
+    var sw=(logEl&&logEl.clientWidth)||(o&&o.clientWidth)||window.innerWidth;
     /* Equal-size rule: every league card across the batch uses ONE scale — the
        smallest, driven by whichever player is in the most leagues. */
     var rowBudget=(P===1)?170:(P===2?146:124), vCap=(rowBudget-14)/150, heroW=220, gap=10, maxN=1;
