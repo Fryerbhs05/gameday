@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v31'; // v31: the 3s Replay breather now also freezes the log (drain honors cooldown before idle) so rows don't dump out during the pause
+const CACHE_VERSION = 'conflicted-v32'; // v32: Replay paces every permanent row ≥2s apart (drips frozen rows one at a time, oldest first) instead of dumping bursts
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

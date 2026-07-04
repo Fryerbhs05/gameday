@@ -8133,6 +8133,9 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   let luKeySeq=0;                     // fallback unique row key when a row isn't an animation target
   let luRevealedThrough=0;            // highest batch seq cleared to fully reveal
   let luGateTimer=null;               // safety fallback: un-gate even if idle never fires
+  let luPaceTimer=null;               // Replay: drips gated rows out one at a time
+  const LU_PACE_MS=2000;              // Replay: minimum gap between any two permanent rows
+  function inReplay(){try{return !!(window.__cfReplay&&window.__cfReplay.active&&window.__cfReplay.active());}catch(e){return false;}}
 
   function nflClockFor(team){try{return (team&&nflGameClocks.get(team))||'';}catch(e){return'';}}
   function localDayStr(d){d=d||new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
@@ -8245,13 +8248,41 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
      When the animation queue drains, revealGated() fades the held-back rows in.
      A safety timer un-gates even if the idle signal never arrives. */
   function revealGated(){
-    luRevealedThrough=luSeq;
     if(luGateTimer){clearTimeout(luGateTimer);luGateTimer=null;}
+    // Replay: never dump the frozen rows out at once — drip them one every
+    // LU_PACE_MS so every permanent row is at least 2s apart.
+    if(inReplay()){startPacer();return;}
+    luRevealedThrough=luSeq;
     // Everything is revealed now — the landed-id set has served its purpose.
     try{if(window.__iaLanded)window.__iaLanded.clear();}catch(e){}
     const log=document.getElementById('live-updates-log');if(!log)return;
     const els=log.querySelectorAll('.lu-gate');
     for(let i=0;i<els.length;i++){els[i].classList.remove('lu-gate');els[i].classList.add('lu-degate');}
+  }
+
+  /* Replay row pacer: reveal gated rows one at a time, oldest first, never closer
+     than LU_PACE_MS apart, and never while a card animation is on screen (it
+     resumes when the animation goes idle). A revealed row is added to __iaLanded
+     so it survives re-renders (same mechanism the animation landing uses). */
+  function startPacer(){ if(luPaceTimer==null) schedulePace(); }
+  function schedulePace(){
+    const since=Date.now()-(window.__iaLastReveal||0);
+    luPaceTimer=setTimeout(paceStep, Math.max(0, LU_PACE_MS-since));
+  }
+  function paceStep(){
+    luPaceTimer=null;
+    if(window.__iaBusy&&window.__iaBusy())return; // animation/cooldown owns the screen — resume on idle
+    const log=document.getElementById('live-updates-log');if(!log)return;
+    const els=log.querySelectorAll('.lu-group.lu-gate');
+    if(!els.length)return;
+    const target=els[els.length-1]; // bottom-most = oldest scoring event
+    const key=target.getAttribute('data-key');
+    if(key&&window.__iaLanded)window.__iaLanded.add(String(key));
+    target.classList.remove('lu-gate');target.classList.add('lu-degate');
+    let p=target.previousElementSibling; // un-gate this row's batch timestamp
+    while(p){if(p.classList&&p.classList.contains('lu-synchead')){if(p.classList.contains('lu-gate')){p.classList.remove('lu-gate');p.classList.add('lu-degate');}break;}p=p.previousElementSibling;}
+    window.__iaLastReveal=Date.now();
+    if(log.querySelectorAll('.lu-group.lu-gate').length) schedulePace(); // more waiting → keep dripping
   }
 
   /* Assign a batch its seq and, if a card animation is in flight, freeze it
@@ -8263,10 +8294,15 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   function gateBatch(batch){
     batch.seq=++luSeq;
     const busy=!!(window.__iaBusy&&window.__iaBusy());
-    if(busy&&!batch.stale){
+    const replay=inReplay();
+    // In Replay, gate EVERY live batch so even multi-player ticks (and quiet
+    // stretches) funnel through the 2s pacer — not just batches behind an
+    // animation. Live play keeps its natural cadence (gate only when busy).
+    if((busy||replay)&&!batch.stale){
       if(window.__iaWhenIdle)window.__iaWhenIdle(revealGated);
       if(luGateTimer)clearTimeout(luGateTimer);
       luGateTimer=setTimeout(revealGated,12000);
+      if(replay)startPacer(); // keep the drip going even outside animations
     }else if(!busy){
       luRevealedThrough=luSeq;
     }
@@ -8426,7 +8462,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   };
 
   /* Reset on disconnect / user change so one user's log never bleeds into another. */
-  window.__resetLiveUpdates=function(){clearAll();luDay=null;const l=document.getElementById('live-updates-log');if(l)l.innerHTML='';const e=document.getElementById('lu-empty');if(e)e.style.display='block';};
+  window.__resetLiveUpdates=function(){clearAll();luDay=null;if(luPaceTimer){clearTimeout(luPaceTimer);luPaceTimer=null;}luRevealedThrough=luSeq;const l=document.getElementById('live-updates-log');if(l)l.innerHTML='';const e=document.getElementById('lu-empty');if(e)e.style.display='block';};
 
   scheduleMidnightWipe(); // nightly clean slate
 })();
@@ -13647,6 +13683,7 @@ loadExperimentState();
   window.__iaLanded=new Set(); // keys whose card has landed — stay visible while the log is still gated
   window.__iaAnimating=new Set(); // keys whose card is animating RIGHT NOW — that row reserves its in-place slot
   window.__iaTickKeys={}; // per-tick id→key bridge: detector sets it, __buildLiveUpdates reads it to tag the row
+  window.__iaLastReveal=0; // ts of the last permanent row shown (animated OR paced) — the 2s pacer reads this
   function findHeldRow(key){try{var els=document.querySelectorAll('.lu-group.lu-held');for(var i=0;i<els.length;i++){if(els[i].getAttribute('data-key')===String(key))return els[i];}}catch(e){}return null;}
   /* Reserve (or release) THIS scoring event's real log row as the in-place slot. */
   function markAnimating(key,on){try{if(key==null)return;var s=String(key);if(on)window.__iaAnimating.add(s);else window.__iaAnimating.delete(s);var el=findHeldRow(key);if(el){if(on)el.classList.add('lu-anim');else el.classList.remove('lu-anim');}}catch(e){}}
@@ -13656,6 +13693,7 @@ loadExperimentState();
       if(key==null)return;
       window.__iaHold.delete(String(key));
       window.__iaLanded.add(String(key));
+      window.__iaLastReveal=Date.now(); // an animated row just landed — pacer counts 2s from here
       var els=document.querySelectorAll('.lu-group.lu-held');
       for(var i=0;i<els.length;i++){
         if(els[i].getAttribute('data-key')===String(key)){
