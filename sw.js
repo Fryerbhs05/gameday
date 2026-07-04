@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v29'; // v29: in-place animation anchored to the document (scrolls with row) + reserves queued rows so it lands on the real slot, not a fixed center
+const CACHE_VERSION = 'conflicted-v30'; // v30: unique per-scoring-event keys — one reserved slot per animation (fixes blank-row stacking when a player scores repeatedly in Replay)
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

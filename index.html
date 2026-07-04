@@ -8130,6 +8130,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   let luTestTot=Object.create(null);  // test harness: "<name>|<league>" -> running total
   let luTestClk=3600;                 // test harness: synthetic game seconds remaining (counts down)
   let luSeq=0;                        // monotonic live-batch id — drives the freeze gate
+  let luKeySeq=0;                     // fallback unique row key when a row isn't an animation target
   let luRevealedThrough=0;            // highest batch seq cleared to fully reveal
   let luGateTimer=null;               // safety fallback: un-gate even if idle never fires
 
@@ -8223,19 +8224,19 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const head='<div class="lu-ghead"><span class="lu-gname">'+esc(g.name)
       +(g.pos?'<span class="lu-gpos">'+esc(g.pos)+(g.team?' · '+esc(g.team):'')+'</span>':'')+'</span>'
       +(net.label?'<span class="lu-gnet" style="color:'+cv+'">'+esc(net.label)+'</span>':'')+'</div>';
-    /* data-pid + hold: lets the impact animation find this entry and morph its
-       net card into it. Held = this player's animation is still in flight. */
-    const held=!!(window.__iaHold&&window.__iaHold.has&&window.__iaHold.has(String(g.id)));
-    /* A row that has already landed (its glide-dock finished) stays visible even
-       while its batch is still gated behind later animations — without this it
-       would re-hide on the next re-render (very visible in Replay). */
-    const landed=!!(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(String(g.id)));
+    /* data-key = unique per-scoring-event id the animation matches on (data-pid
+       stays for reference). Held = THIS row's animation is still in flight. */
+    const gk=(g.key!=null)?String(g.key):('nokey_'+g.id);
+    const held=!!(window.__iaHold&&window.__iaHold.has&&window.__iaHold.has(gk));
+    /* A row that has already landed stays visible even while its batch is still
+       gated behind later animations — else it re-hides on the next re-render. */
+    const landed=!!(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gk));
     /* The currently-animating row keeps its reserved in-place slot (lu-anim). */
-    const anim=!!(window.__iaAnimating&&window.__iaAnimating.has&&window.__iaAnimating.has(String(g.id)));
+    const anim=!!(window.__iaAnimating&&window.__iaAnimating.has&&window.__iaAnimating.has(gk));
     /* A gated batch hides its NON-animating rows (display:none) until the
        animation drains; held (animating) + landed rows are left visible. */
     const gateCls=(gated&&!held&&!landed)?' lu-gate':'';
-    return '<div class="lu-group'+(isNew?' lu-new':'')+(held?' lu-held':'')+((held&&anim)?' lu-anim':'')+gateCls+'" data-pid="'+esc(String(g.id))+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
+    return '<div class="lu-group'+(isNew?' lu-new':'')+(held?' lu-held':'')+((held&&anim)?' lu-anim':'')+gateCls+'" data-pid="'+esc(String(g.id))+'" data-key="'+esc(gk)+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
   }
 
   /* Freeze rule (matched to the impact animation): while a card animation is
@@ -8299,7 +8300,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         // timestamped rows stack up while the animation plays (matters in Replay,
         // which re-renders every virtual tick).
         let batchHasReveal=false;
-        if(gatedBatch){(b.groups||[]).forEach(g=>{const gid=String(g.id);if((window.__iaAnimating&&window.__iaAnimating.has&&window.__iaAnimating.has(gid))||(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gid)))batchHasReveal=true;});}
+        if(gatedBatch){(b.groups||[]).forEach(g=>{const gk=(g.key!=null)?String(g.key):('nokey_'+g.id);if((window.__iaAnimating&&window.__iaAnimating.has&&window.__iaAnimating.has(gk))||(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gk)))batchHasReveal=true;});}
         const gateHead=gatedBatch&&!batchHasReveal;
         html+='<div class="lu-synchead'+(gateHead?' lu-gate':'')+'"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
         const flashThis=(bi===latestBatchIdx);
@@ -8352,6 +8353,10 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         const gmap=new Map();
         rows.forEach(r=>{if(!gmap.has(r.id))gmap.set(r.id,{id:r.id,name:r.name,pos:r.pos,team:r.team,rows:[]});gmap.get(r.id).rows.push(r);});
         const groups=Array.from(gmap.values());
+        /* Unique per-row key so the animation targets THIS scoring event's row.
+           The detector stashed id→key for players that fired this tick; everyone
+           else gets a fresh key that matches no hold. */
+        groups.forEach(g=>{g.key=(window.__iaTickKeys&&window.__iaTickKeys[String(g.id)])||('lu'+(++luKeySeq));});
         if(stale){
           // Recap: same clustering, but no net-impact framing. Biggest swing first.
           groups.forEach(g=>{g.max=Math.max.apply(null,g.rows.map(r=>Math.abs(r.delta)));});
@@ -13631,21 +13636,26 @@ loadExperimentState();
      card can morph into its exact position. Registered at queue time (the log
      renders AFTER the detector on the same tick), released on landing, skip,
      or reset — a held entry can never be orphaned invisible. */
+  /* Keyed by a UNIQUE per-scoring-event key (data-key), NOT player id — a player
+     logs many rows in Replay, so id-keying would reserve/reveal ALL of them (the
+     blank-row stacking + wrong-row landing Matt saw). */
+  var iaKeySeq=0;
   window.__iaHold=new Set();
-  window.__iaLanded=new Set(); // ids whose card has finished landing — stay visible while the log is still gated
-  window.__iaAnimating=new Set(); // ids whose card is animating RIGHT NOW — their row reserves its in-place slot
-  function findHeldRow(id){try{var els=document.querySelectorAll('.lu-group.lu-held');for(var i=0;i<els.length;i++){if(els[i].getAttribute('data-pid')===String(id))return els[i];}}catch(e){}return null;}
-  /* Reserve (or release) a player's real log row as the in-place animation slot. */
-  function markAnimating(id,on){try{if(id==null)return;var s=String(id);if(on)window.__iaAnimating.add(s);else window.__iaAnimating.delete(s);var el=findHeldRow(id);if(el){if(on)el.classList.add('lu-anim');else el.classList.remove('lu-anim');}}catch(e){}}
-  function measureRow(id){var el=findHeldRow(id);if(!el)return null;try{var r=el.getBoundingClientRect();if(r&&r.width>2)return{left:r.left,top:r.top,width:r.width,height:r.height};}catch(e){}return null;}
-  function revealHold(id){
+  window.__iaLanded=new Set(); // keys whose card has landed — stay visible while the log is still gated
+  window.__iaAnimating=new Set(); // keys whose card is animating RIGHT NOW — that row reserves its in-place slot
+  window.__iaTickKeys={}; // per-tick id→key bridge: detector sets it, __buildLiveUpdates reads it to tag the row
+  function findHeldRow(key){try{var els=document.querySelectorAll('.lu-group.lu-held');for(var i=0;i<els.length;i++){if(els[i].getAttribute('data-key')===String(key))return els[i];}}catch(e){}return null;}
+  /* Reserve (or release) THIS scoring event's real log row as the in-place slot. */
+  function markAnimating(key,on){try{if(key==null)return;var s=String(key);if(on)window.__iaAnimating.add(s);else window.__iaAnimating.delete(s);var el=findHeldRow(key);if(el){if(on)el.classList.add('lu-anim');else el.classList.remove('lu-anim');}}catch(e){}}
+  function measureRow(key){var el=findHeldRow(key);if(!el)return null;try{var r=el.getBoundingClientRect();if(r&&r.width>2)return{left:r.left,top:r.top,width:r.width,height:r.height};}catch(e){}return null;}
+  function revealHold(key){
     try{
-      if(id==null)return;
-      window.__iaHold.delete(String(id));
-      window.__iaLanded.add(String(id));
+      if(key==null)return;
+      window.__iaHold.delete(String(key));
+      window.__iaLanded.add(String(key));
       var els=document.querySelectorAll('.lu-group.lu-held');
       for(var i=0;i<els.length;i++){
-        if(els[i].getAttribute('data-pid')===String(id)){
+        if(els[i].getAttribute('data-key')===String(key)){
           els[i].classList.remove('lu-held');els[i].classList.add('lu-reveal');
           /* Un-gate this row's batch timestamp so the landed card has its header
              (the batch was frozen; only this row is revealing now). */
@@ -13735,8 +13745,8 @@ loadExperimentState();
                so it scrolls with the log). Reveal the real row beneath it and
                cross-dissolve fin in place — soft blur + tiny settle, no travel —
                so it melts into the persistent scorecard. */
-            revealHold(ev.id);          // reveal the real row at the same doc position
-            markAnimating(ev.id,false); // release the in-place reserve flag
+            revealHold(ev.key||ev.id);          // reveal the real row at the same doc position
+            markAnimating(ev.key||ev.id,false); // release the in-place reserve flag
             fin.style.transition='transform 0.5s cubic-bezier(.16,1,.3,1), opacity 0.5s ease, filter 0.5s ease';
             fin.style.transform='translate('+nhx+'px,'+(nhy+5)+'px) scale('+(restScale*0.97)+')';
             fin.style.opacity='0'; fin.style.filter='blur(3px)';
@@ -13761,7 +13771,7 @@ loadExperimentState();
        rendered row to its reserved slot right now — essential for QUEUED batches
        whose row was built (held, display:none) on an earlier tick, so measureRow
        finds a real slot instead of falling back to a fixed position. */
-    show.forEach(function(ev){markAnimating(ev.id,true);});
+    show.forEach(function(ev){markAnimating(ev.key||ev.id,true);});
     var sw=(o&&o.clientWidth)||window.innerWidth;
     /* Equal-size rule: every league card across the batch uses ONE scale — the
        smallest, driven by whichever player is in the most leagues. */
@@ -13776,7 +13786,7 @@ loadExperimentState();
       var pending=P;
       var st=stageEl(), sr=st?st.getBoundingClientRect():{left:0,top:0};
       show.forEach(function(ev,ri){
-        var m=measureRow(ev.id);
+        var m=measureRow(ev.key||ev.id);
         var rect=m?{left:m.left-sr.left,top:m.top-sr.top,width:m.width,height:m.height}
                   :{left:8,top:24+ri*rowBudget,width:sw-16,height:rowBudget};
         runPlayer(ev, rect, heroScale, leagueScale, function(){if(--pending<=0){running=false;nextBatchAllowedAt=Date.now()+cooldownMs();drain();}});
@@ -13819,10 +13829,15 @@ loadExperimentState();
       });
       prev=cur; prevCtx=ctx;
       if(isHist)return;
+      /* Give every event a UNIQUE key and stash id→key so __buildLiveUpdates (runs
+         next, SAME tick) tags THIS scoring event's row with the same key — so a
+         player's many rows never collide. */
+      window.__iaTickKeys={};
+      events.forEach(function(e){e.key='ia'+(++iaKeySeq);if(e.id!=null)window.__iaTickKeys[String(e.id)]=e.key;});
       if(events.length&&canAnimate()){
-        /* Register handoff holds BEFORE the log builds this tick's entries
+        /* Register handoff holds (keyed) BEFORE the log builds this tick's entries
            (renderBoard calls __detectImpacts, then __buildLiveUpdates). */
-        events.forEach(function(e){if(e.id!=null)window.__iaHold.add(String(e.id));});
+        events.forEach(function(e){window.__iaHold.add(e.key);});
         queue.push(events);drain();
       }
     }catch(e){}
