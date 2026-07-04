@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v28'; // v28: Replay-only 3s breather between animation batches so rows don't tumble out back-to-back
+const CACHE_VERSION = 'conflicted-v29'; // v29: in-place animation anchored to the document (scrolls with row) + reserves queued rows so it lands on the real slot, not a fixed center
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

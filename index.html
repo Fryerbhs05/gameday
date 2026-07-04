@@ -1698,10 +1698,12 @@
        Ephemeral v1. Only painted while board is the active view + experiment on. */
     #impact-overlay { position: fixed; inset: 0; z-index: 150; pointer-events: none; overflow: hidden; display: none; }
     body.experiment-active #impact-overlay.active { display: block; }
-    /* Fixed in-flow stage for phases 2–4 (top of Live Updates). Cards are
-       absolutely positioned children; overflow clips the hero's rise-in from
-       below and the net card's float-out through the top. */
-    #ia-stage { position: relative; overflow: hidden; height: 0; transition: height 0.3s ease; pointer-events: none; }
+    /* In-DOCUMENT anchor for phases 2–4. Height 0 + overflow visible so the
+       absolutely-positioned phase cards can be placed at any log row's offset
+       and, because the stage scrolls with the page, stay glued to that row as
+       the user scrolls (a fixed overlay would detach on scroll). z-index lifts
+       the cards above the log rows but below the sticky header. */
+    #ia-stage { position: relative; overflow: visible; height: 0; z-index: 90; pointer-events: none; }
     @media (prefers-reduced-motion: reduce) { #ia-stage { display: none !important; } }
     #ia-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     /* Phase 1 — splash */
@@ -13674,10 +13676,11 @@ loadExperimentState();
   }
 
   /* Phases 2-4 per player, played IN PLACE over the row's reserved slot (`rect`,
-     viewport coords) and MELTED into the permanent card — no travel. The cards
-     float on the fixed overlay directly above the log row they'll become. */
+     STAGE-relative coords) and MELTED into the permanent card — no travel. Cards
+     are children of #ia-stage (in the document), so they scroll with the log row
+     they'll become instead of detaching on a fixed overlay. */
   function runPlayer(ev,rect,heroScale,leagueScale,done){
-    var o=overlay();
+    var o=stageEl()||overlay();
     var heroW=220;
     var cx=rect.left+rect.width/2, hx=cx-heroW/2;
     var heroY=rect.top, riseStartY=rect.top+44;
@@ -13728,30 +13731,16 @@ loadExperimentState();
           after(200,function(){fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+restScale+')';});
           after(260,function(){cards.forEach(function(cd){if(cd.el.parentNode)cd.el.parentNode.removeChild(cd.el);});});
           after(2200,function(){
-            /* MELT: the net card is already sitting on its reserved log slot, so
-               there's nothing to travel. Reveal the permanent row in place and
-               cross-dissolve the net card into it (soft blur + tiny settle) so it
-               literally melts into the persistent scorecard. */
-            var target=findHeldRow(ev.id), tr=null;
-            if(target){try{tr=target.getBoundingClientRect();}catch(e){}}
-            revealHold(ev.id);          // row fades/settles in at its reserved slot
+            /* MELT: fin already sits on the row's reserved slot (stage-anchored,
+               so it scrolls with the log). Reveal the real row beneath it and
+               cross-dissolve fin in place — soft blur + tiny settle, no travel —
+               so it melts into the persistent scorecard. */
+            revealHold(ev.id);          // reveal the real row at the same doc position
             markAnimating(ev.id,false); // release the in-place reserve flag
-            if(tr&&tr.width>2){
-              var mtop=tr.top;
-              fin.style.transition='none';
-              fin.style.transform='translate('+nhx+'px,'+mtop+'px) scale('+restScale+')';
-              requestAnimationFrame(function(){requestAnimationFrame(function(){
-                fin.style.transition='transform 0.5s cubic-bezier(.16,1,.3,1), opacity 0.5s ease, filter 0.5s ease';
-                fin.style.transform='translate('+nhx+'px,'+(mtop+5)+'px) scale('+(restScale*0.97)+')';
-                fin.style.opacity='0'; fin.style.filter='blur(3px)';
-              });});
-              after(560,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
-            }else{
-              /* No row to melt into (test slate / hidden board) — soft float-up fade. */
-              fin.style.transition='transform 0.55s ease,opacity 0.55s ease,filter 0.5s ease';
-              fin.style.transform='translate('+nhx+'px,'+(nhy-140)+'px) scale('+restScale+')'; fin.style.opacity='0'; fin.style.filter='blur(3px)';
-              after(580,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
-            }
+            fin.style.transition='transform 0.5s cubic-bezier(.16,1,.3,1), opacity 0.5s ease, filter 0.5s ease';
+            fin.style.transform='translate('+nhx+'px,'+(nhy+5)+'px) scale('+(restScale*0.97)+')';
+            fin.style.opacity='0'; fin.style.filter='blur(3px)';
+            after(560,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
           });
         });
       });
@@ -13761,17 +13750,18 @@ loadExperimentState();
   function runBatch(events){
     running=true; paused=false;
     var o=overlay(); if(!o){running=false;return;}
-    o.classList.add('active'); // hosts the phase-1 flash/splash + the in-place phase cards
-    openStage(0); // just expand a collapsed Live Updates section (no top stage any more)
+    o.classList.add('active'); // hosts the phase-1 flash/splash
+    openStage(0); // expand a collapsed section; #ia-stage is our in-document anchor
     var maxConc=3;
     var show=events.slice(0,maxConc), rest=events.slice(maxConc);
     if(rest.length)queue.unshift(rest);
     var P=show.length;
-    /* Reserve each active player's REAL log row in place. Added to __iaAnimating
-       BEFORE __buildLiveUpdates renders this tick (detector runs first), so the
-       rows are rendered already reserved (visibility:hidden, exact final slot).
-       Queued rows stay display:none — no blank stacking in Replay. */
-    show.forEach(function(ev){if(ev.id!=null)window.__iaAnimating.add(String(ev.id));});
+    /* Reserve each active player's REAL log row IN PLACE. markAnimating adds the
+       id to __iaAnimating (re-renders keep the reserve) AND flips the already-
+       rendered row to its reserved slot right now — essential for QUEUED batches
+       whose row was built (held, display:none) on an earlier tick, so measureRow
+       finds a real slot instead of falling back to a fixed position. */
+    show.forEach(function(ev){markAnimating(ev.id,true);});
     var sw=(o&&o.clientWidth)||window.innerWidth;
     /* Equal-size rule: every league card across the batch uses ONE scale — the
        smallest, driven by whichever player is in the most leagues. */
@@ -13779,12 +13769,16 @@ loadExperimentState();
     show.forEach(function(e){if(e.legs.length>maxN)maxN=e.legs.length;});
     var heroScale=Math.min(1,(sw-16)/heroW,vCap);
     var leagueScale=Math.min(1,(sw-16)/(maxN*heroW+(maxN-1)*gap),vCap);
-    /* Measure inside the splash callback: by then the log has built (synchronously
-       after the detector, same tick) so each reserved row has a real slot. */
+    /* Measure inside the splash callback (~1s later, log has built). Convert each
+       row rect to STAGE-relative coords so the phase cards (children of #ia-stage)
+       sit exactly on the row and scroll with it. */
     runSplash(function(){
       var pending=P;
+      var st=stageEl(), sr=st?st.getBoundingClientRect():{left:0,top:0};
       show.forEach(function(ev,ri){
-        var rect=measureRow(ev.id)||{left:8,top:120+ri*rowBudget,width:sw-16,height:rowBudget};
+        var m=measureRow(ev.id);
+        var rect=m?{left:m.left-sr.left,top:m.top-sr.top,width:m.width,height:m.height}
+                  :{left:8,top:24+ri*rowBudget,width:sw-16,height:rowBudget};
         runPlayer(ev, rect, heroScale, leagueScale, function(){if(--pending<=0){running=false;nextBatchAllowedAt=Date.now()+cooldownMs();drain();}});
       });
     });
