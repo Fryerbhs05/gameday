@@ -1601,40 +1601,39 @@
     /* Experiment swap: Conflict Card takes Schedule's slot in the bar for
        experiment users; Schedule moves to the More sheet. Normal users keep
        Schedule in the bar and never see Conflict here. */
-    .cbnav-conflict { display: none; }
-    body.experiment-active .cbnav-conflict { display: flex; }
-    body.experiment-active .cbnav-schedule { display: none; }
-    /* Exposure rides the bar in experiment mode only; hidden otherwise. */
-    .cbnav-exposure { display: none; }
-    body.experiment-active .cbnav-exposure { display: flex; }
-    /* Experiment-mode bar layout: Exposure · Snapshot · GameDay(center) ·
-       Conflict · More. Account drops off the bar here (still hidden below).
-       Order is set explicitly so it's independent of DOM source order. */
-    body.experiment-active [data-exp-tab="account"] { display: none; }
-    body.experiment-active .cbnav-exposure              { order: 1; }
-    body.experiment-active [data-exp-tab="snapshot"]    { order: 2; }
-    body.experiment-active [data-exp-tab="dashboard"]   { order: 3; }
-    body.experiment-active .cbnav-conflict              { order: 4; }
-    body.experiment-active [data-exp-tab="more"]        { order: 5; }
+    /* ── Bottom bar layout — RELEASED TO ALL in-app mobile users (2026-07-04) ──
+       Was experiment-gated; now every user gets:
+         Exposure · Snapshot · GameDay(center hub) · Conflict · More
+       Schedule + Account leave the bar and move into the …More sheet. Note:
+       this is the NAV LAYOUT only — experiment MODE itself stays gated (the
+       TestMode code + the admin-only …More "Experiment" tile are unchanged). */
+    .cbnav-schedule { display: none; }              /* Schedule → …More sheet */
+    [data-exp-tab="account"] { display: none; }     /* Account  → …More sheet */
+    /* Conflict + Exposure now show for everyone (order set explicitly below, so
+       it's independent of DOM source order). */
+    .cbnav-exposure           { order: 1; }
+    [data-exp-tab="snapshot"] { order: 2; }
+    [data-exp-tab="dashboard"]{ order: 3; }
+    .cbnav-conflict           { order: 4; }
+    [data-exp-tab="more"]     { order: 5; }
     .cbnav-tab.is-on .cbnav-ico {
       background: color-mix(in oklab, var(--navy-700) 14%, transparent);
       border-color: color-mix(in oklab, var(--navy-500) 40%, transparent);
     }
-    /* GameDay = the app's home/main page. In experiment mode its center icon
-       wears a persistent light-blue halo circle (drawn as a layout-neutral
-       pseudo-element so every tab's label stays aligned) and a light-blue icon
-       tint, so it always reads as the hub — even when another tab is active. */
-    body.experiment-active [data-exp-tab="dashboard"] { color: var(--navy-700); position: relative; overflow: visible; }
+    /* GameDay = the app's home/main page. Its center tab wears a persistent
+       light-blue halo circle (large enough to enclose the icon AND the
+       "GameDay" label) and a light-blue tint, so it always reads as the hub —
+       even when another tab is active. Now shown to all users. */
+    [data-exp-tab="dashboard"] { color: var(--navy-700); position: relative; overflow: visible; }
     /* Icon tile stays plain — the halo is drawn on the whole tab (below). */
-    body.experiment-active [data-exp-tab="dashboard"] .cbnav-ico { background: transparent; border-color: transparent; }
-    body.experiment-active [data-exp-tab="dashboard"] .cbnav-ico > svg { width: 25px; height: 25px; }
+    [data-exp-tab="dashboard"] .cbnav-ico { background: transparent; border-color: transparent; }
+    [data-exp-tab="dashboard"] .cbnav-ico > svg { width: 25px; height: 25px; }
     /* Lift both the icon span and the "GameDay" label span above the halo. */
-    body.experiment-active [data-exp-tab="dashboard"] > span { position: relative; z-index: 1; }
-    /* Light-blue home halo — large enough to fully enclose BOTH the icon and
-       the "GameDay" label. Intentionally wider than a single tab, so it bleeds
-       a little over the neighbouring tabs but never clips the word. Centered on
-       the whole tab (not just the icon). */
-    body.experiment-active [data-exp-tab="dashboard"]::before {
+    [data-exp-tab="dashboard"] > span { position: relative; z-index: 1; }
+    /* Light-blue home halo — encloses BOTH the icon and the "GameDay" label.
+       Intentionally wider than a single tab, so it bleeds a little over the
+       neighbouring tabs but never clips the word. Centered on the whole tab. */
+    [data-exp-tab="dashboard"]::before {
       content: ""; position: absolute; left: 50%; top: 50%;
       width: 74px; height: 74px; transform: translate(-50%, -50%);
       border-radius: 50%; z-index: 0; pointer-events: none;
@@ -3421,8 +3420,7 @@
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M8 5l1.4-2h5.2L16 5"/></svg></span>
     <span>Snapshot</span>
   </button>
-  <!-- Exposure lives on the bar in experiment mode only (far-left slot); in normal
-       mode it stays in the …More sheet and this tab is hidden. -->
+  <!-- Exposure = far-left bar slot for ALL users (released to prod 2026-07-04). -->
   <button class="cbnav-tab cbnav-exposure" type="button" data-exp-tab="exposure" aria-label="Exposure">
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></svg></span>
     <span>Exposure</span>
@@ -3457,8 +3455,11 @@
          about center (12,12) down to 12u tall. This makes every tile read the
          same short height as the flask. Applies to all mobile users (not
          gated). See icon-height normalization change 2026-07-04 (T=12). */
-      { key: 'schedule', label: 'Schedule', soon: false, expOnly: true, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-11.5)"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></g>' },
-      { key: 'exposure', label: 'Exposure', soon: false, svg: '<g transform="translate(12,12) scale(0.6857) translate(-12,-11.75)"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></g>' },
+      /* Account + Schedule moved here off the bottom bar (bar layout released to
+         prod 2026-07-04). Both are ungated so every user can still reach them.
+         Exposure was REMOVED from this sheet — it now lives on the bar. */
+      { key: 'account',  label: 'Account',  soon: false, svg: '<g transform="translate(12,12) scale(0.7742) translate(-12,-12.25)"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></g>' },
+      { key: 'schedule', label: 'Schedule', soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-11.5)"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></g>' },
       { key: 'about',    label: 'About',    soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-12)"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/></g>' },
       { key: 'shop',     label: 'Shop',     soon: true,  svg: '<g transform="translate(12,12) scale(0.7273) translate(-12,-11.25)"><path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/></g>' },
       { key: 'blog',     label: 'Blog',     soon: true,  svg: '<g transform="translate(12,12) scale(0.7500) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
@@ -3503,6 +3504,7 @@
       var action = btn.getAttribute('data-more-action');
       if (window.BottomSheet) window.BottomSheet.close();
       if (action === 'about' && typeof window.showAbout === 'function') { window.showAbout(); window.scrollTo(0, 0); }
+      else if (action === 'account' && typeof window.showAccount === 'function') { window.showAccount(); window.scrollTo(0, 0); }
       else if (action === 'exposure' && typeof window.showExposure === 'function') { window.showExposure(); window.scrollTo(0, 0); }
       else if (action === 'schedule' && typeof window.showWatch === 'function') { window.showWatch(); window.scrollTo(0, 0); }
       else if (action === 'experiment') {
@@ -13093,19 +13095,13 @@ loadExperimentState();
       var onWatch = visible('view-watch');   // "Schedule" tab → watch-priority view
       var onConflict = visible('view-conflict');
       var onAccount = visible('view-account');
-      // Settings / Connections / About / Exposure reachable via More. In experiment
-      // mode Schedule (watch) also lives in More, so it lights the More tab there.
-      var schedInBar = !document.body.classList.contains('experiment-active');
-      // Exposure has its own bar tab in experiment mode; in normal mode it lives
-      // in More, so its view lights the More tab instead.
-      var expoInBar = document.body.classList.contains('experiment-active');
-      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || (!expoInBar && onExpo) || (!schedInBar && onWatch);
+      // Bar layout is now universal: Exposure has its own bar tab; Schedule
+      // (watch) and Account live in the …More sheet, so their views light More.
+      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || onWatch || onAccount;
       set('dashboard', onBoard && !onSnap && !onExpo && !onWatch && !onConflict);
       set('snapshot', onSnap);
-      set('exposure', expoInBar && onExpo);
+      set('exposure', onExpo);
       set('conflict', onConflict);
-      set('schedule', schedInBar && onWatch);
-      set('account', onAccount);
       set('more', onMore);
     }
     function set(tab, on) {
@@ -13118,9 +13114,9 @@ loadExperimentState();
     function currentTabKey() {
       if (visible('view-snapshot')) return 'snapshot';
       if (visible('view-conflict')) return 'conflict';
-      if (visible('view-watch')) return document.body.classList.contains('experiment-active') ? 'more' : 'schedule';
-      if (visible('view-account')) return 'account';
-      if (visible('view-exposure')) return document.body.classList.contains('experiment-active') ? 'exposure' : 'more';
+      if (visible('view-exposure')) return 'exposure';
+      // Schedule (watch) + Account now live in the …More sheet.
+      if (visible('view-watch') || visible('view-account')) return 'more';
       if (visible('view-settings') || visible('view-connections') || visible('view-about')) return 'more';
       if (visible('board')) return 'dashboard';
       return null;
