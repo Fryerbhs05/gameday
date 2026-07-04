@@ -3443,11 +3443,10 @@
       var tiles = ITEMS.filter(function(it){ return (!it.expOnly || expOn) && (!it.adminOnly || adminOk); }).map(function(it) {
         var cls = 'cbmore-tile' + (it.soon ? ' is-soon' : '');
         var attrs = it.soon ? 'aria-disabled="true"' : 'data-more-action="' + it.key + '"';
-        var badge = it.soon ? '<span class="cbmore-badge">Soon</span>' : '';
         var label = (it.key === 'experiment' && expOn) ? 'Exit Exp.' : it.label;
         return '<button type="button" class="' + cls + '" ' + attrs + '>' +
                  '<span class="cbmore-ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + it.svg + '</svg></span>' +
-                 '<span class="cbmore-label">' + label + '</span>' + badge +
+                 '<span class="cbmore-label">' + label + '</span>' +
                '</button>';
       }).join('');
       return '<div class="cbmore-title">More</div><div class="cbmore-grid">' + tiles + '</div>';

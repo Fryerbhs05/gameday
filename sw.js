@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v38'; // v38: More-menu icons normalized to the flask's BODY height (~12u) so they read as short as the flask
+const CACHE_VERSION = 'conflicted-v39'; // v39: removed the "Soon" badge row from …More cards so tile heights stay uniform
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
