@@ -3410,12 +3410,18 @@
 <script>
   (function() {
     var ITEMS = [
-      { key: 'schedule', label: 'Schedule', soon: false, expOnly: true, svg: '<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/>' },
-      { key: 'exposure', label: 'Exposure', soon: false, svg: '<path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/>' },
-      { key: 'about',    label: 'About',    soon: false, svg: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/>' },
-      { key: 'shop',     label: 'Shop',     soon: true,  svg: '<path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/>' },
-      { key: 'blog',     label: 'Blog',     soon: true,  svg: '<rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>' },
-      { key: 'partners', label: 'Partners', soon: true,  svg: '<circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/>' },
+      /* More-menu icons are normalized to a uniform drawn height that matches
+         the 'experiment' flask (its artwork reads more compact than the others
+         inside the shared 24×24 box). Each non-flask icon is wrapped in a
+         transform group that scales it about center (12,12) to ~14u tall so
+         every tile reads the same visual height. Applies to all mobile users
+         (not gated). See icon-height normalization change 2026-07-04. */
+      { key: 'schedule', label: 'Schedule', soon: false, expOnly: true, svg: '<g transform="translate(12,12) scale(0.7778) translate(-12,-11.5)"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></g>' },
+      { key: 'exposure', label: 'Exposure', soon: false, svg: '<g transform="translate(12,12) scale(0.8000) translate(-12,-11.75)"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></g>' },
+      { key: 'about',    label: 'About',    soon: false, svg: '<g transform="translate(12,12) scale(0.7778) translate(-12,-12)"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/></g>' },
+      { key: 'shop',     label: 'Shop',     soon: true,  svg: '<g transform="translate(12,12) scale(0.8485) translate(-12,-11.25)"><path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/></g>' },
+      { key: 'blog',     label: 'Blog',     soon: true,  svg: '<g transform="translate(12,12) scale(0.8750) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
+      { key: 'partners', label: 'Partners', soon: true,  svg: '<g transform="translate(12,12) scale(1.0769) translate(-12,-12.5)"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/></g>' },
       { key: 'contact',  label: 'Contact',  soon: true,  svg: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/>' },
       /* Admin-only shortcut into experiment mode — avoids the sign-out →
          type-code → sign-back-in dance. Client-side email gate is purely a
@@ -6284,7 +6290,7 @@ function renderBoard(data,username){
   nde.classList.remove('visible');cols.style.display='';
   /* Restore the experimental tab bar + titled section (display reset → CSS gates take over). */
   (function(t){if(t)t.style.display='';})(document.getElementById('exp-tabbar'));
-  (function(s){if(s)s.style.display='';})(document.getElementById('loyalties-section'));(function(s){if(s)s.style.display='';})(document.getElementById('live-updates-section'));
+  (function(s){if(s)s.style.display='';})(document.getElementById('loyalties-section'));(function(s){if(s)s.style.display=isHist?'none':'';})(document.getElementById('live-updates-section'));
   /* Live-only toggle: only meaningful for the current/live (non-historic, non-demo) week. */
   liveToggleAvailable=!isDemoMode&&!isHist;
   if(contexts?.length)renderScoresStrip(contexts);else{document.getElementById('scores-strip').classList.remove('visible');(function(se){if(se)se.hidden=false;})(document.getElementById('scores-empty'));}
@@ -8286,24 +8292,28 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
      resumes when the animation goes idle). A revealed row is added to __iaLanded
      so it survives re-renders (same mechanism the animation landing uses). */
   function startPacer(){ if(luPaceTimer==null) schedulePace(); }
+  window.__luStartPacer=startPacer; // drain() calls this to reveal older rows before a deferred animation
   function schedulePace(){
     const since=Date.now()-(window.__iaLastReveal||0);
     luPaceTimer=setTimeout(paceStep, Math.max(0, LU_PACE_MS-since));
   }
   function paceStep(){
     luPaceTimer=null;
-    if(window.__iaBusy&&window.__iaBusy())return; // animation/cooldown owns the screen — resume on idle
-    const log=document.getElementById('live-updates-log');if(!log)return;
-    const els=log.querySelectorAll('.lu-group.lu-gate');
-    if(!els.length)return;
-    const target=els[els.length-1]; // bottom-most = oldest scoring event
-    const key=target.getAttribute('data-key');
-    if(key&&window.__iaLanded)window.__iaLanded.add(String(key));
-    target.classList.remove('lu-gate');luRevealRow(target); // grow open + phase in
-    let p=target.previousElementSibling; // un-gate this row's batch timestamp
-    while(p){if(p.classList&&p.classList.contains('lu-synchead')){if(p.classList.contains('lu-gate')){p.classList.remove('lu-gate');p.classList.add('lu-degate');}break;}p=p.previousElementSibling;}
-    window.__iaLastReveal=Date.now();
-    if(log.querySelectorAll('.lu-group.lu-gate').length) schedulePace(); // more waiting → keep dripping
+    if(window.__iaOnScreen&&window.__iaOnScreen())return; // a card is actually playing/cooling — resume on idle
+    const log=document.getElementById('live-updates-log');
+    const els=log?log.querySelectorAll('.lu-group.lu-gate'):[];
+    if(els.length){
+      const target=els[els.length-1]; // bottom-most = oldest scoring event
+      const key=target.getAttribute('data-key');
+      if(key&&window.__iaLanded)window.__iaLanded.add(String(key));
+      target.classList.remove('lu-gate');luRevealRow(target); // grow open + phase in
+      let p=target.previousElementSibling; // un-gate this row's batch timestamp
+      while(p){if(p.classList&&p.classList.contains('lu-synchead')){if(p.classList.contains('lu-gate')){p.classList.remove('lu-gate');p.classList.add('lu-degate');}break;}p=p.previousElementSibling;}
+      window.__iaLastReveal=Date.now();
+      if(log.querySelectorAll('.lu-group.lu-gate').length) schedulePace(); // more waiting → keep dripping
+    }
+    // A deferred animation may now be clear to start (its below-rows revealed).
+    try{if(window.__iaKickDrain)window.__iaKickDrain();}catch(e){}
   }
 
   /* Assign a batch its seq and, if a card animation is in flight, freeze it
@@ -8432,6 +8442,10 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       }
       luLastSyncAt=nowMs;
       render(rows.length?0:-1);
+      /* Rows are in the DOM now — let the impact queue evaluate ordering. In
+         Replay the detector deferred draining to here so the chronology guard
+         (hasGatedBelow) can see this tick's rows. */
+      try{if(window.__iaKickDrain)window.__iaKickDrain();}catch(e){}
     }catch(e){console.warn('Live Updates build failed:',e&&e.message);}
   };
 
@@ -13567,6 +13581,26 @@ loadExperimentState();
   function fireIdle(){var cbs=idleCbs;idleCbs=[];cbs.forEach(function(f){try{f();}catch(e){}});}
   window.__iaBusy=function(){return !!(running||queue.length||cooling);};
   window.__iaWhenIdle=function(cb){try{if(typeof cb!=='function')return;if(!(running||queue.length||cooling)){cb();}else{idleCbs.push(cb);}}catch(e){}};
+  /* On-screen = a card animation is actually playing or in its cooldown. A batch
+     that's merely QUEUED (deferred for chronology) does NOT count, so the log
+     pacer keeps dripping older rows while the animation waits its turn. */
+  window.__iaOnScreen=function(){return !!(running||cooling);};
+  function iaInReplay(){try{return !!(window.__cfReplay&&window.__cfReplay.active&&window.__cfReplay.active());}catch(e){return false;}}
+  /* Chronology guard (Replay): is any log row still GATED below this animation
+     batch's row? If so the batch must wait — those older rows reveal first, so a
+     later conflicted card never lands above rows that then drip in underneath. */
+  function hasGatedBelow(events){
+    try{
+      var log=document.getElementById('live-updates-log'); if(!log)return false;
+      var keys={}; (events||[]).forEach(function(e){keys[String(e.key||e.id)]=1;});
+      var rows=log.querySelectorAll('.lu-group'); var last=-1;
+      for(var i=0;i<rows.length;i++){ if(keys[rows[i].getAttribute('data-key')]) last=i; }
+      if(last<0) return false; // batch row not in the log — don't stall
+      for(var j=last+1;j<rows.length;j++){ if(rows[j].classList.contains('lu-gate')) return true; }
+    }catch(e){}
+    return false;
+  }
+  window.__iaKickDrain=function(){try{drain();}catch(e){}};
 
   /* ── Impact model: tiered, loss-averse, hope/nerves-buffered anchor ────────
      Full emotional model (designed + calibrated with Matt). See
@@ -13685,8 +13719,14 @@ loadExperimentState();
        during the 3s, erasing the pause. While cooling, __iaBusy stays true so no
        new rows surface either. */
     var wait=nextBatchAllowedAt-Date.now();
+    /* Replay: also keep ≥2s from the last permanent row shown (paced OR animated)
+       so an animation never lands right on top of a just-dripped row. */
+    if(iaInReplay())wait=Math.max(wait,((window.__iaLastReveal||0)+2000)-Date.now());
     if(wait>0){cooling=true;after(wait,function(){cooling=false;drain();});return;}
     if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}closeStage();fireIdle();return;}
+    /* Chronology (Replay): don't start this animation while older rows are still
+       gated below it — let the pacer reveal them first, then it kicks drain. */
+    if(iaInReplay()&&hasGatedBelow(queue[0])){ if(window.__luStartPacer)window.__luStartPacer(); return; }
     var batch=queue.shift(); runBatch(batch);
   }
 
@@ -13900,7 +13940,11 @@ loadExperimentState();
         /* Register handoff holds (keyed) BEFORE the log builds this tick's entries
            (renderBoard calls __detectImpacts, then __buildLiveUpdates). */
         events.forEach(function(e){window.__iaHold.add(e.key);});
-        queue.push(events);drain();
+        queue.push(events);
+        /* Live: start immediately. Replay: DON'T drain here — the rows aren't in
+           the DOM yet, so the chronology check can't see them. __buildLiveUpdates
+           kicks drain right after it renders this tick, when ordering is knowable. */
+        if(!iaInReplay())drain();
       }
     }catch(e){}
   };
