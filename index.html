@@ -2067,6 +2067,10 @@
        measures its target on the fly at landing time. Holds are registered in
        window.__iaHold by the impact module and always released on skip/reset. */
     .lu-group.lu-held { display: none; }
+    /* The one row whose card is animating RIGHT NOW reserves its exact final slot
+       (invisible) so the in-place sequence plays over it and melts straight into
+       it — no travel. Queued rows stay display:none (no blank stacking). */
+    .lu-group.lu-held.lu-anim { display: block; visibility: hidden; }
     .lu-group.lu-reveal { animation: lu-reveal-in 0.5s var(--ease-out); }
     @keyframes lu-reveal-in { from { opacity: 0; transform: translateY(-7px); } to { opacity: 1; transform: translateY(0); } }
     /* Log-freeze gate: non-animating rows of a batch that arrives mid-animation
@@ -8224,10 +8228,12 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
        while its batch is still gated behind later animations — without this it
        would re-hide on the next re-render (very visible in Replay). */
     const landed=!!(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(String(g.id)));
+    /* The currently-animating row keeps its reserved in-place slot (lu-anim). */
+    const anim=!!(window.__iaAnimating&&window.__iaAnimating.has&&window.__iaAnimating.has(String(g.id)));
     /* A gated batch hides its NON-animating rows (display:none) until the
        animation drains; held (animating) + landed rows are left visible. */
     const gateCls=(gated&&!held&&!landed)?' lu-gate':'';
-    return '<div class="lu-group'+(isNew?' lu-new':'')+(held?' lu-held':'')+gateCls+'" data-pid="'+esc(String(g.id))+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
+    return '<div class="lu-group'+(isNew?' lu-new':'')+(held?' lu-held':'')+((held&&anim)?' lu-anim':'')+gateCls+'" data-pid="'+esc(String(g.id))+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
   }
 
   /* Freeze rule (matched to the impact animation): while a card animation is
@@ -8285,12 +8291,13 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       }else{
         // Live — net-impact framed groups, one per player.
         const gatedBatch=(b.seq!=null&&b.seq>luRevealedThrough);
-        // A gated batch shows its timestamp only once one of its rows has LANDED;
-        // until then (rows held = display:none, or purely frozen) the header is
-        // hidden too, so no orphan/blank timestamped rows stack up while the
-        // animation plays (matters in Replay, which re-renders every virtual tick).
+        // A gated batch shows its timestamp only once one of its rows is actively
+        // animating in place (header sits above the forming card) or has LANDED.
+        // Purely-queued/frozen batches hide the header too, so no orphan/blank
+        // timestamped rows stack up while the animation plays (matters in Replay,
+        // which re-renders every virtual tick).
         let batchHasReveal=false;
-        if(gatedBatch){(b.groups||[]).forEach(g=>{const gid=String(g.id);if(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gid))batchHasReveal=true;});}
+        if(gatedBatch){(b.groups||[]).forEach(g=>{const gid=String(g.id);if((window.__iaAnimating&&window.__iaAnimating.has&&window.__iaAnimating.has(gid))||(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gid)))batchHasReveal=true;});}
         const gateHead=gatedBatch&&!batchHasReveal;
         html+='<div class="lu-synchead'+(gateHead?' lu-gate':'')+'"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
         const flashThis=(bi===latestBatchIdx);
@@ -13594,6 +13601,7 @@ loadExperimentState();
     var bd=document.getElementById('ia-breakdown'); if(bd)bd.remove();
     var o=overlay(); if(o){o.style.pointerEvents='none';}
     releaseAllHolds(); // cancelled mid-flight → un-hide any held log entries
+    if(window.__iaAnimating)window.__iaAnimating.clear();
     closeStage();
     running=false; drain();
   }
@@ -13613,6 +13621,11 @@ loadExperimentState();
      or reset — a held entry can never be orphaned invisible. */
   window.__iaHold=new Set();
   window.__iaLanded=new Set(); // ids whose card has finished landing — stay visible while the log is still gated
+  window.__iaAnimating=new Set(); // ids whose card is animating RIGHT NOW — their row reserves its in-place slot
+  function findHeldRow(id){try{var els=document.querySelectorAll('.lu-group.lu-held');for(var i=0;i<els.length;i++){if(els[i].getAttribute('data-pid')===String(id))return els[i];}}catch(e){}return null;}
+  /* Reserve (or release) a player's real log row as the in-place animation slot. */
+  function markAnimating(id,on){try{if(id==null)return;var s=String(id);if(on)window.__iaAnimating.add(s);else window.__iaAnimating.delete(s);var el=findHeldRow(id);if(el){if(on)el.classList.add('lu-anim');else el.classList.remove('lu-anim');}}catch(e){}}
+  function measureRow(id){var el=findHeldRow(id);if(!el)return null;try{var r=el.getBoundingClientRect();if(r&&r.width>2)return{left:r.left,top:r.top,width:r.width,height:r.height};}catch(e){}return null;}
   function revealHold(id){
     try{
       if(id==null)return;
@@ -13636,7 +13649,7 @@ loadExperimentState();
      delta tracker and cancel anything mid-flight. Without this, rewinding the
      virtual clock reads as a big negative "stat correction" and fires cards for
      players whose games haven't kicked off yet (bucket correctly shows 0.00). */
-  window.__resetImpacts=function(){try{prev=null;prevCtx=null;queue.length=0;skipAll();if(window.__iaLanded)window.__iaLanded.clear();}catch(e){}};
+  window.__resetImpacts=function(){try{prev=null;prevCtx=null;queue.length=0;skipAll();if(window.__iaLanded)window.__iaLanded.clear();if(window.__iaAnimating)window.__iaAnimating.clear();}catch(e){}};
 
   /* Phase 1 — the big "CONFLICTED" moment (once per batch). */
   function runSplash(cb){
@@ -13650,28 +13663,27 @@ loadExperimentState();
     after(1060,function(){if(sp.parentNode)sp.remove();if(flash.parentNode)flash.remove();if(cb)cb();});
   }
 
-  /* Phases 2-4 per player: hero card → league split → merge to net card.
-     Cards are children of the STAGE (in-flow, scrolls with Live Updates);
-     coordinates are stage-relative. `stageH` = the stage's opened height, so
-     the hero rises in from below the clipped bottom edge. */
-  function runPlayer(ev,cx,cy,slotW,rowBudget,leagueScale,host,stageH,done){
-    var o=host||overlay();
-    var heroW=220, vCap=(rowBudget-14)/150;
-    var heroScale=Math.min(1,(slotW-16)/heroW,vCap), hx=cx-heroW/2;
-    var heroY=cy, riseStartY=(stageH||rowBudget)+30;
-    /* Phase 2 — hero card */
+  /* Phases 2-4 per player, played IN PLACE over the row's reserved slot (`rect`,
+     viewport coords) and MELTED into the permanent card — no travel. The cards
+     float on the fixed overlay directly above the log row they'll become. */
+  function runPlayer(ev,rect,heroScale,leagueScale,done){
+    var o=overlay();
+    var heroW=220;
+    var cx=rect.left+rect.width/2, hx=cx-heroW/2;
+    var heroY=rect.top, riseStartY=rect.top+44;
+    /* Phase 2 — hero card, forming right at the row's slot */
     var hero=document.createElement('div'); hero.className='ia-hero'; hero.style.transformOrigin='top center';
     hero.innerHTML='<div class="ia-hero__delta">'+fmt(ev.delta)+'</div><div class="ia-hero__name">'+esc(ev.name)+'</div>';
-    hero.style.transform='translate('+hx+'px,'+riseStartY+'px) scale('+heroScale+')';
+    hero.style.transform='translate('+hx+'px,'+riseStartY+'px) scale('+heroScale+')'; hero.style.opacity='0';
     o.appendChild(hero); nodes.push(hero);
-    requestAnimationFrame(function(){requestAnimationFrame(function(){hero.style.transform='translate('+hx+'px,'+heroY+'px) scale('+heroScale+')';});});
+    requestAnimationFrame(function(){requestAnimationFrame(function(){hero.style.transform='translate('+hx+'px,'+heroY+'px) scale('+heroScale+')';hero.style.opacity='1';});});
     /* Phase 3 — split into league cards */
     after(1300,function(){
       hero.style.transition='transform 0.4s ease,opacity 0.35s ease';
       hero.style.transform='translate('+hx+'px,'+(heroY-12)+'px) scale('+(heroScale*0.82)+')'; hero.style.opacity='0';
       after(360,function(){if(hero.parentNode)hero.remove();});
       var N=ev.legs.length, baseCW=heroW, gap=10, scale=leagueScale;
-      var cw=baseCW*scale, sgap=gap*scale, groupW=N*cw+(N-1)*sgap, x0=cx-groupW/2, cardY=cy;
+      var cw=baseCW*scale, sgap=gap*scale, groupW=N*cw+(N-1)*sgap, x0=cx-groupW/2, cardY=heroY;
       var cards=[];
       ev.legs.forEach(function(l,i){
         var c=document.createElement('div'); c.className='ia-lcard '+(l.side==='mine'?'mine':'opp'); c.style.transformOrigin='top left';
@@ -13706,53 +13718,28 @@ loadExperimentState();
           after(200,function(){fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+restScale+')';});
           after(260,function(){cards.forEach(function(cd){if(cd.el.parentNode)cd.el.parentNode.removeChild(cd.el);});});
           after(2200,function(){
-            /* Handoff: morph the net card into this player's HELD Live Updates
-               entry so the animation lands as the persistent log row. The clone
-               flies on the fixed overlay (stage overflow would clip it); rects
-               are measured at handoff time so log growth mid-animation is fine. */
-            var target=null;
-            try{
-              var els=document.querySelectorAll('.lu-group.lu-held');
-              for(var ti=0;ti<els.length;ti++){if(els[ti].getAttribute('data-pid')===String(ev.id)){target=els[ti];break;}}
-            }catch(e){}
-            var fr=null,tr=null;
-            if(target){try{
-              fr=fin.getBoundingClientRect();
-              /* The held target is display:none (no reserved blank row), so give
-                 it layout for a single synchronous measurement — invisible, no
-                 paint between set and restore, so nothing flashes. */
-              var _d=target.style.display,_v=target.style.visibility;
-              target.style.visibility='hidden';target.style.display='block';
-              tr=target.getBoundingClientRect();
-              target.style.display=_d;target.style.visibility=_v;
-            }catch(e){}}
-            if(fr&&tr&&fr.width>2&&tr.width>2){
-              var clone=fin.cloneNode(true);
-              clone.style.transition='none';clone.style.margin='0';clone.style.left='0';clone.style.top='0';
-              clone.style.width=fr.width+'px';clone.style.height=fr.height+'px';clone.style.minHeight='0';
-              clone.style.transformOrigin='top left';clone.style.transform='translate('+fr.left+'px,'+fr.top+'px)';
-              clone.style.opacity='1';clone.style.willChange='transform,opacity';
-              var o2=overlay();
-              if(o2){o2.classList.add('active');o2.appendChild(clone);nodes.push(clone);}
-              if(fin.parentNode)fin.parentNode.removeChild(fin);
-              /* Glide & dock: the net card descends into its log slot with a
-                 decelerating ease, scaling UNIFORMLY (no squish) to the row's
-                 width, and cross-fades out as the persistent row eases up into
-                 place beneath it. Smooth handoff — no flip, no pop. */
-              var uscale=tr.width/fr.width;
+            /* MELT: the net card is already sitting on its reserved log slot, so
+               there's nothing to travel. Reveal the permanent row in place and
+               cross-dissolve the net card into it (soft blur + tiny settle) so it
+               literally melts into the persistent scorecard. */
+            var target=findHeldRow(ev.id), tr=null;
+            if(target){try{tr=target.getBoundingClientRect();}catch(e){}}
+            revealHold(ev.id);          // row fades/settles in at its reserved slot
+            markAnimating(ev.id,false); // release the in-place reserve flag
+            if(tr&&tr.width>2){
+              var mtop=tr.top;
+              fin.style.transition='none';
+              fin.style.transform='translate('+nhx+'px,'+mtop+'px) scale('+restScale+')';
               requestAnimationFrame(function(){requestAnimationFrame(function(){
-                clone.style.transition='transform 0.6s cubic-bezier(.16,1,.3,1), opacity 0.42s ease 0.16s';
-                clone.style.transform='translate('+tr.left+'px,'+tr.top+'px) scale('+uscale+')';
-                clone.style.opacity='0';
+                fin.style.transition='transform 0.5s cubic-bezier(.16,1,.3,1), opacity 0.5s ease, filter 0.5s ease';
+                fin.style.transform='translate('+nhx+'px,'+(mtop+5)+'px) scale('+(restScale*0.97)+')';
+                fin.style.opacity='0'; fin.style.filter='blur(3px)';
               });});
-              after(340,function(){revealHold(ev.id);}); // row docks in beneath the descending card
-              after(700,function(){if(clone.parentNode)clone.parentNode.removeChild(clone);if(done)done();});
+              after(560,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
             }else{
-              /* No log entry to land on (test slate, gated log, hidden board) —
-                 classic float-up exit; release the hold either way. */
-              revealHold(ev.id);
-              fin.style.transition='transform 0.55s ease,opacity 0.55s ease';
-              fin.style.transform='translate('+nhx+'px,'+(nhy-200)+'px) scale('+restScale+')'; fin.style.opacity='0';
+              /* No row to melt into (test slate / hidden board) — soft float-up fade. */
+              fin.style.transition='transform 0.55s ease,opacity 0.55s ease,filter 0.5s ease';
+              fin.style.transform='translate('+nhx+'px,'+(nhy-140)+'px) scale('+restScale+')'; fin.style.opacity='0'; fin.style.filter='blur(3px)';
               after(580,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
             }
           });
@@ -13764,29 +13751,31 @@ loadExperimentState();
   function runBatch(events){
     running=true; paused=false;
     var o=overlay(); if(!o){running=false;return;}
-    o.classList.add('active'); // hosts the phase-1 flash/splash only
-    /* Players from the same tick stack VERTICALLY inside the stage (one row
-       each, e.g. QB + WR on a TD pass); within a row the league cards fan out
-       horizontally by count. Rows shrink as the batch grows so the stage stays
-       compact at the top of Live Updates. */
+    o.classList.add('active'); // hosts the phase-1 flash/splash + the in-place phase cards
+    openStage(0); // just expand a collapsed Live Updates section (no top stage any more)
     var maxConc=3;
     var show=events.slice(0,maxConc), rest=events.slice(maxConc);
     if(rest.length)queue.unshift(rest);
     var P=show.length;
-    var rowH=(P===1)?170:(P===2?146:124);
-    var stageH=rowH*P;
-    var st=openStage(stageH);
-    var sw=(st&&(st.clientWidth||(st.parentNode&&st.parentNode.clientWidth)))||window.innerWidth;
+    /* Reserve each active player's REAL log row in place. Added to __iaAnimating
+       BEFORE __buildLiveUpdates renders this tick (detector runs first), so the
+       rows are rendered already reserved (visibility:hidden, exact final slot).
+       Queued rows stay display:none — no blank stacking in Replay. */
+    show.forEach(function(ev){if(ev.id!=null)window.__iaAnimating.add(String(ev.id));});
+    var sw=(o&&o.clientWidth)||window.innerWidth;
     /* Equal-size rule: every league card across the batch uses ONE scale — the
        smallest, driven by whichever player is in the most leagues. */
-    var vCap=(rowH-14)/150, heroW=220, gap=10, maxN=1;
+    var rowBudget=(P===1)?170:(P===2?146:124), vCap=(rowBudget-14)/150, heroW=220, gap=10, maxN=1;
     show.forEach(function(e){if(e.legs.length>maxN)maxN=e.legs.length;});
+    var heroScale=Math.min(1,(sw-16)/heroW,vCap);
     var leagueScale=Math.min(1,(sw-16)/(maxN*heroW+(maxN-1)*gap),vCap);
+    /* Measure inside the splash callback: by then the log has built (synchronously
+       after the detector, same tick) so each reserved row has a real slot. */
     runSplash(function(){
       var pending=P;
       show.forEach(function(ev,ri){
-        var cy=rowH*ri+7; // card top within its stage row
-        runPlayer(ev, sw/2, cy, sw, rowH, leagueScale, st, stageH, function(){if(--pending<=0){running=false;drain();}});
+        var rect=measureRow(ev.id)||{left:8,top:120+ri*rowBudget,width:sw-16,height:rowBudget};
+        runPlayer(ev, rect, heroScale, leagueScale, function(){if(--pending<=0){running=false;drain();}});
       });
     });
   }

@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v26'; // v26: held rows fully hidden (no blank reserved rows in Replay); glide-dock measures target on the fly
+const CACHE_VERSION = 'conflicted-v27'; // v27: impact animation plays in place at the card's final slot and melts into the permanent scorecard (no travel)
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
