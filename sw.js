@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v39'; // v39: removed the "Soon" badge row from …More cards so tile heights stay uniform
+const CACHE_VERSION = 'conflicted-v41'; // v41: experiment-mode bottom nav reordered (Exposure·Snapshot·GameDay·Conflict·More) with GameDay center light-blue home hub
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

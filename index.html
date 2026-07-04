@@ -1604,9 +1604,36 @@
     .cbnav-conflict { display: none; }
     body.experiment-active .cbnav-conflict { display: flex; }
     body.experiment-active .cbnav-schedule { display: none; }
+    /* Exposure rides the bar in experiment mode only; hidden otherwise. */
+    .cbnav-exposure { display: none; }
+    body.experiment-active .cbnav-exposure { display: flex; }
+    /* Experiment-mode bar layout: Exposure · Snapshot · GameDay(center) ·
+       Conflict · More. Account drops off the bar here (still hidden below).
+       Order is set explicitly so it's independent of DOM source order. */
+    body.experiment-active [data-exp-tab="account"] { display: none; }
+    body.experiment-active .cbnav-exposure              { order: 1; }
+    body.experiment-active [data-exp-tab="snapshot"]    { order: 2; }
+    body.experiment-active [data-exp-tab="dashboard"]   { order: 3; }
+    body.experiment-active .cbnav-conflict              { order: 4; }
+    body.experiment-active [data-exp-tab="more"]        { order: 5; }
     .cbnav-tab.is-on .cbnav-ico {
       background: color-mix(in oklab, var(--navy-700) 14%, transparent);
       border-color: color-mix(in oklab, var(--navy-500) 40%, transparent);
+    }
+    /* GameDay = the app's home/main page. In experiment mode its center icon
+       wears a persistent light-blue halo circle (drawn as a layout-neutral
+       pseudo-element so every tab's label stays aligned) and a light-blue icon
+       tint, so it always reads as the hub — even when another tab is active. */
+    body.experiment-active [data-exp-tab="dashboard"] { color: var(--navy-700); }
+    body.experiment-active [data-exp-tab="dashboard"] .cbnav-ico { position: relative; overflow: visible; background: transparent; border-color: transparent; }
+    body.experiment-active [data-exp-tab="dashboard"] .cbnav-ico > svg { position: relative; z-index: 1; width: 25px; height: 25px; }
+    body.experiment-active [data-exp-tab="dashboard"] .cbnav-ico::before {
+      content: ""; position: absolute; left: 50%; top: 50%;
+      width: 46px; height: 46px; transform: translate(-50%, -50%);
+      border-radius: 50%; z-index: 0;
+      background: color-mix(in oklab, var(--navy-500) 24%, transparent);
+      border: 2px solid color-mix(in oklab, var(--navy-700) 85%, transparent);
+      box-shadow: 0 3px 12px color-mix(in oklab, var(--navy-500) 34%, transparent);
     }
     /* Show the bar in-app, on mobile, for ALL users (no longer experiment-gated). */
     @media (max-width: 768px) {
@@ -3387,6 +3414,12 @@
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M8 5l1.4-2h5.2L16 5"/></svg></span>
     <span>Snapshot</span>
   </button>
+  <!-- Exposure lives on the bar in experiment mode only (far-left slot); in normal
+       mode it stays in the …More sheet and this tab is hidden. -->
+  <button class="cbnav-tab cbnav-exposure" type="button" data-exp-tab="exposure" aria-label="Exposure">
+    <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></svg></span>
+    <span>Exposure</span>
+  </button>
   <button class="cbnav-tab cbnav-conflict" type="button" data-exp-tab="conflict" aria-label="Conflict Card">
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg></span>
     <span>Conflict</span>
@@ -3640,7 +3673,6 @@
       <div class="loyalties-header live-updates-header">
         <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">LIVE</span><span class="loyalties-wordmark__b">&nbsp;UPDATES</span></div>
       </div>
-      <div class="lu-sub">Scoring changes · all relevant players</div>
       <!-- Impact-animation stage: phases 2–4 (hero → league split → net card)
            play INSIDE this fixed area, scrolling with the section. Opens to its
            row height while a batch runs, collapses to 0 after. Phase 1 (flash +
@@ -13057,9 +13089,13 @@ loadExperimentState();
       // Settings / Connections / About / Exposure reachable via More. In experiment
       // mode Schedule (watch) also lives in More, so it lights the More tab there.
       var schedInBar = !document.body.classList.contains('experiment-active');
-      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || onExpo || (!schedInBar && onWatch);
+      // Exposure has its own bar tab in experiment mode; in normal mode it lives
+      // in More, so its view lights the More tab instead.
+      var expoInBar = document.body.classList.contains('experiment-active');
+      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || (!expoInBar && onExpo) || (!schedInBar && onWatch);
       set('dashboard', onBoard && !onSnap && !onExpo && !onWatch && !onConflict);
       set('snapshot', onSnap);
+      set('exposure', expoInBar && onExpo);
       set('conflict', onConflict);
       set('schedule', schedInBar && onWatch);
       set('account', onAccount);
@@ -13077,7 +13113,8 @@ loadExperimentState();
       if (visible('view-conflict')) return 'conflict';
       if (visible('view-watch')) return document.body.classList.contains('experiment-active') ? 'more' : 'schedule';
       if (visible('view-account')) return 'account';
-      if (visible('view-settings') || visible('view-connections') || visible('view-about') || visible('view-exposure')) return 'more';
+      if (visible('view-exposure')) return document.body.classList.contains('experiment-active') ? 'exposure' : 'more';
+      if (visible('view-settings') || visible('view-connections') || visible('view-about')) return 'more';
       if (visible('board')) return 'dashboard';
       return null;
     }
@@ -13112,6 +13149,8 @@ loadExperimentState();
           // else: no leagues connected → no dashboard to show; do nothing.
         } else if (tab === 'snapshot') {
           if (typeof window.showSnapshot === 'function') window.showSnapshot();
+        } else if (tab === 'exposure') {
+          if (typeof window.showExposure === 'function') window.showExposure();
         } else if (tab === 'conflict') {
           if (typeof window.showConflictCard === 'function') window.showConflictCard();
         } else if (tab === 'schedule') {
