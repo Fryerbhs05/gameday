@@ -1624,16 +1624,23 @@
        wears a persistent light-blue halo circle (drawn as a layout-neutral
        pseudo-element so every tab's label stays aligned) and a light-blue icon
        tint, so it always reads as the hub — even when another tab is active. */
-    body.experiment-active [data-exp-tab="dashboard"] { color: var(--navy-700); }
-    body.experiment-active [data-exp-tab="dashboard"] .cbnav-ico { position: relative; overflow: visible; background: transparent; border-color: transparent; }
-    body.experiment-active [data-exp-tab="dashboard"] .cbnav-ico > svg { position: relative; z-index: 1; width: 25px; height: 25px; }
-    body.experiment-active [data-exp-tab="dashboard"] .cbnav-ico::before {
+    body.experiment-active [data-exp-tab="dashboard"] { color: var(--navy-700); position: relative; overflow: visible; }
+    /* Icon tile stays plain — the halo is drawn on the whole tab (below). */
+    body.experiment-active [data-exp-tab="dashboard"] .cbnav-ico { background: transparent; border-color: transparent; }
+    body.experiment-active [data-exp-tab="dashboard"] .cbnav-ico > svg { width: 25px; height: 25px; }
+    /* Lift both the icon span and the "GameDay" label span above the halo. */
+    body.experiment-active [data-exp-tab="dashboard"] > span { position: relative; z-index: 1; }
+    /* Light-blue home halo — large enough to fully enclose BOTH the icon and
+       the "GameDay" label. Intentionally wider than a single tab, so it bleeds
+       a little over the neighbouring tabs but never clips the word. Centered on
+       the whole tab (not just the icon). */
+    body.experiment-active [data-exp-tab="dashboard"]::before {
       content: ""; position: absolute; left: 50%; top: 50%;
-      width: 46px; height: 46px; transform: translate(-50%, -50%);
-      border-radius: 50%; z-index: 0;
-      background: color-mix(in oklab, var(--navy-500) 24%, transparent);
+      width: 74px; height: 74px; transform: translate(-50%, -50%);
+      border-radius: 50%; z-index: 0; pointer-events: none;
+      background: color-mix(in oklab, var(--navy-500) 22%, transparent);
       border: 2px solid color-mix(in oklab, var(--navy-700) 85%, transparent);
-      box-shadow: 0 3px 12px color-mix(in oklab, var(--navy-500) 34%, transparent);
+      box-shadow: 0 3px 14px color-mix(in oklab, var(--navy-500) 30%, transparent);
     }
     /* Show the bar in-app, on mobile, for ALL users (no longer experiment-gated). */
     @media (max-width: 768px) {

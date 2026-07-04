@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v41'; // v41: experiment-mode bottom nav reordered (Exposure·Snapshot·GameDay·Conflict·More) with GameDay center light-blue home hub
+const CACHE_VERSION = 'conflicted-v42'; // v42: GameDay home halo enlarged to encircle the whole tab (icon + "GameDay" label), may bleed slightly into neighbors
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
