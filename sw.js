@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v30'; // v30: unique per-scoring-event keys — one reserved slot per animation (fixes blank-row stacking when a player scores repeatedly in Replay)
+const CACHE_VERSION = 'conflicted-v31'; // v31: the 3s Replay breather now also freezes the log (drain honors cooldown before idle) so rows don't dump out during the pause
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

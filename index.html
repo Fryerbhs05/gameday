@@ -13508,8 +13508,8 @@ loadExperimentState();
      rows it held back while the animation played. */
   var idleCbs=[];
   function fireIdle(){var cbs=idleCbs;idleCbs=[];cbs.forEach(function(f){try{f();}catch(e){}});}
-  window.__iaBusy=function(){return !!(running||queue.length);};
-  window.__iaWhenIdle=function(cb){try{if(typeof cb!=='function')return;if(!(running||queue.length)){cb();}else{idleCbs.push(cb);}}catch(e){}};
+  window.__iaBusy=function(){return !!(running||queue.length||cooling);};
+  window.__iaWhenIdle=function(cb){try{if(typeof cb!=='function')return;if(!(running||queue.length||cooling)){cb();}else{idleCbs.push(cb);}}catch(e){}};
 
   /* ── Impact model: tiered, loss-averse, hope/nerves-buffered anchor ────────
      Full emotional model (designed + calibrated with Matt). See
@@ -13622,11 +13622,14 @@ loadExperimentState();
   function drain(){
     var o=overlay();
     if(running||cooling)return;
-    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}closeStage();fireIdle();return;}
-    /* Enforce the post-batch breather (Replay): if the next batch is due before
-       the cooldown elapses, wait it out rather than starting straight away. */
+    /* Honor the post-batch breather FIRST — even if the queue is momentarily
+       empty. Otherwise an empty queue falls straight into the idle branch below,
+       which fires fireIdle()/revealGated() and dumps all the frozen log rows out
+       during the 3s, erasing the pause. While cooling, __iaBusy stays true so no
+       new rows surface either. */
     var wait=nextBatchAllowedAt-Date.now();
     if(wait>0){cooling=true;after(wait,function(){cooling=false;drain();});return;}
+    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}closeStage();fireIdle();return;}
     var batch=queue.shift(); runBatch(batch);
   }
 
