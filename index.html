@@ -13476,6 +13476,11 @@ loadExperimentState();
 (function(){
   var EPS=0.01, PREF_KEY='conflicted_impact_anim';
   var prev=null, prevCtx=null, queue=[], running=false, paused=false, timers=[], nodes=[], testMode=false;
+  var cooling=false, nextBatchAllowedAt=0;
+  /* Replay-only breather: after a batch's cards land, hold the NEXT batch for at
+     least this long so rows don't tumble out back-to-back (Matt). Live play has
+     its own natural spacing, so 0 there. */
+  function cooldownMs(){try{return (window.__cfReplay&&window.__cfReplay.active&&window.__cfReplay.active())?3000:0;}catch(e){return 0;}}
 
   function reduced(){try{return window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}}
   function prefOn(){try{return localStorage.getItem(PREF_KEY)!=='0';}catch(e){return true;}}
@@ -13602,14 +13607,19 @@ loadExperimentState();
     var o=overlay(); if(o){o.style.pointerEvents='none';}
     releaseAllHolds(); // cancelled mid-flight → un-hide any held log entries
     if(window.__iaAnimating)window.__iaAnimating.clear();
+    cooling=false; nextBatchAllowedAt=0; // clear any pending breather
     closeStage();
     running=false; drain();
   }
 
   function drain(){
     var o=overlay();
-    if(running)return;
+    if(running||cooling)return;
     if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}closeStage();fireIdle();return;}
+    /* Enforce the post-batch breather (Replay): if the next batch is due before
+       the cooldown elapses, wait it out rather than starting straight away. */
+    var wait=nextBatchAllowedAt-Date.now();
+    if(wait>0){cooling=true;after(wait,function(){cooling=false;drain();});return;}
     var batch=queue.shift(); runBatch(batch);
   }
 
@@ -13775,7 +13785,7 @@ loadExperimentState();
       var pending=P;
       show.forEach(function(ev,ri){
         var rect=measureRow(ev.id)||{left:8,top:120+ri*rowBudget,width:sw-16,height:rowBudget};
-        runPlayer(ev, rect, heroScale, leagueScale, function(){if(--pending<=0){running=false;drain();}});
+        runPlayer(ev, rect, heroScale, leagueScale, function(){if(--pending<=0){running=false;nextBatchAllowedAt=Date.now()+cooldownMs();drain();}});
       });
     });
   }

@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v27'; // v27: impact animation plays in place at the card's final slot and melts into the permanent scorecard (no travel)
+const CACHE_VERSION = 'conflicted-v28'; // v28: Replay-only 3s breather between animation batches so rows don't tumble out back-to-back
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
