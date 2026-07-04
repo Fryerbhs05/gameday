@@ -8256,8 +8256,29 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     // Everything is revealed now — the landed-id set has served its purpose.
     try{if(window.__iaLanded)window.__iaLanded.clear();}catch(e){}
     const log=document.getElementById('live-updates-log');if(!log)return;
-    const els=log.querySelectorAll('.lu-gate');
-    for(let i=0;i<els.length;i++){els[i].classList.remove('lu-gate');els[i].classList.add('lu-degate');}
+    const els=log.querySelectorAll('.lu-group.lu-gate');
+    for(let i=0;i<els.length;i++){els[i].classList.remove('lu-gate');luRevealRow(els[i]);}
+    const heads=log.querySelectorAll('.lu-synchead.lu-gate');
+    for(let j=0;j<heads.length;j++){heads[j].classList.remove('lu-gate');heads[j].classList.add('lu-degate');}
+  }
+
+  /* Reveal a gated row with the SAME phase-in the conflicted cards use (lu-reveal)
+     PLUS a height grow, so the rows below slide down to make room instead of the
+     new row just popping in. Row heights vary, so measure and animate max-height
+     (with margin) from 0; inline styles are cleared once it settles. */
+  function luRevealRow(el){
+    try{
+      const h=el.scrollHeight;
+      el.classList.add('lu-reveal');
+      el.style.overflow='hidden';
+      el.style.maxHeight='0px';
+      el.style.marginBottom='0px';
+      void el.offsetHeight; // commit the collapsed start state
+      el.style.transition='max-height 0.42s var(--ease-out), margin-bottom 0.42s var(--ease-out)';
+      el.style.maxHeight=(h+24)+'px';
+      el.style.marginBottom='10px';
+      setTimeout(function(){el.style.maxHeight='';el.style.overflow='';el.style.marginBottom='';el.style.transition='';},480);
+    }catch(e){}
   }
 
   /* Replay row pacer: reveal gated rows one at a time, oldest first, never closer
@@ -8278,7 +8299,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const target=els[els.length-1]; // bottom-most = oldest scoring event
     const key=target.getAttribute('data-key');
     if(key&&window.__iaLanded)window.__iaLanded.add(String(key));
-    target.classList.remove('lu-gate');target.classList.add('lu-degate');
+    target.classList.remove('lu-gate');luRevealRow(target); // grow open + phase in
     let p=target.previousElementSibling; // un-gate this row's batch timestamp
     while(p){if(p.classList&&p.classList.contains('lu-synchead')){if(p.classList.contains('lu-gate')){p.classList.remove('lu-gate');p.classList.add('lu-degate');}break;}p=p.previousElementSibling;}
     window.__iaLastReveal=Date.now();

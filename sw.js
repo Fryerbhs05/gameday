@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v32'; // v32: Replay paces every permanent row ≥2s apart (drips frozen rows one at a time, oldest first) instead of dumping bursts
+const CACHE_VERSION = 'conflicted-v33'; // v33: gated rows grow open (rows below slide down to make room) + reuse the conflicted lu-reveal phase-in instead of popping in
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
