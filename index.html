@@ -4438,6 +4438,12 @@
      so this is the entire referral loop. Best-effort: some share targets drop
      the text when files are present; that costs attribution, never the share. */
   window.cfShareRefUrl=function(){try{return location.origin+'/?ref='+window.cfRefCode();}catch(e){return '';}};
+  /* Compact-preview variant for IMAGE shares (scoreboard/snapshot/conflict card).
+     Points at /s.html — a landing page whose OG tags render a SMALL link preview in
+     iMessage (square icon + twitter summary) instead of the big hero card the root
+     serves. /s.html instantly redirects tappers to /?ref=CODE, so attribution is
+     unchanged. Direct URL shares still use the root and keep the full rich card. */
+  window.cfShareCardUrl=function(){try{return location.origin+'/s.html?ref='+window.cfRefCode();}catch(e){return '';}};
   /* Funnel steps re-render constantly (toggles, Yahoo polling), so wizard events
      dedupe to once per key per page load. */
   var seen={};
@@ -8099,7 +8105,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   async function doShare(){
     if(!curFile)return;
     if(navigator.canShare&&navigator.canShare({files:[curFile]})){
-      try{ await navigator.share({files:[curFile],text:window.cfShareRefUrl?cfShareRefUrl():undefined}); try{cfTrack('share_completed',{surface:'scoreboard_modal'});}catch(_e){} closeModal(); }
+      try{ await navigator.share({files:[curFile],text:window.cfShareCardUrl?cfShareCardUrl():undefined}); try{cfTrack('share_completed',{surface:'scoreboard_modal'});}catch(_e){} closeModal(); }
       catch(e){ if(!(e&&e.name==='AbortError'))showError('Sharing was blocked — use Save image instead.'); }
     }else{ doSave(); }
   }
@@ -8132,7 +8138,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     busy=false;btn.classList.remove('is-busy');
     if(navigator.canShare&&navigator.canShare({files:[file]})){
       try{
-        await navigator.share({files:[file],text:window.cfShareRefUrl?cfShareRefUrl():undefined});
+        await navigator.share({files:[file],text:window.cfShareCardUrl?cfShareCardUrl():undefined});
         try{cfTrack('share_completed',{surface:'scoreboard'});}catch(e){}
         return;                               /* shared directly — no modal */
       }catch(e){
@@ -14411,7 +14417,7 @@ loadExperimentState();
     try{
       var file=await buildPng();
       if(navigator.canShare&&navigator.canShare({files:[file]})){
-        try{ await navigator.share({files:[file],text:window.cfShareRefUrl?cfShareRefUrl():undefined}); try{cfTrack('share_completed',{surface:'snapshot'});}catch(_e){} }
+        try{ await navigator.share({files:[file],text:window.cfShareCardUrl?cfShareCardUrl():undefined}); try{cfTrack('share_completed',{surface:'snapshot'});}catch(_e){} }
         catch(e){ if(e&&e.name==='AbortError'){/* user cancelled */} else { saveFile(file); } }
       } else { saveFile(file); }
     }catch(err){ setShareLabel('Couldn’t build image — tap to retry'); sharing=false;
@@ -14698,7 +14704,7 @@ function cfShareConflictCard(){
   var done=function(label){ cfcSharing=false; if(btn){btn.disabled=false;btn.innerHTML=label||orig;} };
   if(!frame||!window.cfShare){ done('Couldn’t build image — tap to retry'); setTimeout(function(){done(orig);},1800); return; }
   window.cfShare.buildFile(frame,{bg:'#0F2235',filename:'conflicted-conflict-card'}).then(function(file){
-    var txt=(window.cfShareRefUrl?cfShareRefUrl():undefined);
+    var txt=(window.cfShareCardUrl?cfShareCardUrl():undefined);
     if(navigator.canShare&&navigator.canShare({files:[file]})){
       navigator.share({files:[file],text:txt}).then(function(){ try{if(window.cfTrack)cfTrack('share_completed',{surface:'conflict_card'});}catch(_e){} done(orig); },
         function(e){ if(e&&e.name==='AbortError'){done(orig);} else { cfcSaveFile(file); done(orig); } });

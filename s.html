@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Conflicted Sports</title>
+
+  <!--
+    Compact-preview share landing page.
+    Purpose: when a scoreboard / snapshot / conflict-card PNG is shared via the
+    native share sheet, the accompanying link points HERE (…/s.html?ref=CODE)
+    instead of the root. These OG tags use a small SQUARE image + twitter:card=summary
+    so iMessage/social render a COMPACT preview under the image rather than the big
+    1200x630 hero card the root page uses. Real visitors are instantly redirected
+    into the app with the ref attribution preserved; crawlers only read the meta.
+    The root page (index.html) keeps its full rich card for direct URL shares.
+  -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Conflicted Sports" />
+  <meta property="og:title" content="Conflicted Sports" />
+  <meta property="og:description" content="Every player you own — and root against — in one place." />
+  <meta property="og:url" content="https://conflictedapp.com/s.html" />
+  <meta property="og:image" content="https://conflictedapp.com/icons/icon-192.png" />
+  <meta property="og:image:secure_url" content="https://conflictedapp.com/icons/icon-192.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="192" />
+  <meta property="og:image:height" content="192" />
+  <meta property="og:image:alt" content="Conflicted Sports" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Conflicted Sports" />
+  <meta name="twitter:description" content="Every player you own — and root against — in one place." />
+  <meta name="twitter:image" content="https://conflictedapp.com/icons/icon-192.png" />
+
+  <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+
+  <script>
+    /* Forward real visitors into the app, carrying ref attribution.
+       Runs only in real browsers — link-preview crawlers don't execute JS,
+       so they see the compact OG card above and never follow this. */
+    (function () {
+      try {
+        var ref = new URLSearchParams(location.search).get('ref') || '';
+        ref = String(ref).slice(0, 16).replace(/[^A-Za-z0-9_-]/g, '');
+        var dest = '/' + (ref ? ('?ref=' + encodeURIComponent(ref)) : '');
+        location.replace(dest);
+      } catch (e) {
+        location.replace('/');
+      }
+    })();
+  </script>
+
+  <style>
+    :root { color-scheme: dark; }
+    html, body {
+      margin: 0; height: 100%;
+      background: #0F2235;
+      color: #E8EEF4;
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+    }
+    .wrap {
+      min-height: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 24px; gap: 18px;
+    }
+    img.mark { width: 72px; height: 72px; border-radius: 16px; }
+    p { margin: 0; font-size: 15px; color: #9FB3C6; }
+    a.btn {
+      display: inline-block; margin-top: 6px;
+      background: #2E6FB0; color: #fff; text-decoration: none;
+      font-weight: 700; font-size: 15px;
+      padding: 12px 22px; border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Fallback UI for the rare no-JS case; JS above normally redirects instantly. -->
+  <div class="wrap">
+    <img class="mark" src="/icons/icon-192.png" alt="Conflicted Sports" />
+    <p>Opening Conflicted…</p>
+    <noscript><a class="btn" href="/">Open Conflicted</a></noscript>
+  </div>
+</body>
+</html>

@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v45'; // v45: unified share footer (cfShare) — compact bisected mark + ConflictedApp.com + scannable QR (?ref=share) burned into every export; scoreboard/snapshot/conflict-card all share one footer; conflict card gets a Share button; scoreboard drops its top wordmark header
+const CACHE_VERSION = 'conflicted-v46'; // v46: image shares (scoreboard/snapshot/conflict-card) attach compact /s.html?ref= link so iMessage renders a SMALL preview under the PNG; direct URL shares keep the full rich root card
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
