@@ -14759,13 +14759,18 @@ if(typeof window.cfRegisterView==='function'){
     var css=''+
       '.cf-xwrap{position:fixed;left:0;top:0;opacity:0;pointer-events:none;z-index:-1;}'+
       '.cf-xstage{display:block;}'+
-      '.cf-xfoot{display:flex;align-items:center;justify-content:space-between;gap:14px;'+
-        'margin-top:16px;padding-top:13px;border-top:1px solid rgba(245,239,228,0.14);}'+
-      '.cf-xfoot__brand{display:flex;flex-direction:column;gap:5px;min-width:0;}'+
-      '.cf-xfoot__mark{display:block;width:118px;height:auto;}'+
-      '.cf-xfoot__url{font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#C9D4DF;letter-spacing:.02em;}'+
-      '.cf-xfoot__note{font:600 9px/1.2 Inter,system-ui,sans-serif;letter-spacing:.10em;color:#8A94A0;text-transform:uppercase;}'+
-      '.cf-xfoot__qr{display:block;width:62px;height:62px;flex:0 0 auto;border-radius:7px;background:#fff;}';
+      '.cf-xfoot{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:14px;'+
+        'margin-top:16px;padding-top:14px;border-top:1px solid rgba(245,239,228,0.14);}'+
+      /* Col1 left: tagline (emphasized) over URL (secondary), left-justified. */
+      '.cf-xfoot__meta{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;}'+
+      '.cf-xfoot__tag{font:700 10px/1.25 Inter,system-ui,sans-serif;letter-spacing:.09em;color:#E8F0F8;text-transform:uppercase;}'+
+      '.cf-xfoot__url{font:500 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#8DA0B2;letter-spacing:.02em;}'+
+      /* Col2 center: wordmark, centered to the WHOLE card (equal side tracks). */
+      '.cf-xfoot__brand{display:flex;justify-content:center;min-width:0;}'+
+      '.cf-xfoot__mark{display:block;height:26px;width:auto;}'+
+      /* Col3 right: QR, right-justified. */
+      '.cf-xfoot__qrcell{display:flex;justify-content:flex-end;min-width:0;}'+
+      '.cf-xfoot__qr{display:block;width:58px;height:58px;border-radius:7px;background:#fff;}';
     var s=document.createElement('style');s.setAttribute('data-cfshare','1');s.textContent=css;
     document.head.appendChild(s);
   })();
@@ -14808,13 +14813,21 @@ if(typeof window.cfRegisterView==='function'){
   function footerNode(opts){
     opts=opts||{};
     var foot=document.createElement('div');foot.className='cf-xfoot';
+    /* Col 1 (left): tagline over URL, left-justified; tagline is the emphasized line.
+       Per-surface note (e.g. the snapshot's league count) overrides the default. */
+    var meta=document.createElement('div');meta.className='cf-xfoot__meta';
+    var tag=document.createElement('span');tag.className='cf-xfoot__tag';
+    tag.textContent=opts.note||'All your leagues, one place';
+    var url=document.createElement('span');url.className='cf-xfoot__url';url.textContent=SHARE_LABEL;
+    meta.appendChild(tag);meta.appendChild(url);
+    /* Col 2 (center): wordmark, centered to the entire card. */
     var brand=document.createElement('div');brand.className='cf-xfoot__brand';
     var mark=document.createElement('img');mark.className='cf-xfoot__mark';mark.alt='Conflicted';
     mark.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(MARK_SVG);
-    var url=document.createElement('span');url.className='cf-xfoot__url';url.textContent=SHARE_LABEL;
-    brand.appendChild(mark);brand.appendChild(url);
-    if(opts.note){var note=document.createElement('span');note.className='cf-xfoot__note';note.textContent=opts.note;brand.appendChild(note);}
-    foot.appendChild(brand);
+    brand.appendChild(mark);
+    /* Col 3 (right): QR, right-justified. */
+    var qrcell=document.createElement('div');qrcell.className='cf-xfoot__qrcell';
+    foot.appendChild(meta);foot.appendChild(brand);foot.appendChild(qrcell);
     return foot;
   }
 
@@ -14849,9 +14862,10 @@ if(typeof window.cfRegisterView==='function'){
     var foot=footerNode({note:note});
     if(window.qrcode){
       try{
+        var qcell=foot.querySelector('.cf-xfoot__qrcell');
         var qimg=document.createElement('img');qimg.className='cf-xfoot__qr';
         qimg.alt='Scan to open ConflictedApp.com';qimg.src=qrDataUri(SHARE_URL);
-        foot.appendChild(qimg);
+        (qcell||foot).appendChild(qimg);
       }catch(e){}
     }
     stage.appendChild(foot);
