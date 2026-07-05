@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v44'; // v44: light-blue section framing (navy-300) extended to Snapshot shareable frame + list/grid toggle, Account clusters, Conflict Card outer, and Exposure filters/KPIs/leaderboard
+const CACHE_VERSION = 'conflicted-v45'; // v45: unified share footer (cfShare) — compact bisected mark + ConflictedApp.com + scannable QR (?ref=share) burned into every export; scoreboard/snapshot/conflict-card all share one footer; conflict card gets a Share button; scoreboard drops its top wordmark header
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
