@@ -9,9 +9,9 @@
     Compact-preview share landing page.
     Purpose: when a scoreboard / snapshot / conflict-card PNG is shared via the
     native share sheet, the accompanying link points HERE (…/s.html?ref=CODE)
-    instead of the root. These OG tags use a small SQUARE image + twitter:card=summary
-    so iMessage/social render a COMPACT preview under the image rather than the big
-    1200x630 hero card the root page uses. Real visitors are instantly redirected
+    instead of the root. These OG tags deliberately omit any image so iMessage/social
+    render a COMPACT one-row bubble (favicon + title + domain) under the PNG rather
+    than the big 1200x630 hero card the root page uses. Real visitors are instantly redirected
     into the app with the ref attribution preserved; crawlers only read the meta.
     The root page (index.html) keeps its full rich card for direct URL shares.
   -->
@@ -20,16 +20,13 @@
   <meta property="og:title" content="Conflicted Sports" />
   <meta property="og:description" content="Every player you own — and root against — in one place." />
   <meta property="og:url" content="https://conflictedapp.com/s.html" />
-  <meta property="og:image" content="https://conflictedapp.com/icons/icon-192.png" />
-  <meta property="og:image:secure_url" content="https://conflictedapp.com/icons/icon-192.png" />
-  <meta property="og:image:type" content="image/png" />
-  <meta property="og:image:width" content="192" />
-  <meta property="og:image:height" content="192" />
-  <meta property="og:image:alt" content="Conflicted Sports" />
+  <!-- Deliberately NO og:image / twitter:image. iMessage ignores twitter:card=summary
+       and renders ANY og:image as a big card (a square image becomes a huge square —
+       worse than the wide hero). With no image it falls back to the tiny favicon and
+       renders the small one-row bubble, which is the whole point of this page. -->
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="Conflicted Sports" />
   <meta name="twitter:description" content="Every player you own — and root against — in one place." />
-  <meta name="twitter:image" content="https://conflictedapp.com/icons/icon-192.png" />
 
   <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
