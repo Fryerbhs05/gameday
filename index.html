@@ -1951,6 +1951,49 @@
       /* Wordmark shrink handled globally via --section-wordmark-size (see scoreboard block). */
     }
 
+    /* ──────────────────────────────────────────────────────────────
+       LIGHT-BLUE SECTION FRAMING — reuses the SCOREBOARD / LOYALTIES
+       chrome (1px navy-300 border = light blue in dark, navy in light,
+       + radius-lg) on additional sections so the whole app reads as one
+       titled-frame system. navy-300 is the exact border those frames use.
+       ────────────────────────────────────────────────────────────── */
+
+    /* 1 · Weekend Snapshot (#cf-snap-frame + .cf-snap-toggle) and
+       3 · Conflict Card (#view-conflict .cfc-frame) are framed at their
+       base rules further down (those rules win on source order), so they
+       live there, not here. */
+
+    /* 2 · Account page — each cluster (identity, connections, prefs, etc.) */
+    #view-account .settings-panel {
+      border-color: var(--navy-300);
+      border-radius: var(--radius-lg);
+    }
+
+    /* 4 · Exposure map ------------------------------------------------ */
+    /* 4a · one frame around the filter controls + the positional pills */
+    .exp-filterframe {
+      flex: 1 1 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border: 1px solid var(--navy-300);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+    }
+    .exp-filterframe .exp-head__controls { width: 100%; }
+    .exp-filterframe .exp-filters { margin-bottom: 0; }
+    @media (max-width: 480px) { .exp-filterframe { padding: 12px; } }
+    /* 4b · the Top-exposure / Total-footprint KPI row */
+    .exp-kpis {
+      border: 1px solid var(--navy-300);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+    }
+    /* no hollow frame before the KPIs render */
+    .exp-kpis:empty { display: none; }
+    /* 4c · the Leaderboard / Grid display cards are framed at the base
+       .exp-card rule below (source order), not here. */
+
     /* ── Collapsible sections — click the SCOREBOARD / LOYALTIES header to
        collapse the section to just its title bar. State is in-memory only
        (resets on reload), never persisted, since it hides data. ── */
@@ -2601,7 +2644,7 @@
     .exp-kpi__value { font: 600 16px/1.2 var(--font-sans); color: var(--ink-900); margin: 0 0 3px; letter-spacing: -0.01em; }
     .exp-kpi__sub { font: 400 12px/1.3 var(--font-sans); color: var(--ink-500); margin: 0; }
 
-    .exp-card { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 18px; }
+    .exp-card { background: var(--paper); border: 1px solid var(--navy-300); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 18px; }
     .exp-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
     .exp-card__head h3 { font: 600 14px/1 var(--font-sans); margin: 0; color: var(--ink-900); }
     .exp-card__sort { font: 500 11px/1 var(--font-mono); color: var(--ink-500); }
@@ -4126,14 +4169,14 @@
     --cs-coral:#E88761;--cs-cream:#F5EFE4;--cs-ink-700:#E0DACA;--cs-ink-500:#9E988A;--cs-ink-400:#7C8694;
     --cs-green:#5DCAA5;--cs-red:#E07A6E;--cs-blue:#7AA8D1;--cs-dull:#6b4a45;}
   .cf-snap-wrap{max-width:420px;margin:0 auto;}
-  .cf-snap-toggle{display:flex;background:var(--cs-navy-800);border:1px solid var(--cs-navy-line);border-radius:12px;padding:3px;gap:3px;margin-bottom:11px;}
+  .cf-snap-toggle{display:flex;background:var(--cs-navy-800);border:1px solid var(--navy-300);border-radius:12px;padding:3px;gap:3px;margin-bottom:11px;}
   .cf-snap-toggle button{flex:1;border:none;background:transparent;color:var(--cs-ink-400);font-family:var(--font-sans),'Inter',sans-serif;font-weight:800;font-size:12px;letter-spacing:.04em;padding:9px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,color .15s;}
   .cf-snap-toggle button svg{width:14px;height:14px;}
   .cf-snap-toggle button.is-on{background:var(--cs-navy-700);color:var(--cs-cream);}
   .cf-snap-share{width:100%;border:none;background:var(--cs-coral);color:#0F2235;font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:12.5px;letter-spacing:.02em;padding:8px 13px;border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;}
   .cf-snap-share:active{transform:scale(.99);}
   .cf-snap-share[hidden]{display:none;}
-  #cf-snap-frame{background:var(--cs-navy-900);border:1px solid var(--cs-navy-line);border-radius:20px;padding:20px 16px 16px;}
+  #cf-snap-frame{background:var(--cs-navy-900);border:1px solid var(--navy-300);border-radius:20px;padding:20px 16px 16px;}
   .cf-snap-wm{display:flex;justify-content:center;margin-bottom:7px;}
   .cf-snap-wm svg{width:178px;height:auto;display:block;}
   .cf-snap-kicker{text-align:center;font-size:9px;letter-spacing:.32em;font-weight:700;color:var(--cs-ink-500);margin-bottom:13px;white-space:nowrap;}
@@ -4259,6 +4302,7 @@
       <h2 id="exp-title">Exposure map</h2>
       <p id="exp-subtitle">Which players are sitting on the most of your rosters this week.</p>
     </div>
+    <div class="exp-filterframe">
     <div class="exp-head__controls">
       <div class="exp-context-bar">
         <div class="exp-select-group">
@@ -4287,16 +4331,17 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="exp-filters" id="exp-filters" role="tablist" aria-label="Position filter">
-    <button type="button" class="exp-filter-pill active" data-exp-pos="ALL">All</button>
-    <button type="button" class="exp-filter-pill" data-exp-pos="QB">QB</button>
-    <button type="button" class="exp-filter-pill" data-exp-pos="RB">RB</button>
-    <button type="button" class="exp-filter-pill" data-exp-pos="WR">WR</button>
-    <button type="button" class="exp-filter-pill" data-exp-pos="TE">TE</button>
-    <button type="button" class="exp-filter-pill" data-exp-pos="K">K</button>
-    <button type="button" class="exp-filter-pill" data-exp-pos="DEF">DEF</button>
+    <div class="exp-filters" id="exp-filters" role="tablist" aria-label="Position filter">
+      <button type="button" class="exp-filter-pill active" data-exp-pos="ALL">All</button>
+      <button type="button" class="exp-filter-pill" data-exp-pos="QB">QB</button>
+      <button type="button" class="exp-filter-pill" data-exp-pos="RB">RB</button>
+      <button type="button" class="exp-filter-pill" data-exp-pos="WR">WR</button>
+      <button type="button" class="exp-filter-pill" data-exp-pos="TE">TE</button>
+      <button type="button" class="exp-filter-pill" data-exp-pos="K">K</button>
+      <button type="button" class="exp-filter-pill" data-exp-pos="DEF">DEF</button>
+    </div>
+    </div>
   </div>
 
   <div class="exp-kpis" id="exp-kpis"></div>
@@ -14456,7 +14501,7 @@ loadExperimentState();
     --c-navy900:#0F2235;--c-navy800:#15293E;--c-navy700:#1A3A52;--c-card:#16304A;--c-line:#27425F;
     --c-coral:#E88761;--c-cream:#F5EFE4;--c-ink500:#9E988A;--c-ink400:#7C8694;
     --c-green:#6BBF8C;--c-yellow:#D9A445;--c-red:#D86A5C;--c-blue:#7AA8D1;color:var(--c-cream);}
-  #view-conflict .cfc-frame{background:var(--c-navy900);border:1px solid var(--c-line);border-radius:18px;padding:18px 15px 14px;}
+  #view-conflict .cfc-frame{background:var(--c-navy900);border:1px solid var(--navy-300);border-radius:18px;padding:18px 15px 14px;}
   #view-conflict .cfc-kick{text-align:center;font-size:9px;letter-spacing:.28em;font-weight:800;color:var(--c-ink500);margin-bottom:14px;white-space:nowrap;}
   #view-conflict .cfc-toggle{display:flex;gap:5px;background:#0b1722;border:1px solid var(--c-line);border-radius:11px;padding:4px;margin-bottom:14px;}
   #view-conflict .cfc-toggle button{flex:1;font:inherit;font-size:11px;font-weight:900;letter-spacing:.05em;color:var(--c-ink400);background:transparent;border:none;border-radius:8px;padding:8px 6px;cursor:pointer;}

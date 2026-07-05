@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v43'; // v43: bottom-nav layout (Exposure·Snapshot·GameDay·Conflict·More + GameDay hub) released to all users; Schedule+Account moved to …More; Exposure removed from …More; experiment MODE still gated
+const CACHE_VERSION = 'conflicted-v44'; // v44: light-blue section framing (navy-300) extended to Snapshot shareable frame + list/grid toggle, Account clusters, Conflict Card outer, and Exposure filters/KPIs/leaderboard
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
