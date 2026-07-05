@@ -1069,6 +1069,21 @@
       transition: border-color 1.3s var(--ease-out);
     }
     .scoreboard-frame { border-color: var(--navy-300); }
+    /* Export-only header injected into the SHARE image clone (never shown live):
+       centred CONFLICTED wordmark + "SCOREBOARD · WEEK X" kicker, mirroring the
+       Weekend Snapshot header. */
+    .cf-sb-xhead { padding: 4px 0 2px; }
+    .cf-sb-xwm { display: flex; justify-content: center; margin-bottom: 7px; }
+    .cf-sb-xwm svg { width: 178px; height: auto; display: block; }
+    .cf-sb-xkick {
+      text-align: center;
+      font-size: 9px;
+      letter-spacing: 0.32em;
+      font-weight: 700;
+      color: var(--ink-500);
+      margin-bottom: 13px;
+      white-space: nowrap;
+    }
     /* Green border flash on LIVE-button refresh (mirrors the synced timestamp) —
        snaps to cheer, then the base transition fades it back to the frame color.
        !important clears the theme-specific border-color rules while flashing. */
@@ -8038,11 +8053,30 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       p.then(v=>{clearTimeout(t);res(v);},e=>{clearTimeout(t);rej(e);});
     });
   }
+  /* Export-only header for the shared image: centred bisected CONFLICTED wordmark
+     + a "SCOREBOARD · WEEK X" kicker — mirrors the Weekend Snapshot header. This
+     replaces the plain on-page SCORE|BOARD header in the CLONE only, so the live
+     UI and the snapshot's own header are untouched. */
+  const SB_HEAD_WM='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 78" role="img" aria-label="Conflicted">'+
+    '<defs><clipPath id="cfsbHL"><rect x="0" y="0" width="240" height="78"/></clipPath>'+
+    '<clipPath id="cfsbHR"><rect x="240" y="0" width="240" height="78"/></clipPath></defs>'+
+    '<text x="240" y="54" text-anchor="middle" clip-path="url(#cfsbHL)" style="font-family:Inter,system-ui,-apple-system,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#7AA8D1">CONFLICTED</text>'+
+    '<text x="240" y="54" text-anchor="middle" clip-path="url(#cfsbHR)" style="font-family:Inter,system-ui,-apple-system,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#E88761">CONFLICTED</text>'+
+    '<line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>';
+  function exportHeaderNode(){
+    let wk=1; try{ wk=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
+    const head=document.createElement('div');head.className='cf-sb-xhead';
+    head.innerHTML='<div class="cf-sb-xwm">'+SB_HEAD_WM+'</div>'+
+      '<div class="cf-sb-xkick">SCOREBOARD · WEEK '+wk+'</div>';
+    return head;
+  }
   async function buildPng(live){
     /* Unified export: cfShare adds the shared footer (mark + URL + QR) and does
-       the WebKit-safe multi-pass capture. Branding now lives ONLY in that footer
-       (the old top wordmark header is gone). */
-    return window.cfShare.buildFile(live,{bg:pageBg(),filename:'conflicted-scoreboard'});
+       the WebKit-safe multi-pass capture. We also swap in a branded export header
+       (wordmark + "SCOREBOARD · WEEK X") so the shared image reads like the
+       Weekend Snapshot card. */
+    return window.cfShare.buildFile(live,{bg:pageBg(),filename:'conflicted-scoreboard',
+      swapHeader:{sel:'.scoreboard-header',node:exportHeaderNode()}});
   }
 
   /* ---- Preview modal (built once, reused) ---- */
@@ -14814,6 +14848,15 @@ if(typeof window.cfRegisterView==='function'){
     /* Remove capture-hostile / duplicate bits: live buttons, old brand footers. */
     ['.scoreboard-share','.share-head','.share-foot','.cf-snap-foot','.cf-snap-share','.cfc-share']
       .forEach(function(sel){ Array.prototype.forEach.call(clone.querySelectorAll(sel),function(el){el.parentNode&&el.parentNode.removeChild(el);}); });
+    /* Opt-in header swap: replace a live section header with an export-only header
+       node (used by the scoreboard so the shared image gets a branded header
+       instead of its plain on-page wordmark). Purely additive — callers that don't
+       pass opts.swapHeader are unaffected. */
+    if(opts.swapHeader&&opts.swapHeader.sel&&opts.swapHeader.node){
+      var _oldHdr=clone.querySelector(opts.swapHeader.sel);
+      if(_oldHdr&&_oldHdr.parentNode)_oldHdr.parentNode.replaceChild(opts.swapHeader.node,_oldHdr);
+      else clone.insertBefore(opts.swapHeader.node,clone.firstChild);
+    }
 
     var stage=document.createElement('div');stage.className='cf-xstage';
     stage.style.width=((node.offsetWidth||320))+'px';
