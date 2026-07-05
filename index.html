@@ -92,9 +92,7 @@
   <meta name="twitter:description" content="Track every player across every fantasy league you run." />
   <meta name="twitter:image" content="https://conflictedapp.com/og-image.png" />
 
-  <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+  <!-- Favicon intentionally removed — the split-C mark is retired from this project. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -14738,17 +14736,13 @@ if(typeof window.cfRegisterView==='function'){
 <!-- ════════════════════════════════════════════════════════════════════════
      UNIFIED SHARE EXPORT (window.cfShare)
      One footer for every shareable image — scoreboard, weekend snapshot, and
-     conflict card. The footer = compact bisected CONFLICTED mark + ConflictedApp.com
-     + a scannable QR (the closest thing to a tappable link inside a static PNG;
-     it survives re-shares, screenshots, and image-only socials like Instagram).
-     Both the mark and QR are embedded as data-URI <img> — the only path
-     html-to-image rasterises reliably on iOS/Safari. QR loads a tiny generator
-     from CDN and degrades gracefully (mark + URL only) if it can't load. ════ -->
+     conflict card. The footer = compact bisected CONFLICTED mark (left) +
+     ConflictedApp.com (right), one row. The mark is embedded as a data-URI <img>
+     — the only path html-to-image rasterises reliably on iOS/Safari. ════════ -->
 <script>
 (function(){
   var HTI_SRC='https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.js';
-  var QR_SRC='https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
-  /* Where the QR points. ?ref=share feeds the existing attribution funnel. */
+  /* Kept for ?ref attribution (used by share text elsewhere); not rendered here. */
   var SHARE_URL='https://conflictedapp.com/?ref=share';
   var SHARE_LABEL='ConflictedApp.com';
   /* Compact bisected wordmark (navy | coral), no tagline — hardcoded so the
@@ -14765,16 +14759,11 @@ if(typeof window.cfRegisterView==='function'){
     var css=''+
       '.cf-xwrap{position:fixed;left:0;top:0;opacity:0;pointer-events:none;z-index:-1;}'+
       '.cf-xstage{display:block;}'+
+      /* Simple footer: wordmark left, URL right, one row. */
       '.cf-xfoot{display:flex;align-items:center;justify-content:space-between;gap:16px;'+
         'margin-top:16px;padding-top:14px;border-top:1px solid rgba(245,239,228,0.14);}'+
-      /* Left pole: brand lockup — wordmark over tagline (emphasized) over URL, left-justified. */
-      '.cf-xfoot__brand{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;}'+
-      '.cf-xfoot__mark{display:block;height:28px;width:auto;}'+
-      '.cf-xfoot__tag{font:700 10px/1.3 Inter,system-ui,sans-serif;letter-spacing:.08em;color:#E8F0F8;text-transform:uppercase;white-space:nowrap;}'+
-      '.cf-xfoot__url{font:500 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#8DA0B2;letter-spacing:.02em;}'+
-      /* Right pole: QR alone; the space-between gap is intentional negative space. */
-      '.cf-xfoot__qrcell{flex:0 0 auto;display:flex;}'+
-      '.cf-xfoot__qr{display:block;width:58px;height:58px;border-radius:7px;background:#fff;}';
+      '.cf-xfoot__mark{display:block;height:26px;width:auto;flex:0 0 auto;}'+
+      '.cf-xfoot__url{font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#C9D4DF;letter-spacing:.03em;flex:0 0 auto;}';
     var s=document.createElement('style');s.setAttribute('data-cfshare','1');s.textContent=css;
     document.head.appendChild(s);
   })();
@@ -14786,7 +14775,7 @@ if(typeof window.cfRegisterView==='function'){
       document.head.appendChild(s);
     });
   }
-  var htiP=null,qrP=null;
+  var htiP=null;
   function loadHTI(){
     if(window.htmlToImage)return Promise.resolve(window.htmlToImage);
     if(htiP)return htiP;
@@ -14794,41 +14783,14 @@ if(typeof window.cfRegisterView==='function'){
       .catch(function(e){htiP=null;throw new Error('Snapshot library could not load — check your connection.');});
     return htiP;
   }
-  /* QR is best-effort: resolve to null (not reject) so the footer still renders. */
-  function loadQR(){
-    if(window.qrcode)return Promise.resolve(window.qrcode);
-    if(qrP)return qrP;
-    qrP=loadScript(QR_SRC).then(function(){return window.qrcode||null;})
-      .catch(function(){qrP=null;return null;});
-    return qrP;
-  }
 
-  /* Build a crisp QR as an SVG data-URI (4-module quiet zone, dark-on-white). */
-  function qrDataUri(text){
-    var qr=window.qrcode(0,'M');qr.addData(text);qr.make();
-    var n=qr.getModuleCount(),q=4,size=n+q*2,rects='';
-    for(var r=0;r<n;r++){for(var c=0;c<n;c++){ if(qr.isDark(r,c))rects+='<rect x="'+(c+q)+'" y="'+(r+q)+'" width="1" height="1"/>'; }}
-    var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+size+' '+size+'" shape-rendering="crispEdges">'+
-      '<rect width="'+size+'" height="'+size+'" fill="#ffffff"/><g fill="#0D1B2A">'+rects+'</g></svg>';
-    return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
-  }
-
-  /* The unified footer node. Optional opts.note = a small caption line. */
-  function footerNode(opts){
-    opts=opts||{};
+  /* The unified footer node: wordmark left, URL right, one row. */
+  function footerNode(){
     var foot=document.createElement('div');foot.className='cf-xfoot';
-    /* Left pole: brand lockup — wordmark, tagline (emphasized), URL — all left-justified.
-       Per-surface note (e.g. the snapshot's league count) overrides the default tagline. */
-    var brand=document.createElement('div');brand.className='cf-xfoot__brand';
     var mark=document.createElement('img');mark.className='cf-xfoot__mark';mark.alt='Conflicted';
     mark.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(MARK_SVG);
-    var tag=document.createElement('span');tag.className='cf-xfoot__tag';
-    tag.textContent=opts.note||'All your leagues, one place';
     var url=document.createElement('span');url.className='cf-xfoot__url';url.textContent=SHARE_LABEL;
-    brand.appendChild(mark);brand.appendChild(tag);brand.appendChild(url);
-    /* Right pole: QR. */
-    var qrcell=document.createElement('div');qrcell.className='cf-xfoot__qrcell';
-    foot.appendChild(brand);foot.appendChild(qrcell);
+    foot.appendChild(mark);foot.appendChild(url);
     return foot;
   }
 
@@ -14857,19 +14819,7 @@ if(typeof window.cfRegisterView==='function'){
     stage.style.width=((node.offsetWidth||320))+'px';
     stage.style.background=bg;stage.style.padding='18px';stage.style.borderRadius='16px';
     stage.appendChild(clone);
-    /* Best-effort QR; footer renders regardless. */
-    var note=opts.note;
-    try{ await loadQR(); }catch(e){}
-    var foot=footerNode({note:note});
-    if(window.qrcode){
-      try{
-        var qcell=foot.querySelector('.cf-xfoot__qrcell');
-        var qimg=document.createElement('img');qimg.className='cf-xfoot__qr';
-        qimg.alt='Scan to open ConflictedApp.com';qimg.src=qrDataUri(SHARE_URL);
-        (qcell||foot).appendChild(qimg);
-      }catch(e){}
-    }
-    stage.appendChild(foot);
+    stage.appendChild(footerNode());
 
     var wrap=document.createElement('div');wrap.className='cf-xwrap';wrap.appendChild(stage);
     document.body.appendChild(wrap);
@@ -14888,10 +14838,10 @@ if(typeof window.cfRegisterView==='function'){
     return new File([blob],(opts.filename||'conflicted-share')+'.png',{type:'image/png'});
   }
 
-  function warm(){ loadHTI().catch(function(){}); loadQR(); }
+  function warm(){ loadHTI().catch(function(){}); }
   if('requestIdleCallback'in window)requestIdleCallback(function(){warm();},{timeout:4000});else setTimeout(warm,1800);
 
-  window.cfShare={ loadHTI:loadHTI, loadQR:loadQR, footerNode:footerNode, buildFile:buildFile, warm:warm, SHARE_URL:SHARE_URL };
+  window.cfShare={ loadHTI:loadHTI, footerNode:footerNode, buildFile:buildFile, warm:warm, SHARE_URL:SHARE_URL };
 })();
 </script>
 </body>

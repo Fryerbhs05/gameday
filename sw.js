@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v46'; // v46: image shares (scoreboard/snapshot/conflict-card) attach compact /s.html?ref= link so iMessage renders a SMALL preview under the PNG; direct URL shares keep the full rich root card
+const CACHE_VERSION = 'conflicted-v48'; // v48: simplified share footer — dropped the QR entirely; footer is now just wordmark (left) + ConflictedApp.com (right) on one row across scoreboard/snapshot/conflict-card. v47: retired the split-C favicon entirely (removed from index/offline/s.html + precache, files deleted); no favicon anywhere. Share preview now fully imageless. v46: compact /s.html?ref= share link for small iMessage preview
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 
@@ -25,8 +25,7 @@ const PRECACHE_ASSETS = [
   '/offline.html',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
-  '/brand-kit/logo/conflicted-wordmark-color.svg',
-  '/brand-kit/logo/conflicted-favicon.svg'
+  '/brand-kit/logo/conflicted-wordmark-color.svg'
 ];
 
 /* ---- Install: pre-cache the shell + offline page + brand assets ----
