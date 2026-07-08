@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v48'; // v48: simplified share footer — dropped the QR entirely; footer is now just wordmark (left) + ConflictedApp.com (right) on one row across scoreboard/snapshot/conflict-card. v47: retired the split-C favicon entirely (removed from index/offline/s.html + precache, files deleted); no favicon anywhere. Share preview now fully imageless. v46: compact /s.html?ref= share link for small iMessage preview
+const CACHE_VERSION = 'conflicted-v49'; // v49: ESPN cookie-expiry reconnect banner — fires when ESPN was connected but the session expired; mobile users told to reconnect on desktop + offered an emailed desktop link. v48: simplified share footer — dropped the QR entirely; footer is now just wordmark (left) + ConflictedApp.com (right) on one row across scoreboard/snapshot/conflict-card. v47: retired the split-C favicon entirely (removed from index/offline/s.html + precache, files deleted); no favicon anywhere. Share preview now fully imageless. v46: compact /s.html?ref= share link for small iMessage preview
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

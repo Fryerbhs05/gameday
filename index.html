@@ -1487,6 +1487,15 @@
     .banner-demo      { background: var(--split-soft);   border: 1px solid var(--split);   color: var(--ink-700); }
     .banner-offseason { background: var(--neutral-soft); border: 1px solid var(--ink-300); color: var(--ink-700); }
     .banner-warn      { background: var(--enemy-soft);   border: 1px solid var(--enemy);   color: var(--ink-700); }
+    /* Action button used inside the ESPN reconnect banner. Reuses --enemy so it
+       reads as the same "needs attention" family as the banner border. */
+    #banner-espn-reconnect { align-items: center; }
+    #banner-espn-reconnect-btn {
+      flex: 0 0 auto; align-self: center; margin-left: auto;
+      background: var(--enemy); color: #fff; border: none; border-radius: 8px;
+      padding: 8px 13px; font: 600 12px/1 var(--font-sans); cursor: pointer; white-space: nowrap;
+    }
+    #banner-espn-reconnect-btn:hover { filter: brightness(1.06); }
 
     /* Pinned demo ribbon — persistent "you're in demo, here's the exit" chrome.
        Fixed bottom so it survives scrolling and every in-app view. Hardcoded
@@ -3709,6 +3718,7 @@
     </div>
     <div class="banner banner-offseason" id="banner-offseason"><div><strong>Roster mode</strong> — no matchup data yet. Everyone defaults to your guys until lineups are set.</div></div>
     <div class="banner banner-warn"      id="banner-partial"><div id="banner-partial-msg"></div></div>
+    <div class="banner banner-warn"      id="banner-espn-reconnect"><div><strong>ESPN needs reconnecting.</strong> <span id="banner-espn-reconnect-body"></span></div><button id="banner-espn-reconnect-btn" type="button"></button></div>
     <div id="no-data-state">
       <div class="no-data-title" id="no-data-title">No league data</div>
       <div class="no-data-msg" id="no-data-msg"></div>
@@ -6391,6 +6401,30 @@ function renderBoard(data,username){
   const partialBanner=document.getElementById('banner-partial');
   if(!isDemoMode&&partialError){document.getElementById('banner-partial-msg').textContent=partialError;partialBanner.classList.add('visible');}
   else{partialBanner.classList.remove('visible');}
+  /* ESPN cookie-expiry notice: ESPN sessions (espn_s2) get invalidated periodically
+     and per-browser, so a user who was connected silently stops loading ESPN leagues.
+     cfEspnReconnectNeeded() only fires when we KNOW ESPN was connected and a real
+     status check now says it isn't — never a cold false-positive for Yahoo/Sleeper-
+     only users. Mobile can't run the paste modal, so we send them to desktop. */
+  (function(){
+    var b=document.getElementById('banner-espn-reconnect'); if(!b)return;
+    if(typeof cfEspnReconnectNeeded==='function' && cfEspnReconnectNeeded()){
+      var body=document.getElementById('banner-espn-reconnect-body');
+      var btn=document.getElementById('banner-espn-reconnect-btn');
+      var mob=(typeof isMobileDevice==='function')&&isMobileDevice();
+      var email=(window.__account&&window.__account.email)||window.__onboardEmail||'';
+      if(mob){
+        if(body)body.textContent='Your ESPN sign-in expired (ESPN logs sessions out periodically). Reconnecting ESPN has to be done on a computer — open Conflicted on a desktop to reconnect. Your Yahoo and Sleeper leagues are unaffected.';
+        if(btn){ if(email){ btn.style.display=''; btn.textContent='Email me a desktop link'; btn.onclick=cfEspnReconnectEmailLink; } else { btn.style.display='none'; } }
+      }else{
+        if(body)body.textContent='Your ESPN sign-in expired (ESPN logs sessions out periodically). Reconnect to keep your ESPN leagues showing — Yahoo and Sleeper are unaffected.';
+        if(btn){ btn.style.display=''; btn.textContent='Reconnect ESPN'; btn.onclick=function(){ try{handleProviderConnect('espn');}catch(e){} }; }
+      }
+      b.classList.add('visible');
+    } else {
+      b.classList.remove('visible');
+    }
+  })();
   /* Build "Synced HH:MM:SS AM" but wrap "Synced " and ":SS" so mobile CSS can hide them and keep the row on one line. */
   const _now=new Date();
   const _hm=_now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});           /* "02:16 PM" */
@@ -8996,11 +9030,18 @@ const PROVIDERS={
                 }
               }catch(e){console.warn('espn discover refresh failed:',e.message);}
             }
+            /* Remember that ESPN was genuinely connected — this device + across
+               sessions — so if the session later expires we can tell "expired,
+               reconnect" apart from "never connected". Read by cfEspnReconnectNeeded(). */
+            window.__espnEverConnected=true;
+            try{localStorage.setItem('cf_espn_seen','1');}catch(e){}
+            window.__espnStatusChecked=true;
             return connectionState.espn;
           }
         }
       }catch(e){}
       connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null,league_ids:[],league_names:{}};
+      window.__espnStatusChecked=true;
       return connectionState.espn;
     },
     async connect(){
@@ -9011,6 +9052,11 @@ const PROVIDERS={
     async disconnect(){
       try{await fetch('/api/espn/disconnect',{method:'POST',credentials:'include'});}catch(e){}
       connectionState.espn={connected:false,identity:null,displayName:null,swid:null,league_id:null,league_ids:[],league_names:{}};
+      /* Deliberate disconnect — forget the "was connected" marker so the reconnect
+         banner does NOT fire (this is an intended teardown, not an expiry). */
+      window.__espnEverConnected=false;
+      try{localStorage.removeItem('cf_espn_seen');}catch(e){}
+      window.__espnStatusChecked=true;
     },
     async loadLeagues(season,week,isHist){
       if(!connectionState.espn.connected)return{results:[],contexts:[],debugLeagues:[]};
@@ -9615,9 +9661,20 @@ async function bootstrapAccount(){
       if(plats.includes('yahoo') && !connectionState.yahoo.connected){
         try{ await PROVIDERS.yahoo.checkStatus(); }catch(e){}
       }
+      // ESPN: if the account has ever stored an ESPN session, this account has
+      // used ESPN — seed the "was connected" marker so an expired per-browser
+      // cookie surfaces the reconnect banner. Then run a real status check to
+      // set connected true/false definitively (and __espnStatusChecked).
+      if(plats.includes('espn')){
+        window.__espnEverConnected=true;
+        if(!connectionState.espn.connected){ try{ await PROVIDERS.espn.checkStatus(); }catch(e){} }
+      }
       try{ refreshConnectUI(); }catch(e){}
     }
   }catch(e){}
+  // Device-local marker (covers not-signed-in users who connected ESPN via cookie
+  // on this browser): if we've seen ESPN connected here before, remember it.
+  try{ if(localStorage.getItem('cf_espn_seen')==='1') window.__espnEverConnected=true; }catch(e){}
   // The landing card may have rendered before this async call resolved; refresh
   // the onboarding gate now that we know enabled/signedIn for real.
   try{ updateOnboardingGate(); }catch(e){}
@@ -9840,6 +9897,30 @@ function consumeYahooReturnParam(){
 
 async function checkEspnStatus(){
   try{await PROVIDERS.espn.checkStatus();}catch(e){console.warn('espn status check failed:',e.message);}
+}
+
+/* True only when we have positive evidence ESPN was connected (this session, a
+   prior session on this device, or the account's stored platform list) AND a
+   real status check has since come back disconnected. Guarding on
+   __espnStatusChecked prevents a cold false-positive before the first check. */
+function cfEspnReconnectNeeded(){
+  try{
+    if(isDemoMode) return false;
+    if(!window.__espnStatusChecked) return false;
+    if(connectionState.espn && connectionState.espn.connected) return false;
+    return !!window.__espnEverConnected;
+  }catch(e){ return false; }
+}
+
+/* Mobile can't run ESPN's cookie-paste modal, so email a magic link the user
+   opens on a computer to reconnect. Uses the account email (or the onboarding
+   email if mid-signup). Reuses the existing magic-link endpoint. */
+function cfEspnReconnectEmailLink(){
+  var email=(window.__account&&window.__account.email)||window.__onboardEmail||'';
+  if(!email){ showYahooToast('Open Conflicted on a computer to reconnect ESPN.'); return; }
+  fetch('/api/auth/magic/request',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})})
+    .then(function(r){ showYahooToast(r.ok?'We emailed you a link — open it on a computer to reconnect ESPN.':'Could not send the link right now.', !r.ok); try{if(r.ok)cfTrack('espn_reconnect_link_sent',null);}catch(e){} })
+    .catch(function(){ showYahooToast('Could not send the link right now.', true); });
 }
 
 function consumeEspnReturnParam(){
