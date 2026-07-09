@@ -14610,6 +14610,22 @@ loadExperimentState();
   #view-conflict .cfc-term h4{font-size:17px;font-weight:900;color:var(--c-cream);margin-bottom:8px;}
   #view-conflict .cfc-term p{font-size:12px;line-height:1.55;color:var(--c-ink500);max-width:300px;margin:0 auto 16px;}
   #view-conflict .cfc-term a{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:900;color:#0F2235;background:var(--c-coral);border-radius:10px;padding:9px 16px;text-decoration:none;cursor:pointer;}
+  /* Pre-lock teaser states (Gate 1 games-underway, Gate 2 pre-kickoff, Offseason) */
+  #view-conflict .cfc-teaser{text-align:center;padding:18px 12px 4px;}
+  #view-conflict .cfc-teaser .ico{font-size:28px;margin-bottom:10px;}
+  #view-conflict .cfc-teaser h4{font-size:16px;font-weight:900;color:var(--c-cream);margin-bottom:9px;line-height:1.32;}
+  #view-conflict .cfc-teaser p{font-size:12px;line-height:1.55;color:var(--c-ink500);max-width:320px;margin:0 auto 12px;}
+  #view-conflict .cfc-teaser p b{color:var(--c-cream);font-weight:900;}
+  #view-conflict .cfc-names{font-size:12.5px;line-height:1.5;color:var(--c-ink500);max-width:320px;margin:0 auto 10px;}
+  #view-conflict .cfc-names b{color:var(--c-cream);font-weight:900;font-style:normal;}
+  #view-conflict .cfc-teaser a{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:900;color:#0F2235;background:var(--c-coral);border-radius:10px;padding:9px 16px;text-decoration:none;cursor:pointer;margin-top:4px;}
+  /* Dimmed, shape-only preview bar (no floor/ceiling digits until the slate locks) */
+  #view-conflict .cfc-preview{position:relative;margin:2px 4px 4px;opacity:.6;filter:saturate(.85);}
+  #view-conflict .cfc-preview .cfc-bar{height:16px;filter:blur(1.1px);}
+  #view-conflict .cfc-preview-lab{text-align:center;font-size:8.5px;letter-spacing:.14em;font-weight:900;color:var(--c-ink500);margin-top:10px;}
+  /* Offseason static sample */
+  #view-conflict .cfc-demo{position:relative;margin-top:4px;}
+  #view-conflict .cfc-sample-badge{position:absolute;top:10px;right:10px;font-size:8px;font-weight:900;letter-spacing:.16em;color:var(--c-ink500);border:1px solid var(--c-line);border-radius:999px;padding:2px 8px;background:var(--c-card);z-index:2;}
 </style>
 <div id="view-conflict"></div>
 <script>
@@ -14689,7 +14705,11 @@ function cfTeamSlot(team){
 }
 window.cfTeamSlot=cfTeamSlot;
 function cfData(){ var d=window.__conflictedLastData||{};
-  return { players:Array.isArray(d.conflicted)?d.conflicted:[], contexts:Array.isArray(d.contexts)?d.contexts:(window.currentContexts||[]) }; }
+  var contexts=Array.isArray(d.contexts)?d.contexts:(window.currentContexts||[]);
+  var begun=contexts.some(function(c){ return (((c&&c.myPoints)||0)+((c&&c.oppPoints)||0))>0; });
+  return { players:Array.isArray(d.conflicted)?d.conflicted:[], contexts:contexts,
+    offseason:!!d.offseasonMode, gamesBegun:begun,
+    debugWeek:(d.debugInfo&&d.debugInfo.week)||null }; }
 
 /* ── HTML builders ── */
 function cfEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -14759,13 +14779,82 @@ function cfScheduleState(){
   if(!afternoon.length) return 'ready';
   return afternoon.every(function(t){ return m[t].state==='post'; }) ? 'ready' : 'pre-evening';
 }
-function cfPreEveningHTML(nightCount){
-  var teaser = nightCount>0
-    ? (nightCount+' conflict'+(nightCount>1?'s are':' is')+' brewing for tonight. Once the afternoon games go final, this card locks in your exact target windows &mdash; floor and ceiling &mdash; for the night slate.')
-    : 'Once the Sunday afternoon games go final, this card locks in your exact target windows for the night slate.';
-  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; SUNDAY</div>'+
-    '<div class="cfc-term"><div class="ico">&#127769;</div><h4>Sharpening for tonight</h4><p>'+teaser+'</p>'+
-    '<a id="cfc-snaplink">&#128202;&nbsp; Meanwhile, see your Weekend Snapshot</a></div></div>';
+function cfSnap(){ if(window.showSnapshot)window.showSnapshot(); }
+function cfWireTeaser(){ var s=document.getElementById('cfc-snaplink'); if(s)s.onclick=cfSnap; }
+/* Which night(s) actually hold the conflicts — drives the kicker + "come back" copy. */
+function cfNights(res){
+  var s=res.snf&&res.snf.length>0, m=res.mnf&&res.mnf.length>0;
+  if(s&&m) return { kick:'SUNDAY + MONDAY NIGHT', when:'Sunday and Monday night' };
+  if(m&&!s) return { kick:'MONDAY NIGHT', when:'Monday night' };
+  if(s) return { kick:'SUNDAY NIGHT', when:'Sunday night' };
+  return { kick:'TONIGHT', when:'the night games' };
+}
+/* De-duped list of conflicted players still to play in a night slot. */
+function cfNightPlayers(res){
+  var names=[], seen={};
+  (res.snf||[]).concat(res.mnf||[]).forEach(function(c){
+    (c.players||[]).forEach(function(p){ if(p&&p.name&&!seen[p.name]){ seen[p.name]=1; names.push(p.name); } });
+  });
+  return names;
+}
+/* Dimmed, shape-only preview of the featured night cluster (no digits). */
+function cfPreviewHTML(res){
+  var clusters=(res.snf&&res.snf.length)?res.snf:res.mnf;
+  if(!clusters||!clusters.length) return '';
+  return '<div class="cfc-preview"><div class="cfc-bar" id="cfc-pv-bar"></div>'+
+    '<div class="cfc-preview-lab">PREVIEW &middot; SHARPENS WHEN THE AFTERNOON GAMES GO FINAL</div></div>';
+}
+function cfPaintPreview(res){
+  var clusters=(res.snf&&res.snf.length)?res.snf:res.mnf;
+  if(!clusters||!clusters.length) return;
+  var c=clusters[0], bar=document.getElementById('cfc-pv-bar'); if(!bar)return;
+  var r=cfBarRange(c); bar.style.background=window.__cfBarGradient(c,r.min,r.max);
+}
+/* Gate 1 — the fantasy week is underway; windows lock once the afternoon is final. */
+function cfGate1HTML(res){
+  var n=cfNights(res);
+  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; '+n.kick+'</div>'+
+    '<div class="cfc-teaser"><div class="ico">&#127769;</div>'+
+    '<h4>Your windows sharpen when the afternoon games go final</h4>'+
+    '<p>This card turns each of your split players into one exact target window &mdash; the <b>floor</b> you need and the <b>ceiling</b> before it flips. It locks the moment the afternoon slate goes final. Come back '+n.when+' for your live target.</p></div>'+
+    cfPreviewHTML(res)+
+    '<div class="cfc-teaser"><a id="cfc-snaplink">&#128202;&nbsp; Meanwhile, see your Weekend Snapshot</a></div></div>';
+}
+/* Gate 2 — in-season, pre-kickoff; name the conflicted night players. */
+function cfGate2HTML(res){
+  var n=cfNights(res), names=cfNightPlayers(res), head, lead='';
+  if(names.length){
+    var disp = names.length===1 ? ('<b>'+cfEsc(names[0])+'</b>')
+      : names.length===2 ? ('<b>'+cfEsc(names[0])+'</b> &amp; <b>'+cfEsc(names[1])+'</b>')
+      : ('<b>'+cfEsc(names[0])+'</b>, <b>'+cfEsc(names[1])+'</b> &amp; '+(names.length-2)+' more');
+    head = 'You’ve got '+(names.length===1?'a player':(names.length+' players'))+' riding both sides '+n.when;
+    lead = '<div class="cfc-names">'+disp+' '+(names.length===1?'is':'are')+' split across your leagues '+n.when+'.</div>';
+  } else {
+    head = 'Conflicts are stacking up for '+n.when;
+  }
+  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; '+n.kick+'</div>'+
+    '<div class="cfc-teaser"><div class="ico">&#127769;</div><h4>'+head+'</h4>'+lead+
+    '<p>Once games kick off, this card locks the exact score you need from them &mdash; <b>floor</b> and <b>ceiling</b> &mdash; so you know when to cheer and when to stop. Check back '+n.when+'.</p></div>'+
+    cfPreviewHTML(res)+
+    '<div class="cfc-teaser"><a id="cfc-snaplink">&#128202;&nbsp; Meanwhile, see your Weekend Snapshot</a></div></div>';
+}
+/* Offseason — no live slate; explain the feature + show a static sample card. */
+function cfDemoCardHTML(){
+  return '<div class="cfc-cl feat cfc-demo"><div class="cfc-sample-badge">SAMPLE</div>'+
+    '<div class="cfc-sent">"I need <b>J. Hurts &amp; A.J. Brown 41&ndash;52</b> tonight to win my weekend."</div>'+
+    '<div class="cfc-chip s-in"><span class="pts">LIVE 44.6</span><span class="tag">IN THE WINDOW</span></div>'+
+    '<div class="cfc-barwrap"><div class="cfc-bar" style="background:linear-gradient(90deg,rgb(216,106,92) 0%,rgb(217,164,69) 20%,rgb(107,191,140) 38%,rgb(107,191,140) 70%,rgb(217,164,69) 85%,rgb(216,106,92) 100%)"></div>'+
+    '<div class="cfc-live" style="left:52%"><span class="lab">44.6</span></div></div>'+
+    '<div class="cfc-ticks" style="height:24px"><span style="left:34%">41<small>FLOOR</small></span><span style="left:70%">52<small>CEILING</small></span></div>'+
+    '</div>';
+}
+function cfOffseasonHTML(){
+  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; PREVIEW</div>'+
+    '<div class="cfc-teaser"><div class="ico">&#127944;&#65039;</div>'+
+    '<h4>This is where your Sunday-night windows will live</h4>'+
+    '<p>In season, the Conflict Card turns every player you’re rooting for <b>and</b> against into one exact target window &mdash; the <b>floor</b> you need, the <b>ceiling</b> before it flips. Here’s a sample of a live Sunday night. Lights up again Week&nbsp;1.</p></div>'+
+    cfDemoCardHTML()+
+    '<div class="cfc-teaser"><a id="cfc-snaplink">&#128202;&nbsp; See your Weekend Snapshot</a></div></div>';
 }
 function cfRenderConflictCard(){
   var host=document.getElementById('view-conflict'); if(!host||!window.ConflictEngine)return;
@@ -14777,11 +14866,28 @@ function cfRenderConflictCard(){
   }
   var d=cfData();
   var res=window.ConflictEngine.computeConflictCards({ conflictedPlayers:d.players, contexts:d.contexts, teamSlot:window.cfTeamSlot, tierOf:window.__cfTier });
-  /* Hold the card behind the placeholder until the Sunday afternoon slate is final. */
-  if(cfScheduleState()==='pre-evening'){
-    host.innerHTML=cfPreEveningHTML(res.snf.length+res.mnf.length);
-    var slp=document.getElementById('cfc-snaplink'); if(slp)slp.onclick=function(){ if(window.showSnapshot)window.showSnapshot(); };
-    return;
+  /* Pre-lock states. Only 'ready' (afternoon final, or no afternoon slate this
+     week) falls through to the real windows / terminal card below. */
+  if(cfScheduleState()!=='ready'){
+    var slp2;
+    /* 1) True offseason (or no league context yet) → message + static sample. */
+    if(d.offseason || !d.contexts.length){
+      host.innerHTML=cfOffseasonHTML(); cfWireTeaser(); return;
+    }
+    /* 2) In-season, games underway (any points on the board) → windows lock tonight. */
+    if(d.gamesBegun){
+      host.innerHTML=cfGate1HTML(res); cfPaintPreview(res); cfWireTeaser(); return;
+    }
+    /* 3) In-season, pre-kickoff, slot map loaded → name the night players + preview. */
+    var slotLoaded=!!(window.__cfTeamSlotMap && Object.keys(window.__cfTeamSlotMap).length);
+    if(slotLoaded){
+      host.innerHTML=cfGate2HTML(res); cfPaintPreview(res); cfWireTeaser(); return;
+    }
+    /* 4) In-season week with NO slot map — should never happen (schedule always
+       fetchable during the season). Alert admin via analytics, show safe copy. */
+    try{ if(window.cfTrack)cfTrack('conflict_card_error',{reason:'slotmap_missing_ingame',week:d.debugWeek}); }catch(e){}
+    try{ console.error('[ConflictCard] slot map missing on in-season week — schedule fetch failed'); }catch(e){}
+    host.innerHTML=cfGate1HTML(res); cfPaintPreview(res); cfWireTeaser(); return;
   }
   if(res.terminal){ host.innerHTML=cfTerminalHTML(res.terminalReason); var sl=document.getElementById('cfc-snaplink'); if(sl)sl.onclick=function(){ if(window.showSnapshot)window.showSnapshot(); }; return; }
   var haveSnf=res.snf.length>0, haveMnf=res.mnf.length>0;
