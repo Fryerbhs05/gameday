@@ -466,82 +466,118 @@
     .btn-hero--ghost { background: transparent; color: var(--ink-900); border: 1px solid var(--line); padding: 14px 26px; }
     .btn-hero--ghost:hover { border-color: var(--navy-700); }
 
-    /* ── 1B phone stage — static decorative previews, split by the brand seam ── */
+    /* ── 1B phone stage — faithful port of the "Phone Loyalties" / "Phone
+       Scoreboard" mockups. Screens are authored at native 402×874 in an iOS
+       shell, then scaled with transforms exactly like the mock (0.63 desktop,
+       0.42 mobile). Decorative only. ── */
     .lp-stage {
-      position: relative; height: 560px; overflow: hidden;
+      position: relative; height: 600px; overflow: hidden;
       max-width: var(--max-width); margin: 20px auto 0; width: 100%;
-    }
-    .lp-stage__seam { position: absolute; left: 50%; top: 24px; bottom: 0; width: 1px; background: var(--line); }
-    .lp-phone {
-      position: absolute; top: 36px; width: 236px;
-      background: var(--paper-deep); border: 1px solid var(--line);
-      border-radius: 34px; padding: 9px;
       pointer-events: none; user-select: none;
-      filter: drop-shadow(0 30px 50px rgba(0,0,0,0.5));
     }
-    .lp-phone--left  { left: 50%; margin-left: -278px; transform: perspective(1800px) rotateY(11deg) rotateX(3deg) rotateZ(-1deg); }
-    .lp-phone--right { left: 50%; margin-left: 42px;   transform: perspective(1800px) rotateY(-11deg) rotateX(3deg) rotateZ(1deg); }
-    .lp-phone__scr { background: var(--paper); border-radius: 26px; overflow: hidden; height: 476px; padding: 10px 10px 0; }
-    .lp-phone__notch { width: 74px; height: 18px; background: var(--paper-deep); border-radius: 10px; margin: 0 auto 12px; }
-    .lpp-title {
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      font: 700 12px/1 var(--font-sans); letter-spacing: 0.06em; color: var(--ink-900);
-      padding-bottom: 8px; margin-bottom: 9px; border-bottom: 1px solid var(--line-soft);
-      white-space: nowrap;
+    .lp-stage__seam { position: absolute; left: 50%; top: 30px; bottom: 0; width: 1px; background: var(--line); }
+    .lp-ph-slot { position: absolute; top: 40px; left: 50%; width: 253px; height: 550px; }
+    .lp-ph-slot--left  { transform: translateX(-292px); }
+    .lp-ph-slot--right { transform: translateX(40px); }
+    .lp-ph-scale { width: 402px; height: 874px; transform: scale(0.63); transform-origin: top left; }
+    .lp-ph-tilt { transform-style: preserve-3d; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.5)); }
+    .lp-ph-tilt--left  { transform: perspective(1800px) rotateY(11deg) rotateX(3deg) rotateZ(-1deg); }
+    .lp-ph-tilt--right { transform: perspective(1800px) rotateY(-11deg) rotateX(3deg) rotateZ(1deg); }
+    /* iOS shell */
+    .lp-dev {
+      position: relative; width: 402px; height: 874px;
+      border-radius: 48px; overflow: hidden;
+      background: var(--paper);
+      border: 1px solid #2A3949;
+      box-shadow: inset 0 0 0 4px #05090F;
     }
-    .lpp-tick { width: 3px; height: 11px; background: var(--coral-500); border-radius: 2px; }
-    /* Mini scoreboard */
-    .lpp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-    .lpp-cell {
-      background: var(--tile-bg); border: 1px solid var(--tile-line);
-      border-top: 2px solid var(--neutral); border-radius: 9px; padding: 7px 8px 6px;
-      display: flex; flex-direction: column; gap: 5px; min-width: 0;
+    .lp-dev__island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 122px; height: 35px; border-radius: 999px; background: #05090F; z-index: 6; }
+    .lp-dev__status {
+      position: absolute; top: 20px; left: 0; right: 0; z-index: 5;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0 38px 0 46px;
+      font: 600 16px/1 var(--font-sans); color: #F5EFE4;
     }
-    .lpp-lg { font: 700 9px/1.2 var(--font-sans); color: var(--ink-900); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lpp-sc { display: flex; justify-content: space-between; align-items: baseline; font: 800 11px/1 var(--font-sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .lpp-sc b { font-weight: 900; }
-    .lpp-sc span { color: var(--ink-500); }
-    .lpp-bar { position: relative; height: 4px; border-radius: 99px; background: var(--surf-border); overflow: visible; display: block; }
-    .lpp-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px 0 0 99px; display: block; }
-    .lpp-bar u { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1.5px; background: #fff; display: block; }
-    .lpp-st { font: 600 6.5px/1 var(--font-sans); letter-spacing: 0.07em; text-align: center; white-space: nowrap; }
-    /* Mini loyalties */
-    .lpp-tabs { display: flex; gap: 5px; margin-bottom: 8px; }
-    .lpp-tab {
-      flex: 1; display: flex; align-items: baseline; justify-content: center; gap: 3px;
-      border: 1px solid; border-radius: 8px; padding: 7px 2px;
-      font: 700 8px/1 var(--font-sans); white-space: nowrap;
+    .lp-dev__sicons { display: flex; align-items: center; gap: 7px; color: #F5EFE4; }
+    .lp-dev__sicons svg { display: block; }
+    .lp-dev__home { position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: rgba(245,239,228,0.35); z-index: 6; }
+    .lp-scr { height: 100%; background: #0F1B26; display: flex; flex-direction: column; overflow: hidden; }
+    /* Shared screen furniture (mock values verbatim) */
+    .lps-top { display: flex; align-items: center; justify-content: space-between; padding: 64px 20px 14px; }
+    .lps-wm { width: 111px; height: 18px; display: block; }
+    .lps-live { display: flex; align-items: center; gap: 6px; font: 500 11px/1 var(--font-mono); letter-spacing: 0.08em; color: #9E988A; white-space: nowrap; }
+    .lps-live i { width: 6px; height: 6px; border-radius: 50%; background: var(--cheer); }
+    .lps-sechead { display: flex; align-items: center; gap: 8px; padding: 22px 20px 12px; }
+    .lps-sechead i { width: 3px; height: 15px; background: var(--coral-500); border-radius: 2px; flex: none; }
+    .lps-sechead b { font: 800 19px/1 var(--font-sans); letter-spacing: 0.05em; white-space: nowrap; }
+    .lps-sechead b .w { color: #F5EFE4; }
+    .lps-sechead b .c { color: var(--coral-500); }
+    .lps-sechead--sm b { font-size: 15px; }
+    .lps-share { width: 16px; height: 16px; margin-left: auto; color: #9E988A; }
+    /* Scoreboard screen */
+    .lps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px; }
+    .lps-cell {
+      background: #162635; border: 1px solid #2A3949; border-top: 3px solid var(--neutral);
+      border-radius: 12px; padding: 10px 12px 9px; min-width: 0;
     }
-    .lpp-tab b { font: 500 7px/1 var(--font-mono); opacity: 0.75; }
-    .lpp-tab--on { border-width: 2px; padding: 6px 1px; }
-    .lpp-pcard {
-      background: var(--tile-bg); border: 1px solid var(--tile-line);
-      border-left: 3px solid var(--split); border-radius: 9px;
-      padding: 8px 9px; margin-bottom: 7px;
-      display: flex; gap: 8px; align-items: flex-start; min-width: 0;
+    .lps-cell > b { display: block; text-align: center; font: 700 12px/1.2 var(--font-sans); color: #F5EFE4; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lps-sc { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; white-space: nowrap; }
+    .lps-sc em { font: 700 16px/1 var(--font-mono); font-style: normal; }
+    .lps-sc i { font: 500 14px/1 var(--font-mono); font-style: normal; color: #9E988A; }
+    .lps-bar { position: relative; display: block; height: 5px; border-radius: 99px; background: #1A3A52; margin-bottom: 7px; }
+    .lps-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--coral-500); border-radius: 99px 0 0 99px; }
+    .lps-bar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #F5EFE4; border-radius: 1px; }
+    .lps-st { display: block; text-align: center; font: 500 9px/1 var(--font-sans); letter-spacing: 0.08em; white-space: nowrap; }
+    .lps-updlist { display: flex; flex-direction: column; gap: 6px; padding: 0 16px; }
+    .lps-upd {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #162635; border: 1px solid #2A3949; border-radius: 10px; padding: 10px 14px;
     }
-    .lpp-ava {
-      flex: none; width: 26px; height: 26px; border-radius: 50%;
-      background: var(--surf-border); border: 2px solid var(--navy-700);
-      font: 800 9px/22px var(--font-sans); color: var(--ink-900); text-align: center;
+    .lps-upd__id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .lps-upd__id b { font: 700 13px/1.1 var(--font-sans); color: #F5EFE4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lps-upd__id i { font: 400 10px/1 var(--font-mono); font-style: normal; color: #9E988A; white-space: nowrap; }
+    .lps-upd > em { font: 500 14px/1 var(--font-mono); font-style: normal; flex: none; margin-left: 10px; }
+    /* Loyalties screen */
+    .lps-duo { display: flex; gap: 8px; padding: 0 20px; }
+    .lps-duo__cell { flex: 1; background: #162635; border: 1px solid #2A3949; border-top: 2px solid var(--neutral); border-radius: 10px; padding: 9px 12px; min-width: 0; }
+    .lps-duo__cell > b { display: block; font: 700 11px/1.2 var(--font-sans); color: #F5EFE4; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lps-duo__sc { display: flex; justify-content: space-between; align-items: baseline; white-space: nowrap; }
+    .lps-duo__sc em { font: 700 14px/1 var(--font-mono); font-style: normal; }
+    .lps-duo__sc i { font: 500 13px/1 var(--font-mono); font-style: normal; color: #9E988A; }
+    .lps-tabs3 { display: flex; gap: 6px; padding: 0 16px 12px; }
+    .lps-tab3 {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 9px 0 8px; border: 1px solid #2A3949; background: #162635; border-radius: 10px;
     }
-    .lpp-pbody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-    .lpp-pname { font: 700 10px/1.2 var(--font-sans); color: var(--ink-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lpp-pname i { font: 800 6px/1 var(--font-sans); font-style: normal; letter-spacing: 0.07em; color: var(--coral-500); border: 1px solid var(--coral-500); border-radius: 99px; padding: 2px 4px; vertical-align: 1px; }
-    .lpp-pname i.lpp-q { color: var(--split); border-color: var(--split); }
-    .lpp-prow { display: flex; align-items: center; gap: 4px; font: 600 8px/1 var(--font-sans); color: var(--ink-700); white-space: nowrap; }
-    .lpp-prow i { width: 4px; height: 4px; border-radius: 50%; flex: none; }
-    .lpp-prow b { margin-left: auto; font: 800 9px/1 var(--font-sans); color: var(--ink-900); font-variant-numeric: tabular-nums; }
+    .lps-tab3 em { font: 500 16px/1 var(--font-mono); font-style: normal; }
+    .lps-tab3 span { font: 500 10px/1 var(--font-sans); letter-spacing: 0.06em; color: #9E988A; white-space: nowrap; }
+    .lps-tab3--on { border-color: var(--split); background: var(--split-soft); }
+    .lps-tab3--on em, .lps-tab3--on span { color: var(--split); }
+    .lps-plist { display: flex; flex-direction: column; gap: 8px; padding: 0 16px; }
+    .lps-prow2 {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #162635; border: 1px solid #2A3949; border-left: 3px solid var(--split);
+      border-radius: 10px; padding: 12px 14px;
+    }
+    .lps-prow2__id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .lps-prow2__id b { font: 700 14px/1.1 var(--font-sans); color: #F5EFE4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lps-prow2__id i { font: 400 10px/1 var(--font-mono); font-style: normal; letter-spacing: 0.06em; color: #9E988A; }
+    .lps-prow2__pill { flex: none; margin-left: 10px; background: var(--split-soft); color: var(--split); font: 500 10px/1 var(--font-mono); letter-spacing: 0.05em; padding: 5px 9px; border-radius: 999px; white-space: nowrap; }
+    /* Bottom tab bar */
+    .lps-nav { margin-top: auto; border-top: 1px solid #2A3949; display: flex; padding: 12px 0 28px; }
+    .lps-nav__it { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .lps-nav__it i { width: 4px; height: 4px; border-radius: 50%; background: transparent; }
+    .lps-nav__it span { font: 500 10px/1 var(--font-sans); color: #9E988A; }
+    .lps-nav__it--on i { background: var(--coral-500); }
+    .lps-nav__it--on span { font-weight: 700; color: var(--coral-500); }
     @media (max-width: 880px) {
+      /* Mock mobile: scale .42, tighter offsets, shorter stage. */
       .lp-stage { height: 430px; }
-      .lp-phone { width: 182px; padding: 7px; border-radius: 26px; top: 26px; }
-      .lp-phone--left  { margin-left: -212px; }
-      .lp-phone--right { margin-left: 30px; }
-      .lp-phone__scr { height: 372px; border-radius: 20px; padding: 8px 7px 0; }
-      .lpp-st { font-size: 6px; letter-spacing: 0.04em; }
-      .lpp-lg { font-size: 8px; }
-      .lpp-tab { font-size: 7px; padding: 6px 1px; }
-      .lpp-pname { font-size: 9px; }
+      .lp-ph-slot { top: 24px; width: 169px; height: 367px; }
+      .lp-ph-slot--left  { transform: translateX(-192px); }
+      .lp-ph-slot--right { transform: translateX(24px); }
+      .lp-ph-scale { transform: scale(0.42); }
+      .lp-stage__seam { top: 10px; }
     }
 
     /* Sign-in card + 1B demo panel */
@@ -574,6 +610,7 @@
       padding: 18px 0 6px; border-top: 1px solid var(--line-soft);
       font: 400 12px/1 var(--font-sans); color: var(--ink-300);
     }
+    .lp-foot__links { display: flex; gap: 18px; }
     .lp-foot a { color: var(--ink-500); text-decoration: none; }
     .lp-foot a:hover { color: var(--ink-700); }
     .signin-card h3 {
@@ -3763,72 +3800,83 @@
   </div>
 
   <!-- Phone stage (1B) — static, decorative previews of the app's Loyalties and
-       Scoreboard views, split by the brand seam. Not interactive, not live data. -->
+       Scoreboard views, split by the brand seam. Faithful port of Claude Design's
+       "Phone Loyalties" / "Phone Scoreboard" mockups: authored at native 402×874
+       inside an iOS shell, scaled down with transforms exactly like the mock.
+       Not interactive, not live data. -->
   <div class="lp-stage" aria-hidden="true">
     <div class="lp-stage__seam"></div>
-    <div class="lp-phone lp-phone--left">
-      <div class="lp-phone__scr">
-        <div class="lp-phone__notch"></div>
-        <div class="lpp-title"><span class="lpp-tick"></span>LOYALTIES</div>
-        <div class="lpp-tabs">
-          <span class="lpp-tab" style="color:var(--cheer);border-color:var(--cheer)"><b>16</b> Cheer</span>
-          <span class="lpp-tab lpp-tab--on" style="color:var(--split);border-color:var(--split);background:var(--split-soft)"><b>3</b> Conflicted</span>
-          <span class="lpp-tab" style="color:var(--enemy);border-color:var(--enemy)"><b>9</b> Enemy</span>
-        </div>
-        <div class="lpp-pcard" style="border-left-color:var(--split)">
-          <span class="lpp-ava" style="border-color:var(--split)">TK</span>
-          <span class="lpp-pbody">
-            <span class="lpp-pname">Travis Kelce <i class="lpp-live">● LIVE</i></span>
-            <span class="lpp-prow"><i style="background:var(--cheer)"></i>The Gridiron <b>14.20</b></span>
-            <span class="lpp-prow"><i style="background:var(--enemy)"></i>Redraft Chaos <b>11.30</b></span>
-          </span>
-        </div>
-        <div class="lpp-pcard" style="border-left-color:var(--split)">
-          <span class="lpp-ava" style="border-color:var(--coral-500)">JH</span>
-          <span class="lpp-pbody">
-            <span class="lpp-pname">Jalen Hurts <i class="lpp-q">Q</i></span>
-            <span class="lpp-prow"><i style="background:var(--navy-700)"></i>Money League <b>21.44</b></span>
-            <span class="lpp-prow"><i style="background:var(--split)"></i>The Underdogs <b>18.90</b></span>
-          </span>
-        </div>
-        <div class="lpp-pcard" style="border-left-color:var(--cheer)">
-          <span class="lpp-ava" style="border-color:var(--navy-700)">JC</span>
-          <span class="lpp-pbody">
-            <span class="lpp-pname">Ja'Marr Chase <i class="lpp-live">● LIVE</i></span>
-            <span class="lpp-prow"><i style="background:var(--cheer)"></i>Dynasty Royale <b>17.60</b></span>
-            <span class="lpp-prow"><i style="background:var(--cheer)"></i>Sunday Showdown <b>15.10</b></span>
-          </span>
+    <div class="lp-ph-slot lp-ph-slot--left">
+      <div class="lp-ph-scale">
+        <div class="lp-ph-tilt lp-ph-tilt--left">
+          <div class="lp-dev">
+            <div class="lp-dev__island"></div>
+            <div class="lp-dev__status"><span>9:41</span><span class="lp-dev__sicons"><svg width="19" height="12" viewBox="0 0 19 12"><rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7" fill="currentColor"/><rect x="4.8" y="5" width="3.2" height="7" rx="0.7" fill="currentColor"/><rect x="9.6" y="2.5" width="3.2" height="9.5" rx="0.7" fill="currentColor"/><rect x="14.4" y="0" width="3.2" height="12" rx="0.7" fill="currentColor"/></svg><svg width="27" height="13" viewBox="0 0 27 13"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5" stroke="currentColor" stroke-opacity="0.35" fill="none"/><rect x="2" y="2" width="20" height="9" rx="2" fill="currentColor"/></svg></span></div>
+            <div class="lp-dev__home"></div>
+            <div class="lp-scr">
+              <div class="lps-top">
+                <svg class="lps-wm" viewBox="0 0 480 78" role="img"><defs><clipPath id="lpwmL1"><rect x="0" y="0" width="240" height="78"/></clipPath><clipPath id="lpwmR1"><rect x="240" y="0" width="240" height="78"/></clipPath></defs><text x="240" y="54" text-anchor="middle" clip-path="url(#lpwmL1)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em" fill="#7AA8D1">CONFLICTED</text><text x="240" y="54" text-anchor="middle" clip-path="url(#lpwmR1)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em" fill="#E88761">CONFLICTED</text><line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>
+                <span class="lps-live"><i></i>WEEK 14 · LIVE</span>
+              </div>
+              <div class="lps-duo">
+                <div class="lps-duo__cell" style="border-top-color:var(--cheer)"><b>The Gridiron</b><span class="lps-duo__sc"><em style="color:var(--cheer)">121.5</em><i>108.2</i></span></div>
+                <div class="lps-duo__cell" style="border-top-color:var(--navy-700)"><b>Money League</b><span class="lps-duo__sc"><em style="color:var(--navy-700)">87.3</em><i>86.9</i></span></div>
+              </div>
+              <div class="lps-sechead"><i></i><b><span class="w">LOYAL</span><span class="c">TIES</span></b></div>
+              <div class="lps-tabs3">
+                <div class="lps-tab3"><em style="color:var(--cheer)">14</em><span>CHEER FOR</span></div>
+                <div class="lps-tab3 lps-tab3--on"><em>4</em><span>CONFLICTED</span></div>
+                <div class="lps-tab3"><em style="color:var(--enemy)">9</em><span>ENEMIES</span></div>
+              </div>
+              <div class="lps-plist">
+                <div class="lps-prow2"><span class="lps-prow2__id"><b>Ja'Marr Chase</b><i>WR · CIN</i></span><span class="lps-prow2__pill">2 FOR · 1 VS</span></div>
+                <div class="lps-prow2"><span class="lps-prow2__id"><b>Bijan Robinson</b><i>RB · ATL</i></span><span class="lps-prow2__pill">1 FOR · 1 VS</span></div>
+                <div class="lps-prow2"><span class="lps-prow2__id"><b>Puka Nacua</b><i>WR · LAR</i></span><span class="lps-prow2__pill">2 FOR · 1 VS</span></div>
+                <div class="lps-prow2"><span class="lps-prow2__id"><b>Trey McBride</b><i>TE · ARI</i></span><span class="lps-prow2__pill">1 FOR · 2 VS</span></div>
+              </div>
+              <div class="lps-nav">
+                <div class="lps-nav__it lps-nav__it--on"><i></i><span>Dashboard</span></div>
+                <div class="lps-nav__it"><i></i><span>Exposure</span></div>
+                <div class="lps-nav__it"><i></i><span>Watch</span></div>
+                <div class="lps-nav__it"><i></i><span>More</span></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div class="lp-phone lp-phone--right">
-      <div class="lp-phone__scr">
-        <div class="lp-phone__notch"></div>
-        <div class="lpp-title"><span class="lpp-tick"></span>SCOREBOARD</div>
-        <div class="lpp-grid">
-          <div class="lpp-cell" style="border-top-color:var(--cheer)">
-            <span class="lpp-lg">The Gridiron</span>
-            <span class="lpp-sc"><b style="color:var(--cheer)">134.0</b><span>111.7</span></span>
-            <span class="lpp-bar"><i style="width:100%;background:var(--cheer)"></i></span>
-            <span class="lpp-st" style="color:var(--cheer)">✓ WON · +22.3</span>
-          </div>
-          <div class="lpp-cell" style="border-top-color:var(--cheer)">
-            <span class="lpp-lg">Dynasty Royale</span>
-            <span class="lpp-sc"><b style="color:var(--cheer)">104.0</b><span>96.0</span></span>
-            <span class="lpp-bar"><i style="width:53%;background:var(--coral-500)"></i><u></u></span>
-            <span class="lpp-st" style="color:var(--cheer)">● WINNING · LIVE</span>
-          </div>
-          <div class="lpp-cell" style="border-top-color:var(--navy-700)">
-            <span class="lpp-lg">Money League</span>
-            <span class="lpp-sc"><b style="color:var(--navy-700)">87.3</b><span>86.9</span></span>
-            <span class="lpp-bar"><i style="width:50%;background:var(--coral-500)"></i><u></u></span>
-            <span class="lpp-st" style="color:var(--navy-700)">● TOSS-UP · LIVE</span>
-          </div>
-          <div class="lpp-cell" style="border-top-color:var(--enemy)">
-            <span class="lpp-lg">The Underdogs</span>
-            <span class="lpp-sc"><b style="color:var(--enemy)">70.0</b><span>84.0</span></span>
-            <span class="lpp-bar"><i style="width:47%;background:var(--coral-500)"></i><u></u></span>
-            <span class="lpp-st" style="color:var(--enemy)">● LOSING · LIVE</span>
+    <div class="lp-ph-slot lp-ph-slot--right">
+      <div class="lp-ph-scale">
+        <div class="lp-ph-tilt lp-ph-tilt--right">
+          <div class="lp-dev">
+            <div class="lp-dev__island"></div>
+            <div class="lp-dev__status"><span>9:41</span><span class="lp-dev__sicons"><svg width="19" height="12" viewBox="0 0 19 12"><rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7" fill="currentColor"/><rect x="4.8" y="5" width="3.2" height="7" rx="0.7" fill="currentColor"/><rect x="9.6" y="2.5" width="3.2" height="9.5" rx="0.7" fill="currentColor"/><rect x="14.4" y="0" width="3.2" height="12" rx="0.7" fill="currentColor"/></svg><svg width="27" height="13" viewBox="0 0 27 13"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5" stroke="currentColor" stroke-opacity="0.35" fill="none"/><rect x="2" y="2" width="20" height="9" rx="2" fill="currentColor"/></svg></span></div>
+            <div class="lp-dev__home"></div>
+            <div class="lp-scr">
+              <div class="lps-top">
+                <svg class="lps-wm" viewBox="0 0 480 78" role="img"><defs><clipPath id="lpwmL2"><rect x="0" y="0" width="240" height="78"/></clipPath><clipPath id="lpwmR2"><rect x="240" y="0" width="240" height="78"/></clipPath></defs><text x="240" y="54" text-anchor="middle" clip-path="url(#lpwmL2)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em" fill="#7AA8D1">CONFLICTED</text><text x="240" y="54" text-anchor="middle" clip-path="url(#lpwmR2)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em" fill="#E88761">CONFLICTED</text><line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>
+                <span class="lps-live"><i></i>WEEK 14 · LIVE</span>
+              </div>
+              <div class="lps-sechead" style="padding-top:10px"><i></i><b><span class="w">SCORE</span><span class="c">BOARD</span></b><svg class="lps-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></div>
+              <div class="lps-grid">
+                <div class="lps-cell" style="border-top-color:var(--cheer)"><b>The Gridiron</b><span class="lps-sc"><em style="color:var(--cheer)">121.5</em><i>108.2</i></span><span class="lps-bar"><i style="width:53%"></i><u style="left:53%"></u></span><span class="lps-st" style="color:var(--cheer)">WINNING · LIVE</span></div>
+                <div class="lps-cell" style="border-top-color:var(--navy-700)"><b>Money League</b><span class="lps-sc"><em style="color:var(--navy-700)">87.3</em><i>86.9</i></span><span class="lps-bar"><i style="width:50%"></i><u style="left:50%"></u></span><span class="lps-st" style="color:var(--navy-700)">TOSS-UP · LIVE</span></div>
+                <div class="lps-cell" style="border-top-color:var(--cheer)"><b>Dynasty Royale</b><span class="lps-sc"><em style="color:var(--cheer)">104.0</em><i>96.0</i></span><span class="lps-bar"><i style="width:55%"></i><u style="left:55%"></u></span><span class="lps-st" style="color:var(--cheer)">WINNING · LIVE</span></div>
+                <div class="lps-cell" style="border-top-color:var(--enemy)"><b>The Underdogs</b><span class="lps-sc"><em style="color:var(--enemy)">70.0</em><i>84.0</i></span><span class="lps-bar"><i style="width:47%"></i><u style="left:47%"></u></span><span class="lps-st" style="color:var(--enemy)">LOSING · LIVE</span></div>
+              </div>
+              <div class="lps-sechead lps-sechead--sm"><i></i><b><span class="w">LIVE</span><span class="c">&nbsp;UPDATES</span></b></div>
+              <div class="lps-updlist">
+                <div class="lps-upd"><span class="lps-upd__id"><b>Ja'Marr Chase · 42-yd TD</b><i>THE GRIDIRON</i></span><em style="color:var(--cheer)">+10.2</em></div>
+                <div class="lps-upd"><span class="lps-upd__id"><b>Ja'Marr Chase · 42-yd TD</b><i>MONEY LEAGUE · OPPONENT</i></span><em style="color:var(--enemy)">−10.2</em></div>
+                <div class="lps-upd"><span class="lps-upd__id"><b>Josh Jacobs · 12-yd rush</b><i>DYNASTY ROYALE</i></span><em style="color:var(--cheer)">+1.2</em></div>
+              </div>
+              <div class="lps-nav">
+                <div class="lps-nav__it lps-nav__it--on"><i></i><span>Dashboard</span></div>
+                <div class="lps-nav__it"><i></i><span>Exposure</span></div>
+                <div class="lps-nav__it"><i></i><span>Watch</span></div>
+                <div class="lps-nav__it"><i></i><span>More</span></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -3894,10 +3942,11 @@
     </div>
   </div>
 
-  <!-- Landing footer (1B) -->
+  <!-- Landing footer (1B). About opens the in-app About view (same one as the
+       …More menu — showAbout() works signed-out; the drawer's Home item leads back). -->
   <div class="lp-foot">
     <span>&copy; 2026 Conflicted Sports</span>
-    <a href="/privacy.html">Privacy</a>
+    <span class="lp-foot__links"><a href="#" onclick="if(window.showAbout)showAbout();return false;">About</a><a href="/privacy.html">Privacy</a></span>
   </div>
 
   <div style="height:40px"></div>
