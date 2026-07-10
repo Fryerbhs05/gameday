@@ -14891,7 +14891,12 @@ loadExperimentState();
        as the footer note. */
     var fc=document.getElementById('cf-snap-footcount');
     var note=fc?(fc.textContent||'').trim():'';
-    return window.cfShare.buildFile(frame,{bg:'#0F2235',note:note,filename:'conflicted-weekend-snapshot'});
+    return window.cfShare.buildFile(frame,{bg:'#0F2235',note:note,filename:'conflicted-weekend-snapshot',
+      /* #cf-snap-frame's card fills + coloured left status bars are driven by these
+         #view-snapshot-scoped vars; lift them so the PNG matches the on-screen list/grid. */
+      scopeVars:['--cs-navy-900','--cs-navy-800','--cs-navy-700','--cs-navy-card','--cs-navy-line',
+        '--cs-coral','--cs-cream','--cs-ink-700','--cs-ink-500','--cs-ink-400',
+        '--cs-green','--cs-red','--cs-blue','--cs-dull']});
   }
   async function doShare(){
     if(sharing)return; sharing=true;
@@ -15402,6 +15407,21 @@ if(typeof window.cfRegisterView==='function'){
     var bg=opts.bg||'#15181C';
     var clone=node.cloneNode(true);
     clone.classList.remove('collapsed');
+    /* Custom properties scoped to the live node's ancestor (e.g. #view-snapshot's
+       --cs-* palette) are lost once the clone is re-parented under <body>. That
+       silently drops any var()-based fill/border — the snapshot cards lose their
+       navy background and coloured left status bar. Lift the requested vars off the
+       live node's computed style onto the clone so they resolve exactly as on-
+       screen. Opt-in via opts.scopeVars; callers that don't pass it are unaffected. */
+    if(Array.isArray(opts.scopeVars)&&opts.scopeVars.length){
+      try{
+        var _cs=getComputedStyle(node);
+        opts.scopeVars.forEach(function(v){
+          var val=_cs.getPropertyValue(v);
+          if(val&&val.trim())clone.style.setProperty(v,val.trim());
+        });
+      }catch(e){}
+    }
     /* Remove capture-hostile / duplicate bits: live buttons, old brand footers. */
     ['.scoreboard-share','.share-head','.share-foot','.cf-snap-foot','.cf-snap-share','.cfc-share']
       .forEach(function(sel){ Array.prototype.forEach.call(clone.querySelectorAll(sel),function(el){el.parentNode&&el.parentNode.removeChild(el);}); });
