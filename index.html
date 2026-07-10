@@ -12159,7 +12159,7 @@ loadExperimentState();
   var state = {
     view: initialView,            // 'maximum' | 'cheer' | 'hate'
     includeBench: initialBench,
-    mustWatch: true,              // session-only filter; defaults to true (Must Watch Games), resets each load
+    mustWatch: false,             // session-only filter; defaults to false (All games), resets each load
     collapsed: initialCollapsed,  // {slotKey: true} manual-collapse overrides
     games: [],                    // ESPN-derived game list
     gamesFetchedAt: 0,
@@ -13177,12 +13177,12 @@ loadExperimentState();
       if (window.BottomSheet) window.BottomSheet.close();
       return;
     }
-    /* Sheet reset → defaults (Maximum Investment, Starters only, Must Watch).
-       Must Watch is session-only per the filter-persistence rule. */
+    /* Sheet reset → defaults (Maximum Investment, Starters only, All games).
+       Must Watch scope is session-only per the filter-persistence rule. */
     if (e.target.closest('[data-wp-settings-reset]')){
       state.view = 'maximum';
       state.includeBench = false;
-      state.mustWatch = true;
+      state.mustWatch = false;
       try { localStorage.setItem(WP_VIEW_KEY, state.view); } catch(err){}
       try { localStorage.setItem(WP_BENCH_KEY, state.includeBench ? '1' : '0'); } catch(err){}
       /* Rebuild sheet body so its active states + count badges refresh. */
