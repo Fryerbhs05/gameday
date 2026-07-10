@@ -451,6 +451,10 @@
       max-width: 900px; margin-left: auto; margin-right: auto;
     }
     .lp-hero h1 em { font-style: normal; color: var(--coral-500); }
+    .lp-hero-tag {
+      font: 600 21px/1.4 var(--font-sans); color: var(--ink-900);
+      max-width: 620px; margin: 0 auto 14px; text-wrap: balance;
+    }
     .lp-hero-sub {
       font: 400 17px/1.6 var(--font-sans); color: var(--ink-500);
       max-width: 560px; margin: 0 auto;
@@ -2527,6 +2531,7 @@
       :root { --gutter: 18px; }
       .lp-hero { padding: 56px var(--gutter) 40px; }
       .lp-hero h1 { font-size: 38px; }
+      .lp-hero-tag { font-size: 17px; }
       .lp-hero-sub { font-size: 15px; }
       .lp-scenario { padding: 24px 22px; }
       .sc-headline { font-size: 24px; }
@@ -3791,8 +3796,9 @@
   <!-- Hero (1B — Claude Design landing redesign, 2026-07-10) -->
   <div class="lp-hero">
     <div class="lp-eyebrow">Multi-league fantasy football</div>
-    <h1>Your best player just scored. <em>For both teams.</em></h1>
-    <p class="lp-hero-sub">Conflicted reads every roster in every league you play and tells you, live, who you're actually cheering for.</p>
+    <h1>All your leagues, <em>one place.</em></h1>
+    <p class="lp-hero-tag">An app that experiences fantasy football like you do</p>
+    <p class="lp-hero-sub">Conflicted connects to your fantasy football platforms, reads every roster in every league, and tells you live where you stand and who you're cheering for.</p>
     <div class="lp-cta-row">
       <button type="button" class="btn-hero btn-hero--primary" onclick="scrollToGetStarted()">Get started</button>
       <button type="button" class="btn-hero btn-hero--ghost" onclick="handleDemo()">Try demo mode — 4 sample leagues</button>
