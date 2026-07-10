@@ -6115,7 +6115,14 @@ function renderScoresStrip(contexts){
   const emptyEl=document.getElementById('scores-empty');
   if(!strip._cellIndex)strip._cellIndex=new Map();
   const idx=strip._cellIndex;
-  if(!contexts.some(c=>c.leagueState!=='NO_MATCHUP')){
+  /* Only leagues with a real matchup appear on the scoreboard. This keeps the
+     rendered tile set — and therefore the shared image — consistent with the
+     export "Winning N of X" hero, which already counts matchup leagues only.
+     NO_MATCHUP leagues (bye / no opponent this week) are surfaced in Loyalties,
+     not here, mirroring the Weekend Snapshot's filter. Filtering up front also
+     means stale NO_MATCHUP cells get pruned by the newNames diff below. */
+  contexts=contexts.filter(c=>c.leagueState!=='NO_MATCHUP');
+  if(!contexts.length){
     idx.forEach(n=>n.remove());idx.clear();
     strip.classList.remove('visible');
     if(emptyEl)emptyEl.hidden=false;
