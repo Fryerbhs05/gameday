@@ -15356,10 +15356,14 @@ if(typeof window.cfRegisterView==='function'){
       '.cf-xwrap{position:fixed;left:0;top:0;opacity:0;pointer-events:none;z-index:-1;}'+
       '.cf-xstage{display:block;}'+
       /* Simple footer: wordmark left, URL right, one row. */
-      '.cf-xfoot{display:flex;align-items:center;justify-content:space-between;gap:16px;'+
+      /* Two equal columns, each item centered in its half — the wordmark centers
+         in the left column, the URL centers in the right. Replaces space-between,
+         which pinned the URL flush to the frame's outer edge (read as "bleeding
+         right") and left the SVG mark's side-bearing looking inset by comparison. */
+      '.cf-xfoot{display:grid;grid-template-columns:1fr 1fr;align-items:center;'+
         'margin-top:16px;padding-top:14px;border-top:1px solid rgba(245,239,228,0.14);}'+
-      '.cf-xfoot__mark{display:block;height:26px;width:auto;flex:0 0 auto;}'+
-      '.cf-xfoot__url{font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#C9D4DF;letter-spacing:.03em;flex:0 0 auto;}';
+      '.cf-xfoot__mark{height:26px;width:auto;justify-self:center;}'+
+      '.cf-xfoot__url{font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#C9D4DF;letter-spacing:.03em;justify-self:center;}';
     var s=document.createElement('style');s.setAttribute('data-cfshare','1');s.textContent=css;
     document.head.appendChild(s);
   })();
