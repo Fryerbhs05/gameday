@@ -157,6 +157,9 @@
       --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
       --radius-sm:4px; --radius-md:8px; --radius-lg:12px; --radius-pill:999px;
+      /* Navy tile — shared card surface for score-strip cells + player cards
+         (2026-07 scoreboard/loyalties redesign, Claude Design 2a/3a/4a). */
+      --tile-bg:#16304A; --tile-line:#27425F;
       --max-width:980px; --max-width-wide:1320px; --gutter:24px;
       --ease-out:cubic-bezier(0.2,0.8,0.2,1); --duration-fast:120ms; --duration-base:200ms;
       /* Shared section-header sizing — SCOREBOARD, LOYALTIES, and LIVE UPDATES
@@ -1084,6 +1087,22 @@
       margin-bottom: 13px;
       white-space: nowrap;
     }
+    /* Export-only hero (2a) — "Winning 3 of 6" makes the shared card read at
+       iMessage-bubble size. Win count carries the cheer green; sub-line gives
+       the final/live split. Both nowrap: the rasterizer renders wider. */
+    .cf-sb-xhero {
+      text-align: center;
+      font: 900 28px/1 var(--font-sans); color: var(--ink-900);
+      letter-spacing: -0.02em; white-space: nowrap;
+      margin-bottom: 6px;
+    }
+    .cf-sb-xhero__n { color: var(--cheer); }
+    .cf-sb-xhero-sub {
+      text-align: center;
+      font: 700 11px/1 var(--font-sans); color: var(--ink-500);
+      letter-spacing: 0.03em; white-space: nowrap;
+      margin-bottom: 15px;
+    }
     /* Green border flash on LIVE-button refresh (mirrors the synced timestamp) —
        snaps to cheer, then the base transition fades it back to the frame color.
        !important clears the theme-specific border-color rules while flashing. */
@@ -1107,17 +1126,23 @@
     }
     .scoreboard-wordmark__a { color: var(--ink-900); }
     .scoreboard-wordmark__b { color: var(--ink-900); }
-    .scoreboard-context {
-      grid-column: 3;
-      font: 400 13px/1 var(--font-mono); color: var(--ink-500);
-      white-space: nowrap;
-      justify-self: end;
+    /* Coral tick (5a) — short vertical accent before every section title
+       (SCOREBOARD / LOYALTIES / LIVE UPDATES). The full bisected treatment is
+       reserved for the CONFLICTED wordmark so split marks don't compete. */
+    .scoreboard-wordmark::before,
+    .loyalties-wordmark::before {
+      content: ''; display: inline-block; flex: none; align-self: center;
+      width: 3px; height: 14px; border-radius: 2px;
+      background: var(--coral-500); margin-right: 8px;
     }
+    /* Week/year context retired from the section header (3a) — it already lives
+       in the nav controls above the frame. Kept in the DOM for the export-header
+       swap logic; never shown. */
+    .scoreboard-context { display: none; }
     @media (max-width: 480px) {
       /* Single knob: shrinks the wordmark for ALL three section headers
          (SCOREBOARD / LOYALTIES / LIVE UPDATES) at once. */
       :root { --section-wordmark-size: 18px; }
-      .scoreboard-context { display: none; }
       .scoreboard-frame { padding: 10px 8px 8px; }
     }
 
@@ -1137,13 +1162,14 @@
       .scores-strip { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
     }
     .score-cell {
-      background: var(--paper-soft); border: 1px solid var(--line);
-      border-radius: var(--radius-md); padding: 14px 16px;
+      background: var(--tile-bg); border: 1px solid var(--tile-line);
+      border-radius: var(--radius-lg); padding: 12px 14px 10px;
       position: relative; overflow: hidden;
     }
     .score-cell[data-status="winning"]  { border-top: 3px solid var(--cheer); }
     .score-cell[data-status="losing"]   { border-top: 3px solid var(--enemy); }
     .score-cell[data-status="split"]    { border-top: 3px solid var(--split); }
+    .score-cell[data-status="tossup"]   { border-top: 3px solid var(--navy-700); }
     .score-cell[data-status="final"]    { border-top: 3px solid var(--neutral); }
     .score-cell[data-status="live"]     { border-top: 3px solid var(--coral-500); }
     /* League name mirrors the bucket .player-name treatment — bright white,
@@ -1156,22 +1182,26 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
     }
     .score-cell__league-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    /* Full-Inter scoreboard: score rows use Inter (matches bucket cards) instead
-       of monospace. */
-    .score-cell__row {
+    /* Single score line (3a): your score left (status-colored), opponent right
+       (muted) — one row instead of the old stacked You/Opp rows. */
+    .score-cell__scores {
       display: flex; justify-content: space-between; align-items: baseline;
-      font: 700 18px/1.2 var(--font-sans); letter-spacing: -0.01em; margin-bottom: 4px;
+      margin-bottom: 8px;
     }
-    .score-cell__label { font: 400 12px/1 var(--font-sans); color: var(--ink-500); }
-    .score-cell__points { color: var(--navy-700); }
-    .score-cell__points--opp { color: var(--ink-700); }
-    .score-cell[data-status="winning"] .score-cell__points { color: var(--cheer); }
-    .score-cell[data-status="losing"]  .score-cell__points { color: var(--enemy); }
-    .score-cell[data-status="split"]   .score-cell__points { color: var(--split); }
+    .score-cell__points {
+      font: 900 16px/1 var(--font-sans); letter-spacing: -0.02em;
+      font-variant-numeric: tabular-nums; white-space: nowrap;
+      color: var(--navy-700);
+    }
+    .score-cell__points--opp { font-weight: 800; color: var(--ink-500); }
+    .score-cell[data-status="winning"] .score-cell__points--you { color: var(--cheer); }
+    .score-cell[data-status="losing"]  .score-cell__points--you { color: var(--enemy); }
+    .score-cell[data-status="tossup"]  .score-cell__points--you { color: var(--navy-700); }
+    .score-cell[data-status="split"]   .score-cell__points--you { color: var(--split); }
     /* Split motif — thin vertical divider bisecting the score cell (your side / their side) */
     .score-cell__divider {
-      position: absolute; top: 38px; bottom: 28px; left: 50%;
-      width: 1px; background: var(--line); transform: translateX(-0.5px);
+      position: absolute; top: 36px; bottom: 54px; left: 50%;
+      width: 1px; background: var(--tile-line); transform: translateX(-0.5px);
       pointer-events: none;
     }
     .score-cell__state {
@@ -1181,6 +1211,7 @@
     .score-cell__state.live   { color: var(--coral-500); }
     .score-cell__state.win    { color: var(--cheer); }
     .score-cell__state.loss   { color: var(--enemy); }
+    .score-cell__state.tossup { color: var(--navy-700); }
     .score-cell__state.final  { color: var(--neutral); }
     .score-cell__state.none   { color: var(--ink-500); }
 
@@ -1196,8 +1227,16 @@
     }
     .score-cell__proj-bar {
       position: relative; height: 7px; border-radius: var(--radius-pill);
-      background: var(--navy-700); overflow: visible;
+      background: var(--surf-border); overflow: visible;
     }
+    /* Final matchups (3a): label flips to FINAL SCORE, the bar fills edge-to-edge
+       in the result color, the tick disappears, and the values show the real
+       final scores instead of projections. */
+    .score-cell__proj.is-final .score-cell__proj-mid { display: none; }
+    .score-cell__proj.is-final .score-cell__proj-fill { border-radius: var(--radius-pill); }
+    .score-cell[data-status="winning"] .score-cell__proj.is-final .score-cell__proj-fill { background: var(--cheer); }
+    .score-cell[data-status="losing"]  .score-cell__proj.is-final .score-cell__proj-fill { background: var(--enemy); }
+    .score-cell[data-status="final"]   .score-cell__proj.is-final .score-cell__proj-fill { background: var(--neutral); }
     .score-cell__proj-fill {
       position: absolute; left: 0; top: 0; bottom: 0;
       background: var(--coral-500);
@@ -1848,11 +1887,13 @@
       text-align: right;
     }
 
-    /* Player cards */
+    /* Player cards — navy tile surface (4a), matching the score-strip cells so
+       the scoreboard and buckets read as one family. Bucket-colored left edges
+       unchanged below. */
     .player-card {
       position: relative;
-      background: var(--paper-soft); border: 1px solid var(--line);
-      border-radius: var(--radius-md); padding: 13px 15px;
+      background: var(--tile-bg); border: 1px solid var(--tile-line);
+      border-radius: var(--radius-lg); padding: 13px 15px;
       margin-bottom: 8px;
       display: flex; flex-direction: column; gap: 7px;
       transition: transform var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
@@ -5731,6 +5772,23 @@ function applyScoreCellProj(cell, ctx, st){
   // inert placeholder track with em-dash values instead of a real split. The
   // card's bottom state line already says "No matchup"/"Final".
   wrap.hidden=false;
+  const labelEl=wrap.querySelector('.score-cell__proj-label');
+  /* Finals (3a): label flips to FINAL SCORE, bar fills edge-to-edge in the
+     result color (via .is-final + data-status CSS), values show real finals. */
+  const isFinal=(st==='FINAL_WIN'||st==='FINAL_LOSS'||st==='FINAL_TIE');
+  const finTotal=(+ctx.myPoints||0)+(+ctx.oppPoints||0);
+  if(isFinal && finTotal>0){
+    wrap.classList.remove('is-empty');
+    wrap.classList.add('is-final');
+    if(labelEl)labelEl.textContent='Final Score';
+    if(fill)fill.style.width='100%';
+    if(mid)mid.style.left='50%';
+    if(youEl)youEl.textContent=(+ctx.myPoints||0).toFixed(1);
+    if(oppEl)oppEl.textContent=(+ctx.oppPoints||0).toFixed(1);
+    return;
+  }
+  wrap.classList.remove('is-final');
+  if(labelEl)labelEl.textContent='Projected Final';
   if(!showState || total<=0){
     wrap.classList.add('is-empty');
     if(fill)fill.style.width='0%';
@@ -5763,6 +5821,28 @@ function ctxDisplayState(ctx){
   if(st==='LIVE'&&!(isDemoMode||(ctx&&ctx.liveOnField))){
     const total=((ctx&&ctx.myPoints)||0)+((ctx&&ctx.oppPoints)||0);
     return {dataStatus:'',stTxt:total>0?'In progress':'Upcoming',stCls:'none'};
+  }
+  /* 3a: live cells declare their projected disposition — WINNING / TOSS-UP /
+     LOSING · LIVE — instead of a bare "● Live", with matching top accent and
+     score color. Toss-up = projected margin within ±3 pts. Falls back to the
+     plain live badge when the provider gives no projections. */
+  if(st==='LIVE'){
+    const myP=+ctx.myProjPts||0, oppP=+ctx.oppProjPts||0;
+    if((myP+oppP)>0){
+      const m=myP-oppP;
+      if(m>3)  return {dataStatus:'winning',stTxt:'● Winning · Live',stCls:'win'};
+      if(m<-3) return {dataStatus:'losing', stTxt:'● Losing · Live', stCls:'loss'};
+      return {dataStatus:'tossup',stTxt:'● Toss-up · Live',stCls:'tossup'};
+    }
+  }
+  /* 3a: finals carry their margin — "✓ Won · +22.3" reads at a glance. */
+  if(st==='FINAL_WIN'||st==='FINAL_LOSS'){
+    const d=((+ctx.myPoints||0)-(+ctx.oppPoints||0));
+    return {
+      dataStatus:st==='FINAL_WIN'?'winning':'losing',
+      stTxt:st==='FINAL_WIN'?('✓ Won · +'+d.toFixed(1)):('✕ Lost · '+d.toFixed(1)),
+      stCls:st==='FINAL_WIN'?'win':'loss'
+    };
   }
   return {
     dataStatus:{LIVE:'live',LOCKED_WIN:'winning',LOCKED_LOSS:'losing',FINAL_WIN:'winning',FINAL_LOSS:'losing',FINAL_TIE:'final',NO_MATCHUP:''}[st]||'',
@@ -5797,8 +5877,7 @@ function renderScoresStrip(contexts){
       cell.dataset.league=ctx.leagueName;
       cell.innerHTML=`
       <div class="score-cell__league"><span class="score-cell__league-name">${ctx.leagueName}</span></div>
-      <div class="score-cell__row"><span class="score-cell__label">You</span><span class="score-cell__points score-cell__points--you">${ctx.myPoints.toFixed(2)}</span></div>
-      <div class="score-cell__row"><span class="score-cell__label">Opp</span><span class="score-cell__points score-cell__points--opp">${ctx.oppPoints.toFixed(2)}</span></div>
+      <div class="score-cell__scores"><span class="score-cell__points score-cell__points--you">${ctx.myPoints.toFixed(2)}</span><span class="score-cell__points score-cell__points--opp">${ctx.oppPoints.toFixed(2)}</span></div>
       <div class="score-cell__divider"></div>
       <div class="score-cell__proj" hidden>
         <div class="score-cell__proj-label">Projected Final</div>
@@ -8099,9 +8178,34 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     '<line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>';
   function exportHeaderNode(){
     let wk=1; try{ wk=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
+    /* 2a hero — "Winning N of X" + "n final · m live now", computed from the
+       same contexts the strip renders (states + projections already on the
+       card; the hero is an aggregation, no new data). Degrades silently to
+       just wordmark + kicker if contexts are unavailable. */
+    let hero='';
+    try{
+      const cs=(window.currentContexts||[]).filter(c=>c&&c.leagueState&&c.leagueState!=='NO_MATCHUP');
+      if(cs.length){
+        const isFin=s=>s==='FINAL_WIN'||s==='FINAL_LOSS'||s==='FINAL_TIE';
+        const winning=cs.filter(c=>{
+          const s=c.leagueState;
+          if(s==='FINAL_WIN'||s==='LOCKED_WIN')return true;
+          if(s==='FINAL_LOSS'||s==='LOCKED_LOSS'||s==='FINAL_TIE')return false;
+          const m=+c.myProjPts||0,o=+c.oppProjPts||0;
+          return (m+o)>0 ? m>o : (+c.myPoints||0)>(+c.oppPoints||0);
+        }).length;
+        const fin=cs.filter(c=>isFin(c.leagueState)).length;
+        const live=cs.length-fin;
+        const parts=[];
+        if(fin)parts.push(fin+' final');
+        if(live)parts.push(live+' live now');
+        hero='<div class="cf-sb-xhero">Winning <span class="cf-sb-xhero__n">'+winning+'</span> of '+cs.length+'</div>'+
+             (parts.length?'<div class="cf-sb-xhero-sub">'+parts.join(' · ')+'</div>':'');
+      }
+    }catch(e){}
     const head=document.createElement('div');head.className='cf-sb-xhead';
     head.innerHTML='<div class="cf-sb-xwm">'+SB_HEAD_WM+'</div>'+
-      '<div class="cf-sb-xkick">SCOREBOARD · WEEK '+wk+'</div>';
+      '<div class="cf-sb-xkick">SCOREBOARD · WEEK '+wk+'</div>'+hero;
     return head;
   }
   async function buildPng(live){
