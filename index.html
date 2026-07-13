@@ -1471,8 +1471,8 @@
     }
     .matchup-drawer__score-side { text-align: center; }
     .matchup-drawer__score-label {
-      font: 500 10px/1.2 var(--font-mono); color: var(--ink-500);
-      letter-spacing: .08em; text-transform: uppercase; margin: 0 0 6px;
+      font: 500 13px/1.2 var(--font-sans); color: var(--ink-900);
+      margin: 0 0 6px;
       max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .matchup-drawer__score-value {
@@ -6375,14 +6375,8 @@ function renderMatchupDrawer(ctx, lg){
     }
     return rows.join('');
   }
-  const pairedHeadHtml =
-    '<div class="matchup-drawer__paired-head">'
-    +   '<span class="matchup-drawer__col-h matchup-drawer__col-h--my">You</span>'
-    +   '<span></span>'
-    +   '<span class="matchup-drawer__col-h matchup-drawer__col-h--pos">Pos</span>'
-    +   '<span></span>'
-    +   '<span class="matchup-drawer__col-h matchup-drawer__col-h--opp">Opp</span>'
-    + '</div>';
+  /* The old "You / Pos / Opp" column header is retired now that the score labels
+     above name both managers directly (all three providers supply team names). */
   const myPlayers = (lg && lg.myPlayers) || [];
   const oppPlayers = (lg && lg.oppPlayers) || [];
   const myBench = (lg && lg.myBench) || [];
@@ -6431,7 +6425,6 @@ function renderMatchupDrawer(ctx, lg){
     +   '</div>'
     + '</div>'
     + '<p class="matchup-drawer__state ' + stCls + '" data-mp-state="1">' + escHtml(stTxt) + '</p>'
-    + pairedHeadHtml
     + startersBody
     + benchHtml
   + '</div>';
@@ -7087,7 +7080,7 @@ async function loadYahooLeague(yLeague, week, isHist) {
   if (!myTeamKey) return { result: null, ctx: null, debug: { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: false, matchupFound: false, myCount: 0, oppCount: 0, state: '—', scoringFmt: fmt, isCoMgr: false }};
   const isCoMgr = teams.find(t => t.team_key === myTeamKey)?.isComanager || false;
   let opponentTeamKey = null, myPoints = 0, oppPoints = 0, myProjPts = 0, oppProjPts = 0;
-  let hasMatchup = false, leagueState = 'NO_MATCHUP';
+  let hasMatchup = false, leagueState = 'NO_MATCHUP', myTeamName = null, oppTeamName = null;
   try {
     const sbJson = await yhFetch('endpoint=scoreboard&league_key=' + encodeURIComponent(yLeague.league_key) + '&week=' + week);
     const matchups = parseYahooScoreboard(sbJson);
@@ -7099,6 +7092,7 @@ async function loadYahooLeague(yLeague, week, isHist) {
       myPoints = me?.points || 0; myProjPts = me?.projPoints || 0;
       oppPoints = opp?.points || 0; oppProjPts = opp?.projPoints || 0;
       opponentTeamKey = opp?.team_key || null;
+      myTeamName = me?.name || null; oppTeamName = opp?.name || null;
       if (myMatchup.status === 'postevent' || isHist) leagueState = calcHistoricalState(myPoints, oppPoints);
       else leagueState = calcLiveState(myPoints, oppPoints, myProjPts, oppProjPts);
     }
@@ -7122,8 +7116,8 @@ async function loadYahooLeague(yLeague, week, isHist) {
      "you vs nobody" cards when the opponent roster fetch silently failed. */
   const matchupActuallyValid = hasMatchup && myPlayers.length > 0 && (!opponentTeamKey || oppPlayers.length > 0);
   return {
-    result: { leagueName: yLeague.name, myPlayers, oppPlayers, myBench, oppBench, hasMatchup: matchupActuallyValid, fmt, source: 'yahoo' },
-    ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myProjPts, oppProjPts, myPP, oppPP, fmt, source: 'yahoo' },
+    result: { leagueName: yLeague.name, myPlayers, oppPlayers, myBench, oppBench, hasMatchup: matchupActuallyValid, fmt, myTeamName, oppTeamName, source: 'yahoo' },
+    ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myProjPts, oppProjPts, myPP, oppPP, fmt, myTeamName, oppTeamName, source: 'yahoo' },
     debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: matchupActuallyValid, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
   };
 }
@@ -9107,6 +9101,12 @@ function parseEspnLeague(data,season,week,isHist){
     };
   }
 
+  /* Team names for the drawer score labels: modern ESPN gives team.name; older
+     payloads only carry location + nickname. Fall through both, then abbrev, then
+     null (drawer falls back to You/Opp). */
+  const espnTeamName=t=>t?(t.name||[t.location,t.nickname].filter(Boolean).join(' ').trim()||t.abbrev||null):null;
+  const myTeamName=espnTeamName(myTeam);
+
   /* Pull this week's matchup from the schedule array. Each schedule entry has
      `home` + `away` blocks, both of which carry the per-week roster snapshot
      in `rosterForCurrentScoringPeriod`. */
@@ -9122,7 +9122,7 @@ function parseEspnLeague(data,season,week,isHist){
   );
 
   let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0;
-  let myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0;
+  let myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0,oppTeamName=null;
   let myProjPP={},oppProjPP={};   // per-player ESPN projections (statSourceId 1), for the Weekend Snapshot win-prob engine
 
   if(matchup){
@@ -9130,6 +9130,7 @@ function parseEspnLeague(data,season,week,isHist){
     const isHome=matchup.home?.teamId===myTeam.id;
     const myEntry=isHome?matchup.home:matchup.away;
     const oppEntry=isHome?matchup.away:matchup.home;
+    oppTeamName=espnTeamName(data.teams.find(t=>t.id===oppEntry?.teamId));
     myPoints=Number(myEntry?.totalPoints||0);
     oppPoints=Number(oppEntry?.totalPoints||0);
 
@@ -9182,8 +9183,8 @@ function parseEspnLeague(data,season,week,isHist){
   }
 
   return{
-    lg:{leagueName,myPlayers,oppPlayers,myBench,oppBench,hasMatchup,fmt},
-    ctx:{leagueName,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,myProjPP,oppProjPP,fmt},
+    lg:{leagueName,myPlayers,oppPlayers,myBench,oppBench,hasMatchup,fmt,myTeamName,oppTeamName},
+    ctx:{leagueName,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,myProjPP,oppProjPP,fmt,myTeamName,oppTeamName},
     dbg:{name:leagueName,leagueId,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr:false}
   };
 }
