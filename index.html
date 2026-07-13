@@ -1483,6 +1483,16 @@
     .matchup-drawer[data-status="winning"] .matchup-drawer__score-value--you { color: var(--cheer); }
     .matchup-drawer[data-status="losing"]  .matchup-drawer__score-value--you { color: var(--enemy); }
     .matchup-drawer[data-status="split"]   .matchup-drawer__score-value--you { color: var(--split); }
+    .matchup-drawer__vs {
+      text-align: center; margin: -8px 0 14px;
+      font: 500 12px/1.35 var(--font-sans); color: var(--ink-500);
+    }
+    .matchup-drawer__vs-me  { color: var(--ink-500); }
+    .matchup-drawer__vs-opp { color: var(--ink-900); }
+    .matchup-drawer__vs-sep {
+      font: 500 10px/1 var(--font-mono); color: var(--ink-300);
+      letter-spacing: .1em; text-transform: uppercase; margin: 0 4px;
+    }
     .matchup-drawer__state {
       display: block; text-align: center; margin: 0 0 16px;
       font: 500 10px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
@@ -4955,6 +4965,7 @@ const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
 const getNFLState=()=>apiFetch(`${BASE}/state/nfl`);
 const getLeagues=(uid,s)=>apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
 const getRosters=lid=>apiFetch(`${BASE}/league/${lid}/rosters`);
+const getLeagueUsers=lid=>apiFetch(`${BASE}/league/${lid}/users`);
 const getMatchups=(lid,w)=>apiFetch(`${BASE}/league/${lid}/matchups/${w}`);
 
 async function getPlayerDB(){
@@ -6392,6 +6403,18 @@ function renderMatchupDrawer(ctx, lg){
   const startersBody = (myPlayers.length || oppPlayers.length)
     ? pairedRowsHtml(myPlayers, oppPlayers, rosterPositions)
     : '<p class="matchup-drawer__empty">No starters.</p>';
+  /* Full-width "you vs opponent" identity line. Only rendered when we actually
+     have an opponent's team name (Sleeper leagues with a live matchup). Roomy
+     enough for long / duplicate names; the league name in the head disambiguates
+     managers who reuse one team name across leagues. */
+  const oppNm = ctx.oppTeamName ? escHtml(ctx.oppTeamName) : '';
+  const myNm  = ctx.myTeamName  ? escHtml(ctx.myTeamName)  : '';
+  const vsLine = oppNm
+    ? '<p class="matchup-drawer__vs">'
+      + (myNm ? '<span class="matchup-drawer__vs-me">' + myNm + '</span><span class="matchup-drawer__vs-sep">vs</span>' : '<span class="matchup-drawer__vs-sep">vs</span> ')
+      + '<span class="matchup-drawer__vs-opp">' + oppNm + '</span>'
+      + '</p>'
+    : '';
   const benchTotal = myBench.length + oppBench.length;
   const benchHtml = benchTotal ? (
     '<button type="button" class="matchup-drawer__toggle" data-matchup-bench-toggle="1" aria-expanded="false">'
@@ -6419,6 +6442,7 @@ function renderMatchupDrawer(ctx, lg){
     +     '<p class="matchup-drawer__score-value matchup-drawer__score-value--opp" data-mp-score="opp">' + fmtPts(ctx.oppPoints) + '</p>'
     +   '</div>'
     + '</div>'
+    + vsLine
     + '<p class="matchup-drawer__state ' + stCls + '" data-mp-state="1">' + escHtml(stTxt) + '</p>'
     + pairedHeadHtml
     + startersBody
@@ -9244,16 +9268,21 @@ const PROVIDERS={
       const projSum=ids=>ids.reduce((s,id)=>s+(projPts(id)??0),0);
       const debugLeagues=[],contexts=[];
       const results=await Promise.all(leagues.map(async lg=>{
-        const rosters=await getRosters(lg.league_id);
+        const [rosters,leagueUsers]=await Promise.all([getRosters(lg.league_id),getLeagueUsers(lg.league_id).catch(()=>[])]);
+        /* user_id -> manager's team name: custom nickname if set, else Sleeper
+           display name. Orphan/empty teams (no owner) resolve to null and callers
+           fall back to their generic label ("Opp"). */
+        const teamNameByUser={};(Array.isArray(leagueUsers)?leagueUsers:[]).forEach(u=>{if(u&&u.user_id)teamNameByUser[u.user_id]=(u.metadata&&u.metadata.team_name)||u.display_name||null;});
+        const teamNameForRoster=r=>r?(teamNameByUser[r.owner_id]||null):null;
         const myRoster=rosters.find(r=>r.owner_id===user.user_id||(Array.isArray(r.co_owners)&&r.co_owners.includes(user.user_id)));
         /* Co-mgr if you're not the primary owner OR if the roster has any co_owners
            array entries (covers the case where you ARE the primary on a shared team). */
-        const isCoMgr=!!(myRoster&&(myRoster.owner_id!==user.user_id||(Array.isArray(myRoster.co_owners)&&myRoster.co_owners.length>0)));const fmt=scoringLabel(lg);
+        const isCoMgr=!!(myRoster&&(myRoster.owner_id!==user.user_id||(Array.isArray(myRoster.co_owners)&&myRoster.co_owners.length>0)));const fmt=scoringLabel(lg);const myTeamName=teamNameForRoster(myRoster);
         if(!myRoster){debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:false,matchupFound:false,myCount:0,oppCount:0,state:'—',scoringFmt:fmt,isCoMgr:false,provider:'sleeper'});return null;}
         let matchups=[];try{const raw=await getMatchups(lg.league_id,week);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
         const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
         const oppMatchup=myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
-        let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0;
+        let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0,oppTeamName=null;
         if(myMatchup){
           hasMatchup=true;
           const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
@@ -9263,6 +9292,7 @@ const PROVIDERS={
           myBench=starters.length?allMine.filter(id=>!myStartSet.has(id)):[];
           myPoints=myMatchup.points||0;myPP=myMatchup.players_points||{};
           const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
+          oppTeamName=teamNameForRoster(oppRoster);
           const oppTaxiIds=new Set((oppRoster?.taxi||[]).filter(Boolean));
           const oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
           const oppAll=(oppMatchup?(oppMatchup.players||oppRoster?.players||[]):[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
@@ -9280,14 +9310,14 @@ const PROVIDERS={
         /* Match Yahoo's stance: only call it a real matchup if both rosters
            actually loaded. Prevents "you vs empty" half-loads. */
         const matchupActuallyValid=hasMatchup&&myPlayers.length>0&&oppPlayers.length>0;
-        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,fmt,scoringRaw:lg.scoring_settings||null});
+        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,fmt,myTeamName,oppTeamName,scoringRaw:lg.scoring_settings||null});
         debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:matchupActuallyValid,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
         /* roster_positions: ordered slot codes (QB, RB, ..., FLEX, BN, ...) that
            map 1:1 with myMatchup.starters index. Pass through so the matchup
            drawer can render slot-aware position pills ("FLEX" instead of stacked
            WR/TE for a flex slot filled by different positions on each side). */
         const rosterPositions=Array.isArray(lg.roster_positions)?lg.roster_positions.filter(s=>s&&s!=='BN'&&s!=='IR'&&s!=='TAXI'):null;
-        return{leagueName:lg.name,myPlayers,oppPlayers,myBench,oppBench,hasMatchup:matchupActuallyValid,fmt,provider:'sleeper',rosterPositions};
+        return{leagueName:lg.name,myPlayers,oppPlayers,myBench,oppBench,hasMatchup:matchupActuallyValid,fmt,myTeamName,oppTeamName,provider:'sleeper',rosterPositions};
       }));
       const valid=results.filter(Boolean);
       if(leagues?.length&&!valid.length)throw new Error('Found Sleeper leagues but could not read roster data.');
