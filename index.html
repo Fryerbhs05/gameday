@@ -1471,8 +1471,9 @@
     }
     .matchup-drawer__score-side { text-align: center; }
     .matchup-drawer__score-label {
-      font: 500 10px/1 var(--font-mono); color: var(--ink-500);
-      letter-spacing: .12em; text-transform: uppercase; margin: 0 0 6px;
+      font: 500 10px/1.2 var(--font-mono); color: var(--ink-500);
+      letter-spacing: .08em; text-transform: uppercase; margin: 0 0 6px;
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .matchup-drawer__score-value {
       font: 500 28px/1 var(--font-mono); color: var(--ink-900); margin: 0;
@@ -1483,16 +1484,6 @@
     .matchup-drawer[data-status="winning"] .matchup-drawer__score-value--you { color: var(--cheer); }
     .matchup-drawer[data-status="losing"]  .matchup-drawer__score-value--you { color: var(--enemy); }
     .matchup-drawer[data-status="split"]   .matchup-drawer__score-value--you { color: var(--split); }
-    .matchup-drawer__vs {
-      text-align: center; margin: -8px 0 14px;
-      font: 500 12px/1.35 var(--font-sans); color: var(--ink-500);
-    }
-    .matchup-drawer__vs-me  { color: var(--ink-500); }
-    .matchup-drawer__vs-opp { color: var(--ink-900); }
-    .matchup-drawer__vs-sep {
-      font: 500 10px/1 var(--font-mono); color: var(--ink-300);
-      letter-spacing: .1em; text-transform: uppercase; margin: 0 4px;
-    }
     .matchup-drawer__state {
       display: block; text-align: center; margin: 0 0 16px;
       font: 500 10px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
@@ -6403,18 +6394,15 @@ function renderMatchupDrawer(ctx, lg){
   const startersBody = (myPlayers.length || oppPlayers.length)
     ? pairedRowsHtml(myPlayers, oppPlayers, rosterPositions)
     : '<p class="matchup-drawer__empty">No starters.</p>';
-  /* Full-width "you vs opponent" identity line. Only rendered when we actually
-     have an opponent's team name (Sleeper leagues with a live matchup). Roomy
-     enough for long / duplicate names; the league name in the head disambiguates
-     managers who reuse one team name across leagues. */
-  const oppNm = ctx.oppTeamName ? escHtml(ctx.oppTeamName) : '';
+  /* Manager team names sit in the score labels above each side's points (custom
+     nickname, else display name). Fall back to You/Opp when we have no name —
+     Yahoo/ESPN and bye-week leagues. nowrap+ellipsis in CSS keeps long/duplicate
+     names on one line so the two score columns stay aligned; the league name in
+     the drawer head disambiguates managers who reuse a name across leagues. */
   const myNm  = ctx.myTeamName  ? escHtml(ctx.myTeamName)  : '';
-  const vsLine = oppNm
-    ? '<p class="matchup-drawer__vs">'
-      + (myNm ? '<span class="matchup-drawer__vs-me">' + myNm + '</span><span class="matchup-drawer__vs-sep">vs</span>' : '<span class="matchup-drawer__vs-sep">vs</span> ')
-      + '<span class="matchup-drawer__vs-opp">' + oppNm + '</span>'
-      + '</p>'
-    : '';
+  const oppNm = ctx.oppTeamName ? escHtml(ctx.oppTeamName) : '';
+  const myLabel  = myNm  || 'You';
+  const oppLabel = oppNm || 'Opp';
   const benchTotal = myBench.length + oppBench.length;
   const benchHtml = benchTotal ? (
     '<button type="button" class="matchup-drawer__toggle" data-matchup-bench-toggle="1" aria-expanded="false">'
@@ -6433,16 +6421,15 @@ function renderMatchupDrawer(ctx, lg){
     + '</div>'
     + '<div class="matchup-drawer__score">'
     +   '<div class="matchup-drawer__score-side">'
-    +     '<p class="matchup-drawer__score-label">You</p>'
+    +     '<p class="matchup-drawer__score-label"' + (myNm ? ' title="' + myNm + '"' : '') + '>' + myLabel + '</p>'
     +     '<p class="matchup-drawer__score-value matchup-drawer__score-value--you" data-mp-score="you">' + fmtPts(ctx.myPoints) + '</p>'
     +   '</div>'
     +   '<span class="matchup-drawer__score-sep">—</span>'
     +   '<div class="matchup-drawer__score-side">'
-    +     '<p class="matchup-drawer__score-label">Opp</p>'
+    +     '<p class="matchup-drawer__score-label"' + (oppNm ? ' title="' + oppNm + '"' : '') + '>' + oppLabel + '</p>'
     +     '<p class="matchup-drawer__score-value matchup-drawer__score-value--opp" data-mp-score="opp">' + fmtPts(ctx.oppPoints) + '</p>'
     +   '</div>'
     + '</div>'
-    + vsLine
     + '<p class="matchup-drawer__state ' + stCls + '" data-mp-state="1">' + escHtml(stTxt) + '</p>'
     + pairedHeadHtml
     + startersBody
