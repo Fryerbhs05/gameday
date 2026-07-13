@@ -1478,9 +1478,31 @@
     .matchup-drawer__score-value {
       font: 500 28px/1 var(--font-mono); color: var(--ink-900); margin: 0;
     }
-    .matchup-drawer__score-sep {
-      font: 400 18px/1 var(--font-mono); color: var(--ink-300);
+    /* Header center: state chip stacked over the margin figure — replaces the
+       old dead "—" separator and the standalone state line below the score band. */
+    .matchup-drawer__hdr-mid {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
     }
+    .matchup-drawer__hdr-chip {
+      font: 500 11px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
+      padding: 4px 11px; border-radius: 999px; white-space: nowrap;
+      border: 1px solid var(--line); color: var(--ink-500); background: var(--paper-deep);
+    }
+    .matchup-drawer__hdr-chip.win    { color: var(--cheer);     border-color: var(--cheer); }
+    .matchup-drawer__hdr-chip.loss   { color: var(--enemy);     border-color: var(--enemy); }
+    .matchup-drawer__hdr-chip.tossup,
+    .matchup-drawer__hdr-chip.live   { color: var(--coral-500); border-color: var(--coral-500); }
+    .matchup-drawer__hdr-margin {
+      font: 500 15px/1 var(--font-mono); color: var(--ink-500); white-space: nowrap;
+    }
+    .matchup-drawer__hdr-margin.is-tag {
+      font: 500 10px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
+    }
+    .matchup-drawer__hdr-margin.win    { color: var(--cheer); }
+    .matchup-drawer__hdr-margin.loss   { color: var(--enemy); }
+    .matchup-drawer__hdr-margin.tossup,
+    .matchup-drawer__hdr-margin.live   { color: var(--coral-500); }
+    .matchup-drawer__hdr-margin[hidden] { display: none; }
     .matchup-drawer[data-status="winning"] .matchup-drawer__score-value--you { color: var(--cheer); }
     .matchup-drawer[data-status="losing"]  .matchup-drawer__score-value--you { color: var(--enemy); }
     .matchup-drawer[data-status="split"]   .matchup-drawer__score-value--you { color: var(--split); }
@@ -1497,8 +1519,8 @@
     .matchup-drawer__paired-head,
     .matchup-drawer__paired-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto auto auto minmax(0, 1fr);
-      gap: 8px; align-items: center;
+      grid-template-columns: minmax(0, 1fr) 56px auto 56px minmax(0, 1fr);
+      gap: 10px; align-items: center;
     }
     .matchup-drawer__paired-head {
       padding-bottom: 6px; margin-bottom: 2px; border-bottom: 1px solid var(--line);
@@ -1518,8 +1540,10 @@
       font: 500 12px/1.2 var(--font-sans); color: var(--ink-900);
       min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .matchup-drawer__player-name--my { text-align: right; }
-    .matchup-drawer__player-name--opp { text-align: left; }
+    /* Names hug the OUTER edges; the point rails sit inboard next to the POS
+       badge, so scores no longer bleed into the names. */
+    .matchup-drawer__player-name--my { text-align: left; }
+    .matchup-drawer__player-name--opp { text-align: right; }
     .matchup-drawer__player-team {
       font: 400 10px/1 var(--font-sans); color: var(--ink-500); display: block; margin-top: 2px;
     }
@@ -1529,6 +1553,11 @@
     }
     .matchup-drawer__player-pts--my { text-align: right; }
     .matchup-drawer__player-pts--opp { text-align: left; }
+    /* Losing side of each positional pairing dims one step so the winner reads
+       brighter at a glance. Placed BEFORE --zero so a zero/negative score still
+       greys out (--zero wins on source order). */
+    .matchup-drawer__player-name--lose,
+    .matchup-drawer__player-pts--lose { color: var(--ink-500); }
     .matchup-drawer__player-pts--zero { color: var(--ink-300); }
     .matchup-drawer__paired-pos {
       display: flex; justify-content: center; align-items: center;
@@ -1565,7 +1594,7 @@
     @media (max-width: 480px) {
       .matchup-drawer__score-value { font-size: 24px; }
       .matchup-drawer__paired-head,
-      .matchup-drawer__paired-row { gap: 4px; }
+      .matchup-drawer__paired-row { grid-template-columns: minmax(0,1fr) 44px auto 44px minmax(0,1fr); gap: 6px; }
       .matchup-drawer__player-name { font-size: 11px; }
       .matchup-drawer__player-pts { font-size: 11px; min-width: 28px; }
     }
@@ -6115,6 +6144,27 @@ function ctxDisplayState(ctx){
     stCls:{LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final',NO_MATCHUP:'none'}[st]||'none'
   };
 }
+/* Split a ctxDisplayState `stTxt` into the header's two stacked parts:
+   the state chip (head) and the margin/tag beneath it (tail after " · ").
+     "✕ Lost · -37.5"     -> { chip:"✕ Lost",  sub:"−37.50", subNum:true }
+     "✓ Won · +22.3"      -> { chip:"✓ Won",   sub:"+22.30", subNum:true }
+     "● Winning · Live"   -> { chip:"● Winning", sub:"Live",  subNum:false }
+     "Final · Tie"        -> { chip:"Final",   sub:"Tie",    subNum:false }
+     "Clinched"           -> { chip:"Clinched", sub:"",      subNum:false } */
+function mpHeaderParts(stTxt){
+  const s = String(stTxt == null ? '' : stTxt);
+  const i = s.indexOf(' · ');
+  let chip = s, sub = '';
+  if (i >= 0){ chip = s.slice(0, i); sub = s.slice(i + 3); }
+  let subNum = false, subDisp = sub;
+  const m = sub.match(/^([+\-−]?)(\d+(?:\.\d+)?)$/);
+  if (m){
+    subNum = true;
+    const neg = (m[1] === '-' || m[1] === '−');
+    subDisp = (neg ? '−' : '+') + (+m[2]).toFixed(2);
+  }
+  return { chip: chip, sub: subDisp, subNum: subNum };
+}
 function renderScoresStrip(contexts){
   contexts=sortContextsByPriority(contexts);
   const strip=document.getElementById('scores-strip');
@@ -6210,11 +6260,18 @@ function updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt){
   const oppEl = drawer.querySelector('[data-mp-score="opp"]');
   if (youEl) youEl.textContent = fmtPts(ctx.myPoints);
   if (oppEl) oppEl.textContent = fmtPts(ctx.oppPoints);
-  /* State pill. */
-  const stateEl = drawer.querySelector('[data-mp-state]');
-  if (stateEl){
-    stateEl.className = 'matchup-drawer__state ' + stCls;
-    stateEl.textContent = stTxt;
+  /* Header center: state chip + margin. */
+  const hdr = mpHeaderParts(stTxt);
+  const chipEl = drawer.querySelector('[data-mp-state]');
+  if (chipEl){
+    chipEl.className = 'matchup-drawer__hdr-chip ' + stCls;
+    chipEl.textContent = hdr.chip;
+  }
+  const marginEl = drawer.querySelector('[data-mp-margin]');
+  if (marginEl){
+    marginEl.className = 'matchup-drawer__hdr-margin ' + stCls + ' ' + (hdr.subNum ? 'is-num' : 'is-tag');
+    if (hdr.sub){ marginEl.hidden = false; marginEl.textContent = hdr.sub; }
+    else { marginEl.hidden = true; marginEl.textContent = ''; }
   }
   /* Status attribute (drives the score color). */
   drawer.setAttribute('data-status', dataStatus);
@@ -6229,6 +6286,22 @@ function updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt){
     span.textContent = fmtPts(pts);
     span.classList.toggle('matchup-drawer__player-pts--zero', !(pts > 0));
   });
+  /* Recompute per-pairing winner dimming for starter rows (skip bench). */
+  drawer.querySelectorAll('.matchup-drawer__paired-row').forEach(row => {
+    if (row.closest('[data-matchup-bench]')) return;
+    const myS = row.querySelector('.matchup-drawer__player-pts--my');
+    const opS = row.querySelector('.matchup-drawer__player-pts--opp');
+    if (!myS || !opS) return;
+    const mv = parseFloat(myS.textContent), ov = parseFloat(opS.textContent);
+    const myLose = !isNaN(mv) && !isNaN(ov) && ov > mv;
+    const opLose = !isNaN(mv) && !isNaN(ov) && mv > ov;
+    const myN = row.querySelector('.matchup-drawer__player-name--my');
+    const opN = row.querySelector('.matchup-drawer__player-name--opp');
+    myS.classList.toggle('matchup-drawer__player-pts--lose', myLose);
+    if (myN) myN.classList.toggle('matchup-drawer__player-name--lose', myLose);
+    opS.classList.toggle('matchup-drawer__player-pts--lose', opLose);
+    if (opN) opN.classList.toggle('matchup-drawer__player-name--lose', opLose);
+  });
 }
 
 /* ── Matchup drawer (opens from .score-cell tap) ───────────────────
@@ -6242,6 +6315,7 @@ function renderMatchupDrawer(ctx, lg){
   const escHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const st = ctx.leagueState || 'NO_MATCHUP';
   const {dataStatus,stTxt,stCls}=ctxDisplayState(ctx);
+  const hdr = mpHeaderParts(stTxt);
   const color = (typeof lc === 'function') ? lc(ctx.leagueName) : 'var(--ink-300)';
   const fmt = ctx.fmt || (lg && lg.fmt) || '';
   /* Per-player points come from ctx.myPP / ctx.oppPP (Sleeper/Yahoo/ESPN all normalize to this shape). */
@@ -6290,7 +6364,7 @@ function renderMatchupDrawer(ctx, lg){
   /* Render a player half-row: either the "you" cell pair (name + pts) or
      the "opp" cell pair. side controls alignment and the data-mp-side
      attribute used by live-refresh patching. */
-  function halfCells(raw, side, ppMap){
+  function halfCells(raw, side, ppMap, outcome){
     if (raw == null){
       // placeholder for unpaired roster slot (e.g. opp has 1 more bench player)
       const nameCls = 'matchup-drawer__player-name matchup-drawer__player-name--' + side + ' matchup-drawer__placeholder';
@@ -6310,8 +6384,10 @@ function renderMatchupDrawer(ctx, lg){
     const ptsZero = pts > 0 ? '' : ' matchup-drawer__player-pts--zero';
     const nameHtml = escHtml(p.full_name)
       + (p.team ? '<span class="matchup-drawer__player-team">' + escHtml(p.team) + '</span>' : '');
-    const nameSpan = '<span class="matchup-drawer__player-name matchup-drawer__player-name--' + side + '">' + nameHtml + '</span>';
-    const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + ptsZero + '" data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '">' + ptsStr + '</span>';
+    const loseName = outcome === 'lose' ? ' matchup-drawer__player-name--lose' : '';
+    const losePts  = outcome === 'lose' ? ' matchup-drawer__player-pts--lose' : '';
+    const nameSpan = '<span class="matchup-drawer__player-name matchup-drawer__player-name--' + side + loseName + '">' + nameHtml + '</span>';
+    const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + ptsZero + losePts + '" data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '">' + ptsStr + '</span>';
     /* Visual order: my side reads outward→inward (name then pts), opp side reads
        inward→outward (pts then name) so the points cluster around the center POS. */
     return side === 'my' ? (nameSpan + ptsSpan) : (ptsSpan + nameSpan);
@@ -6358,18 +6434,27 @@ function renderMatchupDrawer(ctx, lg){
      when one side has more players, the other side gets a placeholder cell.
      rosterPositions is the optional slot-by-index map (Sleeper) — passed
      through to posCell for slot-aware position pills. */
-  function pairedRowsHtml(myPlayers, oppPlayers, rosterPositions){
+  function pairedRowsHtml(myPlayers, oppPlayers, rosterPositions, showOutcome){
     const len = Math.max(myPlayers ? myPlayers.length : 0, oppPlayers ? oppPlayers.length : 0);
     if (!len) return '';
     const rows = [];
     for (let i = 0; i < len; i++){
       const my = myPlayers && i < myPlayers.length ? myPlayers[i] : null;
       const op = oppPlayers && i < oppPlayers.length ? oppPlayers[i] : null;
+      /* Per-pairing winner cue (starters only): dim whichever side scored less.
+         Both sides must be present with points to call it. */
+      let myOut = '', opOut = '';
+      if (showOutcome && my != null && op != null){
+        const mv = +(myPP[normalizePlayer(my).pid] || 0);
+        const ov = +(oppPP[normalizePlayer(op).pid] || 0);
+        if (mv > ov) opOut = 'lose';
+        else if (ov > mv) myOut = 'lose';
+      }
       rows.push(
         '<div class="matchup-drawer__paired-row">'
-        + halfCells(my, 'my', myPP)
+        + halfCells(my, 'my', myPP, myOut)
         + posCell(my, op, i, rosterPositions)
-        + halfCells(op, 'opp', oppPP)
+        + halfCells(op, 'opp', oppPP, opOut)
         + '</div>'
       );
     }
@@ -6386,7 +6471,7 @@ function renderMatchupDrawer(ctx, lg){
      so we pass null here and let resolveSlot fall through to p.slot. */
   const rosterPositions = (lg && Array.isArray(lg.rosterPositions)) ? lg.rosterPositions : null;
   const startersBody = (myPlayers.length || oppPlayers.length)
-    ? pairedRowsHtml(myPlayers, oppPlayers, rosterPositions)
+    ? pairedRowsHtml(myPlayers, oppPlayers, rosterPositions, true)
     : '<p class="matchup-drawer__empty">No starters.</p>';
   /* Manager team names sit in the score labels above each side's points (custom
      nickname, else display name). Fall back to You/Opp when we have no name —
@@ -6418,13 +6503,15 @@ function renderMatchupDrawer(ctx, lg){
     +     '<p class="matchup-drawer__score-label"' + (myNm ? ' title="' + myNm + '"' : '') + '>' + myLabel + '</p>'
     +     '<p class="matchup-drawer__score-value matchup-drawer__score-value--you" data-mp-score="you">' + fmtPts(ctx.myPoints) + '</p>'
     +   '</div>'
-    +   '<span class="matchup-drawer__score-sep">—</span>'
+    +   '<div class="matchup-drawer__hdr-mid">'
+    +     '<span class="matchup-drawer__hdr-chip ' + stCls + '" data-mp-state="1">' + escHtml(hdr.chip) + '</span>'
+    +     '<span class="matchup-drawer__hdr-margin ' + stCls + ' ' + (hdr.subNum ? 'is-num' : 'is-tag') + '" data-mp-margin="1"' + (hdr.sub ? '' : ' hidden') + '>' + escHtml(hdr.sub) + '</span>'
+    +   '</div>'
     +   '<div class="matchup-drawer__score-side">'
     +     '<p class="matchup-drawer__score-label"' + (oppNm ? ' title="' + oppNm + '"' : '') + '>' + oppLabel + '</p>'
     +     '<p class="matchup-drawer__score-value matchup-drawer__score-value--opp" data-mp-score="opp">' + fmtPts(ctx.oppPoints) + '</p>'
     +   '</div>'
     + '</div>'
-    + '<p class="matchup-drawer__state ' + stCls + '" data-mp-state="1">' + escHtml(stTxt) + '</p>'
     + startersBody
     + benchHtml
   + '</div>';
