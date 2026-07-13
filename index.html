@@ -6434,7 +6434,7 @@ function renderMatchupDrawer(ctx, lg){
      when one side has more players, the other side gets a placeholder cell.
      rosterPositions is the optional slot-by-index map (Sleeper) — passed
      through to posCell for slot-aware position pills. */
-  function pairedRowsHtml(myPlayers, oppPlayers, rosterPositions, showOutcome){
+  function pairedRowsHtml(myPlayers, oppPlayers, rosterPositions, showOutcome, showPos){
     const len = Math.max(myPlayers ? myPlayers.length : 0, oppPlayers ? oppPlayers.length : 0);
     if (!len) return '';
     const rows = [];
@@ -6450,10 +6450,16 @@ function renderMatchupDrawer(ctx, lg){
         if (mv > ov) opOut = 'lose';
         else if (ov > mv) myOut = 'lose';
       }
+      /* Bench (showPos === false): no POS badge — bench players aren't in play,
+         so a shared center slot would falsely imply a head-to-head pairing.
+         An empty center cell keeps the 5-column grid aligned with the starters. */
+      const posHtml = (showPos === false)
+        ? '<div class="matchup-drawer__paired-pos matchup-drawer__paired-pos--empty"></div>'
+        : posCell(my, op, i, rosterPositions);
       rows.push(
         '<div class="matchup-drawer__paired-row">'
         + halfCells(my, 'my', myPP, myOut)
-        + posCell(my, op, i, rosterPositions)
+        + posHtml
         + halfCells(op, 'opp', oppPP, opOut)
         + '</div>'
       );
@@ -6488,7 +6494,7 @@ function renderMatchupDrawer(ctx, lg){
     +   '<span class="caret">▸</span> Bench (' + benchTotal + ')'
     + '</button>'
     + '<div class="matchup-drawer__bench" data-matchup-bench="1">'
-    +   pairedRowsHtml(myBench, oppBench)
+    +   pairedRowsHtml(myBench, oppBench, null, false, false)
     + '</div>'
   ) : '';
   return '<div class="matchup-drawer" data-status="' + dataStatus + '" data-matchup-league="' + escHtml(ctx.leagueName) + '">'
