@@ -3501,8 +3501,12 @@
       .exp-context-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; width: 100%; }
       .exp-context-bar .exp-select-group { flex: 1 1 auto; }
       .exp-context-bar .exp-select-group select.nav-select { flex: 1 1 auto; min-width: 0; }
-      .exp-context-bar #exp-view-toggle { flex: 0 0 auto; }
+      .exp-context-bar #exp-view-toggle { display: none; }
       .exp-context-bar .exp-settings-btn { display: inline-flex; flex: 0 0 auto; }
+
+      /* Mobile always shows Leaderboard — Grid toggle removed, force the card state */
+      #exp-heat-card { display: none !important; }
+      #exp-list-card { display: block !important; }
 
       /* Inline filter strip is moved into the Settings sheet on mobile */
       .exp-filter-strip { display: none; }
