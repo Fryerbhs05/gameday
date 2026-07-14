@@ -1848,15 +1848,16 @@
        Schedule in the bar and never see Conflict here. */
     /* ── Bottom bar layout — RELEASED TO ALL in-app mobile users (2026-07-04) ──
        Was experiment-gated; now every user gets:
-         Exposure · Snapshot · GameDay(center hub) · Conflict · More
+         Leaders · Snapshot · GameDay(center hub) · Conflict · More
        Schedule + Account leave the bar and move into the …More sheet. Note:
        this is the NAV LAYOUT only — experiment MODE itself stays gated (the
        TestMode code + the admin-only …More "Experiment" tile are unchanged). */
     .cbnav-schedule { display: none; }              /* Schedule → …More sheet */
     [data-exp-tab="account"] { display: none; }     /* Account  → …More sheet */
-    /* Conflict + Exposure now show for everyone (order set explicitly below, so
-       it's independent of DOM source order). */
-    .cbnav-exposure           { order: 1; }
+    /* Leaders replaced Exposure in the far-left slot (2026-07-14); Exposure
+       moved to the …More sheet. Order set explicitly, independent of DOM. */
+    .cbnav-exposure           { display: none; }    /* Exposure → …More sheet */
+    .cbnav-leaders            { order: 1; }
     [data-exp-tab="snapshot"] { order: 2; }
     [data-exp-tab="dashboard"]{ order: 3; }
     .cbnav-conflict           { order: 4; }
@@ -3727,10 +3728,17 @@
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M8 5l1.4-2h5.2L16 5"/></svg></span>
     <span>Snapshot</span>
   </button>
-  <!-- Exposure = far-left bar slot for ALL users (released to prod 2026-07-04). -->
+  <!-- Exposure held the far-left slot until 2026-07-14; it now lives in the
+       …More sheet (button kept in DOM, hidden via .cbnav-exposure CSS) and
+       Leaders takes the slot. -->
   <button class="cbnav-tab cbnav-exposure" type="button" data-exp-tab="exposure" aria-label="Exposure">
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></svg></span>
     <span>Exposure</span>
+  </button>
+  <!-- Leaders = far-left bar slot (2026-07-14). Podium icon. -->
+  <button class="cbnav-tab cbnav-leaders" type="button" data-exp-tab="leaders" aria-label="Leaders">
+    <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="6" height="12"/><rect x="3" y="13" width="6" height="8"/><rect x="15" y="15" width="6" height="6"/><path d="M12 2.5l1.1 2.2 2.4.35-1.75 1.7.4 2.4L12 8.05l-2.15 1.1.4-2.4-1.75-1.7 2.4-.35L12 2.5z"/></svg></span>
+    <span>Leaders</span>
   </button>
   <button class="cbnav-tab cbnav-conflict" type="button" data-exp-tab="conflict" aria-label="Conflict Card">
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg></span>
@@ -3764,7 +3772,9 @@
          gated). See icon-height normalization change 2026-07-04 (T=12). */
       /* Account + Schedule moved here off the bottom bar (bar layout released to
          prod 2026-07-04). Both are ungated so every user can still reach them.
-         Exposure was REMOVED from this sheet — it now lives on the bar. */
+         Exposure returned to this sheet 2026-07-14 — Leaders took its bar slot.
+         (Its data-more-action="exposure" click handler below never left.) */
+      { key: 'exposure', label: 'Exposure', soon: false, svg: '<g transform="translate(12,12) scale(0.7059) translate(-12,-11.5)"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></g>' },
       { key: 'account',  label: 'Account',  soon: false, svg: '<g transform="translate(12,12) scale(0.7742) translate(-12,-12.25)"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></g>' },
       { key: 'schedule', label: 'Schedule', soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-11.5)"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></g>' },
       { key: 'about',    label: 'About',    soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-12)"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/></g>' },
@@ -5323,9 +5333,10 @@ function ctxBadge(sig,isHist){
 }
 
 function hideAll(){
-  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-snapshot','view-conflict','view-exposure','view-watch','view-settings','view-connections','view-account','view-account-delete','view-about'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-snapshot','view-conflict','view-exposure','view-watch','view-leaders','view-settings','view-connections','view-account','view-account-delete','view-about'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   window.__cfSnapshotOpen=false;
   window.__cfConflictOpen=false;
+  window.__cfLeadersOpen=false;
   ['change-user-btn','refresh-btn'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('week-label').style.display='none';
   window.__connectionsViewActive=false;
@@ -13695,13 +13706,14 @@ loadExperimentState();
       var onExpo = visible('view-exposure');
       var onWatch = visible('view-watch');   // "Schedule" tab → watch-priority view
       var onConflict = visible('view-conflict');
+      var onLeaders = visible('view-leaders');
       var onAccount = visible('view-account');
-      // Bar layout is now universal: Exposure has its own bar tab; Schedule
-      // (watch) and Account live in the …More sheet, so their views light More.
-      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || onWatch || onAccount;
-      set('dashboard', onBoard && !onSnap && !onExpo && !onWatch && !onConflict);
+      // Bar layout: Leaders has the far-left tab (2026-07-14); Exposure joined
+      // Schedule (watch) + Account in the …More sheet, so their views light More.
+      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || onWatch || onAccount || onExpo;
+      set('dashboard', onBoard && !onSnap && !onExpo && !onWatch && !onConflict && !onLeaders);
       set('snapshot', onSnap);
-      set('exposure', onExpo);
+      set('leaders', onLeaders);
       set('conflict', onConflict);
       set('more', onMore);
     }
@@ -13715,8 +13727,9 @@ loadExperimentState();
     function currentTabKey() {
       if (visible('view-snapshot')) return 'snapshot';
       if (visible('view-conflict')) return 'conflict';
-      if (visible('view-exposure')) return 'exposure';
-      // Schedule (watch) + Account now live in the …More sheet.
+      if (visible('view-leaders')) return 'leaders';
+      // Exposure + Schedule (watch) + Account now live in the …More sheet.
+      if (visible('view-exposure')) return 'more';
       if (visible('view-watch') || visible('view-account')) return 'more';
       if (visible('view-settings') || visible('view-connections') || visible('view-about')) return 'more';
       if (visible('board')) return 'dashboard';
@@ -13738,6 +13751,7 @@ loadExperimentState();
           window.__conflictedWatchOpen = false;
           window.__conflictedExposureOpen = false;
           window.__cfSnapshotOpen = false;
+          window.__cfLeadersOpen = false;
           document.body.classList.remove('wp-active');
           // The bottom nav is in-app navigation, so GameDay must NEVER route to
           // the landing/setup screen (which sets .nav-landing and hides the bar).
@@ -13753,6 +13767,8 @@ loadExperimentState();
           // else: no leagues connected → no dashboard to show; do nothing.
         } else if (tab === 'snapshot') {
           if (typeof window.showSnapshot === 'function') window.showSnapshot();
+        } else if (tab === 'leaders') {
+          if (typeof window.showLeaders === 'function') window.showLeaders();
         } else if (tab === 'exposure') {
           if (typeof window.showExposure === 'function') window.showExposure();
         } else if (tab === 'conflict') {
@@ -15587,6 +15603,559 @@ if(typeof window.cfRegisterView==='function'){
   if('requestIdleCallback'in window)requestIdleCallback(function(){warm();},{timeout:4000});else setTimeout(warm,1800);
 
   window.cfShare={ loadHTI:loadHTI, footerNode:footerNode, buildFile:buildFile, warm:warm, SHARE_URL:SHARE_URL };
+})();
+</script>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     LEADERS — "Carried Me / Crushed Me" ranked scorers, one row per player per
+     league, starters only, shareable card. Spec: leaders-spec.md. Mockup:
+     Claude Design Training/deliverables/leaders-view-v2.html (approved
+     2026-07-14). Weekly mode reads the board's in-memory data (zero fetches);
+     historic weeks / season-to-date reuse loadData() via the global period
+     seam, sequentially, with completed weeks cached in localStorage forever.
+     ════════════════════════════════════════════════════════════════════════ -->
+<style>
+  #view-leaders{display:none;max-width:520px;margin:0 auto;padding:18px var(--gutter,16px) 96px;
+    --ldr-navy900:#0F2235;--ldr-card:#16304A;--ldr-card-deep:#0A1521;--ldr-line:#27425F;
+    --ldr-cream:#F5EFE4;--ldr-ink500:#9E988A;--ldr-ink400:#7C8694;--ldr-ink300:#5F6B78;
+    --ldr-green:#5DCAA5;--ldr-green-soft:#1F3329;--ldr-red:#E07A6E;--ldr-red-soft:#3A1F1A;
+    --ldr-gold:#D9A445;--ldr-blue:#7AA8D1;--ldr-coral:#E88761;
+    color:var(--ldr-cream);font-family:var(--font-sans),'Inter',sans-serif;}
+  #view-leaders .ldr-sharebtn{width:100%;border:none;background:var(--ldr-coral);color:#0F2235;
+    font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:12.5px;letter-spacing:.02em;
+    padding:11px 13px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;}
+  #view-leaders .ldr-sharebtn:active{transform:scale(.99);}
+  #view-leaders .ldr-sharebtn:disabled{opacity:.55;cursor:default;}
+  #view-leaders .ldr-seg{display:grid;grid-template-columns:1fr 1fr;background:var(--ldr-card-deep);
+    border:1px solid var(--ldr-line);border-radius:12px;padding:3px;margin-bottom:10px;}
+  #view-leaders .ldr-seg button{appearance:none;border:0;background:transparent;border-radius:9px;padding:9px 0;
+    font:800 12px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.08em;color:var(--ldr-ink400);cursor:pointer;}
+  #view-leaders .ldr-seg button.on-f{background:var(--ldr-green-soft);color:var(--ldr-green);box-shadow:inset 0 0 0 1px rgba(93,202,165,.4);}
+  #view-leaders .ldr-seg button.on-a{background:var(--ldr-red-soft);color:var(--ldr-red);box-shadow:inset 0 0 0 1px rgba(224,122,110,.4);}
+  #view-leaders .ldr-ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;padding:0 2px;}
+  #view-leaders .ldr-counts{display:flex;gap:6px;}
+  #view-leaders .ldr-cpill{appearance:none;border:1px solid var(--ldr-line);background:var(--ldr-card-deep);color:var(--ldr-ink400);
+    font:700 10px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.06em;padding:8px 12px;border-radius:999px;cursor:pointer;}
+  #view-leaders .ldr-cpill.on{background:var(--ldr-card);color:var(--ldr-cream);border-color:var(--ldr-blue);}
+  #view-leaders .ldr-filtersbtn{appearance:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ldr-line);
+    background:var(--ldr-card-deep);color:var(--ldr-blue);font:700 11px/1 var(--font-sans),'Inter',sans-serif;padding:8px 12px;border-radius:999px;cursor:pointer;}
+  #view-leaders .ldr-filtersbtn svg{width:12px;height:12px;display:block;}
+  #view-leaders .ldr-filtersbtn .ldr-fcount{display:none;min-width:14px;height:14px;border-radius:999px;background:var(--ldr-coral);color:#0F2235;
+    font:800 9px/14px var(--font-sans),'Inter',sans-serif;text-align:center;padding:0 3px;}
+  #view-leaders .ldr-filtersbtn.active .ldr-fcount{display:inline-block;}
+  /* branded frame = the share target */
+  #view-leaders .ldr-frame{background:var(--ldr-navy900);border:1px solid var(--navy-300,#2B6FA8);border-radius:18px;padding:20px 15px 14px;}
+  #view-leaders .ldr-wm{display:flex;justify-content:center;margin-bottom:7px;}
+  #view-leaders .ldr-wm svg{width:150px;height:auto;display:block;}
+  #view-leaders .ldr-kick{text-align:center;font-size:9px;letter-spacing:.28em;font-weight:800;color:var(--ldr-ink500);margin-bottom:12px;white-space:nowrap;}
+  #view-leaders .ldr-hero{text-align:center;font:900 26px/1 var(--font-sans),'Inter',sans-serif;color:var(--ldr-cream);letter-spacing:-.02em;margin-bottom:12px;white-space:nowrap;}
+  #view-leaders .ldr-hero .hi-f{color:var(--ldr-green);}
+  #view-leaders .ldr-hero .hi-a{color:var(--ldr-red);}
+  #view-leaders .ldr-sum{background:var(--ldr-card);border:1px solid var(--ldr-line);border-radius:12px;padding:12px 14px 11px;text-align:center;margin-bottom:10px;}
+  #view-leaders .ldr-sum-num{font:900 26px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+  #view-leaders .ldr-sum-num.f{color:var(--ldr-green);}
+  #view-leaders .ldr-sum-num.a{color:var(--ldr-red);}
+  #view-leaders .ldr-sum-label{font:700 9px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.22em;color:var(--ldr-ink500);margin-top:6px;white-space:nowrap;}
+  #view-leaders .ldr-sum-ctx{font:600 8px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.18em;color:var(--ldr-ink300);margin-top:5px;white-space:nowrap;}
+  #view-leaders .ldr-rows{display:flex;flex-direction:column;gap:7px;}
+  #view-leaders .ldr-row{position:relative;display:grid;grid-template-columns:26px 1fr auto;align-items:center;gap:10px;
+    background:var(--ldr-card);border:1px solid var(--ldr-line);border-radius:12px;padding:9px 12px;overflow:hidden;}
+  #view-leaders .ldr-row.gold::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;background:var(--ldr-gold);border-radius:0 2px 2px 0;}
+  #view-leaders .ldr-rank{font:800 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--ldr-ink400);font-variant-numeric:tabular-nums;text-align:center;}
+  #view-leaders .ldr-row:nth-child(-n+3) .ldr-rank{color:var(--ldr-cream);}
+  #view-leaders .ldr-pname{font:800 13px/1.2 var(--font-sans),'Inter',sans-serif;color:var(--ldr-cream);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #view-leaders .ldr-pmeta{display:flex;align-items:center;gap:7px;margin-top:3px;font:600 10px/1 var(--font-sans),'Inter',sans-serif;white-space:nowrap;overflow:hidden;}
+  #view-leaders .ldr-pmeta .lg{color:var(--ldr-blue);overflow:hidden;text-overflow:ellipsis;}
+  #view-leaders .ldr-ftag{flex:none;font:800 8px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.08em;color:var(--ldr-ink500);
+    background:var(--ldr-navy900);border:1px solid var(--ldr-line);padding:3px 5px;border-radius:4px;}
+  #view-leaders .ldr-pts{font:900 17px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:-.02em;font-variant-numeric:tabular-nums;text-align:right;}
+  #view-leaders .ldr-pts.f{color:var(--ldr-green);}
+  #view-leaders .ldr-pts.a{color:var(--ldr-red);}
+  #view-leaders .ldr-note{text-align:center;font:600 11px/1.6 var(--font-sans),'Inter',sans-serif;color:var(--ldr-ink400);padding:18px 8px;}
+  #view-leaders .ldr-retry{margin-top:8px;text-align:center;}
+  #view-leaders .ldr-retry button{appearance:none;border:1px solid var(--ldr-line);background:var(--ldr-card-deep);color:var(--ldr-coral);
+    font:700 10px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.06em;padding:7px 14px;border-radius:999px;cursor:pointer;}
+  /* filters sheet body (rendered inside the shared BottomSheet, outside #view-leaders) */
+  .ldrf{padding:2px 2px 6px;color:var(--ink-900);}
+  .ldrf h4{margin:0 0 8px;font:700 9px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.22em;color:var(--ink-500);}
+  .ldrf .ldrf-grp{margin-bottom:16px;}
+  .ldrf .ldrf-pills{display:flex;flex-wrap:wrap;gap:6px;}
+  .ldrf .ldrf-pill{appearance:none;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink-500);
+    font:700 10px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.06em;padding:8px 13px;border-radius:999px;cursor:pointer;}
+  .ldrf .ldrf-pill.on{background:var(--navy-700);color:var(--paper);border-color:var(--navy-700);}
+  .ldrf .ldrf-done{width:100%;appearance:none;border:0;border-radius:12px;background:var(--coral-500,#E88761);color:#0F2235;
+    font:800 13px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.06em;padding:12px 0;cursor:pointer;margin-top:2px;}
+</style>
+
+<div id="view-leaders">
+  <button class="ldr-sharebtn" id="ldr-share" type="button">&#x2197;&nbsp; Share leaders</button>
+  <div class="ldr-seg" id="ldr-seg">
+    <button type="button" data-ldr-side="F" class="on-f">CARRIED ME</button>
+    <button type="button" data-ldr-side="A">CRUSHED ME</button>
+  </div>
+  <div class="ldr-ctl">
+    <div class="ldr-counts" id="ldr-counts">
+      <button type="button" class="ldr-cpill" data-ldr-n="3">TOP 3</button>
+      <button type="button" class="ldr-cpill" data-ldr-n="5">TOP 5</button>
+      <button type="button" class="ldr-cpill on" data-ldr-n="10">TOP 10</button>
+    </div>
+    <button type="button" class="ldr-filtersbtn" id="ldr-filters">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4" fill="#0A1521"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4" fill="#0A1521"/></svg>
+      Filters<span class="ldr-fcount" id="ldr-fcount">1</span>
+    </button>
+  </div>
+  <div class="ldr-frame" id="ldr-frame">
+    <div class="ldr-wm">
+      <svg viewBox="0 0 480 78" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Conflicted">
+        <defs><clipPath id="cfldrHL"><rect x="0" y="0" width="240" height="78"/></clipPath><clipPath id="cfldrHR"><rect x="240" y="0" width="240" height="78"/></clipPath></defs>
+        <text x="240" y="54" text-anchor="middle" clip-path="url(#cfldrHL)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#7AA8D1">CONFLICTED</text>
+        <text x="240" y="54" text-anchor="middle" clip-path="url(#cfldrHR)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#E88761">CONFLICTED</text>
+        <line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/>
+      </svg>
+    </div>
+    <div class="ldr-kick" id="ldr-kick">LEADERS</div>
+    <div class="ldr-hero" id="ldr-hero">WHO <span class="hi-f">CARRIED</span> ME</div>
+    <div class="ldr-sum">
+      <div class="ldr-sum-num f" id="ldr-sum-num">0.0</div>
+      <div class="ldr-sum-label" id="ldr-sum-label">TOP 10 &middot; POINTS SCORED</div>
+      <div class="ldr-sum-ctx" id="ldr-sum-ctx"></div>
+    </div>
+    <div class="ldr-rows" id="ldr-rows"></div>
+    <div class="ldr-retry" id="ldr-retry" style="display:none;"><button type="button" id="ldr-retry-btn"></button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var CACHE_PREFIX='cfLeaders:v1:';
+  var st={side:'F',topN:10,fmt:'all',period:'week',season:null,week:null,
+          def:{},pendingDefaults:false,building:false,built:{},agg:null,
+          weekRows:null,weekKey:null,done:0,total:0,failed:[],loadingWeek:false};
+  var buildToken=0;
+
+  function lastData(){return window.__conflictedLastData||null;}
+  function limitedMode(){ /* demo + replay have synthetic single-week data only */
+    var demo=(typeof window.inDemoMode==='function')&&window.inDemoMode();
+    var replay=!!(window.__cfReplay&&window.__cfReplay.active&&window.__cfReplay.active());
+    return demo||replay;
+  }
+  function lv(name,fb){ /* read a top-level `let` binding defensively */
+    try{ return eval('typeof '+name+'!=="undefined"?'+name+':fb'); }catch(e){ return fb; }
+  }
+  function liveWk(){ return lv('liveWeek',1); }
+  function liveSn(){ return String(lv('liveSeason',String(new Date().getFullYear()))); }
+  function maxWk(){ return lv('MAX_WEEK',18); }
+  function offseason(){
+    var d=lastData(); if(d&&d.offseasonMode)return true;
+    return !!lv('liveOffseason',false);
+  }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function fmtTag(f){ f=String(f||''); return f?f.toUpperCase():''; }
+
+  /* ── defaults: reset on every open (filter-persistence rule) ─────────── */
+  function computeDefaults(){
+    st.side='F'; st.topN=10; st.fmt='all';
+    if(offseason()&&!limitedMode()){
+      st.period='season'; st.season=String(parseInt(liveSn(),10)-1); st.week=null;
+    }else{
+      st.period='week'; st.season=liveSn(); st.week=liveWk();
+    }
+    st.def={period:st.period,season:st.season,week:st.week};
+  }
+
+  /* ── row extraction from a loadData()-shaped object ──────────────────── */
+  function extractRows(data){
+    if(!data||data.noData)return null;
+    var contexts=Array.isArray(data.contexts)?data.contexts:[];
+    var ok={};contexts.forEach(function(c){if(c&&c.leagueName&&c.leagueState!=='NO_MATCHUP')ok[c.leagueName]=1;});
+    var pool=(Array.isArray(data.allRostered)&&data.allRostered.length)?data.allRostered
+      :[].concat(data.cheerFor||[],data.conflicted||[],data.enemies||[]);
+    var rows=[];
+    pool.forEach(function(p){
+      if(!p)return;
+      var nm=p.full_name||'';
+      function push(lg,side){
+        if(!ok[lg])return;
+        var lp=p.leaguePoints&&p.leaguePoints[lg];
+        var pts=(lp&&lp.pts!=null)?+lp.pts:0;
+        rows.push({id:String(p.id),n:nm,lg:lg,fmt:(lp&&lp.fmt)||'',pts:pts,s:side});
+      }
+      (p.myLeagues||[]).forEach(function(lg){push(lg,'F');});
+      (p.againstLeagues||[]).forEach(function(lg){push(lg,'A');});
+    });
+    return rows;
+  }
+
+  /* ── period plumbing: reuse loadData() through the global week/season seam.
+       Sequential ONLY — loadData's in-flight guard + the shared globals make
+       parallel period fetches impossible by design. ──────────────────────── */
+  function isLivePeriod(){ return st.period==='week'&&String(st.season)===liveSn()&&st.week===liveWk(); }
+  function weekCompleted(season,week){
+    var s=parseInt(season,10),ls=parseInt(liveSn(),10);
+    if(s<ls)return true;
+    if(s===ls&&!offseason()&&week<liveWk())return true;
+    return false;
+  }
+  function cacheGet(season,week){
+    try{
+      var raw=localStorage.getItem(CACHE_PREFIX+season+':'+week);
+      if(!raw)return null;
+      var o=JSON.parse(raw);
+      return (o&&o.v===1&&Array.isArray(o.rows))?o.rows:null;
+    }catch(e){return null;}
+  }
+  function cacheSet(season,week,rows){
+    if(!weekCompleted(season,week))return; /* only immutable weeks, forever */
+    try{localStorage.setItem(CACHE_PREFIX+season+':'+week,JSON.stringify({v:1,rows:rows}));}catch(e){}
+  }
+  async function fetchPeriod(season,week){
+    /* Swap the global period, run the normal loader (histCache-aware), restore.
+       Leaders is a registered nav view, so loadData's _navViewOpen check keeps
+       the loading panel away while this runs. */
+    /* If a background loadData() is already in flight, let it settle first —
+       otherwise loadData's re-entrancy guard would hand us the LIVE week's
+       promise for a historic request. */
+    if(window.__conflictedInflight){ try{ await window.__conflictedInflight; }catch(e){} }
+    var sw=lv('activeWeek',1),ss=lv('activeSeason',liveSn());
+    try{ activeWeek=week; activeSeason=String(season); }catch(e){ return null; }
+    try{
+      return await loadData();
+    } finally {
+      try{ activeWeek=sw; activeSeason=ss; }catch(e){}
+      try{ buildWeekSelect(sw); buildSeasonSelect(ss); }catch(e){}
+    }
+  }
+  async function getWeekRows(season,week){
+    var hit=cacheGet(season,week);
+    if(hit)return hit;
+    var data=null;
+    try{ data=await fetchPeriod(season,week); }catch(e){ data=null; }
+    if(!data||data.noData)return null;
+    /* Paranoia: confirm the loader actually served the period we asked for
+       (a racing manual refresh could still slip through the inflight guard). */
+    var di=data.debugInfo||{};
+    if(di.week!=null&&+di.week!==+week)return null;
+    if(di.season!=null&&String(di.season)!==String(season))return null;
+    var rows=extractRows(data)||[];
+    /* Cache only clean loads — a platform partial-error week must stay
+       refetchable, never fossilised as a permanent zero. */
+    if(!data.partialError)cacheSet(season,week,rows);
+    return rows;
+  }
+
+  /* ── season-to-date: sequential progressive build with cancel token ───── */
+  function seasonMaxWeek(season){
+    return String(season)===liveSn()&&!offseason()?Math.max(1,liveWk()):maxWk();
+  }
+  async function buildSeason(season){
+    var tok=++buildToken;
+    if(st.built[season]){ st.agg=st.built[season]; render(); return; }
+    st.building=true; st.agg={rows:{},failed:[]}; st.done=0; st.total=seasonMaxWeek(season);
+    render();
+    try{ if(typeof stopAutoRefresh==='function')stopAutoRefresh(); }catch(e){}
+    var t0=Date.now(),fromCache=0;
+    /* If the app hasn't done its first load yet, let it settle once so
+       liveWeek/liveSeason and provider state are real before we loop. */
+    try{ if(!lv('isAnyProviderLoaded',true)){ await loadData(); } }catch(e){}
+    for(var w=1;w<=st.total;w++){
+      if(tok!==buildToken)return;                 /* cancelled: user moved on */
+      if(cacheGet(season,w))fromCache++;
+      var rows=await getWeekRows(season,w);
+      if(tok!==buildToken)return;
+      if(rows===null){ st.agg.failed.push(w); }
+      else rows.forEach(function(r){
+        var k=r.id+'|'+r.lg+'|'+r.s;
+        var e=st.agg.rows[k];
+        if(e)e.pts+=r.pts;
+        else st.agg.rows[k]={id:r.id,n:r.n,lg:r.lg,fmt:r.fmt,pts:r.pts,s:r.s};
+      });
+      st.done=w;
+      render();
+    }
+    st.building=false;
+    if(!st.agg.failed.length)st.built[season]=st.agg;
+    render();
+    try{ if(typeof shouldAutoRefresh==='function'&&shouldAutoRefresh()&&typeof startAutoRefresh==='function')startAutoRefresh(); }catch(e){}
+    try{cfTrack('leaders_season_build',{season:String(season),weeks:st.total,failed:st.agg.failed.length,ms:Date.now()-t0,fromCache:fromCache});}catch(e){}
+  }
+  async function loadHistoricWeek(season,week){
+    var tok=++buildToken,key=season+':'+week;
+    st.loadingWeek=true; st.weekRows=null; st.weekKey=key; render();
+    try{ if(typeof stopAutoRefresh==='function')stopAutoRefresh(); }catch(e){}
+    var rows=await getWeekRows(season,week);
+    if(tok!==buildToken)return;
+    st.loadingWeek=false;
+    st.weekRows=(rows===null)?{error:true}:rows; st.weekKey=key;
+    render();
+    try{ if(typeof shouldAutoRefresh==='function'&&shouldAutoRefresh()&&typeof startAutoRefresh==='function')startAutoRefresh(); }catch(e){}
+  }
+  function ensurePeriodData(){
+    if(st.period==='season'){ buildSeason(st.season); return; }
+    if(isLivePeriod()||limitedMode()){ buildToken++; render(); return; }
+    var key=st.season+':'+st.week;
+    if(st.weekKey===key&&st.weekRows&&!st.weekRows.error){ buildToken++; render(); return; }
+    loadHistoricWeek(st.season,st.week);
+  }
+
+  /* ── current rows for the selected period ─────────────────────────────── */
+  function periodRows(){
+    if(st.period==='season'){
+      if(!st.agg)return [];
+      return Object.keys(st.agg.rows).map(function(k){return st.agg.rows[k];});
+    }
+    if(isLivePeriod()||limitedMode())return extractRows(lastData())||[];
+    if(st.weekRows&&!st.weekRows.error)return st.weekRows;
+    return [];
+  }
+
+  /* ── render ────────────────────────────────────────────────────────────── */
+  function render(){
+    var v=document.getElementById('view-leaders');
+    if(!v||!window.__cfLeadersOpen)return;
+    var all=periodRows();
+    /* gold = same player on BOTH sides in this period (any league, any format) */
+    var fIds={},aIds={};
+    all.forEach(function(r){ if(r.pts>0){ if(r.s==='F')fIds[r.id]=1; else aIds[r.id]=1; } });
+    var rows=all.filter(function(r){ return r.s===st.side&&r.pts>0&&(st.fmt==='all'||r.fmt===st.fmt); });
+    rows.sort(function(x,y){ return y.pts-x.pts; });
+    var shown=st.topN?rows.slice(0,st.topN):rows;
+    var sum=0; shown.forEach(function(r){sum+=r.pts;});
+
+    /* hero + kicker */
+    var hero=document.getElementById('ldr-hero');
+    if(hero)hero.innerHTML=(st.side==='F')?'WHO <span class="hi-f">CARRIED</span> ME':'WHO <span class="hi-a">CRUSHED</span> ME';
+    var kick=document.getElementById('ldr-kick');
+    if(kick)kick.textContent=(st.period==='season')?('SEASON TO DATE · '+st.season):('WEEK '+st.week+' · '+st.season);
+
+    /* summary strip */
+    var num=document.getElementById('ldr-sum-num');
+    if(num){ num.textContent=sum.toFixed(1); num.className='ldr-sum-num '+(st.side==='F'?'f':'a'); }
+    var lbl=document.getElementById('ldr-sum-label');
+    if(lbl)lbl.textContent=(st.topN?('TOP '+shown.length):(shown.length+' PLAYERS'))+' · POINTS '+(st.side==='F'?'SCORED':'AGAINST');
+    var ctx=document.getElementById('ldr-sum-ctx');
+    if(ctx){
+      var parts=[];
+      if(st.building)parts.push('BUILDING '+st.season+' · WEEK '+st.done+'/'+st.total);
+      else if(st.loadingWeek)parts.push('LOADING WEEK '+st.week+' · '+st.season);
+      else parts.push(st.period==='season'?('SEASON '+st.season):('WEEK '+st.week+' · '+st.season));
+      parts.push(st.fmt==='all'?'ALL FORMATS':fmtTag(st.fmt));
+      if(st.period==='season'&&st.agg&&st.agg.failed.length&&!st.building)parts.push(st.agg.failed.length+' WK UNAVAILABLE');
+      ctx.textContent=parts.join(' · ');
+    }
+
+    /* rows */
+    var host=document.getElementById('ldr-rows');
+    if(host){
+      if(!shown.length){
+        var msg;
+        var d=lastData();
+        if(st.building)msg='Building your '+esc(st.season)+' season… leaders appear as each week loads.';
+        else if(st.loadingWeek)msg='Loading week '+esc(st.week)+'…';
+        else if(st.weekRows&&st.weekRows.error&&st.period==='week')msg='Couldn’t load that week. Check your connections and retry.';
+        else if(!d||d.noData)msg='Connect a league to see your Leaders.';
+        else msg='No points scored for this view yet.';
+        host.innerHTML='<div class="ldr-note">'+msg+'</div>';
+      }else{
+        host.innerHTML=shown.map(function(r,i){
+          var gold=fIds[r.id]&&aIds[r.id];
+          return '<div class="ldr-row'+(gold?' gold':'')+'">'
+            +'<div class="ldr-rank">'+(i+1)+'</div>'
+            +'<div style="min-width:0;"><div class="ldr-pname">'+esc(r.n)+'</div>'
+            +'<div class="ldr-pmeta"><span class="lg">'+esc(r.lg)+'</span>'
+            +(r.fmt?'<span class="ldr-ftag">'+esc(fmtTag(r.fmt))+'</span>':'')
+            +'</div></div>'
+            +'<div class="ldr-pts '+(st.side==='F'?'f':'a')+'">'+r.pts.toFixed(1)+'</div>'
+            +'</div>';
+        }).join('');
+      }
+    }
+
+    /* failed-weeks retry */
+    var retry=document.getElementById('ldr-retry'),rbtn=document.getElementById('ldr-retry-btn');
+    var showRetry=(st.period==='season'&&st.agg&&st.agg.failed.length&&!st.building)
+                ||(st.period==='week'&&st.weekRows&&st.weekRows.error&&!st.loadingWeek);
+    if(retry)retry.style.display=showRetry?'':'none';
+    if(rbtn&&showRetry)rbtn.textContent=(st.period==='season')
+      ?(st.agg.failed.length+' week'+(st.agg.failed.length>1?'s':'')+' unavailable · tap to retry')
+      :'Retry week '+st.week;
+
+    /* filters badge: off-default period and/or format */
+    var off=0;
+    if(st.fmt!=='all')off++;
+    if(st.period!==st.def.period||String(st.season)!==String(st.def.season)||(st.period==='week'&&st.week!==st.def.week))off++;
+    var fb=document.getElementById('ldr-filters'),fc=document.getElementById('ldr-fcount');
+    if(fb)fb.classList.toggle('active',off>0);
+    if(fc)fc.textContent=off;
+  }
+
+  function syncControls(){
+    document.querySelectorAll('#ldr-seg button').forEach(function(b){
+      b.className=(b.getAttribute('data-ldr-side')===st.side)?(st.side==='F'?'on-f':'on-a'):'';
+    });
+    document.querySelectorAll('#ldr-counts .ldr-cpill').forEach(function(b){
+      b.classList.toggle('on',!!st.topN&&+b.getAttribute('data-ldr-n')===st.topN);
+    });
+  }
+
+  /* ── filters bottom sheet ─────────────────────────────────────────────── */
+  function sheetHtml(){
+    if(limitedMode()){
+      return '<div class="ldrf"><h4>TIME PERIOD</h4>'
+        +'<div class="ldrf-grp" style="font:600 12px/1.6 var(--font-sans);color:var(--ink-500);">'
+        +'Demo data covers the current week only. Connect your leagues to browse past weeks and full seasons.</div>'
+        +fmtGrpHtml()
+        +'<button type="button" class="ldrf-done" data-ldr-done>Done</button></div>';
+    }
+    var liveS=liveSn(),retroS=String(parseInt(liveS,10)-1);
+    var seasons=[retroS,liveS];
+    var sp=seasons.map(function(s){
+      return '<button type="button" class="ldrf-pill'+(String(st.season)===s?' on':'')+'" data-ldr-season="'+s+'">'+s+'</button>';
+    }).join('');
+    var wm=seasonMaxWeek(st.season),wp='';
+    for(var w=1;w<=wm;w++){
+      wp+='<button type="button" class="ldrf-pill'+(st.period==='week'&&st.week===w?' on':'')+'" data-ldr-week="'+w+'">W'+w+'</button>';
+    }
+    wp+='<button type="button" class="ldrf-pill'+(st.period==='season'?' on':'')+'" data-ldr-std>SEASON TO DATE</button>';
+    return '<div class="ldrf">'
+      +'<div class="ldrf-grp"><h4>SEASON</h4><div class="ldrf-pills">'+sp+'</div></div>'
+      +'<div class="ldrf-grp"><h4>TIME PERIOD</h4><div class="ldrf-pills">'+wp+'</div></div>'
+      +fmtGrpHtml()
+      +'<button type="button" class="ldrf-done" data-ldr-done>Done</button></div>';
+  }
+  function fmtGrpHtml(){
+    var fp=[['all','ALL'],['Std','STD'],['Half','HALF'],['PPR','PPR']].map(function(f){
+      return '<button type="button" class="ldrf-pill'+(st.fmt===f[0]?' on':'')+'" data-ldr-fmt="'+f[0]+'">'+f[1]+'</button>';
+    }).join('');
+    return '<div class="ldrf-grp"><h4>SCORING FORMAT</h4><div class="ldrf-pills">'+fp+'</div></div>';
+  }
+  function openFilters(){
+    if(!window.BottomSheet)return;
+    window.BottomSheet.open(sheetHtml(),{owner:'leaders-filters'});
+  }
+  function refreshSheet(){
+    if(window.BottomSheet&&window.BottomSheet.isOpen()&&window.BottomSheet.getOwner()==='leaders-filters')
+      window.BottomSheet.setBody(sheetHtml());
+  }
+
+  /* ── share (unified cfShare pipeline; scopeVars from day one — the clone
+       re-parents under <body> and would drop #view-leaders' --ldr-* vars) ── */
+  var sharing=false;
+  function setShareLabel(t){ var b=document.getElementById('ldr-share'); if(b)b.innerHTML=t; }
+  async function doShare(){
+    if(sharing)return; sharing=true;
+    try{cfTrack('share_tapped',{surface:'leaders'});}catch(e){}
+    var orig='&#x2197;&nbsp; Share leaders';
+    setShareLabel('Building image…');
+    try{
+      var frame=document.getElementById('ldr-frame');
+      var file=await window.cfShare.buildFile(frame,{bg:'#0F2235',filename:'conflicted-leaders',
+        scopeVars:['--ldr-navy900','--ldr-card','--ldr-card-deep','--ldr-line','--ldr-cream',
+          '--ldr-ink500','--ldr-ink400','--ldr-ink300','--ldr-green','--ldr-green-soft',
+          '--ldr-red','--ldr-red-soft','--ldr-gold','--ldr-blue','--ldr-coral']});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        try{
+          await navigator.share({files:[file],text:window.cfShareCardUrl?cfShareCardUrl():undefined});
+          try{cfTrack('share_completed',{surface:'leaders'});}catch(_e){}
+        }catch(e){ if(e&&e.name==='AbortError'){/* user cancelled */} else saveFile(file); }
+      } else saveFile(file);
+    }catch(err){
+      setShareLabel('Couldn’t build image — tap to retry'); sharing=false;
+      setTimeout(function(){setShareLabel(orig);},1800); return;
+    }
+    setShareLabel(orig); sharing=false;
+  }
+  function saveFile(file){
+    var url=URL.createObjectURL(file);
+    var ua=navigator.userAgent||'',iOS=/iP(hone|ad|od)/.test(ua)||(/Macintosh/.test(ua)&&'ontouchend'in document);
+    if(iOS){window.open(url,'_blank');}
+    else{var a=document.createElement('a');a.href=url;a.download='conflicted-leaders.png';document.body.appendChild(a);a.click();a.remove();}
+    setTimeout(function(){URL.revokeObjectURL(url);},4000);
+  }
+
+  /* ── open / nav registration ──────────────────────────────────────────── */
+  function showLeaders(){
+    if(typeof window.hideAll==='function')window.hideAll();
+    var v=document.getElementById('view-leaders');
+    if(v)v.style.display='block';
+    window.__cfLeadersOpen=true;
+    if(lastData()){ st.pendingDefaults=false; computeDefaults(); }
+    else { computeDefaults(); st.pendingDefaults=true; } /* re-derive once data lands */
+    syncControls(); render(); ensurePeriodData();
+    try{cfTrack('leaders_view_opened',{period:st.period,side:st.side});}catch(e){}
+    window.scrollTo(0,0);
+  }
+  window.showLeaders=showLeaders;
+  if(typeof window.cfRegisterView==='function')window.cfRegisterView({
+    id:'view-leaders',
+    isOpen:function(){return !!window.__cfLeadersOpen;},
+    render:function(){
+      if(st.pendingDefaults&&lastData()){
+        st.pendingDefaults=false; computeDefaults(); syncControls(); ensurePeriodData();
+      }
+      render();
+    }
+  });
+
+  /* ── wiring ───────────────────────────────────────────────────────────── */
+  document.addEventListener('DOMContentLoaded',function(){
+    var seg=document.getElementById('ldr-seg');
+    if(seg)seg.addEventListener('click',function(e){
+      var b=e.target.closest('[data-ldr-side]'); if(!b)return;
+      var side=b.getAttribute('data-ldr-side'); if(side===st.side)return;
+      st.side=side; syncControls(); render();
+      try{cfTrack('leaders_side_toggled',{side:side});}catch(e2){}
+    });
+    var counts=document.getElementById('ldr-counts');
+    if(counts)counts.addEventListener('click',function(e){
+      var b=e.target.closest('[data-ldr-n]'); if(!b)return;
+      var n=+b.getAttribute('data-ldr-n');
+      st.topN=(st.topN===n)?0:n; /* tap active pill again → deselect → all */
+      syncControls(); render();
+      try{cfTrack('leaders_topn_changed',{n:st.topN});}catch(e2){}
+    });
+    var fb=document.getElementById('ldr-filters');
+    if(fb)fb.addEventListener('click',openFilters);
+    var sb=document.getElementById('ldr-share');
+    if(sb)sb.addEventListener('click',doShare);
+    var rb=document.getElementById('ldr-retry-btn');
+    if(rb)rb.addEventListener('click',function(){
+      if(st.period==='season'){ delete st.built[st.season]; buildSeason(st.season); }
+      else loadHistoricWeek(st.season,st.week);
+    });
+    /* filters-sheet taps (sheet body lives outside this view → delegate globally) */
+    document.addEventListener('click',function(e){
+      if(!window.BottomSheet||!window.BottomSheet.isOpen()||window.BottomSheet.getOwner()!=='leaders-filters')return;
+      var t;
+      if((t=e.target.closest('[data-ldr-season]'))){
+        var s=t.getAttribute('data-ldr-season');
+        if(String(st.season)!==s){
+          st.season=s;
+          if(st.period==='week'&&st.week>seasonMaxWeek(s))st.week=seasonMaxWeek(s);
+          refreshSheet(); render(); ensurePeriodData();
+          try{cfTrack('leaders_period_changed',{period:st.period,season:s});}catch(e2){}
+        }
+      } else if((t=e.target.closest('[data-ldr-week]'))){
+        var w=+t.getAttribute('data-ldr-week');
+        if(st.period!=='week'||st.week!==w){
+          st.period='week'; st.week=w;
+          refreshSheet(); render(); ensurePeriodData();
+          try{cfTrack('leaders_period_changed',{period:'week',season:st.season});}catch(e2){}
+        }
+      } else if(e.target.closest('[data-ldr-std]')){
+        if(st.period!=='season'){
+          st.period='season';
+          refreshSheet(); render(); ensurePeriodData();
+          try{cfTrack('leaders_period_changed',{period:'season',season:st.season});}catch(e2){}
+        }
+      } else if((t=e.target.closest('[data-ldr-fmt]'))){
+        st.fmt=t.getAttribute('data-ldr-fmt');
+        refreshSheet(); render();
+      } else if(e.target.closest('[data-ldr-done]')){
+        window.BottomSheet.close();
+      }
+    });
+  });
 })();
 </script>
 </body>
