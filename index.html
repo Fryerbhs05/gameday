@@ -4564,7 +4564,7 @@
   .cf-card.loss{border-left:3px solid var(--cs-red);}
   .cf-card.flip{border-left:3px solid var(--cs-blue);}
   .cf-card.cwin{border:1.5px solid var(--cs-green);background:rgba(93,202,165,.10);}
-  .cf-card.closs{opacity:.5;border-left:3px solid var(--cs-dull);}
+  .cf-card.closs{background:rgba(224,122,110,.13);border:1px solid rgba(224,122,110,.45);}
   .cf-c-row1{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;}
   .cf-c-name{font-size:14px;font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;flex:1 1 auto;min-width:0;line-height:1.25;overflow-wrap:break-word;}
   .cf-c-status{margin-top:1px;}
@@ -4598,7 +4598,7 @@
   .cf-tile.loss{background:rgba(224,122,110,.11);border-color:rgba(224,122,110,.5);}
   .cf-tile.flip{background:rgba(122,168,209,.12);border-color:rgba(122,168,209,.5);}
   .cf-tile.cwin{background:rgba(93,202,165,.22);border:1.5px solid var(--cs-green);}
-  .cf-tile.closs{background:rgba(107,74,69,.15);border-color:var(--cs-dull);opacity:.5;}
+  .cf-tile.closs{background:rgba(224,122,110,.13);border:1px solid rgba(224,122,110,.45);}
   .cf-t-name{font-size:11.5px;font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;text-align:center;}
   .cf-t-row{display:flex;align-items:center;gap:6px;}
   .cf-t-stat{flex:1;text-align:center;font-size:25px;font-weight:900;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;}
@@ -8564,10 +8564,14 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         }).length;
         const fin=cs.filter(c=>isFin(c.leagueState)).length;
         const live=cs.length-fin;
+        // Past-tense hero once every matchup is final (historic weeks) — "Won N of X"
+        // instead of the live "Winning N of X".
+        const allFinal=fin===cs.length;
+        const verb=allFinal?'Won':'Winning';
         const parts=[];
         if(fin)parts.push(fin+' final');
         if(live)parts.push(live+' live now');
-        hero='<div class="cf-sb-xhero">Winning <span class="cf-sb-xhero__n">'+winning+'</span> of '+cs.length+'</div>'+
+        hero='<div class="cf-sb-xhero">'+verb+' <span class="cf-sb-xhero__n">'+winning+'</span> of '+cs.length+'</div>'+
              (parts.length?'<div class="cf-sb-xhero-sub">'+parts.join(' · ')+'</div>':'');
       }
     }catch(e){}
@@ -14735,7 +14739,7 @@ loadExperimentState();
 (function(){
   var SD={QB:7.5,RB:6.5,WR:6.5,TE:5.0,DST:6.0,DEF:6.0,K:3.0,FLEX:6.5,PK:3.0};
   var TUNE=1.0;                 // global decisiveness knob (raise => softer %)
-  var COL={win:'#5DCAA5',loss:'#E07A6E',flip:'#7AA8D1',cwin:'#5DCAA5',closs:'#6b4a45'};
+  var COL={win:'#5DCAA5',loss:'#E07A6E',flip:'#7AA8D1',cwin:'#5DCAA5',closs:'#E07A6E'};
   var VIEW_KEY='cf_snapshot_view';
 
   function ncdf(z){ var t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);
@@ -14843,7 +14847,7 @@ loadExperimentState();
   /* ---- LIST card ---- */
   function cardStatus(r){
     if(r.state==='cwin')return '<span class="cf-c-status" style="color:#5DCAA5">&#10003; '+(r.isFinal?'WON':'CLINCHED')+'</span>';
-    if(r.state==='closs')return '<span class="cf-c-status" style="color:#8a6a64">&#10005; '+(r.isFinal?'FINAL':'OUT OF REACH')+'</span>';
+    if(r.state==='closs')return '<span class="cf-c-status" style="color:#E88A7F">&#10005; '+(r.isFinal?'FINAL':'OUT OF REACH')+'</span>';
     if(r.pending)return '<span class="cf-c-status" style="color:#7AA8D1"><span class="dot" style="background:#7AA8D1"></span>PENDING</span>';
     var c=COL[r.state]; return '<span class="cf-c-status" style="color:'+c+'"><span class="dot pulse" style="background:'+c+'"></span>LIVE</span>';
   }
@@ -14863,9 +14867,9 @@ loadExperimentState();
       +(tag?'<span class="cf-c-tag">'+tag+'</span>':'')+'</div>'+projLine;
   }
   function cardBar(r){
-    var pct=Math.round(r.prob*100), fill=(r.state==='closs')?'#6b4a45':COL[r.state], w=(r.state==='cwin'||r.state==='closs')?100:pct, Lf,Rf;
+    var pct=Math.round(r.prob*100), fill=(r.state==='closs')?'#E07A6E':COL[r.state], w=(r.state==='cwin'||r.state==='closs')?100:pct, Lf,Rf;
     if(r.state==='cwin'){Lf='<span style="color:#5DCAA5">'+(r.isFinal?'Win secured':'Clinched')+'</span>';Rf='<span class="muted">+'+nf(margin(r))+' &mdash; can\'t be caught</span>';}
-    else if(r.state==='closs'){Lf='<span style="color:#8a6a64">'+(r.isFinal?'Final':'Out of reach')+'</span>';Rf='<span class="muted">&minus;'+nf(margin(r))+'</span>';}
+    else if(r.state==='closs'){Lf='<span style="color:#E88A7F">'+(r.isFinal?'Final':'Out of reach')+'</span>';Rf='<span class="muted">&minus;'+nf(margin(r))+'</span>';}
     else{Lf='<span style="color:'+COL[r.state]+'">'+pct+'% win</span>';Rf='<span class="muted">'+(r.pending?(r.hasProj?'pre-kickoff projection':'not started yet'):'projected')+'</span>';}
     return '<div class="cf-c-barwrap"><div class="cf-c-bar"><i style="width:'+w+'%;background:'+fill+(r.state==='closs'?';opacity:.6':'')+'"></i></div><div class="cf-c-barlbl">'+Lf+Rf+'</div></div>';
   }
@@ -14910,7 +14914,7 @@ loadExperimentState();
     if(r.state==='cwin'||r.state==='closs'){
       var m=r.curMy-r.curOpp, won=m>=0;
       var label=won?(r.isFinal?'Won by +':'Clinched +')+nf(Math.abs(m)):(r.isFinal?'Lost by ':'Out by ')+nf(Math.abs(m));
-      inner='<div class="cf-t-result" style="color:'+(won?'#5DCAA5':'#8a6a64')+'">'+label+'</div>'+gridScore(r);
+      inner='<div class="cf-t-result" style="color:'+(won?'#5DCAA5':'#E88A7F')+'">'+label+'</div>'+gridScore(r);
     }else{
       inner='<div class="cf-t-row"><div class="cf-t-stat" style="color:'+COL[r.state]+'">'+Math.round(r.prob*100)+'<small>%</small></div>'+gridStatus(r)+'</div>'+gridScore(r);
     }
@@ -14953,12 +14957,14 @@ loadExperimentState();
     if(shareBtn)shareBtn.hidden=false;
 
     var wins=rows.filter(function(r){return r.state==='cwin'||r.prob>0.5;}).length;
-    if(hero)hero.innerHTML='Winning <span>'+wins+'</span> of '+rows.length;
+    // Past-tense hero once every matchup is final (historic weeks) — "Won N of X".
+    var allFinal=rows.every(function(r){return r.isFinal;});
+    if(hero)hero.innerHTML=(allFinal?'Won':'Winning')+' <span>'+wins+'</span> of '+rows.length;
     var parts=[],nC=rows.filter(function(r){return r.state==='cwin';}).length,
         nLive=rows.filter(function(r){return r.live;}).length,
         nP=rows.filter(function(r){return r.pending;}).length,
         nL=rows.filter(function(r){return r.state==='closs';}).length;
-    if(nC)parts.push(nC+' clinched'); if(nLive)parts.push(nLive+' live now'); if(nP)parts.push(nP+' pending'); if(nL)parts.push(nL+' lost');
+    if(nC)parts.push(nC+(allFinal?' won':' clinched')); if(nLive)parts.push(nLive+' live now'); if(nP)parts.push(nP+' pending'); if(nL)parts.push(nL+' lost');
     if(sub)sub.textContent=parts.join('  ·  ');
     if(foot)foot.textContent=rows.length+' LEAGUE'+(rows.length===1?'':'S')+' · ONE SCREEN';
 
