@@ -237,7 +237,7 @@
        take an equal flexible column, so the brand (fixed width, in the middle)
        stays in the TRUE center regardless of whether the left slot holds the
        40px hamburger or the wider Sign in button. */
-    .site-header__left { display: flex; align-items: center; flex: 1 1 0; min-width: 0; }
+    .site-header__left { display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; }
     .site-header__brand { display: flex; align-items: center; flex: 0 0 auto; }
     .site-header__brand img,
     .site-header__brand svg { display: block; height: 36px; width: auto; aspect-ratio: 480 / 90; }
@@ -347,9 +347,6 @@
       padding: 14px 18px; border-top: 1px solid var(--line);
       font: 400 11px/1.4 var(--font-mono); color: var(--ink-500); letter-spacing: 0.04em;
     }
-    /* The menu drawer runs full-height (bottom:0); the fixed demo ribbon overlaps its
-       foot. Add the ribbon's reserved height so the footer clears it in demo mode. */
-    body.demo-active .menu-drawer__foot { padding-bottom: calc(14px + 64px); }
     body.menu-open { overflow: hidden; }
     @media (prefers-reduced-motion: reduce) {
       .menu-drawer, .menu-overlay, .site-header__menu-btn { transition: none; }
@@ -1720,30 +1717,27 @@
     }
     #banner-espn-reconnect-btn:hover { filter: brightness(1.06); }
 
-    /* Pinned demo ribbon — persistent "you're in demo, here's the exit" chrome.
-       Fixed bottom so it survives scrolling and every in-app view. Hardcoded
-       dark navy (not theme vars) so it reads identically in light + dark mode. */
-    #demo-ribbon {
-      position: fixed; left: 0; right: 0; bottom: 0; z-index: 9000;
-      display: none; align-items: center; justify-content: center; gap: 14px;
-      padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
-      background: var(--surf-panel-2); border-top: 2px solid var(--coral-500);
-      box-shadow: 0 -6px 20px rgba(0,0,0,0.28);
-      font: 500 13px/1.3 var(--font-sans); color: var(--surf-text-soft);
-    }
+    /* Demo exit pill — persistent "you're in demo, here's the exit" chrome.
+       Lives in the sticky header's top-left slot (moved from a pinned bottom
+       ribbon 2026-07-15, which crowded the tab bar). The sticky header keeps it
+       on-screen through scrolling and every in-app view. Hardcoded navy/blue
+       (not theme vars) so it reads identically in light + dark mode. */
+    #demo-ribbon { display: none; align-items: center; flex: 0 0 auto; }
     body.demo-active #demo-ribbon { display: flex; }
-    body.demo-active { padding-bottom: 64px; }
-    #demo-ribbon .dr-text { color: #AEBDCA; }
+    #demo-ribbon .dr-text { display: none; }
     #demo-ribbon .dr-exit {
-      margin-left: 4px; background: #7AA8D1; color: var(--surf-panel-2);
+      background: #7AA8D1; color: var(--surf-panel-2);
       border: 0; border-radius: var(--radius-md); cursor: pointer;
-      font: 600 13px/1 var(--font-sans); padding: 9px 16px;
+      font: 600 12px/1 var(--font-sans); padding: 9px 12px; white-space: nowrap;
       transition: background 0.15s var(--ease-out);
     }
     #demo-ribbon .dr-exit:hover, #demo-ribbon .dr-exit:active { background: #5790C0; }
-    @media (max-width: 560px) {
-      #demo-ribbon { gap: 10px; padding-left: 12px; padding-right: 12px; }
-      #demo-ribbon .dr-text { display: none; }
+    /* Narrow phones: shorter label + tighter pill so the centered brand keeps room. */
+    #demo-ribbon .dr-exit-short { display: none; }
+    @media (max-width: 640px) {
+      #demo-ribbon .dr-exit { font-size: 11px; padding: 8px 10px; }
+      #demo-ribbon .dr-exit-full { display: none; }
+      #demo-ribbon .dr-exit-short { display: inline; }
     }
 
     /* Pinned experiment ribbon — same chrome as the demo ribbon, but an amber
@@ -1823,7 +1817,7 @@
     /* Flush at the screen edge → clear the home indicator. When stacked above
        a pinned ribbon (experiment OR demo), that ribbon already owns the
        safe-area inset, so the bar must NOT add it again. */
-    body:not(.experiment-active):not(.demo-active) #exp-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    body:not(.experiment-active) #exp-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
     .cbnav-tab {
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
       padding: 6px 2px 8px; background: transparent; border: 0; cursor: pointer;
@@ -1893,11 +1887,11 @@
       /* Base content clearance for a normal user: no ribbon, so reserve just the
          bar height + the iOS home-indicator inset (the bar carries that inset). */
       body:not(.nav-landing) { padding-bottom: calc(var(--cbnav-h) + env(safe-area-inset-bottom, 0px) + 8px); }
-      /* When a pinned ribbon (experiment OR demo) is active it sits below the bar
-         and owns the safe-area inset, so reserve ribbon height + bar instead.
+      /* When the pinned experiment ribbon is active it sits below the bar and
+         owns the safe-area inset, so reserve ribbon height + bar instead. (Demo
+         mode's exit pill moved to the header, so demo uses the base rule.)
          Two classes → outranks the single-class base rule above. */
-      body.experiment-active:not(.nav-landing),
-      body.demo-active:not(.nav-landing) { padding-bottom: calc(var(--exp-ribbon-h, 64px) + var(--cbnav-h) + 8px); }
+      body.experiment-active:not(.nav-landing) { padding-bottom: calc(var(--exp-ribbon-h, 64px) + var(--cbnav-h) + 8px); }
       /* !important to beat the inline display set by updateHeaderAuthControls().
          The tab bar replaces the hamburger on mobile; More holds the site links. */
       body:not(.nav-landing) .site-header__menu-btn { display: none !important; }
@@ -3035,12 +3029,6 @@
     }
     .sheet__body,
     .exp-sheet__body { overflow-y: auto; overscroll-behavior: contain; padding: 6px 16px 18px; }
-    /* When the persistent demo ribbon is up it's fixed above the sheet (z 9000 > 901)
-       and covers the sheet's bottom edge — the last row gets hidden. Pad the scroll
-       body by the ribbon's reserved height (matches body.demo-active padding-bottom)
-       so the final option always clears it. */
-    body.demo-active .sheet__body,
-    body.demo-active .exp-sheet__body { padding-bottom: calc(18px + 64px); }
     /* When the exposure drawer renders inside the sheet, drop its outer chrome — sheet provides it. */
     .sheet .exp-drawer,
     .exp-sheet .exp-drawer { background: transparent; border: 0; padding: 6px 0 0; margin: 0; }
@@ -3580,6 +3568,11 @@
       </svg>
     </button>
     <button class="site-header__signin" id="header-signin" type="button" onclick="openSignInModal()" style="display:none">Sign in</button>
+    <!-- Demo exit pill: persistent exit affordance while in demo mode (top-left header slot) -->
+    <div id="demo-ribbon" role="status" aria-live="polite">
+      <span class="dr-text">Demo Mode — Exit Demo Mode To Connect Your Leagues</span>
+      <button class="dr-exit" type="button" onclick="exitDemo()"><span class="dr-exit-full">Exit Demo Mode</span><span class="dr-exit-short">Exit Demo</span></button>
+    </div>
     </div>
     <a class="site-header__brand" href="/" aria-label="Conflicted — home">
       <svg xmlns="http://www.w3.org/2000/svg" width="480" height="90" viewBox="0 0 480 90" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="brandTitle brandDesc">
@@ -3698,12 +3691,6 @@
   <div class="menu-drawer__foot">All your leagues, one place.</div>
 </aside>
 
-<!-- Pinned demo ribbon: persistent exit affordance while in demo mode -->
-<div id="demo-ribbon" role="status" aria-live="polite">
-  <span class="dr-text">Demo Mode — Exit Demo Mode To Connect Your Leagues</span>
-  <button class="dr-exit" type="button" onclick="exitDemo()">Exit Demo Mode</button>
-</div>
-
 <!-- Pinned experiment ribbon: persistent exit affordance while experimental features are unlocked -->
 <div id="experiment-ribbon" role="status" aria-live="polite">
   <span class="xr-text">Experimental Mode — testing unreleased features</span>
@@ -3775,13 +3762,13 @@
          Exposure returned to this sheet 2026-07-14 — Leaders took its bar slot.
          (Its data-more-action="exposure" click handler below never left.) */
       { key: 'exposure', label: 'Exposure', soon: false, svg: '<g transform="translate(12,12) scale(0.7059) translate(-12,-11.5)"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></g>' },
-      { key: 'account',  label: 'Account',  soon: false, svg: '<g transform="translate(12,12) scale(0.7742) translate(-12,-12.25)"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></g>' },
       { key: 'schedule', label: 'Schedule', soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-11.5)"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></g>' },
-      { key: 'about',    label: 'About',    soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-12)"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/></g>' },
       { key: 'shop',     label: 'Shop',     soon: true,  svg: '<g transform="translate(12,12) scale(0.7273) translate(-12,-11.25)"><path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/></g>' },
       { key: 'blog',     label: 'Blog',     soon: true,  svg: '<g transform="translate(12,12) scale(0.7500) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
       { key: 'partners', label: 'Partners', soon: true,  svg: '<g transform="translate(12,12) scale(0.9231) translate(-12,-12.5)"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/></g>' },
       { key: 'contact',  label: 'Contact',  soon: true,  svg: '<g transform="translate(12,12) scale(0.8571) translate(-12,-12)"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></g>' },
+      { key: 'about',    label: 'About',    soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-12)"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/></g>' },
+      { key: 'account',  label: 'Account',  soon: false, svg: '<g transform="translate(12,12) scale(0.7742) translate(-12,-12.25)"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></g>' },
       /* Admin-only shortcut into experiment mode — avoids the sign-out →
          type-code → sign-back-in dance. Client-side email gate is purely a
          convenience filter (the TestMode code path still exists); it is NOT
@@ -13685,16 +13672,13 @@ loadExperimentState();
       return !!(el && el.style.display && el.style.display !== 'none');
     }
 
-    // Keep the bar parked directly above whichever pinned bottom ribbon is
-    // active — the experiment ribbon OR the demo ribbon (both are fixed,
-    // bottom:0, z-9000, ~64px and own the safe-area inset). Height varies with
-    // the inset. For a normal user with no ribbon, height is 0 and the bar
-    // drops flush to the edge. Mirrors how the drawer foot offsets.
-    var demoRibbon = document.getElementById('demo-ribbon');
+    // Keep the bar parked directly above the pinned experiment ribbon when it's
+    // active (fixed, bottom:0, z-9000, ~64px, owns the safe-area inset). Height
+    // varies with the inset. For everyone else — including demo mode, whose
+    // exit pill lives in the header now — height is 0 and the bar drops flush
+    // to the edge.
     function syncRibbonHeight() {
-      var active = (ribbon && document.body.classList.contains('experiment-active')) ? ribbon
-                 : (demoRibbon && document.body.classList.contains('demo-active')) ? demoRibbon
-                 : null;
+      var active = (ribbon && document.body.classList.contains('experiment-active')) ? ribbon : null;
       var h = active ? active.offsetHeight : 0;
       document.documentElement.style.setProperty('--exp-ribbon-h', h + 'px');
     }
