@@ -2249,10 +2249,10 @@
        collapse the section to just its title bar. State is in-memory only
        (resets on reload), never persisted, since it hides data. ── */
     .scoreboard-header, .loyalties-header { position: relative; }
-    .loyalties-header { cursor: pointer; }
-    /* On the SCOREBOARD, only the wordmark toggles collapse — not the whole row —
-       so the share button in the corner stays a separate target. */
-    .scoreboard-wordmark { cursor: pointer; }
+    /* On BOTH sections, only the wordmark toggles collapse — not the whole row —
+       so the share button in the corner stays a separate target. (LOYALTIES
+       moved to this pattern when it gained the Rooting Card share button.) */
+    .scoreboard-wordmark, .loyalties-wordmark { cursor: pointer; }
     .scoreboard-header { padding-left: 22px; padding-right: 22px; }
     .loyalties-header  { padding-left: 22px; padding-right: 22px; }
     .loyalties-header::after {
@@ -2281,6 +2281,12 @@
     .scoreboard-share.is-busy { opacity: 0.45; pointer-events: none; }
     /* Hide share when the section is collapsed (nothing to capture). */
     .scoreboard-frame.collapsed .scoreboard-share { display: none; }
+    /* LOYALTIES share (Rooting Card) — same chrome, parked left of the collapse
+       chevron (which stays at right:4px on this header). !important beats the
+       inline display:none set by __rcSyncShareBtn only via JS, never CSS — so
+       collapsed-hide must win with a hard rule. */
+    .loyalties-share { right: 24px; }
+    .loyalties-section.collapsed .loyalties-share { display: none !important; }
     /* Render stage for the exported image. Must sit ON-SCREEN — Safari/iOS hands
        back a BLANK canvas for anything positioned off-screen (e.g. left:-99999px)
        — so we park it at top-left, behind the share modal (z-index 1 < 9999) and
@@ -4058,6 +4064,13 @@
     <div class="loyalties-section" id="loyalties-section">
     <div class="loyalties-header">
       <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">LOYAL</span><span class="loyalties-wordmark__b">TIES</span></div>
+      <!-- Rooting Card share — opens the pre-share BottomSheet (slot chips +
+           live preview). Hidden on offseason/historic/no-data via __rcSyncShareBtn.
+           Collapse toggling is wired to the WORDMARK (scoreboard pattern) so this
+           button stays an independent target. -->
+      <button class="scoreboard-share loyalties-share" id="loyalties-share" type="button" aria-label="Share rooting card" title="Share rooting card" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+      </button>
     </div>
     <div id="exp-tabbar" class="exp-tabbar" role="tablist" aria-label="Player buckets">
       <button class="exp-tab" data-tab="cheer" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-cheer">0</span><span>Cheer for</span></button>
@@ -6816,6 +6829,9 @@ function renderBoard(data,username){
   try{clearPeriodSkeleton();}catch(e){}
   window.__conflictedLastData=data;
   window.__conflictedLastUsername=username;
+  /* Rooting Card share icon: live in-season weeks only (hidden on offseason /
+     historic / no-data). Lives in its own module below; safe no-op until loaded. */
+  try{if(window.__rcSyncShareBtn)window.__rcSyncShareBtn(data);}catch(e){}
   /* Persist the live-week board for the snapshot boot (stale-while-revalidate):
      next page load paints from this instantly instead of the loading panel.
      saveBoardSnapshot self-guards against demo / historical / no-data renders. */
@@ -8470,9 +8486,11 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     h.addEventListener('click',toggle);
     h.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
   }
-  /* SCOREBOARD collapses from the wordmark only (the corner is the share button). */
+  /* SCOREBOARD and LOYALTIES collapse from the wordmark only (the corner is a
+     share button on both — LOYALTIES gained the Rooting Card share). Wiring the
+     whole header would also catch bubbled keydown/click from the button. */
   wire('.scoreboard-wordmark','scoreboard-frame');
-  wire('.loyalties-header','loyalties-section');
+  wire('.loyalties-wordmark','loyalties-section');
   wire('.live-updates-header','live-updates-section');
 })();
 
@@ -15587,6 +15605,423 @@ if(typeof window.cfRegisterView==='function'){
   if('requestIdleCallback'in window)requestIdleCallback(function(){warm();},{timeout:4000});else setTimeout(warm,1800);
 
   window.cfShare={ loadHTI:loadHTI, footerNode:footerNode, buildFile:buildFile, warm:warm, SHARE_URL:SHARE_URL };
+})();
+</script>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     ROOTING CARD — pregame Cheer / Enemy / Conflicted shareable.
+     Spec: rooting-card-spec.md · design ref: Claude Design Training/deliverables/
+     loyalties-rooting-card-final.html. Single entry point: the share icon in the
+     LOYALTIES header → BottomSheet with slot chips + live on-screen preview +
+     Share button (fresh user activation for navigator.share; on-screen preview
+     sidesteps WebKit's blank-offscreen-render). Scope = Watch Priority windows
+     via window.cfTeamSlot / __cfEnsureSlots. Buckets come from the board data
+     (classifyPlayer output) and are FILTERED by slot, never re-derived — a
+     conflicted player's league memberships don't change with the time window.
+     All .rc-* rules are UNSCOPED with literal colors (v58/v68 lesson: cfShare
+     re-parents the clone under <body>, so ancestor-scoped rules/vars drop). -->
+<style id="rooting-card-styles">
+  /* ── exported frame (also the sheet preview) ── */
+  .rc-frame{width:390px;background:#0F2235;border:1px solid #27425F;border-radius:20px;
+    padding:20px 16px 16px;font-family:var(--font-sans,'Inter',system-ui,sans-serif);
+    -webkit-font-smoothing:antialiased;text-align:left;}
+  .rc-wm{display:flex;justify-content:center;margin-bottom:7px;}
+  .rc-wm svg{width:178px;height:auto;display:block;}
+  .rc-kick{text-align:center;font:700 9px/1 var(--font-sans,'Inter');letter-spacing:.32em;color:#9E988A;margin-bottom:14px;white-space:nowrap;}
+  /* hero — full-week 3-up counts */
+  .rc-hero{display:grid;grid-template-columns:1fr 1fr 1fr;margin-bottom:4px;}
+  .rc-hero-cell{text-align:center;position:relative;}
+  .rc-hero-cell.mid::before,.rc-hero-cell.mid::after{content:"";position:absolute;top:6px;bottom:6px;width:1px;background:#27425F;}
+  .rc-hero-cell.mid::before{left:0;} .rc-hero-cell.mid::after{right:0;}
+  .rc-hero-n{font:900 32px/1 var(--font-sans,'Inter');letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+  .rc-hero-l{font:800 9px/1 var(--font-sans,'Inter');color:#9E988A;letter-spacing:.14em;margin-top:6px;}
+  .rc-sub{text-align:center;font:700 11px/1.4 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.03em;margin-bottom:15px;}
+  /* slot banner + compact inline counts */
+  .rc-banner{text-align:center;margin-bottom:4px;}
+  .rc-banner-t{font:900 26px/1 var(--font-sans,'Inter');color:#F5EFE4;letter-spacing:-.02em;white-space:nowrap;}
+  .rc-banner-s{font:700 11px/1 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.03em;margin-top:6px;white-space:nowrap;}
+  .rc-inline{display:flex;justify-content:center;gap:14px;margin:12px 0 15px;white-space:nowrap;}
+  .rc-inline span{font:800 12px/1 var(--font-sans,'Inter');}
+  .rc-inline .n{font-weight:900;font-size:15px;}
+  .rc-inline .dot{color:#27425F;}
+  .rc-green{color:#5DCAA5;} .rc-red{color:#E07A6E;} .rc-gold{color:#D9A445;}
+  /* bands */
+  .rc-bands{display:flex;flex-direction:column;gap:10px;}
+  .rc-band{background:#16304A;border:1px solid #27425F;border-radius:12px;padding:11px 14px 12px;}
+  .rc-band.gold{border-color:#4a3d20;border-top:3px solid #D9A445;}
+  .rc-band.green{border-top:3px solid #5DCAA5;}
+  .rc-band.red{border-top:3px solid #E07A6E;}
+  .rc-bandhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;}
+  .rc-bandhead .t{font:800 10px/1 var(--font-sans,'Inter');letter-spacing:.14em;}
+  .rc-bandhead .c{font:700 9px/1 var(--font-sans,'Inter');color:#9E988A;letter-spacing:.08em;}
+  /* CONFLICTED column-label header + flanking-numeral rows */
+  .rc-chead{display:grid;grid-template-columns:1fr auto 1fr;align-items:baseline;margin-bottom:10px;}
+  .rc-chead .l{font:800 9px/1 var(--font-sans,'Inter');color:#5DCAA5;letter-spacing:.14em;justify-self:start;}
+  .rc-chead .m{font:800 10px/1 var(--font-sans,'Inter');color:#D9A445;letter-spacing:.14em;}
+  .rc-chead .r{font:800 9px/1 var(--font-sans,'Inter');color:#E07A6E;letter-spacing:.14em;justify-self:end;}
+  .rc-crow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;padding:8px 4px;}
+  .rc-crow .xl{font:900 17px/1 var(--font-sans,'Inter');color:#5DCAA5;font-variant-numeric:tabular-nums;justify-self:start;}
+  .rc-crow .nm{font:800 14px/1.2 var(--font-sans,'Inter');color:#F5EFE4;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px;}
+  .rc-crow .xr{font:900 17px/1 var(--font-sans,'Inter');color:#E07A6E;font-variant-numeric:tabular-nums;justify-self:end;}
+  .rc-cdiv{height:1px;background:#27425F;}
+  .rc-clean{text-align:center;font:800 11px/1.5 var(--font-sans,'Inter');color:#D9A445;letter-spacing:.12em;padding:6px 0 4px;}
+  /* comprehensive name lists */
+  .rc-names{display:grid;grid-template-columns:1fr 1fr;row-gap:7px;column-gap:12px;}
+  .rc-names.cols3{grid-template-columns:1fr 1fr 1fr;column-gap:10px;}
+  .rc-names div{font:700 12px/1.2 var(--font-sans,'Inter');color:#F5EFE4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  .rc-names.cols3 div{font-size:11px;}
+  .rc-names .xn{font:800 10px/1 var(--font-sans,'Inter');}
+  .rc-names .tm{font:600 10px/1 var(--font-sans,'Inter');color:#7C8694;}
+  .rc-more{text-align:center;font:700 10px/1 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.06em;margin-top:9px;padding-top:8px;border-top:1px solid #27425F;}
+  /* ── share sheet (BottomSheet body) ── */
+  .rc-sheet{padding:4px 2px 10px;}
+  .rc-sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .rc-sheet-head h3{margin:0;font:800 15px/1 var(--font-sans);color:var(--ink-900);letter-spacing:.02em;}
+  .rc-sheet-close{background:transparent;border:none;color:var(--ink-500);font-size:24px;line-height:1;cursor:pointer;padding:0 4px;}
+  .rc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+  .rc-chip{font:800 10px/1 var(--font-sans);letter-spacing:.06em;color:var(--ink-500);
+    background:transparent;border:1px solid var(--line);padding:8px 12px;border-radius:999px;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;}
+  .rc-chip.on{color:#0F2235;background:var(--navy-700,#7AA8D1);border-color:var(--navy-700,#7AA8D1);}
+  .rc-prevwrap{background:#0b1722;border:1px solid #1b2c3c;border-radius:18px;padding:12px;overflow:hidden;}
+  .rc-prevscale{transform-origin:top left;}
+  .rc-sharego{width:100%;margin-top:12px;border:none;background:var(--coral-500,#E88761);color:#fff;
+    font:800 14px/1 var(--font-sans);letter-spacing:.04em;padding:14px 12px;border-radius:999px;cursor:pointer;}
+  .rc-sharego:active{transform:scale(.99);}
+  .rc-sharego:disabled{opacity:.55;cursor:default;}
+</style>
+<script>
+(function(){
+  'use strict';
+  var RC_W=390, NAME_CAP=30, CONF_CAP=12, COLS3_AT=17;
+  var st={slot:'all'};
+
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function data(){return window.__conflictedLastData||null;}
+
+  /* ── scope engine ─────────────────────────────────────────────────────── */
+  /* Normalize Watch Priority slot keys to Rooting Card windows. International
+     morning games fold into SUN EARLY (spec); Fri/Sat specials → SAT; anything
+     unrecognized appears only in ALL WEEK. */
+  function rcNorm(raw){
+    if(!raw)return null;
+    if(raw==='thu'||raw==='early'||raw==='late'||raw==='snf'||raw==='mnf')return raw;
+    if(raw==='sun_morning'||String(raw).indexOf('intl:')===0)return 'early';
+    if(raw==='sp:sat'||raw==='sp:fri')return 'sat';
+    return null;
+  }
+  var RC_LABELS={
+    thu:{chip:'THU',banner:'THURSDAY NIGHT'}, sat:{chip:'SAT',banner:'SATURDAY'},
+    early:{chip:'SUN EARLY',banner:'SUNDAY EARLY'}, late:{chip:'SUN LATE',banner:'SUNDAY AFTERNOON'},
+    snf:{chip:'SNF',banner:'SUNDAY NIGHT'}, mnf:{chip:'MNF',banner:'MONDAY NIGHT'}
+  };
+  function teamSlotKey(team){
+    var e=(typeof window.cfTeamSlot==='function')?window.cfTeamSlot(String(team||'').toUpperCase().trim()):null;
+    return e?rcNorm(e.slot):null;
+  }
+  /* Per-window meta from the team→slot map (+ replay/test overrides):
+     games (teams/2), firstKick, live (any in-progress), allPost. */
+  function slotMetas(){
+    var src={},k;
+    try{var m=window.__cfTeamSlotMap||{};for(k in m)src[k]=m[k];}catch(e){}
+    try{var o=window.__cfSlotOverride||{};for(k in o)src[k]=o[k];}catch(e){}
+    var metas={};
+    Object.keys(src).forEach(function(t){
+      var e=src[t],key=rcNorm(e&&e.slot); if(!key)return;
+      var mt=metas[key]||(metas[key]={teams:0,firstKick:0,live:false,post:0});
+      mt.teams++;
+      if(e.kickoffUtc&&(!mt.firstKick||e.kickoffUtc<mt.firstKick))mt.firstKick=e.kickoffUtc;
+      if(e.state==='in')mt.live=true;
+      if(e.state==='post')mt.post++;
+    });
+    Object.keys(metas).forEach(function(key){
+      var mt=metas[key];
+      mt.games=Math.max(1,Math.round(mt.teams/2));
+      mt.allPost=mt.post>=mt.teams;
+    });
+    return metas;
+  }
+  function scopePlayers(arr,slotKey){
+    if(slotKey==='all')return (arr||[]).slice();
+    return (arr||[]).filter(function(p){return teamSlotKey(p.team)===slotKey;});
+  }
+  function scoped(slotKey){
+    var d=data()||{};
+    return{
+      cheer:scopePlayers(d.cheerFor,slotKey),
+      conf:scopePlayers(d.conflicted,slotKey),
+      enemy:scopePlayers(d.enemies,slotKey)
+    };
+  }
+  /* Chips: ALL WEEK + every window that holds ≥1 of my starters, kickoff order. */
+  function chipSlots(metas){
+    var keys=Object.keys(RC_LABELS).filter(function(k){
+      if(!metas[k])return false;
+      var s=scoped(k);
+      return (s.cheer.length+s.conf.length+s.enemy.length)>0;
+    });
+    keys.sort(function(a,b){return (metas[a].firstKick||9e15)-(metas[b].firstKick||9e15);});
+    return ['all'].concat(keys);
+  }
+  /* Time-aware smart default (spec): live window → it; week not started → ALL
+     WEEK; week over → ALL WEEK; else next window still to play. */
+  function defaultSlot(metas,chips){
+    var slots=chips.filter(function(k){return k!=='all';});
+    if(!slots.length)return 'all';
+    var live=slots.filter(function(k){return metas[k].live&&!metas[k].allPost;});
+    if(live.length)return live[0];
+    var now=Date.now();
+    var started=slots.some(function(k){return metas[k].allPost||(metas[k].firstKick&&metas[k].firstKick<=now);});
+    if(!started)return 'all';
+    var upcoming=slots.filter(function(k){return !metas[k].allPost;});
+    if(!upcoming.length)return 'all';
+    upcoming.sort(function(a,b){return (metas[a].firstKick||9e15)-(metas[b].firstKick||9e15);});
+    return upcoming[0];
+  }
+
+  /* ── card renderer ────────────────────────────────────────────────────── */
+  var RC_WM='<svg viewBox="0 0 480 78" role="img" aria-label="Conflicted" xmlns="http://www.w3.org/2000/svg">'+
+    '<defs><clipPath id="rcwmL"><rect x="0" y="0" width="240" height="78"/></clipPath>'+
+    '<clipPath id="rcwmR"><rect x="240" y="0" width="240" height="78"/></clipPath></defs>'+
+    '<text x="240" y="54" text-anchor="middle" clip-path="url(#rcwmL)" style="font-family:Inter,system-ui,-apple-system,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#7AA8D1">CONFLICTED</text>'+
+    '<text x="240" y="54" text-anchor="middle" clip-path="url(#rcwmR)" style="font-family:Inter,system-ui,-apple-system,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#E88761">CONFLICTED</text>'+
+    '<line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>';
+  function projSum(p,names){
+    var s=0;(names||[]).forEach(function(n){
+      var lp=p.leaguePoints&&p.leaguePoints[n];
+      if(lp)s+=(lp.proj!=null?+lp.proj:(+lp.pts||0));
+    });return s;
+  }
+  function bySort(countOf,namesOf){
+    return function(a,b){
+      var c=countOf(b)-countOf(a); if(c)return c;
+      var pr=projSum(b,namesOf(b))-projSum(a,namesOf(a)); if(pr)return pr;
+      return String(a.full_name||'').localeCompare(String(b.full_name||''));
+    };
+  }
+  /* Names-only cell: "First Last ×2" — team abbr appended ONLY when two
+     different players in the same list share a display name. */
+  function nameCells(list,countOf,colorCls){
+    var seen={};list.forEach(function(p){var n=p.full_name||'';seen[n]=(seen[n]||0)+1;});
+    return list.map(function(p){
+      var n=esc(p.full_name||'');
+      var tm=(seen[p.full_name]>1&&p.team)?' <span class="tm">'+esc(p.team)+'</span>':'';
+      var ct=countOf(p);
+      var xn=ct>1?' <span class="xn '+colorCls+'">&times;'+ct+'</span>':'';
+      return '<div>'+n+tm+xn+'</div>';
+    });
+  }
+  function namesBandHtml(list,label,colorCls,countOf,namesOf){
+    var sorted=list.slice().sort(bySort(countOf,namesOf));
+    var shown=sorted.slice(0,NAME_CAP), extra=sorted.length-shown.length;
+    var cols3=shown.length>=COLS3_AT?' cols3':'';
+    return '<div class="rc-band '+colorCls+'">'+
+      '<div class="rc-bandhead"><span class="t rc-'+colorCls+'">'+label+'</span>'+
+      '<span class="c">'+sorted.length+' PLAYER'+(sorted.length===1?'':'S')+'</span></div>'+
+      '<div class="rc-names'+cols3+'">'+nameCells(shown,countOf,'rc-'+colorCls).join('')+'</div>'+
+      (extra>0?'<div class="rc-more">+ '+extra+' MORE</div>':'')+
+      '</div>';
+  }
+  function confBandHtml(list){
+    var countAll=function(p){return (p.myLeagues||[]).length+(p.againstLeagues||[]).length;};
+    var namesAll=function(p){return (p.myLeagues||[]).concat(p.againstLeagues||[]);};
+    var sorted=list.slice().sort(bySort(countAll,namesAll));
+    var shown=sorted.slice(0,CONF_CAP), extra=sorted.length-shown.length;
+    var rows;
+    if(!shown.length){
+      rows='<div class="rc-clean">ZERO DIVIDED LOYALTIES &mdash; CLEAN SLATE</div>';
+    }else{
+      rows=shown.map(function(p){
+        return '<div class="rc-crow">'+
+          '<span class="xl">&times;'+(p.myLeagues||[]).length+'</span>'+
+          '<span class="nm">'+esc(p.full_name||'')+'</span>'+
+          '<span class="xr">&times;'+(p.againstLeagues||[]).length+'</span>'+
+          '</div>';
+      }).join('<div class="rc-cdiv"></div>');
+    }
+    return '<div class="rc-band gold">'+
+      '<div class="rc-chead"><span class="l">CHEER</span><span class="m">CONFLICTED</span><span class="r">ENEMY</span></div>'+
+      rows+
+      (extra>0?'<div class="rc-more">+ '+extra+' MORE</div>':'')+
+      '</div>';
+  }
+  function fmtET(ms){
+    try{
+      var s=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit'}).format(new Date(ms));
+      return s.replace(/\s?[AP]M$/i,'')+' ET';
+    }catch(e){return '';}
+  }
+  function buildFrame(slotKey){
+    var d=data()||{},metas=slotMetas(),s=scoped(slotKey);
+    var wk=1;try{wk=(window.getActiveWeek?window.getActiveWeek():1)||1;}catch(e){}
+    var leagues=(d.contexts||[]).filter(function(c){return c&&c.leagueState!=='NO_MATCHUP';}).length;
+    var myCount=function(p){return (p.myLeagues||[]).length;};
+    var vsCount=function(p){return (p.againstLeagues||[]).length;};
+    var myNames=function(p){return p.myLeagues||[];};
+    var vsNames=function(p){return p.againstLeagues||[];};
+    var head='<div class="rc-wm">'+RC_WM+'</div>';
+    var mid;
+    if(slotKey==='all'){
+      var kicks=Object.keys(metas).map(function(k){return metas[k].firstKick;}).filter(Boolean);
+      var kick=kicks.length?('first kickoff '+fmtET(Math.min.apply(null,kicks))):'';
+      var starters=s.cheer.length+s.conf.length+s.enemy.length;
+      var sub=[starters+' starters',leagues+' league'+(leagues===1?'':'s')].concat(kick?[kick]:[]).join(' &middot; ');
+      head+='<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+' &middot; FULL WEEK</div>';
+      mid='<div class="rc-hero">'+
+        '<div class="rc-hero-cell"><div class="rc-hero-n rc-green">'+s.cheer.length+'</div><div class="rc-hero-l">CHEER</div></div>'+
+        '<div class="rc-hero-cell mid"><div class="rc-hero-n rc-red">'+s.enemy.length+'</div><div class="rc-hero-l">ENEMY</div></div>'+
+        '<div class="rc-hero-cell"><div class="rc-hero-n rc-gold">'+s.conf.length+'</div><div class="rc-hero-l">CONFLICTED</div></div>'+
+        '</div><div class="rc-sub">'+sub+'</div>';
+    }else{
+      var lb=RC_LABELS[slotKey]||{banner:slotKey.toUpperCase()};
+      var mt=metas[slotKey]||{};
+      var parts=[];
+      if(mt.firstKick)parts.push(fmtET(mt.firstKick));
+      if(mt.games)parts.push(mt.games+' game'+(mt.games===1?'':'s'));
+      head+='<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+'</div>';
+      mid='<div class="rc-banner"><div class="rc-banner-t">'+lb.banner+'</div>'+
+        (parts.length?'<div class="rc-banner-s">'+parts.join(' &middot; ')+'</div>':'')+'</div>'+
+        '<div class="rc-inline">'+
+        '<span class="rc-green"><span class="n">'+s.cheer.length+'</span> CHEER</span><span class="dot">&middot;</span>'+
+        '<span class="rc-red"><span class="n">'+s.enemy.length+'</span> ENEMY</span><span class="dot">&middot;</span>'+
+        '<span class="rc-gold"><span class="n">'+s.conf.length+'</span> CONFLICTED</span>'+
+        '</div>';
+    }
+    var bands='<div class="rc-bands">'+
+      confBandHtml(s.conf)+
+      namesBandHtml(s.cheer,'CHEER','green',myCount,myNames)+
+      namesBandHtml(s.enemy,'ENEMY','red',vsCount,vsNames)+
+      '</div>';
+    var frame=document.createElement('div');
+    frame.className='rc-frame';frame.id='rc-frame';
+    frame.innerHTML=head+mid+bands;
+    return frame;
+  }
+
+  /* ── share sheet ──────────────────────────────────────────────────────── */
+  function sheetHtml(chips,metas){
+    var chipHtml=chips.map(function(k){
+      var lbl=k==='all'?'ALL WEEK':RC_LABELS[k].chip;
+      return '<button type="button" class="rc-chip'+(st.slot===k?' on':'')+'" data-rc-slot="'+k+'">'+lbl+'</button>';
+    }).join('');
+    return '<div class="rc-sheet">'+
+      '<div class="rc-sheet-head"><h3>Share rooting card</h3>'+
+      '<button type="button" class="rc-sheet-close" data-rc-close aria-label="Close">&times;</button></div>'+
+      '<div class="rc-chips" id="rc-chips">'+chipHtml+'</div>'+
+      '<div class="rc-prevwrap"><div class="rc-prevscale" id="rc-prevscale"></div></div>'+
+      '<button type="button" class="rc-sharego" id="rc-sharego">&#x2197;&nbsp; Share</button>'+
+      '</div>';
+  }
+  function fitPreview(){
+    var scale=document.getElementById('rc-prevscale');if(!scale)return;
+    var wrap=scale.parentElement,frame=scale.firstChild;if(!wrap||!frame)return;
+    var w=wrap.clientWidth-24; /* wrap padding 12+12 */
+    var f=Math.min(1,w/RC_W);
+    scale.style.transform='scale('+f+')';
+    /* translate so the scaled card centers; height collapses to scaled size */
+    scale.style.marginLeft=Math.max(0,(w-RC_W*f)/2)+'px';
+    scale.style.height=(frame.offsetHeight*f)+'px';
+  }
+  function renderPreview(){
+    var scale=document.getElementById('rc-prevscale');if(!scale)return;
+    scale.innerHTML='';
+    scale.appendChild(buildFrame(st.slot));
+    fitPreview();
+  }
+  function refreshChips(){
+    var host=document.getElementById('rc-chips');if(!host)return;
+    Array.prototype.forEach.call(host.querySelectorAll('[data-rc-slot]'),function(b){
+      b.classList.toggle('on',b.getAttribute('data-rc-slot')===st.slot);
+    });
+  }
+  function openSheet(){
+    if(!window.BottomSheet)return;
+    var metas=slotMetas(),chips=chipSlots(metas);
+    st.slot=defaultSlot(metas,chips); /* never persisted — recomputed every open */
+    window.BottomSheet.open(sheetHtml(chips,metas),{owner:'rooting-share'});
+    renderPreview();
+    try{cfTrack('rooting_share_open',{slot:st.slot,slots:chips.join(',')});}catch(e){}
+    /* Slot map may be stale/missing (first open of the session) — refresh and
+       re-render the sheet in place when it lands (conflict-card pattern). */
+    if(typeof window.__cfEnsureSlots==='function'&&(!window.__cfTeamSlotMap||(Date.now()-(window.__cfSlotsAt||0)>55000))){
+      window.__cfEnsureSlots().then(function(){
+        window.__cfSlotsAt=Date.now();
+        if(!window.BottomSheet.isOpen()||window.BottomSheet.getOwner()!=='rooting-share')return;
+        var m2=slotMetas(),c2=chipSlots(m2);
+        if(c2.indexOf(st.slot)===-1)st.slot=defaultSlot(m2,c2);
+        window.BottomSheet.setBody(sheetHtml(c2,m2));
+        renderPreview();
+      }).catch(function(){});
+    }
+  }
+  /* Export from the LIVE preview frame — it's on-screen (WebKit-safe) and the
+     Share tap is a fresh user activation. All .rc-* rules are unscoped literals,
+     so the clone re-parented under <body> keeps its styling (no scopeVars needed). */
+  var sharing=false;
+  async function doShare(){
+    if(sharing)return;sharing=true;
+    var btn=document.getElementById('rc-sharego');
+    var orig='&#x2197;&nbsp; Share';
+    if(btn){btn.disabled=true;btn.innerHTML='Building image&hellip;';}
+    try{cfTrack('share_tapped',{surface:'rooting',slot:st.slot});}catch(e){}
+    try{
+      var frame=document.getElementById('rc-frame');
+      if(!frame)throw new Error('No card to share.');
+      var file=await window.cfShare.buildFile(frame,{bg:'#0b1722',filename:'conflicted-rooting-card'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){
+        try{
+          await navigator.share({files:[file],text:window.cfShareCardUrl?cfShareCardUrl():undefined});
+          try{cfTrack('share_completed',{surface:'rooting',slot:st.slot});}catch(_e){}
+        }catch(e){if(!(e&&e.name==='AbortError'))saveFile(file);}
+      }else saveFile(file);
+    }catch(err){
+      if(btn){btn.innerHTML='Couldn&rsquo;t build image &mdash; tap to retry';btn.disabled=false;}
+      sharing=false;
+      setTimeout(function(){var b=document.getElementById('rc-sharego');if(b)b.innerHTML=orig;},1800);
+      return;
+    }
+    if(btn){btn.innerHTML=orig;btn.disabled=false;}
+    sharing=false;
+  }
+  function saveFile(file){
+    var url=URL.createObjectURL(file);
+    var ua=navigator.userAgent||'',iOS=/iP(hone|ad|od)/.test(ua)||(/Macintosh/.test(ua)&&'ontouchend'in document);
+    if(iOS){window.open(url,'_blank');}
+    else{var a=document.createElement('a');a.href=url;a.download='conflicted-rooting-card.png';document.body.appendChild(a);a.click();a.remove();}
+    setTimeout(function(){URL.revokeObjectURL(url);},4000);
+  }
+
+  /* ── entry-point gating: live in-season weeks with data only ──────────── */
+  window.__rcSyncShareBtn=function(d){
+    var btn=document.getElementById('loyalties-share');if(!btn)return;
+    var ok=!!(d&&!d.noData&&!d.offseasonMode&&!d.isHist&&
+      (((d.cheerFor||[]).length+(d.conflicted||[]).length+(d.enemies||[]).length)>0));
+    btn.style.display=ok?'':'none';
+  };
+
+  /* ── wiring ───────────────────────────────────────────────────────────── */
+  var entry=document.getElementById('loyalties-share');
+  if(entry)entry.addEventListener('click',function(e){e.stopPropagation();openSheet();});
+  window.addEventListener('resize',function(){
+    if(window.BottomSheet&&window.BottomSheet.isOpen()&&window.BottomSheet.getOwner()==='rooting-share')fitPreview();
+  });
+  /* Sheet body lives outside this block — delegate, guarded by owner. */
+  document.addEventListener('click',function(e){
+    if(!window.BottomSheet||!window.BottomSheet.isOpen()||window.BottomSheet.getOwner()!=='rooting-share')return;
+    var t;
+    if((t=e.target.closest('[data-rc-slot]'))){
+      var k=t.getAttribute('data-rc-slot');
+      if(k!==st.slot){
+        try{cfTrack('rooting_share_scope',{from:st.slot,to:k});}catch(e2){}
+        st.slot=k;refreshChips();renderPreview();
+      }
+      return;
+    }
+    if(e.target.closest('[data-rc-close]')){window.BottomSheet.close();return;}
+    if(e.target.closest('#rc-sharego')){doShare();return;}
+  });
+  /* If the board already rendered before this module parsed, sync now. */
+  try{window.__rcSyncShareBtn(window.__conflictedLastData);}catch(e){}
 })();
 </script>
 
