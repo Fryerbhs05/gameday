@@ -2255,16 +2255,8 @@
     .scoreboard-wordmark, .loyalties-wordmark { cursor: pointer; }
     .scoreboard-header { padding-left: 22px; padding-right: 22px; }
     .loyalties-header  { padding-left: 22px; padding-right: 22px; }
-    .loyalties-header::after {
-      content: ""; position: absolute; right: 4px; top: 42%;
-      width: 8px; height: 8px;
-      border-right: 2px solid var(--ink-500); border-bottom: 2px solid var(--ink-500);
-      transform: translateY(-50%) rotate(45deg);
-      transition: transform var(--duration-fast) var(--ease-out);
-    }
-    .loyalties-section.collapsed .loyalties-header::after {
-      transform: translateY(-50%) rotate(-45deg);
-    }
+    /* (LOYALTIES chevron retired — like the scoreboard, the corner is now the
+       share button and collapse lives on the wordmark tap alone.) */
     /* Share button — sits where the scoreboard caret used to be. */
     .scoreboard-share {
       position: absolute; right: 0; top: 42%; transform: translateY(-50%);
@@ -2281,11 +2273,9 @@
     .scoreboard-share.is-busy { opacity: 0.45; pointer-events: none; }
     /* Hide share when the section is collapsed (nothing to capture). */
     .scoreboard-frame.collapsed .scoreboard-share { display: none; }
-    /* LOYALTIES share (Rooting Card) — same chrome, parked left of the collapse
-       chevron (which stays at right:4px on this header). !important beats the
-       inline display:none set by __rcSyncShareBtn only via JS, never CSS — so
-       collapsed-hide must win with a hard rule. */
-    .loyalties-share { right: 24px; }
+    /* LOYALTIES share (Rooting Card) — same chrome + corner position as the
+       scoreboard's (chevron retired). !important because __rcSyncShareBtn sets
+       inline display, and collapsed-hide must always win. */
     .loyalties-section.collapsed .loyalties-share { display: none !important; }
     /* Render stage for the exported image. Must sit ON-SCREEN — Safari/iOS hands
        back a BLANK canvas for anything positioned off-screen (e.g. left:-99999px)
@@ -15792,8 +15782,13 @@ if(typeof window.cfRegisterView==='function'){
       if(lp)s+=(lp.proj!=null?+lp.proj:(+lp.pts||0));
     });return s;
   }
+  /* Position-first ordering (site pattern: QB · RB · WR · TE · K · DEF),
+     then league-occurrence count, then projected impact, then name. */
+  var POS_RANK={QB:0,RB:1,WR:2,TE:3,K:4,DEF:5,DST:5};
+  function posRank(p){var r=POS_RANK[String(p.position||'').toUpperCase()];return r==null?6:r;}
   function bySort(countOf,namesOf){
     return function(a,b){
+      var pd=posRank(a)-posRank(b); if(pd)return pd;
       var c=countOf(b)-countOf(a); if(c)return c;
       var pr=projSum(b,namesOf(b))-projSum(a,namesOf(a)); if(pr)return pr;
       return String(a.full_name||'').localeCompare(String(b.full_name||''));
@@ -15862,7 +15857,9 @@ if(typeof window.cfRegisterView==='function'){
     var head='<div class="rc-wm">'+RC_WM+'</div>';
     var mid;
     if(slotKey==='all'){
-      var kicks=Object.keys(metas).map(function(k){return metas[k].firstKick;}).filter(Boolean);
+      /* Historic weeks: the slot map belongs to the LIVE week, so never quote
+         its kickoff time on a past week's card. */
+      var kicks=d.isHist?[]:Object.keys(metas).map(function(k){return metas[k].firstKick;}).filter(Boolean);
       var kick=kicks.length?('first kickoff '+fmtET(Math.min.apply(null,kicks))):'';
       var starters=s.cheer.length+s.conf.length+s.enemy.length;
       var sub=[starters+' starters',leagues+' league'+(leagues===1?'':'s')].concat(kick?[kick]:[]).join(' &middot; ');
@@ -15900,14 +15897,15 @@ if(typeof window.cfRegisterView==='function'){
 
   /* ── share sheet ──────────────────────────────────────────────────────── */
   function sheetHtml(chips,metas){
-    var chipHtml=chips.map(function(k){
+    /* Single option (historic weeks = ALL WEEK only) → no chip strip at all. */
+    var chipHtml=chips.length>1?chips.map(function(k){
       var lbl=k==='all'?'ALL WEEK':RC_LABELS[k].chip;
       return '<button type="button" class="rc-chip'+(st.slot===k?' on':'')+'" data-rc-slot="'+k+'">'+lbl+'</button>';
-    }).join('');
+    }).join(''):'';
     return '<div class="rc-sheet">'+
       '<div class="rc-sheet-head"><h3>Share rooting card</h3>'+
       '<button type="button" class="rc-sheet-close" data-rc-close aria-label="Close">&times;</button></div>'+
-      '<div class="rc-chips" id="rc-chips">'+chipHtml+'</div>'+
+      (chipHtml?'<div class="rc-chips" id="rc-chips">'+chipHtml+'</div>':'')+
       '<div class="rc-prevwrap"><div class="rc-prevscale" id="rc-prevscale"></div></div>'+
       '<button type="button" class="rc-sharego" id="rc-sharego">&#x2197;&nbsp; Share</button>'+
       '</div>';
@@ -15936,14 +15934,18 @@ if(typeof window.cfRegisterView==='function'){
   }
   function openSheet(){
     if(!window.BottomSheet)return;
-    var metas=slotMetas(),chips=chipSlots(metas);
-    st.slot=defaultSlot(metas,chips); /* never persisted — recomputed every open */
+    /* Historic weeks: shareable, but ALL WEEK only — the slot map (and any
+       schedule refetch) belongs to the LIVE week, so per-window scoping would
+       cut the card against the wrong slate. */
+    var isHist=!!(data()&&data().isHist);
+    var metas=slotMetas(),chips=isHist?['all']:chipSlots(metas);
+    st.slot=isHist?'all':defaultSlot(metas,chips); /* never persisted — recomputed every open */
     window.BottomSheet.open(sheetHtml(chips,metas),{owner:'rooting-share'});
     renderPreview();
-    try{cfTrack('rooting_share_open',{slot:st.slot,slots:chips.join(',')});}catch(e){}
+    try{cfTrack('rooting_share_open',{slot:st.slot,slots:chips.join(','),hist:isHist});}catch(e){}
     /* Slot map may be stale/missing (first open of the session) — refresh and
        re-render the sheet in place when it lands (conflict-card pattern). */
-    if(typeof window.__cfEnsureSlots==='function'&&(!window.__cfTeamSlotMap||(Date.now()-(window.__cfSlotsAt||0)>55000))){
+    if(!isHist&&typeof window.__cfEnsureSlots==='function'&&(!window.__cfTeamSlotMap||(Date.now()-(window.__cfSlotsAt||0)>55000))){
       window.__cfEnsureSlots().then(function(){
         window.__cfSlotsAt=Date.now();
         if(!window.BottomSheet.isOpen()||window.BottomSheet.getOwner()!=='rooting-share')return;
@@ -15991,10 +15993,11 @@ if(typeof window.cfRegisterView==='function'){
     setTimeout(function(){URL.revokeObjectURL(url);},4000);
   }
 
-  /* ── entry-point gating: live in-season weeks with data only ──────────── */
+  /* ── entry-point gating: any week with bucket data (live OR historic —
+     historic opens ALL WEEK only). Hidden on offseason/no-data. ── */
   window.__rcSyncShareBtn=function(d){
     var btn=document.getElementById('loyalties-share');if(!btn)return;
-    var ok=!!(d&&!d.noData&&!d.offseasonMode&&!d.isHist&&
+    var ok=!!(d&&!d.noData&&!d.offseasonMode&&
       (((d.cheerFor||[]).length+(d.conflicted||[]).length+(d.enemies||[]).length)>0));
     btn.style.display=ok?'':'none';
   };
