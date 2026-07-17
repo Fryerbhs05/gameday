@@ -16743,8 +16743,12 @@ if(typeof window.cfRegisterView==='function'){
     var gb=document.getElementById('ldrs-go'); if(gb)gb.disabled=true;
     try{
       var frame=document.getElementById('ldr-frame');
+      /* stageWidth = frame width + 36: cfShare's stage is border-box with 18px
+         side padding, so without this the exported frame renders 36px narrower
+         than on-screen and league names truncate more on the PNG (v72 rooting-card
+         lesson). Matching the width gives names the same room as the live view. */
       var file=await window.cfShare.buildFile(frame,{bg:'#0F2235',filename:'conflicted-leaders',
-        scopeVars:LDR_SCOPE_VARS});
+        scopeVars:LDR_SCOPE_VARS,stageWidth:(frame.offsetWidth||0)+36});
       if(navigator.canShare&&navigator.canShare({files:[file]})){
         try{
           await navigator.share({files:[file],text:window.cfShareCardUrl?cfShareCardUrl():undefined});
