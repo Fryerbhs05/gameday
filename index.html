@@ -4033,13 +4033,24 @@
         </button>
       </div>
     </div>
-    <!-- Leaders-only second row of the SAME frame (bar gets .pb-leaders while
-         Leaders is open): the CARRIED/CRUSHED toggle joins the period controls
-         so all view controls live in one consolidated frame. -->
+    <!-- View-specific second row of the SAME frame: Leaders' CARRIED/CRUSHED
+         toggle (bar gets .pb-leaders) or Snapshot's List/Grid toggle
+         (.pb-snapshot) joins the period controls so all view controls live in
+         one consolidated frame. Children are shown per view via the bar class. -->
     <div class="pb-seg-row">
       <div class="ldr-seg" id="ldr-seg">
         <button type="button" data-ldr-side="F" class="on-f">CARRIED ME</button>
         <button type="button" data-ldr-side="A">CRUSHED ME</button>
+      </div>
+      <div class="cf-snap-toggle" role="tablist" id="cf-snap-toggle">
+        <button id="cf-snap-btn-list" class="is-on" type="button" data-cf-view="list" role="tab">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>
+          List
+        </button>
+        <button id="cf-snap-btn-grid" type="button" data-cf-view="grid" role="tab">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+          Grid
+        </button>
       </div>
     </div>
   </div>
@@ -4551,10 +4562,13 @@
     --cs-coral:#E88761;--cs-cream:#F5EFE4;--cs-ink-700:#E0DACA;--cs-ink-500:#9E988A;--cs-ink-400:#7C8694;
     --cs-green:#5DCAA5;--cs-red:#E07A6E;--cs-blue:#7AA8D1;--cs-dull:#6b4a45;}
   .cf-snap-wrap{max-width:420px;margin:0 auto;}
-  .cf-snap-toggle{display:flex;background:var(--cs-navy-800);border:1px solid var(--navy-300);border-radius:12px;padding:3px;gap:3px;margin-bottom:11px;}
-  .cf-snap-toggle button{flex:1;border:none;background:transparent;color:var(--cs-ink-400);font-family:var(--font-sans),'Inter',sans-serif;font-weight:800;font-size:12px;letter-spacing:.04em;padding:9px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,color .15s;}
+  /* List/Grid toggle — lives INSIDE the shared period bar (.pb-seg-row) while
+     Snapshot is open. LITERAL colors only: the --cs-* vars are scoped to
+     #view-snapshot and don't reach the bar. */
+  .cf-snap-toggle{display:flex;background:#15293E;border:1px solid var(--navy-300,#2B6FA8);border-radius:12px;padding:3px;gap:3px;}
+  .cf-snap-toggle button{flex:1;border:none;background:transparent;color:#7C8694;font-family:var(--font-sans),'Inter',sans-serif;font-weight:800;font-size:12px;letter-spacing:.04em;padding:9px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,color .15s;}
   .cf-snap-toggle button svg{width:14px;height:14px;}
-  .cf-snap-toggle button.is-on{background:var(--cs-navy-700);color:var(--cs-cream);}
+  .cf-snap-toggle button.is-on{background:#1A3A52;color:#F5EFE4;}
   .cf-snap-share{width:100%;border:none;background:var(--cs-coral);color:#0F2235;font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:12.5px;letter-spacing:.02em;padding:8px 13px;border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;}
   .cf-snap-share:active{transform:scale(.99);}
   .cf-snap-share[hidden]{display:none;}
@@ -4653,17 +4667,8 @@
 <div id="view-snapshot">
   <div class="cf-snap-wrap">
     <button class="cf-snap-share" id="cf-snap-share" type="button">&#x2197;&nbsp; Share My Weekend</button>
-    <div class="cf-snap-toggle" role="tablist" id="cf-snap-toggle">
-      <button id="cf-snap-btn-list" class="is-on" type="button" data-cf-view="list" role="tab">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>
-        List
-      </button>
-      <button id="cf-snap-btn-grid" type="button" data-cf-view="grid" role="tab">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
-        Grid
-      </button>
-    </div>
-
+    <!-- List/Grid toggle moved into the shared period bar (.pb-seg-row) —
+         one consolidated controls frame at the top of the view (2026-07-16). -->
     <div id="cf-snap-frame">
       <div class="cf-snap-wm">
         <svg viewBox="0 0 480 78" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Conflicted">
@@ -5945,9 +5950,11 @@ window.cfShowPeriodBar=function(){
   const b=document.getElementById('cf-period-bar');
   if(b){
     b.style.display='block';
-    /* Leaders folds its CARRIED/CRUSHED toggle into the bar as a second row
-       of the same frame; other views show the plain one-row bar. */
+    /* Leaders folds its CARRIED/CRUSHED toggle — and Snapshot its List/Grid
+       toggle — into the bar as a second row of the same frame; other views
+       show the plain one-row bar. */
     b.classList.toggle('pb-leaders',!!window.__cfLeadersOpen);
+    b.classList.toggle('pb-snapshot',!!window.__cfSnapshotOpen);
   }
   try{if(typeof window.cfSyncHeaderFilters==='function')window.cfSyncHeaderFilters();}catch(e){}
 };
@@ -15005,6 +15012,10 @@ loadExperimentState();
     var foot=document.getElementById('cf-snap-footcount');
     var content=document.getElementById('cf-snap-content');
 
+    /* No data → no List/Grid toggle: collapse the bar's second row entirely
+       so the shared frame doesn't show an empty strip. */
+    var pbar=document.getElementById('cf-period-bar');
+    if(pbar&&window.__cfSnapshotOpen)pbar.classList.toggle('pb-snapshot',!(built.nodata||!rows.length));
     if(built.nodata||!rows.length){
       if(toggle)toggle.style.display='none';
       if(shareBtn)shareBtn.hidden=true;
@@ -15014,7 +15025,10 @@ loadExperimentState();
       if(content)content.innerHTML='<div class="cf-snap-note"><div class="ico">&#127944;</div><h4>No games to watch yet</h4><p>Your Weekend Snapshot lights up once the NFL week kicks off. Check back when the games begin.</p></div>';
       return;
     }
-    if(toggle)toggle.style.display='flex';
+    /* '' (not 'flex') — the toggle lives in the shared period bar now, so CSS
+       (.pb-snapshot) must stay in charge of when it's visible; an inline
+       'flex' would leak it into other views' bars. */
+    if(toggle)toggle.style.display='';
     if(shareBtn)shareBtn.hidden=false;
 
     var wins=rows.filter(function(r){return r.state==='cwin'||r.prob>0.5;}).length;
@@ -16176,10 +16190,16 @@ if(typeof window.cfRegisterView==='function'){
     border:1px solid var(--navy-300,#2B6FA8);border-top:none;
     border-radius:0 0 var(--radius-md,10px) var(--radius-md,10px);
     padding:0 14px 10px;margin-bottom:12px;}
-  #cf-period-bar.pb-leaders .pb-seg-row{display:block;}
+  #cf-period-bar.pb-leaders .pb-seg-row,
+  #cf-period-bar.pb-snapshot .pb-seg-row{display:block;}
+  /* the row holds every view's toggle; only the active view's shows */
+  #cf-period-bar .pb-seg-row>*{display:none;}
+  #cf-period-bar.pb-leaders .ldr-seg{display:flex;}
+  #cf-period-bar.pb-snapshot .cf-snap-toggle{display:flex;}
   /* merge the two rows into ONE visual frame: nav-controls loses its bottom
      edge + gap while the seg row is attached below it */
-  #cf-period-bar.pb-leaders .nav-controls{border-bottom:none;
+  #cf-period-bar.pb-leaders .nav-controls,
+  #cf-period-bar.pb-snapshot .nav-controls{border-bottom:none;
     border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0;}
   @media (max-width:640px){
     #cf-period-bar .pb-seg-row{padding:0 8px 8px;}
