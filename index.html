@@ -8652,7 +8652,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         const parts=[];
         if(fin)parts.push(fin+' final');
         if(live)parts.push(live+' live now');
-        hero='<div class="cf-sb-xhero">'+verb+' <span class="cf-sb-xhero__n">'+winning+'</span> of '+cs.length+'</div>'+
+        hero='<div class="cf-sb-xhero">'+verb+' <span class="cf-sb-xhero__n"'+(winning===0?' style="color:var(--ink-900)"':'')+'>'+winning+'</span> of '+cs.length+'</div>'+
              (parts.length?'<div class="cf-sb-xhero-sub">'+parts.join(' · ')+'</div>':'');
       }
     }catch(e){}
@@ -14831,7 +14831,7 @@ loadExperimentState();
   /* Build one row per league matchup from the live data object. */
   function buildRows(){
     var data=window.__conflictedLastData||null;
-    if(!data||data.noData||data.offseasonMode)return {rows:[],week:(data&&data.debugInfo&&data.debugInfo.week)||null,nodata:true};
+    if(!data||data.noData||data.offseasonMode)return {rows:[],week:(data&&data.debugInfo&&data.debugInfo.week)||null,season:(data&&data.debugInfo&&data.debugInfo.season)||null,nodata:true};
     var contexts=Array.isArray(data.contexts)?data.contexts:[];
     var pool=Array.isArray(data.allRostered)?data.allRostered:[].concat(data.cheerFor||[],data.conflicted||[],data.enemies||[]);
     var rows=[];
@@ -14905,7 +14905,7 @@ loadExperimentState();
       }
       return 0;
     });
-    return {rows:rows, week:(data.debugInfo&&data.debugInfo.week)||null, nodata:false};
+    return {rows:rows, week:(data.debugInfo&&data.debugInfo.week)||null, season:(data.debugInfo&&data.debugInfo.season)||null, nodata:false};
   }
 
   function nf(v){ return (Math.round(v*10)/10).toFixed(1); }
@@ -14939,7 +14939,7 @@ loadExperimentState();
     if(r.state==='cwin'){Lf='<span style="color:#5DCAA5">'+(r.isFinal?'Win secured':'Clinched')+'</span>';Rf='<span class="muted">+'+nf(margin(r))+' &mdash; can\'t be caught</span>';}
     else if(r.state==='closs'){Lf='<span style="color:#E88A7F">'+(r.isFinal?'Final':'Out of reach')+'</span>';Rf='<span class="muted">&minus;'+nf(margin(r))+'</span>';}
     else{Lf='<span style="color:'+COL[r.state]+'">'+pct+'% win</span>';Rf='<span class="muted">'+(r.pending?(r.hasProj?'pre-kickoff projection':'not started yet'):'projected')+'</span>';}
-    return '<div class="cf-c-barwrap"><div class="cf-c-bar"><i style="width:'+w+'%;background:'+fill+(r.state==='closs'?';opacity:.6':'')+'"></i></div><div class="cf-c-barlbl">'+Lf+Rf+'</div></div>';
+    return '<div class="cf-c-barwrap"><div class="cf-c-bar"><i style="width:'+w+'%;background:'+fill+(r.state==='closs'?';opacity:.6':'')+'"></i></div></div>';
   }
   function cardDetail(r){
     var ic,txt,gap=r.curMy-r.curOpp;
@@ -14956,7 +14956,7 @@ loadExperimentState();
     }
     else if(gap>=0){ic='&#9650;';txt='Up <b>'+nf(gap)+'</b>'+(r.oppToGo.length?' &mdash; '+names(r.oppToGo)+' left for them.':' and pulling away.');}
     else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myToGo.length?' &mdash; '+names(r.myToGo)+' to go.':'.');}
-    return '<div class="cf-c-detail'+(r.pending?' is-1line':'')+'"><span>'+ic+'</span><span>'+txt+'</span></div>';
+    return '<div class="cf-c-detail'+(r.pending?' is-1line':'')+'"><span>'+txt+'</span></div>';
   }
   function cardHTML(r){
     return '<div class="cf-card '+r.state+'"><div class="cf-c-row1"><span class="cf-c-name">'+r.name+'</span>'+cardStatus(r)+'</div>'
@@ -14970,7 +14970,7 @@ loadExperimentState();
     /* Live tiles show ACTUALS (the static pregame PROJ never moved all day —
        exactly when you want the real score); pregame keeps PROJ, decided FINAL. */
     var you=clinched?r.curMy:(r.live?r.curMy:r.projMy), opp=clinched?r.curOpp:(r.live?r.curOpp:r.projOpp), lbl=clinched?'FINAL':(r.live?'LIVE':'PROJ');
-    return '<div class="cf-t-score"><span class="lbl">'+lbl+'</span><span class="you">'+nf(you)+'</span><span class="dash">&ndash;</span><span class="opp">'+nf(opp)+'</span></div>';
+    return '<div class="cf-t-score"><span class="lbl">'+lbl+'</span><span class="you">'+nf(you)+'</span><span class="dash">vs</span><span class="opp">'+nf(opp)+'</span></div>';
   }
   function gridStatus(r){
     if(r.pending)return '<span class="cf-t-status" style="color:#7AA8D1"><span class="dot" style="background:#7AA8D1"></span>PENDING</span>';
@@ -15004,7 +15004,7 @@ loadExperimentState();
     var frame=document.getElementById('cf-snap-frame'); if(!frame)return;
     var built=buildRows(), rows=built.rows;
     var kicker=document.getElementById('cf-snap-kicker');
-    if(kicker)kicker.textContent='WEEKEND SNAPSHOT'+(built.week?(' · WEEK '+built.week):'');
+    if(kicker)kicker.textContent='WEEKEND SNAPSHOT'+(built.week?(' · WEEK '+built.week+(built.season?(' · '+built.season):'')):'');
     var toggle=document.getElementById('cf-snap-toggle');
     var shareBtn=document.getElementById('cf-snap-share');
     var hero=document.getElementById('cf-snap-hero');
@@ -15034,7 +15034,7 @@ loadExperimentState();
     var wins=rows.filter(function(r){return r.state==='cwin'||r.prob>0.5;}).length;
     // Past-tense hero once every matchup is final (historic weeks) — "Won N of X".
     var allFinal=rows.every(function(r){return r.isFinal;});
-    if(hero)hero.innerHTML=(allFinal?'Won':'Winning')+' <span>'+wins+'</span> of '+rows.length;
+    if(hero)hero.innerHTML=(allFinal?'Won':'Winning')+' <span'+(wins===0?' style="color:var(--cs-cream)"':'')+'>'+wins+'</span> of '+rows.length;
     var parts=[],nC=rows.filter(function(r){return r.state==='cwin';}).length,
         nLive=rows.filter(function(r){return r.live;}).length,
         nP=rows.filter(function(r){return r.pending;}).length,
@@ -15949,6 +15949,7 @@ if(typeof window.cfRegisterView==='function'){
   function buildFrame(slotKey){
     var d=data()||{},metas=slotMetas(),s=scoped(slotKey);
     var wk=1;try{wk=(window.getActiveWeek?window.getActiveWeek():1)||1;}catch(e){}
+    var yr='';try{yr=(window.getActiveSeason?window.getActiveSeason():'')||'';}catch(e){}
     var leagues=(d.contexts||[]).filter(function(c){return c&&c.leagueState!=='NO_MATCHUP';}).length;
     var myCount=function(p){return (p.myLeagues||[]).length;};
     var vsCount=function(p){return (p.againstLeagues||[]).length;};
@@ -15963,7 +15964,7 @@ if(typeof window.cfRegisterView==='function'){
       var kick=kicks.length?('first kickoff '+fmtKick(Math.min.apply(null,kicks),true)):'';
       var starters=s.cheer.length+s.conf.length+s.enemy.length;
       var sub=[starters+' starters',leagues+' league'+(leagues===1?'':'s')].concat(kick?[kick]:[]).join(' &middot; ');
-      head+='<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+' &middot; FULL WEEK</div>';
+      head+='<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+(yr?(' &middot; '+yr):'')+'</div>';
       mid='<div class="rc-hero">'+
         '<div class="rc-hero-cell"><div class="rc-hero-n rc-green">'+s.cheer.length+'</div><div class="rc-hero-l">CHEER</div></div>'+
         '<div class="rc-hero-cell mid"><div class="rc-hero-n rc-red">'+s.enemy.length+'</div><div class="rc-hero-l">ENEMY</div></div>'+
@@ -15975,7 +15976,7 @@ if(typeof window.cfRegisterView==='function'){
       var parts=[];
       if(mt.firstKick)parts.push(fmtKick(mt.firstKick));
       if(mt.games)parts.push(mt.games+' game'+(mt.games===1?'':'s'));
-      head+='<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+'</div>';
+      head+='<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+(yr?(' &middot; '+yr):'')+'</div>';
       mid='<div class="rc-banner"><div class="rc-banner-t">'+lb.banner+'</div>'+
         (parts.length?'<div class="rc-banner-s">'+parts.join(' &middot; ')+'</div>':'')+'</div>'+
         '<div class="rc-inline">'+
