@@ -8626,8 +8626,15 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     '<text x="240" y="54" text-anchor="middle" clip-path="url(#cfsbHR)" style="font-family:Inter,system-ui,-apple-system,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#E88761">CONFLICTED</text>'+
     '<line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>';
   function exportHeaderNode(){
-    let wk=1; try{ wk=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
-    let yr=''; try{ yr=(window.getActiveSeason?window.getActiveSeason():'')||''; }catch(e){}
+    /* Source week/season from the rendered data's debugInfo (same source the
+       Weekend Snapshot kicker uses and which reliably carries the season) —
+       fall back to the live-binding accessors only if it's absent. */
+    let wk=1,yr='';
+    try{
+      var __di=(window.__conflictedLastData&&window.__conflictedLastData.debugInfo)||null;
+      wk=(__di&&__di.week)||(window.getActiveWeek?window.getActiveWeek():1)||1;
+      yr=(__di&&__di.season)||(window.getActiveSeason?window.getActiveSeason():'')||'';
+    }catch(e){}
     /* 2a hero — "Winning N of X" + "n final · m live now", computed from the
        same contexts the strip renders (states + projections already on the
        card; the hero is an aggregation, no new data). Degrades silently to
