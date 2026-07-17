@@ -16113,13 +16113,24 @@ if(typeof window.cfRegisterView==='function'){
     #view-leaders .ldr-sharebtn{
       position:fixed;left:0;right:0;margin:0 auto;z-index:890;
       width:calc(min(520px,100vw) - var(--gutter,16px)*2);
-      bottom:calc(var(--cbnav-h,87px) + var(--exp-ribbon-h,0px) + env(safe-area-inset-bottom,0px) + 8px);
+      /* Flush on the bar's top edge — no gap for the page to peek through. */
+      bottom:calc(var(--cbnav-h,87px) + var(--exp-ribbon-h,0px) + env(safe-area-inset-bottom,0px));
       box-shadow:0 6px 20px rgba(0,0,0,.35);
-      transition:bottom .6s cubic-bezier(0.4,0,0.2,1);
+      /* Ride WITH the bar: animate transform (composited, like the bar's own
+         slide) instead of `bottom` (layout property — janky, drifts out of
+         sync with the bar's GPU-driven glide). Same duration + curve. */
+      transition:transform .6s cubic-bezier(0.4,0,0.2,1);
     }
+    /* Bar slid off (scroll-down) → travel the bar's height so the button
+       settles at the display's bottom edge (still clear of the iOS home
+       indicator); back up in sync on reveal. (Higher specificity than the
+       :active scale, so no conflict.) */
     #exp-bottom-nav.cbnav-hidden ~ #view-leaders .ldr-sharebtn{
-      bottom:calc(var(--exp-ribbon-h,0px) + env(safe-area-inset-bottom,0px) + 8px);
+      transform:translateY(var(--cbnav-h,87px));
     }
+  }
+  @media (max-width:768px) and (prefers-reduced-motion:reduce){
+    #view-leaders .ldr-sharebtn{transition:none;}
   }
   /* CARRIED/CRUSHED toggle — matches the Snapshot List/Grid toggle chrome
      (#15293E track, navy-300 border, 3px pad/gap, flat active fill, .15s
