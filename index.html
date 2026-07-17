@@ -8653,7 +8653,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         if(fin)parts.push(fin+' final');
         if(live)parts.push(live+' live now');
         hero='<div class="cf-sb-xhero">'+verb+' <span class="cf-sb-xhero__n"'+(winning===0?' style="color:var(--ink-900)"':'')+'>'+winning+'</span> of '+cs.length+'</div>'+
-             (parts.length?'<div class="cf-sb-xhero-sub">'+parts.join(' · ')+'</div>':'');
+             (parts.length>1?'<div class="cf-sb-xhero-sub">'+parts.join(' · ')+'</div>':'');
       }
     }catch(e){}
     const head=document.createElement('div');head.className='cf-sb-xhead';
@@ -15040,7 +15040,9 @@ loadExperimentState();
         nP=rows.filter(function(r){return r.pending;}).length,
         nL=rows.filter(function(r){return r.state==='closs';}).length;
     if(nC)parts.push(nC+(allFinal?' won':' clinched')); if(nLive)parts.push(nLive+' live now'); if(nP)parts.push(nP+' pending'); if(nL)parts.push(nL+' lost');
-    if(sub)sub.textContent=parts.join('  ·  ');
+    /* Recap only reads when there's a MIX of outcomes — a single-category line
+       ("6 clinched" / "6 lost") just echoes the hero, so hide it. */
+    if(sub)sub.textContent=(parts.length>1?parts.join('  ·  '):'');
     if(foot)foot.textContent=rows.length+' LEAGUE'+(rows.length===1?'':'S')+' · ONE SCREEN';
 
     var view=getView();
