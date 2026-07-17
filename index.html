@@ -1188,7 +1188,15 @@
        BOARD
     ═══════════════════════════════════════════════════════════ */
     #board { display: none; }
-    .board-inner { max-width: var(--max-width-wide); margin: 0 auto; padding: 24px var(--gutter) 64px; }
+    .board-inner { max-width: var(--max-width-wide); margin: 0 auto; padding: 0 var(--gutter) 64px; }
+
+    /* Shared period bar (Week/Season/Filters) — lives OUTSIDE the views so the
+       header holds the exact same spot on GameDay, Snapshot, and Leaders. Its
+       inner wrapper mirrors .board-inner's horizontal geometry; the views below
+       dropped their own top padding (.nav-controls' 12px margin-bottom is the
+       gap). */
+    #cf-period-bar { display: none; }
+    #cf-period-bar .period-bar-inner { max-width: var(--max-width-wide); margin: 0 auto; padding: 24px var(--gutter) 0; }
 
     /* Nav controls */
     .nav-controls {
@@ -2296,31 +2304,8 @@
       margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
     }
     .share-foot__url { font: 500 13px/1 var(--font-mono); color: var(--ink-500); }
-    /* ── Share preview modal — opens instantly on tap (always-visible feedback);
-       its own Share/Save buttons fire navigator.share from a fresh user gesture,
-       which is the only reliable way to open the sheet on iOS/Safari. ── */
-    .share-modal { position: fixed; inset: 0; z-index: 9999; display: none; align-items: center; justify-content: center; padding: 18px; }
-    .share-modal.open { display: flex; }
-    .share-modal__backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
-    .share-modal__card {
-      position: relative; z-index: 1; width: 100%; max-width: 460px;
-      max-height: 88vh; overflow: auto;
-      background: var(--paper, #fff); color: var(--ink-900);
-      border: 1px solid var(--line); border-radius: 16px; padding: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
-    }
-    .share-modal__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .share-modal__title { font: 700 16px/1 var(--font-sans); letter-spacing: 0.02em; }
-    .share-modal__close { background: transparent; border: none; color: var(--ink-500); font-size: 24px; line-height: 1; cursor: pointer; padding: 0 4px; }
-    .share-modal__close:hover { color: var(--ink-900); }
-    .share-modal__status { font: 500 14px/1.5 var(--font-sans); color: var(--ink-500); padding: 28px 8px; text-align: center; }
-    .share-modal__status.is-error { color: var(--enemy); }
-    .share-modal__preview { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line-soft); }
-    .share-modal__preview[hidden] { display: none !important; }
-    .share-modal__actions { display: flex; gap: 10px; margin-top: 14px; }
-    .share-modal__btn { flex: 1; font: 700 14px/1 var(--font-sans); padding: 13px 12px; border-radius: var(--radius-pill); cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink-900); }
-    .share-modal__btn--primary { background: var(--coral-500); border-color: var(--coral-500); color: #fff; }
-    .share-modal__btn:disabled { opacity: 0.4; pointer-events: none; }
+    /* (Share preview modal retired 2026-07-16 — scoreboard share now uses the
+       shared BottomSheet preview flow, same as the Rooting Card and Leaders.) */
     .scoreboard-frame.collapsed > :not(.scoreboard-header) { display: none; }
     .loyalties-section.collapsed > :not(.loyalties-header) { display: none; }
     .scoreboard-frame.collapsed .scoreboard-header,
@@ -2544,6 +2529,14 @@
     }
     @keyframes cf-update-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
     @media (prefers-reduced-motion: reduce) { .cf-update-toast { animation: none; } }
+    /* Mobile: stack vertically — Refresh button on top, "New version available"
+       below it; the × dismiss parks in the top-right corner. */
+    @media (max-width: 640px) {
+      .cf-update-toast { flex-direction: column; gap: 8px; padding: 12px 26px; border-radius: var(--radius-md); text-align: center; }
+      .cf-update-toast__btn { order: 1; }
+      .cf-update-toast__label { order: 2; }
+      .cf-update-toast__x { position: absolute; top: 4px; right: 6px; }
+    }
 
     /* ═══════════════════════════════════════════════════════════
        MOBILE
@@ -2567,7 +2560,8 @@
       .lp-signin { padding: 24px var(--gutter) 40px; }
       .signin-card { padding: 24px 20px; }
       .provider-card-grid { grid-template-columns: 1fr; }
-      .board-inner { padding: 16px var(--gutter) 40px; }
+      .board-inner { padding: 0 var(--gutter) 40px; }
+      #cf-period-bar .period-bar-inner { padding: 16px var(--gutter) 0; }
       .nav-controls { padding: 6px 8px; gap: 4px; flex-wrap: nowrap; }
       .nav-controls .nav-label { display: none; }
       /* Touch targets: arrows + dropdowns meet the 44px minimum on mobile.
@@ -4012,9 +4006,16 @@
   </div>
 </div>
 
-<!-- ══ BOARD ════════════════════════════════════════════════════ -->
-<div id="board">
-  <div class="board-inner">
+<!-- ══ PERIOD BAR — shared Week / Season / Filters header ═══════════════════
+     ONE physical element shown above GameDay (#board), Snapshot, and Leaders,
+     so it literally cannot shift position between those views and the selected
+     period stays in sync as the user hops tabs (activeWeek/activeSeason are
+     already global). hideAll() hides it; showBoard/showSnapshot/showLeaders
+     re-show it. The Filters button dispatches per view (cfOpenHeaderFilters):
+     Leaders → its own filters sheet (scoring format etc.), everywhere else →
+     the league-visibility drawer. -->
+<div id="cf-period-bar">
+  <div class="period-bar-inner">
     <div class="nav-controls">
       <span class="nav-label">Week</span>
       <button class="btn-icon" id="week-prev" onclick="changeWeek(-1)">‹</button>
@@ -4026,12 +4027,18 @@
       <div class="nav-spacer"></div>
       <span class="nav-ctx" id="nav-context-label" style="display:none"></span>
       <div class="league-filter-bar" id="league-filter-bar">
-        <button type="button" class="league-filter-btn" id="league-filter-btn" onclick="openLeagueFilterSheet()" aria-label="Open filters">
+        <button type="button" class="league-filter-btn" id="league-filter-btn" onclick="cfOpenHeaderFilters()" aria-label="Open filters">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-          <span>Filters</span>
+          <span>Filters</span><span class="league-filter-count" id="league-filter-count"></span>
         </button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ══ BOARD ════════════════════════════════════════════════════ -->
+<div id="board">
+  <div class="board-inner">
     <div class="scoreboard-frame" id="scoreboard-frame">
       <div class="scoreboard-header">
         <div class="scoreboard-wordmark"><span class="scoreboard-wordmark__a">SCORE</span><span class="scoreboard-wordmark__b">BOARD</span></div>
@@ -4530,7 +4537,7 @@
   /* The snapshot is an always-dark, brand-locked share asset, so its colors are
      hardcoded (independent of the app's light/dark theme) — same approach as the
      scoreboard share image. */
-  #view-snapshot{display:none;max-width:var(--max-width);margin:0 auto;padding:18px var(--gutter) 96px;
+  #view-snapshot{display:none;max-width:var(--max-width);margin:0 auto;padding:0 var(--gutter) 96px;
     --cs-navy-900:#0F2235;--cs-navy-800:#15293E;--cs-navy-700:#1A3A52;--cs-navy-card:#16304A;--cs-navy-line:#27425F;
     --cs-coral:#E88761;--cs-cream:#F5EFE4;--cs-ink-700:#E0DACA;--cs-ink-500:#9E988A;--cs-ink-400:#7C8694;
     --cs-green:#5DCAA5;--cs-red:#E07A6E;--cs-blue:#7AA8D1;--cs-dull:#6b4a45;}
@@ -5323,7 +5330,7 @@ function ctxBadge(sig,isHist){
 }
 
 function hideAll(){
-  ['setup-panel','loading-panel','error-panel','board','priority-panel','view-snapshot','view-conflict','view-exposure','view-watch','view-leaders','view-settings','view-connections','view-account','view-account-delete','view-about'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['setup-panel','loading-panel','error-panel','cf-period-bar','board','priority-panel','view-snapshot','view-conflict','view-exposure','view-watch','view-leaders','view-settings','view-connections','view-account','view-account-delete','view-about'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   window.__cfSnapshotOpen=false;
   window.__cfConflictOpen=false;
   window.__cfLeadersOpen=false;
@@ -5904,8 +5911,15 @@ window.showSetup=showSetup;
 function showLoading(msg){hideAll();document.getElementById('loading-panel').style.display='flex';document.getElementById('loading-msg').textContent=msg||'Pulling your leagues.';}
 function setLoading(msg){document.getElementById('loading-msg').textContent=msg;}
 function showError(msg){hideAll();document.getElementById('error-panel').style.display='flex';document.getElementById('error-msg').textContent=msg;}
+/* Shared period bar (Week/Season/Filters above GameDay/Snapshot/Leaders). */
+window.cfShowPeriodBar=function(){
+  const b=document.getElementById('cf-period-bar');
+  if(b)b.style.display='block';
+  try{if(typeof window.cfSyncHeaderFilters==='function')window.cfSyncHeaderFilters();}catch(e){}
+};
 function showBoard(){
   hideAll();document.getElementById('board').style.display='block';
+  window.cfShowPeriodBar();
   /* Remember that the user landed on a real board this session, so the next
      resume can paint a board skeleton instead of the login screen. Guarded so
      demo/preview boards don't make a logged-out user boot into a skeleton. */
@@ -6596,12 +6610,7 @@ function buildFilterPills(names){
   leagueNamesCache=names.slice();
   // Drop hidden entries for leagues that no longer exist this week.
   for(const lg of[...hiddenLeagues]){if(!names.includes(lg))hiddenLeagues.delete(lg);}
-  const bar=document.getElementById('league-filter-bar');
-  // Show the Filters button if there's anything to filter: 2+ leagues, or the
-  // live-only toggle is meaningful this week.
-  const showBtn=names.length>=2||liveToggleAvailable;
-  if(bar)bar.classList.toggle('visible',showBtn);
-  updateFilterButton();
+  cfSyncHeaderFilters();
   const key=names.join('|');
   if(key!==_lastLeagueDrawerKey){
     _lastLeagueDrawerKey=key;
@@ -6613,6 +6622,7 @@ function buildFilterPills(names){
 }
 /* Badge on the Filters button: shows "shown/total" only while some league is hidden. */
 function updateFilterButton(){
+  if(window.__cfLeadersOpen)return; // Leaders owns the badge while it's open
   const badge=document.getElementById('league-filter-count');
   if(!badge)return;
   const total=leagueNamesCache.length;
@@ -6620,6 +6630,27 @@ function updateFilterButton(){
   if(hiddenHere>0&&total){badge.textContent=`${total-hiddenHere}/${total}`;badge.classList.add('visible');}
   else{badge.textContent='';badge.classList.remove('visible');}
 }
+/* The shared header's Filters button is view-aware: on Leaders it must ALWAYS
+   show (scoring format lives behind it) with Leaders' own off-default badge;
+   everywhere else it keeps the league-visibility semantics (2+ leagues or the
+   live-only toggle). Called on every view switch and every renderBoard. */
+function cfSyncHeaderFilters(){
+  const bar=document.getElementById('league-filter-bar');
+  if(window.__cfLeadersOpen){
+    if(bar)bar.classList.add('visible');
+    try{if(typeof window.__ldrSyncFilterBadge==='function')window.__ldrSyncFilterBadge();}catch(e){}
+    return;
+  }
+  if(bar)bar.classList.toggle('visible',leagueNamesCache.length>=2||liveToggleAvailable);
+  updateFilterButton();
+}
+window.cfSyncHeaderFilters=cfSyncHeaderFilters;
+/* Header Filters dispatcher — Leaders opens its own sheet, others the league drawer. */
+function cfOpenHeaderFilters(){
+  if(window.__cfLeadersOpen&&typeof window.__ldrOpenFilters==='function'){window.__ldrOpenFilters();return;}
+  openLeagueFilterSheet();
+}
+window.cfOpenHeaderFilters=cfOpenHeaderFilters;
 /* Full HTML for the bottom drawer: live-only toggle pinned at top, then a
    two-column league name / on-off-toggle list. Returned as a string for
    BottomSheet.open / setBody. League rows carry their index (not the raw name)
@@ -6689,6 +6720,9 @@ function applyFilters(){
     }else if(e)e.remove();
   });
   updatePillCounts();
+  /* Snapshot filters its rows by the same hiddenLeagues set — repaint it live
+     if it's the view behind the open Filters drawer. */
+  try{if(window.__cfSnapshotOpen&&typeof window.__cfRenderSnapshot==='function')window.__cfRenderSnapshot();}catch(e){}
 }
 
 const posClass=pos=>({QB:'pos-QB',RB:'pos-RB',WR:'pos-WR',TE:'pos-TE',K:'pos-K',DEF:'pos-DEF',FLEX:'pos-FLEX','W/R':'pos-FLEX','REC FLEX':'pos-FLEX','SUPER FLEX':'pos-FLEX'}[pos]||'pos-default');
@@ -8595,108 +8629,90 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       swapHeader:{sel:'.scoreboard-header',node:exportHeaderNode()}});
   }
 
-  /* ---- Preview modal (built once, reused) ---- */
-  let modal,statusEl,previewEl,shareBtn,saveBtn,curFile=null,curUrl=null;
-  function buildModal(){
-    modal=document.createElement('div');
-    modal.className='share-modal';
-    modal.innerHTML=
-      '<div class="share-modal__backdrop" data-close="1"></div>'+
-      '<div class="share-modal__card" role="dialog" aria-modal="true" aria-label="Share scoreboard">'+
-        '<div class="share-modal__head"><span class="share-modal__title">Share scoreboard</span>'+
-        '<button class="share-modal__close" type="button" aria-label="Close" data-close="1">×</button></div>'+
-        '<div class="share-modal__status" id="share-modal-status">Building image…</div>'+
-        '<img class="share-modal__preview" id="share-modal-preview" alt="Scoreboard preview" hidden>'+
-        '<div class="share-modal__actions">'+
-          '<button class="share-modal__btn share-modal__btn--primary" id="share-modal-share" type="button" hidden>Share</button>'+
-          '<button class="share-modal__btn" id="share-modal-save" type="button" hidden>Save image</button>'+
-        '</div>'+
-      '</div>';
-    document.body.appendChild(modal);
-    statusEl=modal.querySelector('#share-modal-status');
-    previewEl=modal.querySelector('#share-modal-preview');
-    shareBtn=modal.querySelector('#share-modal-share');
-    saveBtn=modal.querySelector('#share-modal-save');
-    modal.addEventListener('click',e=>{ if(e.target&&e.target.getAttribute('data-close'))closeModal(); });
-    shareBtn.addEventListener('click',doShare);
-    saveBtn.addEventListener('click',doSave);
-    document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&modal.classList.contains('open'))closeModal(); });
-  }
-  function resetModal(){
-    if(!modal)buildModal();
-    statusEl.textContent='';statusEl.classList.remove('is-error');statusEl.hidden=true;
-    previewEl.hidden=true;previewEl.removeAttribute('src');
-    shareBtn.hidden=true;saveBtn.hidden=true;
-  }
-  function closeModal(){
-    if(modal)modal.classList.remove('open');
-    if(curUrl){URL.revokeObjectURL(curUrl);curUrl=null;}
-    curFile=null;
-  }
-  function showError(msg){ if(statusEl){statusEl.textContent=msg;statusEl.classList.add('is-error');statusEl.hidden=false;} }
-  /* Fallback modal — only shown if the direct one-tap share is blocked or the
-     render fails. The image is already rendered, so the modal's Share button
-     fires from a FRESH gesture, which iOS always honours. */
-  function showModalWithFile(file){
-    resetModal();
-    curFile=file;
-    if(curUrl)URL.revokeObjectURL(curUrl);
-    curUrl=URL.createObjectURL(file);
-    previewEl.src=curUrl;previewEl.hidden=false;
-    const canShareFiles=!!(navigator.canShare&&navigator.canShare({files:[file]}));
-    shareBtn.hidden=!canShareFiles;
-    saveBtn.hidden=false;
-    saveBtn.textContent=canShareFiles?'Save image':'Download image';
-    modal.classList.add('open');
-  }
-  function showModalError(msg){ resetModal();showError(msg);modal.classList.add('open'); }
-  async function doShare(){
-    if(!curFile)return;
-    if(navigator.canShare&&navigator.canShare({files:[curFile]})){
-      try{ await navigator.share({files:[curFile],text:window.cfShareCardUrl?cfShareCardUrl():undefined}); try{cfTrack('share_completed',{surface:'scoreboard_modal'});}catch(_e){} closeModal(); }
-      catch(e){ if(!(e&&e.name==='AbortError'))showError('Sharing was blocked — use Save image instead.'); }
-    }else{ doSave(); }
-  }
-  function doSave(){
-    if(!curUrl)return;
-    const ua=navigator.userAgent||'';
-    const iOS=/iP(hone|ad|od)/.test(ua)||(/Macintosh/.test(ua)&&'ontouchend'in document);
-    if(iOS){ window.open(curUrl,'_blank'); }
-    else{ const a=document.createElement('a');a.href=curUrl;a.download='conflicted-scoreboard.png';document.body.appendChild(a);a.click();a.remove(); }
-  }
-  /* Hybrid one-tap: render the image, then go STRAIGHT to the native share sheet.
-     Only if iOS refuses it (activation window lost) or the render fails do we fall
-     back to the preview modal — so the common case feels like a single tap, but it
-     can never silently do nothing. */
-  let busy=false;
-  async function onTap(){
+  /* ---- Bottom-drawer share preview (rooting-card/leaders pattern, 2026-07-16).
+     Tap the icon → BottomSheet with a scaled on-screen preview of the export
+     (header already swapped to the branded wordmark + hero) + a Share button.
+     The Share tap is a FRESH user activation — the only thing iOS/Safari
+     reliably accepts for navigator.share() — and the visible preview sidesteps
+     WebKit's blank-offscreen-render. Sheet chrome reuses the generic
+     .rc-sheet/.rc-prevwrap/.rc-sharego styles; delegation is owner-guarded so
+     the rooting-card/leaders sheets never collide. ---- */
+  let sharing=false;
+  function previewNode(){
     const live=document.getElementById('scoreboard-frame');
-    if(!live||live.classList.contains('collapsed')||busy)return;
+    if(!live)return null;
+    const clone=live.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.querySelectorAll('[id]').forEach(n=>n.removeAttribute('id'));
+    const head=clone.querySelector('.scoreboard-header');
+    if(head)head.replaceWith(exportHeaderNode());
+    clone.style.width=(live.offsetWidth||360)+'px';
+    clone.style.background=pageBg();
+    return clone;
+  }
+  function sheetHtml(){
+    return '<div class="rc-sheet">'+
+      '<div class="rc-prevwrap"><div class="rc-prevscale" id="sbs-prevscale"></div></div>'+
+      '<button type="button" class="rc-sharego" id="sbs-go">&#x2197;&nbsp; Share</button>'+
+      '</div>';
+  }
+  function renderPreview(){
+    const scale=document.getElementById('sbs-prevscale');
+    const live=document.getElementById('scoreboard-frame');
+    if(!scale||!live)return;
+    const clone=previewNode(); if(!clone)return;
+    scale.innerHTML=''; scale.appendChild(clone);
+    const wrap=scale.parentElement, w=wrap.clientWidth-24, fw=live.offsetWidth||360;
+    const f=Math.min(1,w/fw);
+    scale.style.transform='scale('+f+')';
+    scale.style.marginLeft=Math.max(0,(w-fw*f)/2)+'px';
+    scale.style.height=(clone.offsetHeight*f)+'px';
+  }
+  function setLabel(t){ const b=document.getElementById('sbs-go'); if(b)b.innerHTML=t; }
+  function saveFile(file){
+    const url=URL.createObjectURL(file);
+    const ua=navigator.userAgent||'', iOS=/iP(hone|ad|od)/.test(ua)||(/Macintosh/.test(ua)&&'ontouchend'in document);
+    if(iOS){ window.open(url,'_blank'); }
+    else{ const a=document.createElement('a');a.href=url;a.download='conflicted-scoreboard.png';document.body.appendChild(a);a.click();a.remove(); }
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  }
+  async function doShare(){
+    if(sharing)return; sharing=true;
     try{cfTrack('share_tapped',{surface:'scoreboard'});}catch(e){}
-    busy=true;btn.classList.add('is-busy');
+    const orig='&#x2197;&nbsp; Share';
+    setLabel('Building image…');
+    const gb=document.getElementById('sbs-go'); if(gb)gb.disabled=true;
     let file=null;
     try{
-      file=await buildPng(live);
+      file=await buildPng(document.getElementById('scoreboard-frame'));
     }catch(err){
       try{console.error('[share] build failed',err);}catch(e){}
-      busy=false;btn.classList.remove('is-busy');
-      showModalError((err&&err.message)?err.message:'Something went wrong building the image.');
-      return;
+      setLabel('Couldn’t build image — tap to retry'); sharing=false;
+      if(gb)gb.disabled=false;
+      setTimeout(()=>setLabel(orig),1800); return;
     }
-    busy=false;btn.classList.remove('is-busy');
     if(navigator.canShare&&navigator.canShare({files:[file]})){
       try{
         await navigator.share({files:[file],text:window.cfShareCardUrl?cfShareCardUrl():undefined});
         try{cfTrack('share_completed',{surface:'scoreboard'});}catch(e){}
-        return;                               /* shared directly — no modal */
-      }catch(e){
-        if(e&&e.name==='AbortError')return;    /* user dismissed the sheet */
-        /* blocked (activation lost, etc.) → fall through to the modal */
-      }
-    }
-    showModalWithFile(file);
+      }catch(e){ if(!(e&&e.name==='AbortError'))saveFile(file); }
+    } else saveFile(file);
+    setLabel(orig); if(gb)gb.disabled=false; sharing=false;
   }
-  btn.addEventListener('click',e=>{e.stopPropagation();onTap();});
+  function openShareSheet(){
+    if(!window.BottomSheet)return;
+    const live=document.getElementById('scoreboard-frame');
+    if(!live||live.classList.contains('collapsed'))return;
+    window.BottomSheet.open(sheetHtml(),{owner:'scoreboard-share'});
+    renderPreview();
+    if(window.cfShare&&window.cfShare.warm)window.cfShare.warm();
+    try{cfTrack('scoreboard_share_open',{});}catch(e){}
+  }
+  document.addEventListener('click',function(e){
+    if(!window.BottomSheet||!window.BottomSheet.isOpen()||window.BottomSheet.getOwner()!=='scoreboard-share')return;
+    if(e.target.closest('#sbs-go'))doShare();
+  });
+  btn.addEventListener('click',e=>{e.stopPropagation();openShareSheet();});
 })();
 
 /* ══ LIVE UPDATES engine ═════════════════════════════════════════════════════
@@ -14781,6 +14797,9 @@ loadExperimentState();
     contexts.forEach(function(ctx){
       if(!ctx||ctx.leagueState==='NO_MATCHUP')return;
       var name=ctx.leagueName, ls=ctx.leagueState||'';
+      /* Respect the shared header's league-visibility Filters drawer (same
+         hiddenLeagues set the dashboard uses; session-only by design). */
+      try{ if(typeof hiddenLeagues!=='undefined'&&hiddenLeagues&&hiddenLeagues.has(name))return; }catch(e){}
       var curMy=+ctx.myPoints||0, curOpp=+ctx.oppPoints||0;
       var projMy=+ctx.myProjPts||0, projOpp=+ctx.oppProjPts||0;
       var hasProj=(projMy>0||projOpp>0);
@@ -14991,6 +15010,7 @@ loadExperimentState();
     if(typeof window.hideAll==='function')window.hideAll();
     var v=document.getElementById('view-snapshot'); if(v)v.style.display='block';
     window.__cfSnapshotOpen=true;
+    if(typeof window.cfShowPeriodBar==='function')window.cfShowPeriodBar();
     render();
     window.scrollTo(0,0);
   }
@@ -15072,7 +15092,8 @@ loadExperimentState();
     --c-green:#6BBF8C;--c-yellow:#D9A445;--c-red:#D86A5C;--c-blue:#7AA8D1;color:var(--c-cream);}
   #view-conflict .cfc-frame{background:var(--c-navy900);border:1px solid var(--navy-300);border-radius:18px;padding:18px 15px 14px;}
   #view-conflict .cfc-kick{text-align:center;font-size:9px;letter-spacing:.28em;font-weight:800;color:var(--c-ink500);margin-bottom:14px;white-space:nowrap;}
-  #view-conflict .cfc-share{width:100%;border:none;background:var(--c-coral,#E88761);color:#0F2235;font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:12.5px;letter-spacing:.02em;padding:11px 13px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;}
+  /* Standardized CTA style (site pattern = Snapshot's "Share my weekend"). */
+  #view-conflict .cfc-share{width:100%;border:none;background:var(--c-coral,#E88761);color:#0F2235;font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:12.5px;letter-spacing:.02em;padding:8px 13px;border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;}
   #view-conflict .cfc-share:active{transform:scale(.99);}
   #view-conflict .cfc-share:disabled{opacity:.55;cursor:default;}
   #view-conflict .cfc-toggle{display:flex;gap:5px;background:#0b1722;border:1px solid var(--c-line);border-radius:11px;padding:4px;margin-bottom:14px;}
@@ -15656,17 +15677,24 @@ if(typeof window.cfRegisterView==='function'){
   .rc-chead .l{font:800 9px/1 var(--font-sans,'Inter');color:#5DCAA5;letter-spacing:.14em;justify-self:start;}
   .rc-chead .m{font:800 10px/1 var(--font-sans,'Inter');color:#D9A445;letter-spacing:.14em;}
   .rc-chead .r{font:800 9px/1 var(--font-sans,'Inter');color:#E07A6E;letter-spacing:.14em;justify-self:end;}
-  .rc-crow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;padding:8px 4px;}
+  /* ×N numerals hug the outer edges (auto cols); the name owns EVERYTHING in
+     between (1fr + text-align:center) so long names no longer truncate at an
+     arbitrary max-width. min-width:0 keeps the ellipsis working in a 1fr track. */
+  .rc-crow{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:8px 2px;}
   .rc-crow .xl{font:900 17px/1 var(--font-sans,'Inter');color:#5DCAA5;font-variant-numeric:tabular-nums;justify-self:start;}
-  .rc-crow .nm{font:800 14px/1.2 var(--font-sans,'Inter');color:#F5EFE4;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px;}
+  .rc-crow .nm{font:800 14px/1.2 var(--font-sans,'Inter');color:#F5EFE4;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;text-align:center;}
   .rc-crow .xr{font:900 17px/1 var(--font-sans,'Inter');color:#E07A6E;font-variant-numeric:tabular-nums;justify-self:end;}
   .rc-cdiv{height:1px;background:#27425F;}
   .rc-clean{text-align:center;font:800 11px/1.5 var(--font-sans,'Inter');color:#D9A445;letter-spacing:.12em;padding:6px 0 4px;}
   /* comprehensive name lists */
+  /* 2-col layout: names centered within each half of the centerline (left-
+     justified names made col 1 hug the card edge while col 2 hugged the middle).
+     3-col keeps its original left-aligned rhythm — spacing there already reads
+     right (Matt, 2026-07-16). */
   .rc-names{display:grid;grid-template-columns:1fr 1fr;row-gap:7px;column-gap:12px;}
   .rc-names.cols3{grid-template-columns:1fr 1fr 1fr;column-gap:10px;}
-  .rc-names div{font:700 12px/1.2 var(--font-sans,'Inter');color:#F5EFE4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
-  .rc-names.cols3 div{font-size:11px;}
+  .rc-names div{font:700 12px/1.2 var(--font-sans,'Inter');color:#F5EFE4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;text-align:center;}
+  .rc-names.cols3 div{font-size:11px;text-align:left;}
   .rc-names .xn{font:800 10px/1 var(--font-sans,'Inter');}
   .rc-names .tm{font:600 10px/1 var(--font-sans,'Inter');color:#7C8694;}
   .rc-more{text-align:center;font:700 10px/1 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.06em;margin-top:9px;padding-top:8px;border-top:1px solid #27425F;}
@@ -15679,8 +15707,11 @@ if(typeof window.cfRegisterView==='function'){
   .rc-chip.on{color:#0F2235;background:var(--navy-700,#7AA8D1);border-color:var(--navy-700,#7AA8D1);}
   .rc-prevwrap{background:#0b1722;border:1px solid #1b2c3c;border-radius:18px;padding:12px;overflow:hidden;}
   .rc-prevscale{transform-origin:top left;}
-  .rc-sharego{width:100%;margin-top:12px;border:none;background:var(--coral-500,#E88761);color:#fff;
-    font:800 14px/1 var(--font-sans);letter-spacing:.04em;padding:14px 12px;border-radius:999px;cursor:pointer;}
+  /* Standardized CTA style (site pattern = Snapshot's "Share my weekend");
+     literal color fallbacks kept — this renders inside the BottomSheet. */
+  .rc-sharego{width:100%;margin-top:12px;border:none;background:var(--coral-500,#E88761);color:#0F2235;
+    font:900 12.5px/1 var(--font-sans,'Inter');letter-spacing:.02em;padding:8px 13px;border-radius:11px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;}
   .rc-sharego:active{transform:scale(.99);}
   .rc-sharego:disabled{opacity:.55;cursor:default;}
 </style>
@@ -15840,7 +15871,7 @@ if(typeof window.cfRegisterView==='function'){
     var shown=sorted.slice(0,CONF_CAP), extra=sorted.length-shown.length;
     var rows;
     if(!shown.length){
-      rows='<div class="rc-clean">ZERO DIVIDED LOYALTIES &mdash; CLEAN SLATE</div>';
+      rows='<div class="rc-clean">ZERO DIVIDED LOYALTIES</div>';
     }else{
       rows=shown.map(function(p){
         return '<div class="rc-crow">'+
@@ -16058,15 +16089,16 @@ if(typeof window.cfRegisterView==='function'){
      seam, sequentially, with completed weeks cached in localStorage forever.
      ════════════════════════════════════════════════════════════════════════ -->
 <style>
-  #view-leaders{display:none;max-width:520px;margin:0 auto;padding:18px var(--gutter,16px) 96px;
+  #view-leaders{display:none;max-width:520px;margin:0 auto;padding:0 var(--gutter,16px) 96px;
     --ldr-navy900:#0F2235;--ldr-card:#16304A;--ldr-card-deep:#0A1521;--ldr-line:#27425F;
     --ldr-cream:#F5EFE4;--ldr-ink500:#9E988A;--ldr-ink400:#7C8694;--ldr-ink300:#5F6B78;
     --ldr-green:#5DCAA5;--ldr-green-soft:#1F3329;--ldr-red:#E07A6E;--ldr-red-soft:#3A1F1A;
     --ldr-gold:#D9A445;--ldr-blue:#7AA8D1;--ldr-coral:#E88761;
     color:var(--ldr-cream);font-family:var(--font-sans),'Inter',sans-serif;}
+  /* Standardized CTA style (site pattern = Snapshot's "Share my weekend"). */
   #view-leaders .ldr-sharebtn{width:100%;border:none;background:var(--ldr-coral);color:#0F2235;
     font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:12.5px;letter-spacing:.02em;
-    padding:11px 13px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;}
+    padding:8px 13px;border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;}
   #view-leaders .ldr-sharebtn:active{transform:scale(.99);}
   #view-leaders .ldr-sharebtn:disabled{opacity:.55;cursor:default;}
   #view-leaders .ldr-seg{display:grid;grid-template-columns:1fr 1fr;background:var(--ldr-card-deep);
@@ -16075,14 +16107,8 @@ if(typeof window.cfRegisterView==='function'){
     font:800 12px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.08em;color:var(--ldr-ink400);cursor:pointer;}
   #view-leaders .ldr-seg button.on-f{background:var(--ldr-green-soft);color:var(--ldr-green);box-shadow:inset 0 0 0 1px rgba(93,202,165,.4);}
   #view-leaders .ldr-seg button.on-a{background:var(--ldr-red-soft);color:var(--ldr-red);box-shadow:inset 0 0 0 1px rgba(224,122,110,.4);}
-  /* (Top-N pills retired from the page — they live in the share sheet now.) */
-  #view-leaders .ldr-ctl{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:12px;padding:0 2px;}
-  #view-leaders .ldr-filtersbtn{appearance:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ldr-line);
-    background:var(--ldr-card-deep);color:var(--ldr-blue);font:700 11px/1 var(--font-sans),'Inter',sans-serif;padding:8px 12px;border-radius:999px;cursor:pointer;}
-  #view-leaders .ldr-filtersbtn svg{width:12px;height:12px;display:block;}
-  #view-leaders .ldr-filtersbtn .ldr-fcount{display:none;min-width:14px;height:14px;border-radius:999px;background:var(--ldr-coral);color:#0F2235;
-    font:800 9px/14px var(--font-sans),'Inter',sans-serif;text-align:center;padding:0 3px;}
-  #view-leaders .ldr-filtersbtn.active .ldr-fcount{display:inline-block;}
+  /* (Top-N pills retired from the page — they live in the share sheet now.
+     The Filters button moved into the shared period bar, 2026-07-16.) */
   /* branded frame = the share target.
      DELIBERATELY UNSCOPED (.ldr-*, not #view-leaders .ldr-*): cfShare.buildFile
      re-parents the frame clone under <body>, where #view-leaders-scoped rules
@@ -16147,8 +16173,8 @@ if(typeof window.cfRegisterView==='function'){
   .ldrf .ldrf-pill{appearance:none;border:1px solid var(--line);background:var(--paper-deep);color:var(--ink-500);
     font:700 10px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.06em;padding:8px 13px;border-radius:999px;cursor:pointer;}
   .ldrf .ldrf-pill.on{background:var(--navy-700);color:var(--paper);border-color:var(--navy-700);}
-  .ldrf .ldrf-done{width:100%;appearance:none;border:0;border-radius:12px;background:var(--coral-500,#E88761);color:#0F2235;
-    font:800 13px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.06em;padding:12px 0;cursor:pointer;margin-top:2px;}
+  .ldrf .ldrf-done{width:100%;appearance:none;border:0;border-radius:11px;background:var(--coral-500,#E88761);color:#0F2235;
+    font:900 12.5px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.02em;padding:8px 13px;cursor:pointer;margin-top:2px;}
 </style>
 
 <div id="view-leaders">
@@ -16158,13 +16184,8 @@ if(typeof window.cfRegisterView==='function'){
     <button type="button" data-ldr-side="A">CRUSHED ME</button>
   </div>
   <!-- Top-N pills moved into the SHARE sheet (2026-07-16): on the page managers
-       always see ALL rows — visible quantity only matters when sharing. -->
-  <div class="ldr-ctl">
-    <button type="button" class="ldr-filtersbtn" id="ldr-filters">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4" fill="#0A1521"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4" fill="#0A1521"/></svg>
-      Filters<span class="ldr-fcount" id="ldr-fcount">1</span>
-    </button>
-  </div>
+       always see ALL rows — visible quantity only matters when sharing.
+       Filters button moved into the shared period bar (cfOpenHeaderFilters). -->
   <div class="ldr-frame" id="ldr-frame">
     <div class="ldr-wm">
       <svg viewBox="0 0 480 78" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Conflicted">
@@ -16194,7 +16215,7 @@ if(typeof window.cfRegisterView==='function'){
   var CACHE_PREFIX='cfLeaders:v1:';
   var st={side:'F',topN:0,fmt:'all',period:'week',season:null,week:null,
           def:{},pendingDefaults:false,building:false,built:{},agg:null,
-          weekRows:null,weekKey:null,done:0,total:0,failed:[],loadingWeek:false,
+          done:0,total:0,failed:[],loadingWeek:false,
           expLg:{}};
   var buildToken=0;
 
@@ -16229,21 +16250,26 @@ if(typeof window.cfRegisterView==='function'){
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function fmtTag(f){ f=String(f||''); return f?f.toUpperCase():''; }
 
-  /* ── defaults: reset on every open (filter-persistence rule) ─────────── */
+  /* ── defaults: reset on every open (filter-persistence rule) ──────────────
+     The WEEK/SEASON now come from the shared period bar (global activeWeek/
+     activeSeason), so Leaders inherits whatever period the user is already on
+     and stays in sync with Snapshot/GameDay. Only side/topN/fmt/period-mode
+     reset here. */
   function computeDefaults(){
     st.side='F'; st.topN=0; st.fmt='all'; /* page always shows ALL; Top-N is share-time only */
-    if(offseason()&&!limitedMode()){
-      /* Offseason: no live week to show — open on Week 1 of the last completed
-         season (every league is guaranteed a matchup in week 1, so the first
-         paint is always full). SEASON TO DATE is not offered for historic
-         years: watching a multi-second progressive build over a finished
-         season reads as broken/incomplete data (Matt, 2026-07-14). */
-      st.period='week'; st.season=String(parseInt(liveSn(),10)-1); st.week=1;
-    }else{
-      st.period='week'; st.season=liveSn(); st.week=liveWk();
-    }
-    st.def={period:st.period,season:st.season,week:st.week};
+    st.period='week';
+    syncFromGlobals();
   }
+  function syncFromGlobals(){
+    st.season=String(lv('activeSeason',liveSn()));
+    st.week=+lv('activeWeek',liveWk())||1;
+  }
+  function connected(){
+    try{ return typeof isAnyProviderConnected==='function'&&isAnyProviderConnected(); }catch(e){ return false; }
+  }
+  /* No offseason auto-jump (retired 2026-07-16): Leaders reflects whatever
+     week/season the shared period bar is on — or the live period by default —
+     and never steers the global period itself (Matt). */
   /* Season-to-date exists ONLY for the live, in-progress season. */
   function stdAllowed(){ return String(st.season)===liveSn()&&!offseason()&&!limitedMode(); }
 
@@ -16371,45 +16397,16 @@ if(typeof window.cfRegisterView==='function'){
     try{ if(typeof shouldAutoRefresh==='function'&&shouldAutoRefresh()&&typeof startAutoRefresh==='function')startAutoRefresh(); }catch(e){}
     try{cfTrack('leaders_season_build',{season:String(season),weeks:st.total,failed:st.agg.failed.length,ms:Date.now()-t0,fromCache:fromCache});}catch(e){}
   }
-  async function loadHistoricWeek(season,week){
-    var tok=++buildToken,key=season+':'+week;
-    /* Cache hit = complete by definition (only clean loads are cached): render
-       instantly, no pill. */
-    var hit=cacheGet(season,week);
-    if(hit){ st.loadingWeek=false; st.weekRows=hit; st.weekKey=key; recordLg(season,hit); floatPill(null); render(); return; }
-    st.loadingWeek=true; st.weekRows=null; st.weekKey=key; render();
-    var exp=st.expLg[season];
-    floatPill('load','PULLING WEEK '+week+' · '+season+(exp?(' · '+exp+' LEAGUES'):'')+'…');
-    try{ if(typeof stopAutoRefresh==='function')stopAutoRefresh(); }catch(e){}
-    var d=await getWeekDetail(season,week);
-    if(tok!==buildToken)return; /* stale — a newer action owns the pill now */
-    st.loadingWeek=false;
-    if(d.rows===null){
-      st.weekRows={error:true}; st.weekKey=key;
-      floatPill('err','COULDN’T PULL WEEK '+week+' · TAP TO RETRY');
-    }else{
-      st.weekRows=d.rows; st.weekKey=key; recordLg(season,d.rows);
-      var n=distinctLg(d.rows);
-      if(d.partial){
-        /* incomplete: show what loaded, keep the pill up as the "not real yet"
-           signal + retry handle. Pill gone = full data. */
-        floatPill('err',(exp&&n<exp?(n+' OF '+exp+' LEAGUES PULLED'):'SOME LEAGUES MISSING')+' · TAP TO RETRY');
-      }else{
-        floatPill('ok',n+' LEAGUE'+(n===1?'':'S')+' PULLED');
-      }
-    }
-    render();
-    try{ if(typeof shouldAutoRefresh==='function'&&shouldAutoRefresh()&&typeof startAutoRefresh==='function')startAutoRefresh(); }catch(e){}
-  }
+  /* Week viewing now rides the GLOBAL period (shared header): changeWeekTo/
+     changeSeason load the selected week into window.__conflictedLastData for
+     every view at once, so Leaders just reads it. The seam/cache machinery
+     above (fetchPeriod/getWeekDetail) remains for SEASON TO DATE builds only. */
   function ensurePeriodData(){
-    /* Season-to-date is only a live-season concept now; anything else that
-       lands here in 'season' state (stale toggle, offseason) coerces to W1. */
-    if(st.period==='season'&&!stdAllowed()){ st.period='week'; if(!st.week)st.week=1; }
+    /* Season-to-date is only a live-season concept; anything else that lands
+       here in 'season' state (stale toggle, offseason) coerces to week mode. */
+    if(st.period==='season'&&!stdAllowed()){ st.period='week'; }
     if(st.period==='season'){ buildSeason(st.season); return; }
-    if(isLivePeriod()||limitedMode()){ buildToken++; floatPill(null); render(); return; }
-    var key=st.season+':'+st.week;
-    if(st.weekKey===key&&st.weekRows&&!st.weekRows.error){ buildToken++; render(); return; }
-    loadHistoricWeek(st.season,st.week);
+    buildToken++; render();
   }
 
   /* ── current rows for the selected period ─────────────────────────────── */
@@ -16418,15 +16415,16 @@ if(typeof window.cfRegisterView==='function'){
       if(!st.agg)return [];
       return Object.keys(st.agg.rows).map(function(k){return st.agg.rows[k];});
     }
-    if(isLivePeriod()||limitedMode())return extractRows(lastData())||[];
-    if(st.weekRows&&!st.weekRows.error)return st.weekRows;
-    return [];
+    if(st.loadingWeek)return []; /* header change in flight — don't mislabel old rows */
+    return extractRows(lastData())||[];
   }
 
   /* ── render ────────────────────────────────────────────────────────────── */
   function render(){
     var v=document.getElementById('view-leaders');
     if(!v||!window.__cfLeadersOpen)return;
+    /* Week mode mirrors the shared header (global period) on every paint. */
+    if(st.period==='week')syncFromGlobals();
     var all=periodRows();
     /* gold = same player on BOTH sides in this period (any league, any format) */
     var fIds={},aIds={};
@@ -16465,8 +16463,7 @@ if(typeof window.cfRegisterView==='function'){
         var msg;
         var d=lastData();
         if(st.building)msg='Building your '+esc(st.season)+' season… leaders appear as each week loads.';
-        else if(st.loadingWeek)msg='Loading week '+esc(st.week)+'…';
-        else if(st.weekRows&&st.weekRows.error&&st.period==='week')msg='Couldn’t load that week. Check your connections and retry.';
+        else if(st.loadingWeek)msg='Loading week '+esc(st.week)+' · '+esc(st.season)+'…';
         else if(!d||d.noData)msg='Connect a league to see your Leaders.';
         else msg='No points scored for this view yet.';
         host.innerHTML='<div class="ldr-note">'+msg+'</div>';
@@ -16492,14 +16489,19 @@ if(typeof window.cfRegisterView==='function'){
     if(retry)retry.style.display=showRetry?'':'none';
     if(rbtn&&showRetry)rbtn.textContent=st.agg.failed.length+' week'+(st.agg.failed.length>1?'s':'')+' unavailable · tap to retry';
 
-    /* filters badge: off-default period and/or format */
-    var off=0;
-    if(st.fmt!=='all')off++;
-    if(st.period!==st.def.period||String(st.season)!==String(st.def.season)||(st.period==='week'&&st.week!==st.def.week))off++;
-    var fb=document.getElementById('ldr-filters'),fc=document.getElementById('ldr-fcount');
-    if(fb)fb.classList.toggle('active',off>0);
-    if(fc)fc.textContent=off;
+    /* filters badge (on the shared header's Filters button): off-default
+       format and/or season-to-date mode */
+    syncFilterBadge();
   }
+  function syncFilterBadge(){
+    if(!window.__cfLeadersOpen)return;
+    var badge=document.getElementById('league-filter-count');
+    if(!badge)return;
+    var off=(st.fmt!=='all'?1:0)+(st.period==='season'?1:0);
+    if(off>0){badge.textContent=off;badge.classList.add('visible');}
+    else{badge.textContent='';badge.classList.remove('visible');}
+  }
+  window.__ldrSyncFilterBadge=syncFilterBadge;
 
   function syncControls(){
     document.querySelectorAll('#ldr-seg button').forEach(function(b){
@@ -16507,7 +16509,11 @@ if(typeof window.cfRegisterView==='function'){
     });
   }
 
-  /* ── filters bottom sheet ─────────────────────────────────────────────── */
+  /* ── filters bottom sheet ──────────────────────────────────────────────────
+     Season + week pills retired (2026-07-16): the shared period bar above the
+     view owns week/season now. The sheet keeps SCORING FORMAT (tucked away per
+     Matt) and — live season only — the SEASON TO DATE toggle, since "a whole
+     season" isn't expressible in the week selector. */
   function sheetHtml(){
     if(limitedMode()){
       return '<div class="ldrf"><h4>TIME PERIOD</h4>'
@@ -16516,22 +16522,18 @@ if(typeof window.cfRegisterView==='function'){
         +fmtGrpHtml()
         +'<button type="button" class="ldrf-done" data-ldr-done>Done</button></div>';
     }
-    var liveS=liveSn(),retroS=String(parseInt(liveS,10)-1);
-    var seasons=[retroS,liveS];
-    var sp=seasons.map(function(s){
-      return '<button type="button" class="ldrf-pill'+(String(st.season)===s?' on':'')+'" data-ldr-season="'+s+'">'+s+'</button>';
-    }).join('');
-    var wm=seasonMaxWeek(st.season),wp='';
-    for(var w=1;w<=wm;w++){
-      wp+='<button type="button" class="ldrf-pill'+(st.period==='week'&&st.week===w?' on':'')+'" data-ldr-week="'+w+'">W'+w+'</button>';
-    }
+    var periodGrp='';
     /* SEASON TO DATE only for the live in-progress season — a historic year's
        progressive multi-second build reads as broken data, so retro seasons
        are week-by-week only (Matt, 2026-07-14). */
-    if(stdAllowed())wp+='<button type="button" class="ldrf-pill'+(st.period==='season'?' on':'')+'" data-ldr-std>SEASON TO DATE</button>';
+    if(stdAllowed()){
+      periodGrp='<div class="ldrf-grp"><h4>TIME PERIOD</h4><div class="ldrf-pills">'
+        +'<button type="button" class="ldrf-pill'+(st.period==='week'?' on':'')+'" data-ldr-weekmode>SELECTED WEEK</button>'
+        +'<button type="button" class="ldrf-pill'+(st.period==='season'?' on':'')+'" data-ldr-std>SEASON TO DATE</button>'
+        +'</div></div>';
+    }
     return '<div class="ldrf">'
-      +'<div class="ldrf-grp"><h4>SEASON</h4><div class="ldrf-pills">'+sp+'</div></div>'
-      +'<div class="ldrf-grp"><h4>TIME PERIOD</h4><div class="ldrf-pills">'+wp+'</div></div>'
+      +periodGrp
       +fmtGrpHtml()
       +'<button type="button" class="ldrf-done" data-ldr-done>Done</button></div>';
   }
@@ -16545,6 +16547,7 @@ if(typeof window.cfRegisterView==='function'){
     if(!window.BottomSheet)return;
     window.BottomSheet.open(sheetHtml(),{owner:'leaders-filters'});
   }
+  window.__ldrOpenFilters=openFilters; /* shared period bar's Filters button dispatches here */
   function refreshSheet(){
     if(window.BottomSheet&&window.BottomSheet.isOpen()&&window.BottomSheet.getOwner()==='leaders-filters')
       window.BottomSheet.setBody(sheetHtml());
@@ -16642,9 +16645,10 @@ if(typeof window.cfRegisterView==='function'){
     var v=document.getElementById('view-leaders');
     if(v)v.style.display='block';
     window.__cfLeadersOpen=true;
+    if(typeof window.cfShowPeriodBar==='function')window.cfShowPeriodBar();
+    floatPill(null); st.loadingWeek=false;
     if(lastData()){ st.pendingDefaults=false; computeDefaults(); }
     else { computeDefaults(); st.pendingDefaults=true; } /* re-derive once data lands */
-    floatPill(null);
     syncControls(); render(); ensurePeriodData();
     try{cfTrack('leaders_view_opened',{period:st.period,side:st.side});}catch(e){}
     window.scrollTo(0,0);
@@ -16656,6 +16660,14 @@ if(typeof window.cfRegisterView==='function'){
     render:function(){
       if(st.pendingDefaults&&lastData()){
         st.pendingDefaults=false; computeDefaults(); syncControls(); ensurePeriodData();
+      }
+      /* A header-driven week pull just landed? Clear the pill once the loader
+         confirms it served the period we're waiting on. */
+      if(st.loadingWeek&&st.period==='week'){
+        var d=lastData(),di=(d&&d.debugInfo)||{};
+        if(d&&(di.week==null||+di.week===+st.week)&&(di.season==null||String(di.season)===String(st.season))){
+          st.loadingWeek=false; floatPill(null);
+        }
       }
       render();
     }
@@ -16670,8 +16682,6 @@ if(typeof window.cfRegisterView==='function'){
       st.side=side; syncControls(); render();
       try{cfTrack('leaders_side_toggled',{side:side});}catch(e2){}
     });
-    var fb=document.getElementById('ldr-filters');
-    if(fb)fb.addEventListener('click',openFilters);
     var sb=document.getElementById('ldr-share');
     if(sb)sb.addEventListener('click',openShareSheet);
     /* share-sheet taps (sheet body lives outside this view → delegate globally,
@@ -16697,31 +16707,21 @@ if(typeof window.cfRegisterView==='function'){
     var rb=document.getElementById('ldr-retry-btn');
     if(rb)rb.addEventListener('click',function(){
       if(st.period==='season'){ delete st.built[st.season]; buildSeason(st.season); }
-      else loadHistoricWeek(st.season,st.week);
     });
-    /* floating pill: tappable retry in its error state */
+    /* floating pill: tap = re-kick the global loader if a header-driven week
+       pull got stuck (e.g. a failed fetch never fired the registry render) */
     var fp=document.getElementById('ldr-float');
     if(fp)fp.addEventListener('click',function(){
-      if(!fp.classList.contains('err'))return;
-      if(st.period==='week'&&!isLivePeriod())loadHistoricWeek(st.season,st.week);
+      if(st.period!=='week'||!st.loadingWeek)return;
+      try{ if(typeof changeWeekTo==='function')changeWeekTo(st.week); }catch(e){}
     });
     /* filters-sheet taps (sheet body lives outside this view → delegate globally) */
     document.addEventListener('click',function(e){
       if(!window.BottomSheet||!window.BottomSheet.isOpen()||window.BottomSheet.getOwner()!=='leaders-filters')return;
       var t;
-      if((t=e.target.closest('[data-ldr-season]'))){
-        var s=t.getAttribute('data-ldr-season');
-        if(String(st.season)!==s){
-          st.season=s;
-          if(st.period==='season'&&!stdAllowed()){ st.period='week'; st.week=1; }
-          if(st.period==='week'&&st.week>seasonMaxWeek(s))st.week=seasonMaxWeek(s);
-          refreshSheet(); render(); ensurePeriodData();
-          try{cfTrack('leaders_period_changed',{period:st.period,season:s});}catch(e2){}
-        }
-      } else if((t=e.target.closest('[data-ldr-week]'))){
-        var w=+t.getAttribute('data-ldr-week');
-        if(st.period!=='week'||st.week!==w){
-          st.period='week'; st.week=w;
+      if(e.target.closest('[data-ldr-weekmode]')){
+        if(st.period!=='week'){
+          st.period='week'; buildToken++; st.building=false; syncFromGlobals();
           refreshSheet(); render(); ensurePeriodData();
           try{cfTrack('leaders_period_changed',{period:'week',season:st.season});}catch(e2){}
         }
@@ -16737,6 +16737,31 @@ if(typeof window.cfRegisterView==='function'){
       } else if(e.target.closest('[data-ldr-done]')){
         window.BottomSheet.close();
       }
+    });
+    /* Shared period-bar changes while Leaders is open: exit season-to-date,
+       adopt the new global week/season, and show a "pulling" pill until the
+       global loader lands that period (registry render clears it). Listeners
+       fire AFTER the controls' inline handlers, so activeWeek/activeSeason are
+       already updated by the time the timeout runs. */
+    function onHeaderPeriod(){
+      if(!window.__cfLeadersOpen||limitedMode())return;
+      if(st.period==='season'){ st.period='week'; buildToken++; st.building=false; }
+      setTimeout(function(){
+        syncFromGlobals();
+        if(connected()){
+          st.loadingWeek=true;
+          floatPill('load','PULLING WEEK '+st.week+' · '+st.season+'…');
+        }
+        render();
+      },0);
+    }
+    ['week-select','season-select'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el)el.addEventListener('change',onHeaderPeriod);
+    });
+    ['week-prev','week-next'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el)el.addEventListener('click',onHeaderPeriod);
     });
   });
 })();
