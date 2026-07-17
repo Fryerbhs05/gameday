@@ -4033,6 +4033,15 @@
         </button>
       </div>
     </div>
+    <!-- Leaders-only second row of the SAME frame (bar gets .pb-leaders while
+         Leaders is open): the CARRIED/CRUSHED toggle joins the period controls
+         so all view controls live in one consolidated frame. -->
+    <div class="pb-seg-row">
+      <div class="ldr-seg" id="ldr-seg">
+        <button type="button" data-ldr-side="F" class="on-f">CARRIED ME</button>
+        <button type="button" data-ldr-side="A">CRUSHED ME</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -5934,7 +5943,12 @@ function showError(msg){hideAll();document.getElementById('error-panel').style.d
 /* Shared period bar (Week/Season/Filters above GameDay/Snapshot/Leaders). */
 window.cfShowPeriodBar=function(){
   const b=document.getElementById('cf-period-bar');
-  if(b)b.style.display='block';
+  if(b){
+    b.style.display='block';
+    /* Leaders folds its CARRIED/CRUSHED toggle into the bar as a second row
+       of the same frame; other views show the plain one-row bar. */
+    b.classList.toggle('pb-leaders',!!window.__cfLeadersOpen);
+  }
   try{if(typeof window.cfSyncHeaderFilters==='function')window.cfSyncHeaderFilters();}catch(e){}
 };
 function showBoard(){
@@ -16152,18 +16166,32 @@ if(typeof window.cfRegisterView==='function'){
   @media (max-width:768px) and (prefers-reduced-motion:reduce){
     #view-leaders .ldr-sharebtn{transition:none;}
   }
-  /* CARRIED/CRUSHED toggle — matches the Snapshot List/Grid toggle chrome
+  /* CARRIED/CRUSHED toggle — lives INSIDE the shared period bar as a second
+     row of the same frame while Leaders is open (#cf-period-bar.pb-leaders,
+     toggled by cfShowPeriodBar). Chrome matches the Snapshot List/Grid toggle
      (#15293E track, navy-300 border, 3px pad/gap, flat active fill, .15s
-     transitions); the one deliberate difference is the active states keep
-     their green/red identity instead of the snapshot's neutral navy/cream. */
-  #view-leaders .ldr-seg{display:flex;background:#15293E;
-    border:1px solid var(--navy-300,#2B6FA8);border-radius:12px;padding:3px;gap:3px;margin-bottom:10px;}
-  #view-leaders .ldr-seg button{flex:1;appearance:none;border:0;background:transparent;border-radius:9px;padding:9px;
-    font:800 12px/normal var(--font-sans),'Inter',sans-serif;letter-spacing:.04em;color:var(--ldr-ink400);cursor:pointer;
+     transitions); active states keep their green/red identity. LITERAL colors
+     only — the --ldr-* vars are scoped to #view-leaders and don't reach here. */
+  #cf-period-bar .pb-seg-row{display:none;background:var(--paper-soft);
+    border:1px solid var(--navy-300,#2B6FA8);border-top:none;
+    border-radius:0 0 var(--radius-md,10px) var(--radius-md,10px);
+    padding:0 14px 10px;margin-bottom:12px;}
+  #cf-period-bar.pb-leaders .pb-seg-row{display:block;}
+  /* merge the two rows into ONE visual frame: nav-controls loses its bottom
+     edge + gap while the seg row is attached below it */
+  #cf-period-bar.pb-leaders .nav-controls{border-bottom:none;
+    border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0;}
+  @media (max-width:640px){
+    #cf-period-bar .pb-seg-row{padding:0 8px 8px;}
+  }
+  .ldr-seg{display:flex;background:#15293E;
+    border:1px solid var(--navy-300,#2B6FA8);border-radius:12px;padding:3px;gap:3px;}
+  .ldr-seg button{flex:1;appearance:none;border:0;background:transparent;border-radius:9px;padding:9px;
+    font:800 12px/normal var(--font-sans),'Inter',sans-serif;letter-spacing:.04em;color:#7C8694;cursor:pointer;
     display:flex;align-items:center;justify-content:center;min-height:14px;box-sizing:content-box;
     transition:background .15s,color .15s;}
-  #view-leaders .ldr-seg button.on-f{background:var(--ldr-green-soft);color:var(--ldr-green);}
-  #view-leaders .ldr-seg button.on-a{background:var(--ldr-red-soft);color:var(--ldr-red);}
+  .ldr-seg button.on-f{background:#1F3329;color:#5DCAA5;}
+  .ldr-seg button.on-a{background:#3A1F1A;color:#E07A6E;}
   /* (Top-N pills retired from the page — they live in the share sheet now.
      The Filters button moved into the shared period bar, 2026-07-16.) */
   /* branded frame = the share target.
@@ -16243,10 +16271,8 @@ if(typeof window.cfRegisterView==='function'){
 
 <div id="view-leaders">
   <button class="ldr-sharebtn" id="ldr-share" type="button">&#x2197;&nbsp; Share Leaders</button>
-  <div class="ldr-seg" id="ldr-seg">
-    <button type="button" data-ldr-side="F" class="on-f">CARRIED ME</button>
-    <button type="button" data-ldr-side="A">CRUSHED ME</button>
-  </div>
+  <!-- CARRIED/CRUSHED toggle moved into the shared period bar (.pb-seg-row) —
+       one consolidated controls frame at the top of the view (2026-07-16). -->
   <!-- Top-N pills moved into the SHARE sheet (2026-07-16): on the page managers
        always see ALL rows — visible quantity only matters when sharing.
        Filters button moved into the shared period bar (cfOpenHeaderFilters). -->
