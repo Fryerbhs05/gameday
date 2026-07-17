@@ -8627,6 +8627,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     '<line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>';
   function exportHeaderNode(){
     let wk=1; try{ wk=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
+    let yr=''; try{ yr=(window.getActiveSeason?window.getActiveSeason():'')||''; }catch(e){}
     /* 2a hero — "Winning N of X" + "n final · m live now", computed from the
        same contexts the strip renders (states + projections already on the
        card; the hero is an aggregation, no new data). Degrades silently to
@@ -8644,10 +8645,13 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
           return (m+o)>0 ? m>o : (+c.myPoints||0)>(+c.oppPoints||0);
         }).length;
         const fin=cs.filter(c=>isFin(c.leagueState)).length;
-        const live=cs.length-fin;
-        // Past-tense hero once every matchup is final (historic weeks) — "Won N of X"
-        // instead of the live "Winning N of X".
-        const allFinal=fin===cs.length;
+        // "Live" means genuinely in-progress (LIVE) only — LOCKED_WIN/LOCKED_LOSS are
+        // decided, not live. Counting cs.length-fin falsely tagged locked matchups
+        // (which appear on historic weeks) as "live".
+        const live=cs.filter(c=>c.leagueState==='LIVE').length;
+        // Past-tense hero once nothing is still in progress (historic weeks) —
+        // "Won N of X" instead of the live "Winning N of X".
+        const allFinal=live===0;
         const verb=allFinal?'Won':'Winning';
         const parts=[];
         if(fin)parts.push(fin+' final');
@@ -8658,7 +8662,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     }catch(e){}
     const head=document.createElement('div');head.className='cf-sb-xhead';
     head.innerHTML='<div class="cf-sb-xwm">'+SB_HEAD_WM+'</div>'+
-      '<div class="cf-sb-xkick">SCOREBOARD · WEEK '+wk+'</div>'+hero;
+      '<div class="cf-sb-xkick">SCOREBOARD · WEEK '+wk+(yr?(' · '+yr):'')+'</div>'+hero;
     return head;
   }
   async function buildPng(live){
@@ -15730,7 +15734,7 @@ if(typeof window.cfRegisterView==='function'){
   /* ×N numerals hug the outer edges (auto cols); the name owns EVERYTHING in
      between (1fr + text-align:center) so long names no longer truncate at an
      arbitrary max-width. min-width:0 keeps the ellipsis working in a 1fr track. */
-  .rc-crow{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:8px 2px;}
+  .rc-crow{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:4px 2px;}
   .rc-crow .xl{font:900 17px/1 var(--font-sans,'Inter');color:#5DCAA5;font-variant-numeric:tabular-nums;justify-self:start;}
   .rc-crow .nm{font:800 14px/1.2 var(--font-sans,'Inter');color:#F5EFE4;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;text-align:center;}
   .rc-crow .xr{font:900 17px/1 var(--font-sans,'Inter');color:#E07A6E;font-variant-numeric:tabular-nums;justify-self:end;}
