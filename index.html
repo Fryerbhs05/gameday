@@ -16259,8 +16259,11 @@ if(typeof window.cfRegisterView==='function'){
   .ldr-pmeta{display:flex;align-items:center;gap:7px;margin-top:3px;font:600 10px/1 var(--font-sans),'Inter',sans-serif;white-space:nowrap;overflow:hidden;}
   .ldr-pmeta .lg{color:var(--ldr-blue);overflow:hidden;text-overflow:ellipsis;}
   .ldr-ftag{flex:none;font:800 8px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.08em;color:var(--ldr-ink500);
-    background:var(--ldr-navy900);border:1px solid var(--ldr-line);padding:3px 5px;border-radius:4px;}
-  .ldr-pts{font:900 17px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:-.02em;font-variant-numeric:tabular-nums;text-align:right;}
+    background:var(--ldr-navy900);border:1px solid var(--ldr-line);padding:3px 5px;border-radius:4px;white-space:nowrap;}
+  /* Score column stacks the points total with the format chip centered beneath it,
+     so the league-name column (1fr) is no longer sharing space with the chip. */
+  .ldr-scorecol{display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .ldr-pts{font:900 17px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:-.02em;font-variant-numeric:tabular-nums;text-align:center;}
   .ldr-pts.f{color:var(--ldr-green);}
   .ldr-pts.a{color:var(--ldr-red);}
   .ldr-note{text-align:center;font:600 11px/1.6 var(--font-sans),'Inter',sans-serif;color:var(--ldr-ink400);padding:18px 8px;}
@@ -16597,10 +16600,10 @@ if(typeof window.cfRegisterView==='function'){
           return '<div class="ldr-row'+(gold?' gold':'')+'">'
             +'<div class="ldr-rank">'+(i+1)+'</div>'
             +'<div style="min-width:0;"><div class="ldr-pname">'+esc(r.n)+'</div>'
-            +'<div class="ldr-pmeta"><span class="lg">'+esc(r.lg)+'</span>'
+            +'<div class="ldr-pmeta"><span class="lg">'+esc(r.lg)+'</span></div></div>'
+            +'<div class="ldr-scorecol"><div class="ldr-pts '+(st.side==='F'?'f':'a')+'">'+r.pts.toFixed(1)+'</div>'
             +(r.fmt?'<span class="ldr-ftag">'+esc(fmtTag(r.fmt))+'</span>':'')
-            +'</div></div>'
-            +'<div class="ldr-pts '+(st.side==='F'?'f':'a')+'">'+r.pts.toFixed(1)+'</div>'
+            +'</div>'
             +'</div>';
         }).join('');
       }
