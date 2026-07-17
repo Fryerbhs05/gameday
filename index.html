@@ -15670,11 +15670,8 @@ if(typeof window.cfRegisterView==='function'){
   .rc-names .xn{font:800 10px/1 var(--font-sans,'Inter');}
   .rc-names .tm{font:600 10px/1 var(--font-sans,'Inter');color:#7C8694;}
   .rc-more{text-align:center;font:700 10px/1 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.06em;margin-top:9px;padding-top:8px;border-top:1px solid #27425F;}
-  /* ── share sheet (BottomSheet body) ── */
-  .rc-sheet{padding:4px 2px 10px;}
-  .rc-sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-  .rc-sheet-head h3{margin:0;font:800 15px/1 var(--font-sans);color:var(--ink-900);letter-spacing:.02em;}
-  .rc-sheet-close{background:transparent;border:none;color:var(--ink-500);font-size:24px;line-height:1;cursor:pointer;padding:0 4px;}
+  /* ── share sheet (BottomSheet body) — no title row, chips straight in ── */
+  .rc-sheet{padding:6px 2px 10px;}
   .rc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
   .rc-chip{font:800 10px/1 var(--font-sans);letter-spacing:.06em;color:var(--ink-500);
     background:transparent;border:1px solid var(--line);padding:8px 12px;border-radius:999px;cursor:pointer;
@@ -15697,24 +15694,36 @@ if(typeof window.cfRegisterView==='function'){
   function data(){return window.__conflictedLastData||null;}
 
   /* ── scope engine ─────────────────────────────────────────────────────── */
-  /* Normalize Watch Priority slot keys to Rooting Card windows. International
-     morning games fold into SUN EARLY (spec); Fri/Sat specials → SAT; anything
-     unrecognized appears only in ALL WEEK. */
-  function rcNorm(raw){
+  function etWeekday(ms){
+    try{return new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short'}).format(new Date(ms));}catch(e){return '';}
+  }
+  /* Normalize Watch Priority slot keys to Rooting Card windows. WED/FRI/SAT
+     specials (Christmas-Wednesday, Black Friday, late-season Saturdays) get
+     their own windows — chips are auto-hidden unless the week actually has
+     games there, so they cost nothing in normal weeks. International games
+     classify by their ET weekday (Sunday morning intl → SUN EARLY; a Friday
+     São Paulo opener → FRI). Anything unrecognized appears only in ALL WEEK. */
+  function rcNorm(raw,kickUtc){
     if(!raw)return null;
     if(raw==='thu'||raw==='early'||raw==='late'||raw==='snf'||raw==='mnf')return raw;
-    if(raw==='sun_morning'||String(raw).indexOf('intl:')===0)return 'early';
-    if(raw==='sp:sat'||raw==='sp:fri')return 'sat';
+    if(raw==='sun_morning')return 'early';
+    if(raw==='sp:sat')return 'sat';
+    if(raw==='sp:fri')return 'fri';
+    if(raw==='sp:wed')return 'wed';
+    if(String(raw).indexOf('intl:')===0){
+      return {Sun:'early',Mon:'mnf',Wed:'wed',Thu:'thu',Fri:'fri',Sat:'sat'}[etWeekday(kickUtc||0)]||'early';
+    }
     return null;
   }
   var RC_LABELS={
-    thu:{chip:'THU',banner:'THURSDAY NIGHT'}, sat:{chip:'SAT',banner:'SATURDAY'},
+    wed:{chip:'WED',banner:'WEDNESDAY'}, thu:{chip:'THU',banner:'THURSDAY NIGHT'},
+    fri:{chip:'FRI',banner:'FRIDAY'}, sat:{chip:'SAT',banner:'SATURDAY'},
     early:{chip:'SUN EARLY',banner:'SUNDAY EARLY'}, late:{chip:'SUN LATE',banner:'SUNDAY AFTERNOON'},
     snf:{chip:'SNF',banner:'SUNDAY NIGHT'}, mnf:{chip:'MNF',banner:'MONDAY NIGHT'}
   };
   function teamSlotKey(team){
     var e=(typeof window.cfTeamSlot==='function')?window.cfTeamSlot(String(team||'').toUpperCase().trim()):null;
-    return e?rcNorm(e.slot):null;
+    return e?rcNorm(e.slot,e.kickoffUtc):null;
   }
   /* Per-window meta from the team→slot map (+ replay/test overrides):
      games (teams/2), firstKick, live (any in-progress), allPost. */
@@ -15724,7 +15733,7 @@ if(typeof window.cfRegisterView==='function'){
     try{var o=window.__cfSlotOverride||{};for(k in o)src[k]=o[k];}catch(e){}
     var metas={};
     Object.keys(src).forEach(function(t){
-      var e=src[t],key=rcNorm(e&&e.slot); if(!key)return;
+      var e=src[t],key=rcNorm(e&&e.slot,e&&e.kickoffUtc); if(!key)return;
       var mt=metas[key]||(metas[key]={teams:0,firstKick:0,live:false,post:0});
       mt.teams++;
       if(e.kickoffUtc&&(!mt.firstKick||e.kickoffUtc<mt.firstKick))mt.firstKick=e.kickoffUtc;
@@ -15847,10 +15856,15 @@ if(typeof window.cfRegisterView==='function'){
       (extra>0?'<div class="rc-more">+ '+extra+' MORE</div>':'')+
       '</div>';
   }
-  function fmtET(ms){
+  /* Kickoff times in the VIEWER'S timezone (no timeZone option = user local),
+     with the zone abbreviation so the shared image is unambiguous for
+     league-mates elsewhere. withDay adds the weekday (full-week sub-line,
+     where "first kickoff" isn't tied to a named window). */
+  function fmtKick(ms,withDay){
     try{
-      var s=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit'}).format(new Date(ms));
-      return s.replace(/\s?[AP]M$/i,'')+' ET';
+      var o={hour:'numeric',minute:'2-digit',timeZoneName:'short'};
+      if(withDay)o.weekday='short';
+      return new Intl.DateTimeFormat(undefined,o).format(new Date(ms));
     }catch(e){return '';}
   }
   function buildFrame(slotKey){
@@ -15867,7 +15881,7 @@ if(typeof window.cfRegisterView==='function'){
       /* Historic weeks: the slot map belongs to the LIVE week, so never quote
          its kickoff time on a past week's card. */
       var kicks=d.isHist?[]:Object.keys(metas).map(function(k){return metas[k].firstKick;}).filter(Boolean);
-      var kick=kicks.length?('first kickoff '+fmtET(Math.min.apply(null,kicks))):'';
+      var kick=kicks.length?('first kickoff '+fmtKick(Math.min.apply(null,kicks),true)):'';
       var starters=s.cheer.length+s.conf.length+s.enemy.length;
       var sub=[starters+' starters',leagues+' league'+(leagues===1?'':'s')].concat(kick?[kick]:[]).join(' &middot; ');
       head+='<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+' &middot; FULL WEEK</div>';
@@ -15880,7 +15894,7 @@ if(typeof window.cfRegisterView==='function'){
       var lb=RC_LABELS[slotKey]||{banner:slotKey.toUpperCase()};
       var mt=metas[slotKey]||{};
       var parts=[];
-      if(mt.firstKick)parts.push(fmtET(mt.firstKick));
+      if(mt.firstKick)parts.push(fmtKick(mt.firstKick));
       if(mt.games)parts.push(mt.games+' game'+(mt.games===1?'':'s'));
       head+='<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+'</div>';
       mid='<div class="rc-banner"><div class="rc-banner-t">'+lb.banner+'</div>'+
@@ -15909,9 +15923,8 @@ if(typeof window.cfRegisterView==='function'){
       var lbl=k==='all'?'ALL WEEK':RC_LABELS[k].chip;
       return '<button type="button" class="rc-chip'+(st.slot===k?' on':'')+'" data-rc-slot="'+k+'">'+lbl+'</button>';
     }).join(''):'';
+    /* No title row — the preview says what this is; backdrop tap / Esc close. */
     return '<div class="rc-sheet">'+
-      '<div class="rc-sheet-head"><h3>Share rooting card</h3>'+
-      '<button type="button" class="rc-sheet-close" data-rc-close aria-label="Close">&times;</button></div>'+
       (chipHtml?'<div class="rc-chips" id="rc-chips">'+chipHtml+'</div>':'')+
       '<div class="rc-prevwrap"><div class="rc-prevscale" id="rc-prevscale"></div></div>'+
       '<button type="button" class="rc-sharego" id="rc-sharego">&#x2197;&nbsp; Share</button>'+
@@ -16029,7 +16042,6 @@ if(typeof window.cfRegisterView==='function'){
       }
       return;
     }
-    if(e.target.closest('[data-rc-close]')){window.BottomSheet.close();return;}
     if(e.target.closest('#rc-sharego')){doShare();return;}
   });
   /* If the board already rendered before this module parsed, sync now. */
@@ -16063,11 +16075,8 @@ if(typeof window.cfRegisterView==='function'){
     font:800 12px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.08em;color:var(--ldr-ink400);cursor:pointer;}
   #view-leaders .ldr-seg button.on-f{background:var(--ldr-green-soft);color:var(--ldr-green);box-shadow:inset 0 0 0 1px rgba(93,202,165,.4);}
   #view-leaders .ldr-seg button.on-a{background:var(--ldr-red-soft);color:var(--ldr-red);box-shadow:inset 0 0 0 1px rgba(224,122,110,.4);}
-  #view-leaders .ldr-ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;padding:0 2px;}
-  #view-leaders .ldr-counts{display:flex;gap:6px;}
-  #view-leaders .ldr-cpill{appearance:none;border:1px solid var(--ldr-line);background:var(--ldr-card-deep);color:var(--ldr-ink400);
-    font:700 10px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.06em;padding:8px 12px;border-radius:999px;cursor:pointer;}
-  #view-leaders .ldr-cpill.on{background:var(--ldr-card);color:var(--ldr-cream);border-color:var(--ldr-blue);}
+  /* (Top-N pills retired from the page — they live in the share sheet now.) */
+  #view-leaders .ldr-ctl{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:12px;padding:0 2px;}
   #view-leaders .ldr-filtersbtn{appearance:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ldr-line);
     background:var(--ldr-card-deep);color:var(--ldr-blue);font:700 11px/1 var(--font-sans),'Inter',sans-serif;padding:8px 12px;border-radius:999px;cursor:pointer;}
   #view-leaders .ldr-filtersbtn svg{width:12px;height:12px;display:block;}
@@ -16148,12 +16157,9 @@ if(typeof window.cfRegisterView==='function'){
     <button type="button" data-ldr-side="F" class="on-f">CARRIED ME</button>
     <button type="button" data-ldr-side="A">CRUSHED ME</button>
   </div>
+  <!-- Top-N pills moved into the SHARE sheet (2026-07-16): on the page managers
+       always see ALL rows — visible quantity only matters when sharing. -->
   <div class="ldr-ctl">
-    <div class="ldr-counts" id="ldr-counts">
-      <button type="button" class="ldr-cpill" data-ldr-n="3">TOP 3</button>
-      <button type="button" class="ldr-cpill" data-ldr-n="5">TOP 5</button>
-      <button type="button" class="ldr-cpill on" data-ldr-n="10">TOP 10</button>
-    </div>
     <button type="button" class="ldr-filtersbtn" id="ldr-filters">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4" fill="#0A1521"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="15" cy="16" r="2.4" fill="#0A1521"/></svg>
       Filters<span class="ldr-fcount" id="ldr-fcount">1</span>
@@ -16186,7 +16192,7 @@ if(typeof window.cfRegisterView==='function'){
 (function(){
   'use strict';
   var CACHE_PREFIX='cfLeaders:v1:';
-  var st={side:'F',topN:10,fmt:'all',period:'week',season:null,week:null,
+  var st={side:'F',topN:0,fmt:'all',period:'week',season:null,week:null,
           def:{},pendingDefaults:false,building:false,built:{},agg:null,
           weekRows:null,weekKey:null,done:0,total:0,failed:[],loadingWeek:false,
           expLg:{}};
@@ -16225,7 +16231,7 @@ if(typeof window.cfRegisterView==='function'){
 
   /* ── defaults: reset on every open (filter-persistence rule) ─────────── */
   function computeDefaults(){
-    st.side='F'; st.topN=10; st.fmt='all';
+    st.side='F'; st.topN=0; st.fmt='all'; /* page always shows ALL; Top-N is share-time only */
     if(offseason()&&!limitedMode()){
       /* Offseason: no live week to show — open on Week 1 of the last completed
          season (every league is guaranteed a matchup in week 1, so the first
@@ -16499,9 +16505,6 @@ if(typeof window.cfRegisterView==='function'){
     document.querySelectorAll('#ldr-seg button').forEach(function(b){
       b.className=(b.getAttribute('data-ldr-side')===st.side)?(st.side==='F'?'on-f':'on-a'):'';
     });
-    document.querySelectorAll('#ldr-counts .ldr-cpill').forEach(function(b){
-      b.classList.toggle('on',!!st.topN&&+b.getAttribute('data-ldr-n')===st.topN);
-    });
   }
 
   /* ── filters bottom sheet ─────────────────────────────────────────────── */
@@ -16547,32 +16550,83 @@ if(typeof window.cfRegisterView==='function'){
       window.BottomSheet.setBody(sheetHtml());
   }
 
-  /* ── share (unified cfShare pipeline; scopeVars from day one — the clone
-       re-parents under <body> and would drop #view-leaders' --ldr-* vars) ── */
+  /* ── share — BottomSheet preview flow (rooting-card pattern, 2026-07-16).
+       The page always renders ALL rows; Top-N only matters when sharing, so the
+       3/5/10/ALL chips live HERE. Chip taps re-render the LIVE #ldr-frame at
+       that N (invisible behind the sheet backdrop) and mirror it into the sheet
+       as a scaled clone; Share exports the live frame through the proven v68
+       pipeline (scopeVars). Closing the sheet restores the page to ALL. Sheet
+       default TOP 10, reset on every open (filter-persistence rule). ── */
+  var LDR_SCOPE_VARS=['--ldr-navy900','--ldr-card','--ldr-card-deep','--ldr-line','--ldr-cream',
+    '--ldr-ink500','--ldr-ink400','--ldr-ink300','--ldr-green','--ldr-green-soft',
+    '--ldr-red','--ldr-red-soft','--ldr-gold','--ldr-blue','--ldr-coral'];
   var sharing=false;
-  function setShareLabel(t){ var b=document.getElementById('ldr-share'); if(b)b.innerHTML=t; }
+  function shareSheetHtml(){
+    var chips=[[3,'TOP 3'],[5,'TOP 5'],[10,'TOP 10'],[0,'ALL']].map(function(c){
+      return '<button type="button" class="rc-chip'+(st.topN===c[0]?' on':'')+'" data-ldrs-n="'+c[0]+'">'+c[1]+'</button>';
+    }).join('');
+    return '<div class="rc-sheet">'+
+      '<div class="rc-chips" id="ldrs-chips">'+chips+'</div>'+
+      '<div class="rc-prevwrap"><div class="rc-prevscale" id="ldrs-prevscale"></div></div>'+
+      '<button type="button" class="rc-sharego" id="ldrs-go">&#x2197;&nbsp; Share</button>'+
+      '</div>';
+  }
+  function shareRenderPreview(){
+    var scale=document.getElementById('ldrs-prevscale');
+    var frame=document.getElementById('ldr-frame');
+    if(!scale||!frame)return;
+    var clone=frame.cloneNode(true);
+    clone.removeAttribute('id');
+    /* The clone leaves #view-leaders, so lift its scoped --ldr-* vars inline
+       (same fix class as export scopeVars — v58/v68). */
+    try{
+      var cs=getComputedStyle(frame);
+      LDR_SCOPE_VARS.forEach(function(v){
+        var val=cs.getPropertyValue(v);
+        if(val&&val.trim())clone.style.setProperty(v,val.trim());
+      });
+    }catch(e){}
+    scale.innerHTML='';
+    scale.appendChild(clone);
+    var wrap=scale.parentElement,w=wrap.clientWidth-24,fw=frame.offsetWidth||360;
+    var f=Math.min(1,w/fw);
+    clone.style.width=fw+'px';
+    scale.style.transform='scale('+f+')';
+    scale.style.marginLeft=Math.max(0,(w-fw*f)/2)+'px';
+    scale.style.height=(frame.offsetHeight*f)+'px';
+  }
+  function openShareSheet(){
+    if(!window.BottomSheet)return;
+    st.topN=10; render(); /* sheet default; live frame re-renders behind the backdrop */
+    window.BottomSheet.open(shareSheetHtml(),{owner:'leaders-share',onClose:function(){
+      st.topN=0; render(); /* page rule: managers always see ALL */
+    }});
+    shareRenderPreview();
+    try{cfTrack('leaders_share_open',{topN:st.topN});}catch(e){}
+  }
+  function setShareLabel(t){ var b=document.getElementById('ldrs-go'); if(b)b.innerHTML=t; }
   async function doShare(){
     if(sharing)return; sharing=true;
-    try{cfTrack('share_tapped',{surface:'leaders'});}catch(e){}
-    var orig='&#x2197;&nbsp; Share leaders';
+    try{cfTrack('share_tapped',{surface:'leaders',topN:st.topN});}catch(e){}
+    var orig='&#x2197;&nbsp; Share';
     setShareLabel('Building image…');
+    var gb=document.getElementById('ldrs-go'); if(gb)gb.disabled=true;
     try{
       var frame=document.getElementById('ldr-frame');
       var file=await window.cfShare.buildFile(frame,{bg:'#0F2235',filename:'conflicted-leaders',
-        scopeVars:['--ldr-navy900','--ldr-card','--ldr-card-deep','--ldr-line','--ldr-cream',
-          '--ldr-ink500','--ldr-ink400','--ldr-ink300','--ldr-green','--ldr-green-soft',
-          '--ldr-red','--ldr-red-soft','--ldr-gold','--ldr-blue','--ldr-coral']});
+        scopeVars:LDR_SCOPE_VARS});
       if(navigator.canShare&&navigator.canShare({files:[file]})){
         try{
           await navigator.share({files:[file],text:window.cfShareCardUrl?cfShareCardUrl():undefined});
-          try{cfTrack('share_completed',{surface:'leaders'});}catch(_e){}
+          try{cfTrack('share_completed',{surface:'leaders',topN:st.topN});}catch(_e){}
         }catch(e){ if(e&&e.name==='AbortError'){/* user cancelled */} else saveFile(file); }
       } else saveFile(file);
     }catch(err){
       setShareLabel('Couldn’t build image — tap to retry'); sharing=false;
+      if(gb)gb.disabled=false;
       setTimeout(function(){setShareLabel(orig);},1800); return;
     }
-    setShareLabel(orig); sharing=false;
+    setShareLabel(orig); if(gb)gb.disabled=false; sharing=false;
   }
   function saveFile(file){
     var url=URL.createObjectURL(file);
@@ -16616,18 +16670,30 @@ if(typeof window.cfRegisterView==='function'){
       st.side=side; syncControls(); render();
       try{cfTrack('leaders_side_toggled',{side:side});}catch(e2){}
     });
-    var counts=document.getElementById('ldr-counts');
-    if(counts)counts.addEventListener('click',function(e){
-      var b=e.target.closest('[data-ldr-n]'); if(!b)return;
-      var n=+b.getAttribute('data-ldr-n');
-      st.topN=(st.topN===n)?0:n; /* tap active pill again → deselect → all */
-      syncControls(); render();
-      try{cfTrack('leaders_topn_changed',{n:st.topN});}catch(e2){}
-    });
     var fb=document.getElementById('ldr-filters');
     if(fb)fb.addEventListener('click',openFilters);
     var sb=document.getElementById('ldr-share');
-    if(sb)sb.addEventListener('click',doShare);
+    if(sb)sb.addEventListener('click',openShareSheet);
+    /* share-sheet taps (sheet body lives outside this view → delegate globally,
+       guarded by owner so the rooting-card and filters sheets never collide) */
+    document.addEventListener('click',function(e){
+      if(!window.BottomSheet||!window.BottomSheet.isOpen()||window.BottomSheet.getOwner()!=='leaders-share')return;
+      var t;
+      if((t=e.target.closest('[data-ldrs-n]'))){
+        var n=+t.getAttribute('data-ldrs-n');
+        if(n!==st.topN){
+          st.topN=n; render();
+          var host=document.getElementById('ldrs-chips');
+          if(host)Array.prototype.forEach.call(host.querySelectorAll('[data-ldrs-n]'),function(b){
+            b.classList.toggle('on',+b.getAttribute('data-ldrs-n')===st.topN);
+          });
+          shareRenderPreview();
+          try{cfTrack('leaders_share_scope',{topN:st.topN});}catch(e2){}
+        }
+        return;
+      }
+      if(e.target.closest('#ldrs-go')){doShare();return;}
+    });
     var rb=document.getElementById('ldr-retry-btn');
     if(rb)rb.addEventListener('click',function(){
       if(st.period==='season'){ delete st.built[st.season]; buildSeason(st.season); }
