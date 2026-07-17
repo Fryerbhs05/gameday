@@ -16101,6 +16101,26 @@ if(typeof window.cfRegisterView==='function'){
     padding:8px 13px;border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;}
   #view-leaders .ldr-sharebtn:active{transform:scale(.99);}
   #view-leaders .ldr-sharebtn:disabled{opacity:.55;cursor:default;}
+  /* Mobile: "Share leaders" pins to the bottom of the display, stacked directly
+     on top of the tab bar. When the bar auto-hides on scroll-down (its
+     .cbnav-hidden class — the nav is an earlier body-level sibling, so pure
+     CSS ~ tracks it), the button glides down to the screen edge on the SAME
+     duration/easing as the bar's slide. Centered via left/right+margin (not
+     translateX) so the :active scale can't knock it off-center. z-index 890
+     keeps it under the BottomSheet backdrop (900), so open sheets cover it.
+     Same offset math as the update toast / install banner. */
+  @media (max-width:768px){
+    #view-leaders .ldr-sharebtn{
+      position:fixed;left:0;right:0;margin:0 auto;z-index:890;
+      width:calc(min(520px,100vw) - var(--gutter,16px)*2);
+      bottom:calc(var(--cbnav-h,87px) + var(--exp-ribbon-h,0px) + env(safe-area-inset-bottom,0px) + 8px);
+      box-shadow:0 6px 20px rgba(0,0,0,.35);
+      transition:bottom .6s cubic-bezier(0.4,0,0.2,1);
+    }
+    #exp-bottom-nav.cbnav-hidden ~ #view-leaders .ldr-sharebtn{
+      bottom:calc(var(--exp-ribbon-h,0px) + env(safe-area-inset-bottom,0px) + 8px);
+    }
+  }
   /* CARRIED/CRUSHED toggle — matches the Snapshot List/Grid toggle chrome
      (#15293E track, navy-300 border, 3px pad/gap, flat active fill, .15s
      transitions); the one deliberate difference is the active states keep
@@ -16108,8 +16128,9 @@ if(typeof window.cfRegisterView==='function'){
   #view-leaders .ldr-seg{display:flex;background:#15293E;
     border:1px solid var(--navy-300,#2B6FA8);border-radius:12px;padding:3px;gap:3px;margin-bottom:10px;}
   #view-leaders .ldr-seg button{flex:1;appearance:none;border:0;background:transparent;border-radius:9px;padding:9px;
-    font:800 12px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.04em;color:var(--ldr-ink400);cursor:pointer;
-    display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;}
+    font:800 12px/normal var(--font-sans),'Inter',sans-serif;letter-spacing:.04em;color:var(--ldr-ink400);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;min-height:14px;box-sizing:content-box;
+    transition:background .15s,color .15s;}
   #view-leaders .ldr-seg button.on-f{background:var(--ldr-green-soft);color:var(--ldr-green);}
   #view-leaders .ldr-seg button.on-a{background:var(--ldr-red-soft);color:var(--ldr-red);}
   /* (Top-N pills retired from the page — they live in the share sheet now.
@@ -16170,6 +16191,13 @@ if(typeof window.cfRegisterView==='function'){
   #view-leaders .ldr-float.err{border-color:var(--ldr-coral);color:var(--ldr-coral);cursor:pointer;}
   #view-leaders .ldr-float.err .dot{background:var(--ldr-coral);animation:none;}
   @keyframes ldrPulse{0%,100%{opacity:.35;}50%{opacity:1;}}
+  /* Mobile: fetch-status pill parks above the pinned Share button instead of
+     under it (must follow the base .ldr-float rule to win the cascade). */
+  @media (max-width:768px){
+    #view-leaders .ldr-float{
+      bottom:calc(var(--cbnav-h,64px) + var(--exp-ribbon-h,0px) + env(safe-area-inset-bottom,0px) + 60px);
+    }
+  }
   /* filters sheet body (rendered inside the shared BottomSheet, outside #view-leaders) */
   .ldrf{padding:2px 2px 6px;color:var(--ink-900);}
   .ldrf h4{margin:0 0 8px;font:700 9px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.22em;color:var(--ink-500);}
