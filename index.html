@@ -4549,6 +4549,26 @@
   .cf-snap-share{width:100%;border:none;background:var(--cs-coral);color:#0F2235;font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:12.5px;letter-spacing:.02em;padding:8px 13px;border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;}
   .cf-snap-share:active{transform:scale(.99);}
   .cf-snap-share[hidden]{display:none;}
+  /* Mobile: "Share My Weekend" pins flush on the tab bar's top edge and rides
+     down in sync to the screen edge when the bar auto-hides on scroll — same
+     pattern as the Leaders share button (transform animation matches the bar's
+     composited slide; left/right+margin centering so :active scale can't
+     knock it off-center; z 890 under the BottomSheet backdrop at 900). */
+  @media (max-width:768px){
+    #view-snapshot .cf-snap-share{
+      position:fixed;left:0;right:0;margin:0 auto;z-index:890;
+      width:calc(min(420px,100vw) - var(--gutter,16px)*2);
+      bottom:calc(var(--cbnav-h,87px) + var(--exp-ribbon-h,0px) + env(safe-area-inset-bottom,0px));
+      box-shadow:0 6px 20px rgba(0,0,0,.35);
+      transition:transform .6s cubic-bezier(0.4,0,0.2,1);
+    }
+    #exp-bottom-nav.cbnav-hidden ~ #view-snapshot .cf-snap-share{
+      transform:translateY(var(--cbnav-h,87px));
+    }
+  }
+  @media (max-width:768px) and (prefers-reduced-motion:reduce){
+    #view-snapshot .cf-snap-share{transition:none;}
+  }
   #cf-snap-frame{background:var(--cs-navy-900);border:1px solid var(--navy-300);border-radius:20px;padding:20px 16px 16px;}
   .cf-snap-wm{display:flex;justify-content:center;margin-bottom:7px;}
   .cf-snap-wm svg{width:178px;height:auto;display:block;}
@@ -4623,7 +4643,7 @@
 </style>
 <div id="view-snapshot">
   <div class="cf-snap-wrap">
-    <button class="cf-snap-share" id="cf-snap-share" type="button">&#x2197;&nbsp; Share my weekend</button>
+    <button class="cf-snap-share" id="cf-snap-share" type="button">&#x2197;&nbsp; Share My Weekend</button>
     <div class="cf-snap-toggle" role="tablist" id="cf-snap-toggle">
       <button id="cf-snap-btn-list" class="is-on" type="button" data-cf-view="list" role="tab">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>
@@ -15050,7 +15070,7 @@ loadExperimentState();
   async function doShare(){
     if(sharing)return; sharing=true;
     try{cfTrack('share_tapped',{surface:'snapshot'});}catch(e){}
-    var orig='&#x2197;&nbsp; Share my weekend'; setShareLabel('Building image…');
+    var orig='&#x2197;&nbsp; Share My Weekend'; setShareLabel('Building image…');
     try{
       var file=await buildPng();
       if(navigator.canShare&&navigator.canShare({files:[file]})){
@@ -15427,7 +15447,7 @@ function cfRenderConflictCard(){
     cfClusterHTML(clusters[0],0,true)+
     (clusters.length>1?('<div class="cfc-stack-h">'+(clusters.length-1)+' MORE CONFLICT'+(clusters.length-1>1?'S':'')+' TONIGHT</div>'+clusters.slice(1).map(function(c,i){return cfClusterHTML(c,i+1,false);}).join('')):'')+
     '</div>'+
-    '<button class="cfc-share" id="cfc-share" type="button">&#x2197;&nbsp; Share this card</button>';
+    '<button class="cfc-share" id="cfc-share" type="button">&#x2197;&nbsp; Share This Card</button>';
   clusters.forEach(function(c,i){ cfPaintBar(c,i); });
   host.querySelectorAll('[data-cfslot]').forEach(function(btn){ btn.onclick=function(){ window.__cfConflictSlot=btn.getAttribute('data-cfslot'); cfRenderConflictCard(); }; });
   var csBtn=document.getElementById('cfc-share'); if(csBtn)csBtn.onclick=cfShareConflictCard;
@@ -16222,7 +16242,7 @@ if(typeof window.cfRegisterView==='function'){
 </style>
 
 <div id="view-leaders">
-  <button class="ldr-sharebtn" id="ldr-share" type="button">&#x2197;&nbsp; Share leaders</button>
+  <button class="ldr-sharebtn" id="ldr-share" type="button">&#x2197;&nbsp; Share Leaders</button>
   <div class="ldr-seg" id="ldr-seg">
     <button type="button" data-ldr-side="F" class="on-f">CARRIED ME</button>
     <button type="button" data-ldr-side="A">CRUSHED ME</button>
@@ -16603,7 +16623,7 @@ if(typeof window.cfRegisterView==='function'){
        that N (invisible behind the sheet backdrop) and mirror it into the sheet
        as a scaled clone; Share exports the live frame through the proven v68
        pipeline (scopeVars). Closing the sheet restores the page to ALL. Sheet
-       default TOP 10, reset on every open (filter-persistence rule). ── */
+       default TOP 5 (Matt, 2026-07-16), reset on every open (filter-persistence rule). ── */
   var LDR_SCOPE_VARS=['--ldr-navy900','--ldr-card','--ldr-card-deep','--ldr-line','--ldr-cream',
     '--ldr-ink500','--ldr-ink400','--ldr-ink300','--ldr-green','--ldr-green-soft',
     '--ldr-red','--ldr-red-soft','--ldr-gold','--ldr-blue','--ldr-coral'];
@@ -16644,7 +16664,7 @@ if(typeof window.cfRegisterView==='function'){
   }
   function openShareSheet(){
     if(!window.BottomSheet)return;
-    st.topN=10; render(); /* sheet default; live frame re-renders behind the backdrop */
+    st.topN=5; render(); /* sheet default TOP 5; live frame re-renders behind the backdrop */
     window.BottomSheet.open(shareSheetHtml(),{owner:'leaders-share',onClose:function(){
       st.topN=0; render(); /* page rule: managers always see ALL */
     }});
