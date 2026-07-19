@@ -146,6 +146,14 @@
         ));
         if(returning){
           d.classList.add('booting');
+          /* QUICK MODE: a FRESH board snapshot means the board paints in ~100-400ms,
+             so the splash is only covering the pre-JS login paint — it isn't a brand
+             moment. Playing the full choreography there just shows a half-finished
+             assemble before it fades (the flicker daily users would see). Read the
+             O(1) timestamp mirror and mark the gate so CSS renders a clean STATIC
+             brand stamp instead. Full choreography is reserved for a real held load. */
+          var ts=0; try{ts=+(ls.getItem('conflicted_snapshot_ts')||0);}catch(e2){}
+          if(ts>0 && (Date.now()-ts) < 86400000) d.classList.add('boot-quick');
           /* Failsafe: never let the splash trap the user if boot stalls or throws. */
           window.__bootSplashFailsafe=setTimeout(function(){d.classList.remove('booting');},8000);
         }
@@ -1223,6 +1231,21 @@
       .boot-splash__copy, .boot-splash__status { opacity: 1; transform: none; animation: none; }
       .boot-splash__status .dot { opacity: 1; animation: none; }
     }
+    /* ── QUICK MODE (fresh snapshot → board paints in ~100-400ms) ─────────────
+       Set by the <head> gate. The splash here is a sub-half-second cover for the
+       pre-JS login paint, NOT a brand moment, so render a complete STATIC stamp
+       (icon + wordmark, no copy, no motion). Daily users get a crisp branded
+       beat instead of a clipped animation. */
+    html.boot-quick .boot-splash__icon { opacity: 1; animation: none; }
+    html.boot-quick .boot-wm-l, html.boot-quick .boot-wm-r { transform: none; opacity: 1; animation: none; }
+    html.boot-quick .boot-wm-seam { transform: scaleY(1); opacity: 1; animation: none; }
+    html.boot-quick .boot-splash__copy { display: none; }
+    /* Rare: the snapshot turned out unusable (corrupt, or every league excluded)
+       so we're actually holding after all. Reveal the copy and start the breath —
+       the marks stay statically in place, so there's no restart flicker. */
+    html.boot-quick.boot-held .boot-splash__copy { display: block; opacity: 0; animation: bootWmUp .5s ease-out forwards; }
+    html.boot-quick.boot-held .boot-splash__status { opacity: 0; animation: bootWmUp .5s ease-out .25s forwards; }
+    html.boot-quick.boot-held .boot-splash__icon { animation: bootIcBreathe 2.8s ease-in-out infinite; }
 
     /* Soft crossfade (#4): when a surface goes from display:none → shown, its
        CSS animation restarts, giving a gentle fade-in instead of a hard cut.
@@ -8629,6 +8652,11 @@ async function run(){
    hides games (see filter-persistence rule). */
 const BOARD_SNAPSHOT_KEY='conflicted_board_snapshot_v1';
 const BOARD_SNAPSHOT_MAX_AGE_MS=24*60*60*1000; // older than a day → cold boot
+/* Tiny mirror of the snapshot's timestamp. The <head> boot gate needs to know
+   whether a fresh snapshot exists BEFORE first paint (to pick the static brand
+   stamp over the full splash choreography), and parsing the large snapshot JSON
+   there would block the very paint the splash exists to protect. O(1) read. */
+const SNAPSHOT_TS_KEY='conflicted_snapshot_ts';
 function saveBoardSnapshot(data,username){
   try{
     /* Replay Mode data must never persist as the boot snapshot — it looks like
@@ -8644,10 +8672,10 @@ function saveBoardSnapshot(data,username){
     if(isDemoMode||!data||data.noData||data.isHist)return;
     if(!isAnyProviderConnected())return;
     const snap={ts:Date.now(),week:activeWeek,season:activeSeason,liveWeek:liveWeek,liveSeason:liveSeason,username:username||'',data:data};
-    try{localStorage.setItem(BOARD_SNAPSHOT_KEY,JSON.stringify(snap));}
+    try{localStorage.setItem(BOARD_SNAPSHOT_KEY,JSON.stringify(snap));localStorage.setItem(SNAPSHOT_TS_KEY,String(snap.ts));}
     catch(e){
       /* Quota pressure: retry without the bulky debug payload before giving up. */
-      try{snap.data=Object.assign({},data,{debugInfo:null});localStorage.setItem(BOARD_SNAPSHOT_KEY,JSON.stringify(snap));}catch(e2){}
+      try{snap.data=Object.assign({},data,{debugInfo:null});localStorage.setItem(BOARD_SNAPSHOT_KEY,JSON.stringify(snap));localStorage.setItem(SNAPSHOT_TS_KEY,String(snap.ts));}catch(e2){}
     }
   }catch(e){}
 }
@@ -8660,7 +8688,7 @@ function readBoardSnapshot(){
     return snap;
   }catch(e){return null;}
 }
-function clearBoardSnapshot(){try{localStorage.removeItem(BOARD_SNAPSHOT_KEY);}catch(e){}}
+function clearBoardSnapshot(){try{localStorage.removeItem(BOARD_SNAPSHOT_KEY);localStorage.removeItem(SNAPSHOT_TS_KEY);}catch(e){}}
 
 const REFRESH_MS=60*1000;let refreshTimer=null;let lastFetchTime=0;let isFetching=false;
 function shouldAutoRefresh(){return !isDemoMode && !(window.__cfReplay&&window.__cfReplay.active()) && isAnyProviderConnected() && !isHistoricalWeek();}
@@ -11319,6 +11347,10 @@ loadExperimentState();
     /* Splash not raised (logged-out gate above, or account-only new device with
        no local signal) → nothing to hold; let the normal endBoot path run. */
     if(!document.documentElement.classList.contains('booting'))return;
+    /* We're committing to a real hold. If the <head> gate guessed QUICK MODE from
+       a fresh snapshot that turned out unusable, this lets the static stamp bloom
+       into the full moment (copy + breath) instead of sitting mute for 2s. */
+    try{document.documentElement.classList.add('boot-held');}catch(e){}
     _coldSplashArmed=true;
     _coldCeilingT=setTimeout(function(){releaseColdSplash(true);}, Math.max(0, COLD_SPLASH_MAX_MS-_nowMs()));
   }
