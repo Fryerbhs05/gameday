@@ -1177,56 +1177,49 @@
     /* Belt-and-suspenders: while booting, keep the default login paint from
        peeking even if the splash background were ever translucent. */
     html.booting #setup-panel { display: none !important; }
-    /* First-load brand moment (Matt, 2026-07-18): the bisected wordmark
-       ASSEMBLES from its own seam, then settles into a slow "breath" whose
-       seam-pulse is the working signal (no spinner). Covers the cold data pull;
-       held for a 2s minimum / 7s ceiling by the boot controller. First painted
-       frame is the mark mid-assemble — pure CSS, never JS-load-bearing; the
-       reduced-motion block below lands everything static. */
+    /* First-load brand moment (Matt, 2026-07-18): the split-goalpost app ICON
+       fades in and settles into a slow "breath" (the working signal — no
+       spinner); below it the bisected CONFLICTED wordmark ASSEMBLES from its own
+       seam and holds; then the copy lines fade up. Icon bg is #0F1B26 = --paper,
+       so it sits seamlessly on the field with no tile edge. Covers the cold data
+       pull; held 2s min / 7s ceiling by the boot controller. First painted frame
+       is pure CSS — never JS-load-bearing; the reduced-motion block below lands
+       everything static. */
     .boot-splash__inner {
-      position: relative;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
     }
-    /* one atmospheric touch — a faint vertical seam of light behind the mark */
-    .boot-splash__inner::before {
-      content: ""; position: absolute; top: 6%; bottom: 34%; left: 50%; width: 1px;
-      transform: translateX(-.5px); pointer-events: none;
-      background: linear-gradient(to bottom, transparent, rgba(245,239,228,.10), transparent);
+    .boot-splash__icon {
+      width: 88px; height: 88px; display: block; transform-origin: 50% 50%; opacity: 0;
+      animation: bootIcIn .5s ease-out both, bootIcBreathe 2.8s ease-in-out .65s infinite;
     }
-    .boot-splash__wordmark {
-      width: 210px; max-width: 62vw; transform-origin: 50% 50%;
-      animation: bootWmBreathe 2.8s ease-in-out .85s infinite;
-    }
+    .boot-splash__wordmark { width: 200px; max-width: 60vw; }
     .boot-splash__wordmark svg { display: block; width: 100%; height: auto; aspect-ratio: 480 / 90; overflow: visible; }
-    .boot-wm-l { transform: translateX(-16px); opacity: 0; animation: bootWmInL .7s cubic-bezier(.2,.8,.2,1) .1s forwards; }
-    .boot-wm-r { transform: translateX(16px);  opacity: 0; animation: bootWmInR .7s cubic-bezier(.2,.8,.2,1) .1s forwards; }
-    .boot-wm-seam {
-      transform: scaleY(0); transform-origin: 50% 50%; opacity: 0;
-      animation: bootWmSeam .5s ease-out .5s forwards, bootWmSeamPulse 2.8s ease-in-out .85s infinite;
-    }
-    .boot-splash__copy { text-align: center; opacity: 0; transform: translateY(8px); animation: bootWmUp .6s ease-out .55s forwards; }
+    .boot-wm-l { transform: translateX(-16px); opacity: 0; animation: bootWmInL .7s cubic-bezier(.2,.8,.2,1) .35s forwards; }
+    .boot-wm-r { transform: translateX(16px);  opacity: 0; animation: bootWmInR .7s cubic-bezier(.2,.8,.2,1) .35s forwards; }
+    .boot-wm-seam { transform: scaleY(0); transform-origin: 50% 50%; opacity: 0; animation: bootWmSeam .5s ease-out .75s forwards; }
+    .boot-splash__copy { text-align: center; opacity: 0; transform: translateY(8px); animation: bootWmUp .6s ease-out .7s forwards; }
     .boot-splash__tag { font: 700 19px/1.35 var(--font-sans); letter-spacing: -.01em; color: var(--ink-900); }
     .boot-splash__tag .accent { color: var(--coral-400); }
     .boot-splash__status {
-      margin-top: 14px; font: 500 10.5px/1 var(--font-mono);
+      margin-top: 13px; font: 500 10.5px/1 var(--font-mono);
       letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500);
-      opacity: 0; animation: bootWmUp .6s ease-out .9s forwards;
+      opacity: 0; animation: bootWmUp .6s ease-out .95s forwards;
     }
     .boot-splash__status .dot { opacity: 0; animation: bootWmDot 1.4s steps(1) infinite; }
     .boot-splash__status .dot:nth-child(2) { animation-delay: .25s; }
     .boot-splash__status .dot:nth-child(3) { animation-delay: .5s; }
+    @keyframes bootIcIn { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: scale(1); } }
+    @keyframes bootIcBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
     @keyframes bootWmInL { to { transform: translateX(0); opacity: 1; } }
     @keyframes bootWmInR { to { transform: translateX(0); opacity: 1; } }
     @keyframes bootWmSeam { to { transform: scaleY(1); opacity: 1; } }
     @keyframes bootWmUp { to { transform: translateY(0); opacity: 1; } }
-    @keyframes bootWmBreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.022); } }
-    @keyframes bootWmSeamPulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
     @keyframes bootWmDot { 0%, 60% { opacity: 0; } 30% { opacity: 1; } }
     @media (prefers-reduced-motion: reduce) {
       #boot-splash { transition: none; }
-      .boot-splash__wordmark, .boot-wm-seam { animation: none; }
+      .boot-splash__icon { opacity: 1; animation: none; }
       .boot-wm-l, .boot-wm-r { transform: none; opacity: 1; animation: none; }
-      .boot-wm-seam { transform: scaleY(1); opacity: 1; }
+      .boot-wm-seam { transform: scaleY(1); opacity: 1; animation: none; }
       .boot-splash__copy, .boot-splash__status { opacity: 1; transform: none; animation: none; }
       .boot-splash__status .dot { opacity: 1; animation: none; }
     }
@@ -3590,6 +3583,7 @@
 <!-- ── Boot splash (covers the resume reload; faded out by endBoot()) ── -->
 <div id="boot-splash" aria-hidden="true">
   <div class="boot-splash__inner">
+    <img class="boot-splash__icon" src="/icons/icon-512.png" width="88" height="88" alt="" aria-hidden="true" decoding="async" fetchpriority="high">
     <div class="boot-splash__wordmark">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 90" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Conflicted">
         <defs>
@@ -6360,6 +6354,26 @@ function renderScoresStrip(contexts){
   });
 }
 
+/* Self-heal hook for the Sleeper name race. A matchup drawer opened during the
+   snapshot-boot window (before window.playerDB is parsed) renders Sleeper players
+   as "Player <id>", because their names resolve from window.playerDB at render
+   time. When the DB lands we re-render the open drawer in place from the current
+   context so those labels fill in, without the user closing and reopening.
+   No-op unless a matchup drawer is actually open. */
+function rerenderOpenMatchupDrawer(){
+  try{
+    if(!window.BottomSheet||!window.BottomSheet.isOpen())return;
+    const owner=window.BottomSheet.getOwner()||'';
+    if(owner.indexOf('matchup:')!==0)return;
+    const leagueName=owner.slice('matchup:'.length);
+    const ctx=(window.currentContexts||[]).find(c=>c.leagueName===leagueName);
+    const lg =(window.currentLeagues ||[]).find(l=>l.leagueName===leagueName);
+    if(!ctx||typeof window.renderMatchupDrawer!=='function')return;
+    window.BottomSheet.setBody(window.renderMatchupDrawer(ctx,lg));
+  }catch(e){}
+}
+window.rerenderOpenMatchupDrawer=rerenderOpenMatchupDrawer;
+
 /* In-place updater for an open matchup drawer. Looks up the open BottomSheet,
    verifies its owner matches this league, and patches:
      - the You/Opp score values
@@ -7571,6 +7585,9 @@ async function loadData(){
   /* Expose to delegated handlers (matchup drawer) that need to hydrate raw
      Sleeper player IDs (strings) into {full_name, position, team} at render time. */
   window.playerDB=playerDB;
+  /* Self-heal: if a Sleeper matchup drawer was opened during the snapshot-boot
+     race (before the DB was ready), re-render it now that names can resolve. */
+  try{rerenderOpenMatchupDrawer();}catch(e){}
   /* Season stats + per-league position ranks. Best-effort: failures degrade
      gracefully (ranks just won't show up in the tooltip/drawer). */
   setLoading('Computing season ranks.');
@@ -11233,6 +11250,26 @@ loadExperimentState();
   /* Local (localStorage) connections first, so the account hydration below sees
      accurate connectionState for its local-wins guards. */
   Object.values(PROVIDERS).forEach(p=>{try{p.rehydrate&&p.rehydrate();}catch(e){console.warn(p.id+' rehydrate failed:',e.message);}});
+  /* ── PLAYER-DB WARM HYDRATE (Sleeper name race) ───────────────────────────
+     Sleeper matchup rows store raw player IDs; the drawer resolves each to a
+     name from window.playerDB at open time. On a snapshot boot the board is
+     interactive before the async data pull sets window.playerDB, so a Sleeper
+     matchup opened in that window renders "Player <id>" until reopened. The
+     ~5 MB DB is already cached in localStorage for any returning user (i.e.
+     exactly the population that boots from a snapshot), so parse it into
+     window.playerDB synchronously NOW — before the snapshot paints and becomes
+     clickable — closing the race. Guarded + TTL-checked; a cold first load (no
+     cache) simply skips this and relies on the loadData pull + drawer self-heal
+     (rerenderOpenMatchupDrawer). Best-effort: never blocks boot on failure. */
+  try{
+    if(!window.playerDB){
+      const _pc=localStorage.getItem(CACHE_KEY),_pt=localStorage.getItem(CACHE_T_KEY);
+      if(_pc&&_pt&&Date.now()-parseInt(_pt,10)<CACHE_TTL){
+        window.playerDB=JSON.parse(_pc);
+        _sleeperIdLookupCache=null;_sleeperNamePosCache=null;
+      }
+    }
+  }catch(e){/* corrupt/oversized cache — loadData will refetch */}
   /* ── SNAPSHOT BOOT (stale-while-revalidate) ──────────────────────────────
      If we have a recent board snapshot, paint it NOW — before any network —
      so a resumed tab/PWA shows the dashboard instantly instead of the
