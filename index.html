@@ -1267,10 +1267,14 @@
       flex: 1 1 auto; min-width: 0;
       display: flex; align-items: center; justify-content: center; gap: 6px;
     }
-    /* stacked readout: week (bold cream) over season (coral) */
+    /* Side-by-side readout in ONE bordered box, split by a hairline (option B,
+       2026-07-19). Replaced a vertically stacked week-over-season, whose 15px
+       season line was too small a tap target on a phone — each half now owns
+       the full 44px height. */
     .pb-period {
       flex: 1 1 auto; min-width: 0;
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      display: flex; align-items: stretch; height: 44px;
+      border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden;
     }
     /* Hairline between stepper and Filters. Hidden unless the Filters button is
        actually showing (single-league boards hide it) so it can't dangle at the
@@ -1289,22 +1293,26 @@
     select.nav-select option { background: var(--paper); color: var(--ink-900); }
     select.week-select { min-width: 92px; }
     /* Stepper overrides: carets stripped so both lines read as plain type while
-       staying tappable menus. Scoped to .pb-period (the stacked readout) rather
+       staying tappable menus. Scoped to .pb-period (the split readout) rather
        than a view id, so the shared period bar and Watch Priority share ONE
        recipe while Exposure keeps its labelled caret dropdowns off the same
        .nav-select/.week-select classes. */
     .pb-period select.nav-select {
-      background-image: none; padding: 0; max-width: 100%;
+      background-image: none; padding: 0; max-width: 100%; height: 100%;
       text-align: center; text-align-last: center;
     }
     .pb-period select.nav-select option { text-align: center; }
+    /* week takes the free space; season sizes to its content on the right */
     .pb-period select.week-select {
-      font: 800 20px/1.15 var(--font-sans); color: var(--ink-900);
-      letter-spacing: -0.01em; min-width: 0;
+      flex: 1 1 auto; min-width: 0;
+      font: 800 19px/1 var(--font-sans); color: var(--ink-900);
+      letter-spacing: -0.01em;
     }
     .pb-period select.season-select {
-      font: 600 13px/1.15 var(--font-sans); color: var(--coral-500);
-      letter-spacing: 0.01em; min-width: 0;
+      flex: 0 0 auto; min-width: 0; padding: 0 11px;
+      border-left: 1px solid var(--line);
+      font: 600 15px/1 var(--font-sans); color: var(--coral-500);
+      letter-spacing: 0.01em;
     }
     /* Step arrows — boxed, matched to the Filters button's height. Generic
        (not .nav-controls-scoped) so Watch Priority reuses them verbatim. */
@@ -2669,7 +2677,10 @@
          44px touch targets are already in the base rules. */
       .nav-controls { padding: 8px; gap: 6px; flex-wrap: nowrap; }
       .pb-stepper { gap: 4px; }
-      .pb-period select.week-select { font-size: 19px; }
+      .pb-period select.week-select { font-size: 18px; }
+      .pb-period select.season-select { padding: 0 9px; font-size: 14px; }
+      /* arrows shed a little width on phones so the year + Filters both fit */
+      .pb-arrow { min-width: 38px; }
       .league-filter-btn { padding: 0 13px; font-size: 13.5px; }
       .nav-controls #board-refresh-time { font-size: 11px; white-space: nowrap; padding: 4px 6px; }
       /* divider stays on mobile now — it separates the stepper from Filters */
@@ -3242,7 +3253,9 @@
     }
     .wp-head__controls .pb-arrow { border-color: var(--surf-border-strong); color: var(--surf-muted); }
     .wp-head__controls .pb-arrow:hover:not(:disabled) { background: rgba(255,255,255,0.05); color: var(--surf-text); }
+    .wp-head__controls .pb-period { border-color: var(--surf-border-strong); }
     .wp-head__controls .pb-period select.week-select { color: var(--surf-text); }
+    .wp-head__controls .pb-period select.season-select { border-left-color: var(--surf-border-strong); }
     .wp-head__controls .pb-period select.nav-select option { background: var(--surf-panel-2); color: var(--surf-text); }
     /* WP always shows Filters, so the divider is unconditional here (the
        :has() rule that gates it in the shared bar is .nav-controls-scoped). */
