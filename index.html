@@ -93,9 +93,9 @@
   <meta name="twitter:image" content="https://conflictedapp.com/og-image.png" />
 
   <!-- Favicon — split goalpost mark (icon-1a-night), reintroduced 2026-07-18. -->
-  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
-  <link rel="icon" href="/icons/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png?v=78" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png?v=78" />
+  <link rel="icon" href="/icons/favicon.ico?v=78" sizes="any" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -103,7 +103,7 @@
   <!-- ============ PWA: manifest, theme color, iOS support ============ -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" id="meta-theme-color" content="#0F1B26" />
-  <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-180.png?v=78" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14061,8 +14061,11 @@ loadExperimentState();
   }
   #conflicted-install-banner .cib-logo {
     flex-shrink: 0;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
+    border-radius: 9px;
+    object-fit: cover;
+    display: block;
   }
   #conflicted-install-banner .cib-text {
     flex: 1;
@@ -14125,21 +14128,7 @@ loadExperimentState();
 </style>
 
 <div id="conflicted-install-banner" hidden role="dialog" aria-label="Install Conflicted">
-  <svg class="cib-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" aria-hidden="true">
-    <defs>
-      <clipPath id="cibLeft"><rect x="0" y="0" width="60" height="120"/></clipPath>
-      <clipPath id="cibRight"><rect x="60" y="0" width="60" height="120"/></clipPath>
-    </defs>
-    <g style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:34px;letter-spacing:-0.04em;">
-      <text x="60" y="38" text-anchor="middle" style="fill:var(--navy-700,#1A3A52);" clip-path="url(#cibLeft)">CON</text>
-      <text x="60" y="38" text-anchor="middle" style="fill:var(--coral-500,#D85A30);" clip-path="url(#cibRight)">CON</text>
-      <text x="60" y="72" text-anchor="middle" style="fill:var(--navy-700,#1A3A52);" clip-path="url(#cibLeft)">FLIC</text>
-      <text x="60" y="72" text-anchor="middle" style="fill:var(--coral-500,#D85A30);" clip-path="url(#cibRight)">FLIC</text>
-      <text x="60" y="106" text-anchor="middle" style="fill:var(--navy-700,#1A3A52);" clip-path="url(#cibLeft)">TED</text>
-      <text x="60" y="106" text-anchor="middle" style="fill:var(--coral-500,#D85A30);" clip-path="url(#cibRight)">TED</text>
-    </g>
-    <line x1="60" y1="12" x2="60" y2="114" style="stroke:var(--ink-900,#15181C);stroke-width:1.5;"/>
-  </svg>
+  <img class="cib-logo" src="/icons/icon-192.png?v=78" alt="" aria-hidden="true" />
   <div class="cib-text">
     <span class="cib-title">The App Is Even Better</span>
     <span class="cib-sub">Add to your home screen for the full app experience.</span>
