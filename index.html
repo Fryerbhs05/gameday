@@ -11101,6 +11101,25 @@ loadLiveOnlyState();
 loadExperimentState();
 
 (async()=>{
+  /* ── COLD-LOAD TIMING INSTRUMENTATION (measurement only, no UI) ───────────
+     Sizing data for the planned first-load brand splash. Marks each phase of
+     the boot chain so we can read the real cold-load distribution back from
+     analytics and set the splash's minimum-display time from percentiles
+     instead of a guess. performance.now() is already relative to page-open, so
+     every mark is "ms since the user opened the app" — i.e. the wait they feel.
+     Fires ONE cfTrack('cold_load_timing') at the end, and ONLY on a felt cold
+     load (a provider is connected and we actually pull first data — not a
+     snapshot revalidation, historic period, demo/replay, or OAuth return).
+     All best-effort + guarded; can never affect boot. */
+  const _clMarks={};
+  function _clMark(name){try{_clMarks[name]=Math.round((performance&&performance.now)?performance.now():0);}catch(e){}}
+  /* Network time-to-first-byte for the shell itself, for context on the total. */
+  const _clTtfb=(function(){try{var n=performance.getEntriesByType&&performance.getEntriesByType('navigation')[0];return n?Math.round(n.responseStart):null;}catch(e){return null;}})();
+  /* Was the ~5MB Sleeper players DB already warm in localStorage? It's the
+     single biggest swing between a truly-cold and a warm cold load, so we tag
+     every sample with it to keep the distribution interpretable. */
+  const _clPlayersWarm=(function(){try{var t=+localStorage.getItem('gd_players_db_t')||0;return !!localStorage.getItem('gd_players_db')&&(Date.now()-t)<12*60*60*1000;}catch(e){return null;}})();
+  _clMark('boot');
   const _bootParams=new URLSearchParams(window.location.search);
   const cameFromYahooOAuth=_bootParams.get('yahoo')==='connected';
   const justSignedOut=_bootParams.get('account')==='signed_out';
@@ -11182,16 +11201,38 @@ loadExperimentState();
      through to showSetup(). This was the "Sleeper doesn't appear on a new device"
      bug: the write succeeded but this decision raced ahead of the read. */
   await bootstrapAccount();
+  _clMark('acct'); // open → account hydrated
   /* Run Yahoo + ESPN status checks in parallel so bootstrap doesn't pay the
      latency of two sequential round-trips before deciding what to render. */
   await Promise.all([checkYahooStatus(),checkEspnStatus()]);
+  _clMark('status'); // account → Yahoo/ESPN status checks done
   const _endSnapshotSync=()=>{const btn=document.getElementById('refresh-btn');if(btn)btn.classList.remove('syncing');};
   if(cameFromYahooOAuth){showSetup();endBoot();}
   else if(isAnyProviderConnected()){
     const ok=await run();
+    _clMark('data'); // status → first board painted (NFL state + provider pull + render)
     _endSnapshotSync();
     endBoot(); // safety: clears splash on the cold-load path (no snapshot/skeleton)
     if(bootedFromSnapshot&&ok)flashSyncedFeedback(); // same green snap as a manual sync
+    /* Report the felt cold-load timing. Excludes snapshot boot (board was
+       already on screen — the pull is a background revalidation, not a felt
+       wait). bootedSkeleton and the splash-held cold path both land here and
+       are what the first-load splash will cover. */
+    if(!bootedFromSnapshot&&!isDemoMode&&ok){
+      try{
+        window.cfTrack('cold_load_timing',{
+          total:_clMarks.data,                                                   // ms from app-open to board painted (the felt wait)
+          ttfb:_clTtfb,                                                          // shell network time-to-first-byte
+          acct:_clMarks.acct,                                                    // open → account hydrated
+          status:(_clMarks.status!=null&&_clMarks.acct!=null)?_clMarks.status-_clMarks.acct:null,  // status-check phase
+          fetch:(_clMarks.data!=null&&_clMarks.status!=null)?_clMarks.data-_clMarks.status:null,   // NFL state + provider pull + render
+          cover:bootedSkeleton?'skeleton':'splash',                             // which surface the user actually watched
+          platforms:(typeof getConnectedProviders==='function')?getConnectedProviders().length:null,
+          players_warm:_clPlayersWarm,                                          // was the 5MB Sleeper players DB cached?
+          pwa:!!(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)
+        });
+      }catch(e){}
+    }
   }
   else{
     _endSnapshotSync();
