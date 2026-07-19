@@ -1254,17 +1254,31 @@
     #cf-period-bar { display: none; }
     #cf-period-bar .period-bar-inner { max-width: var(--max-width-wide); margin: 0 auto; padding: 24px var(--gutter) 0; }
 
-    /* Nav controls */
+    /* Nav controls — consolidated stepper (‹ Week N / season › | Filters).
+       One frame, two zones: the stepper takes the free space and centers its
+       readout; Filters is pinned right behind a hairline divider. Same layout
+       at every width (the mobile block below only scales the touch targets). */
     .nav-controls {
       display: flex; align-items: center; gap: 10px;
       background: var(--paper-soft); border: 1px solid var(--line);
-      border-radius: var(--radius-md); padding: 8px 14px; margin-bottom: 12px; flex-wrap: wrap;
+      border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 12px; flex-wrap: nowrap;
     }
-    .nav-label {
-      font: 500 11px/1 var(--font-sans); color: var(--ink-500);
-      letter-spacing: 0.08em; text-transform: uppercase;
+    .pb-stepper {
+      flex: 1 1 auto; min-width: 0;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
     }
-    .nav-divider { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+    /* stacked readout: week (bold cream) over season (coral) */
+    .pb-period {
+      flex: 1 1 auto; min-width: 0;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    /* Hairline between stepper and Filters. Hidden unless the Filters button is
+       actually showing (single-league boards hide it) so it can't dangle at the
+       right edge. :has() — unsupported browsers just get no divider. */
+    .nav-divider { display: none; width: 1px; height: 34px; background: var(--line); margin: 0 2px; flex: 0 0 1px; }
+    .nav-controls:has(.league-filter-bar.visible) .nav-divider { display: block; }
+    /* Base select styling — still used by Exposure + Watch Priority, which keep
+       their own labelled caret dropdowns. */
     select.nav-select {
       font: 500 14px/1 var(--font-sans); color: var(--ink-900);
       background: transparent; border: none; outline: none; cursor: pointer;
@@ -1274,7 +1288,38 @@
     }
     select.nav-select option { background: var(--paper); color: var(--ink-900); }
     select.week-select { min-width: 92px; }
-    .nav-spacer { flex: 1; }
+    /* Stepper overrides: carets stripped so both lines read as plain type while
+       staying tappable menus. Scoped to .pb-period (the stacked readout) rather
+       than a view id, so the shared period bar and Watch Priority share ONE
+       recipe while Exposure keeps its labelled caret dropdowns off the same
+       .nav-select/.week-select classes. */
+    .pb-period select.nav-select {
+      background-image: none; padding: 0; max-width: 100%;
+      text-align: center; text-align-last: center;
+    }
+    .pb-period select.nav-select option { text-align: center; }
+    .pb-period select.week-select {
+      font: 800 20px/1.15 var(--font-sans); color: var(--ink-900);
+      letter-spacing: -0.01em; min-width: 0;
+    }
+    .pb-period select.season-select {
+      font: 600 13px/1.15 var(--font-sans); color: var(--coral-500);
+      letter-spacing: 0.01em; min-width: 0;
+    }
+    /* Step arrows — boxed, matched to the Filters button's height. Generic
+       (not .nav-controls-scoped) so Watch Priority reuses them verbatim. */
+    .pb-arrow {
+      flex: 0 0 auto;
+      min-width: 44px; min-height: 44px; padding: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      font: 400 20px/1 var(--font-sans);
+      background: transparent; color: var(--ink-500);
+      border: 1px solid var(--line); border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+    }
+    .pb-arrow:hover:not(:disabled) { background: var(--paper-deep); color: var(--ink-700); }
+    .pb-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
     .nav-ctx { font: 400 12px/1 var(--font-mono); color: var(--ink-500); }
 
     /* Scoreboard frame — white border in dark mode, navy in light mode */
@@ -1686,24 +1731,26 @@
 
     /* League-visibility Filters button (opens the bottom drawer) — lives inline
        at the right edge of the Week/Season nav row. */
-    .league-filter-bar { display: none; margin: 0; }
+    .league-filter-bar { display: none; margin: 0; flex: 0 0 auto; }
     .league-filter-bar.visible { display: inline-flex; }
+    /* Blue-edged tinted box so it reads as the row's one actionable control,
+       matching the active state of the List/Grid + CARRIED/CRUSHED toggles
+       below it. Height matches the step arrows (44px touch target). */
     .league-filter-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      border: 1px solid var(--line); border-radius: var(--radius-md);
-      background: var(--paper); color: var(--ink-700);
-      font: 500 12px/1 var(--font-sans); padding: 6px 11px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      border: 1px solid var(--navy-300); border-radius: var(--radius-md);
+      background: color-mix(in oklab, var(--navy-300) 16%, transparent);
+      color: var(--ink-900);
+      font: 600 14px/1 var(--font-sans); padding: 0 16px; min-height: 44px; cursor: pointer;
+      white-space: nowrap;
       transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
     }
-    .league-filter-btn:hover { background: var(--paper-deep); color: var(--ink-900); }
-    .league-filter-btn:active { background: var(--paper-deep); }
-    .league-filter-btn svg { width: 13px; height: 13px; flex: 0 0 13px; }
-    .league-filter-count {
-      display: none; font: 600 10px/1 var(--font-mono); letter-spacing: 0.02em;
-      color: var(--paper); background: var(--coral-500);
-      border-radius: var(--radius-pill); padding: 3px 6px;
-    }
-    .league-filter-count.visible { display: inline-block; }
+    .league-filter-btn:hover { background: color-mix(in oklab, var(--navy-300) 26%, transparent); color: var(--ink-900); }
+    .league-filter-btn:active { background: color-mix(in oklab, var(--navy-300) 34%, transparent); }
+    .league-filter-btn svg { width: 15px; height: 15px; flex: 0 0 15px; }
+    /* Filters count badge retired 2026-07-19 (Matt) — the button carries no
+       count. Kept as a no-op so any stale JS handle can't render a stray chip. */
+    .league-filter-count { display: none !important; }
 
     /* League-visibility drawer body (rendered inside BottomSheet) */
     .league-filter-sheet { padding: 4px 0 8px; }
@@ -2618,23 +2665,15 @@
       .provider-card-grid { grid-template-columns: 1fr; }
       .board-inner { padding: 0 var(--gutter) 40px; }
       #cf-period-bar .period-bar-inner { padding: 16px var(--gutter) 0; }
-      .nav-controls { padding: 6px 8px; gap: 4px; flex-wrap: nowrap; }
-      .nav-controls .nav-label { display: none; }
-      /* Touch targets: arrows + dropdowns meet the 44px minimum on mobile.
-         Selects keep min-width:0 so the row still fits narrow phones. */
-      .nav-controls .btn-icon {
-        min-width: 44px; min-height: 44px; padding: 0;
-        display: inline-flex; align-items: center; justify-content: center;
-        font-size: 18px; line-height: 1;
-      }
-      .nav-controls select.nav-select {
-        min-height: 44px; font-size: 14px;
-        padding: 0 24px 0 12px;
-      }
-      .nav-controls select.week-select { min-width: 0; }
-      .nav-controls .nav-spacer { min-width: 4px; }
+      /* Consolidated stepper on phones: same structure, tighter gutters. The
+         44px touch targets are already in the base rules. */
+      .nav-controls { padding: 8px; gap: 6px; flex-wrap: nowrap; }
+      .pb-stepper { gap: 4px; }
+      .pb-period select.week-select { font-size: 19px; }
+      .league-filter-btn { padding: 0 13px; font-size: 13.5px; }
       .nav-controls #board-refresh-time { font-size: 11px; white-space: nowrap; padding: 4px 6px; }
-      .nav-divider { display: none; }
+      /* divider stays on mobile now — it separates the stepper from Filters */
+      .nav-controls:has(.league-filter-bar.visible) .nav-divider { height: 30px; }
       .nav-ctx { display: none; }
       .columns { grid-template-columns: minmax(0, 1fr); gap: 28px; padding: 14px 12px; }
       .filter-pill { font-size: 11px; padding: 4px 10px; }
@@ -3187,11 +3226,27 @@
       color: var(--surf-text);
       min-height: 100vh;
     }
-    .wp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+    /* Head stacks at every width now (2026-07-19): the consolidated period
+       control is a full-width framed bar under the title, matching the shared
+       #cf-period-bar on GameDay / Snapshot / Leaders. */
+    .wp-head { display: flex; flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 14px; }
     .wp-head__kicker { display: block; font-size: 9px; font-weight: 700; letter-spacing: .32em; color: var(--surf-muted); text-transform: uppercase; margin-bottom: 6px; }
     .wp-head__title h2 { font: 900 28px/1.05 var(--font-sans); margin: 0 0 4px; color: var(--surf-text); letter-spacing: -0.02em; }
     .wp-head__title p { font: 700 11px/1.4 var(--font-sans); color: var(--surf-muted); margin: 0; max-width: 56ch; letter-spacing: .03em; }
-    .wp-head__controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    /* Framed consolidated period bar — mirrors .nav-controls in the WP surface
+       palette (--surf-*), so the two read as the same component. */
+    .wp-head__controls {
+      display: flex; gap: 10px; align-items: center; flex-wrap: nowrap;
+      background: var(--surf-panel-2); border: 1px solid var(--navy-300);
+      border-radius: var(--radius-lg); padding: 10px 12px;
+    }
+    .wp-head__controls .pb-arrow { border-color: var(--surf-border-strong); color: var(--surf-muted); }
+    .wp-head__controls .pb-arrow:hover:not(:disabled) { background: rgba(255,255,255,0.05); color: var(--surf-text); }
+    .wp-head__controls .pb-period select.week-select { color: var(--surf-text); }
+    .wp-head__controls .pb-period select.nav-select option { background: var(--surf-panel-2); color: var(--surf-text); }
+    /* WP always shows Filters, so the divider is unconditional here (the
+       :has() rule that gates it in the shared bar is .nav-controls-scoped). */
+    .wp-head__controls .nav-divider { display: block; background: var(--surf-border-strong); }
     .wp-view-toggle { display: inline-flex; border: 1px solid var(--surf-border); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--surf-panel); }
     .wp-view-toggle button { background: transparent; border: 0; padding: 8px 12px; color: var(--surf-muted); cursor: pointer; font: 500 12px/1 var(--font-sans); transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
     .wp-view-toggle button + button { border-left: 1px solid var(--surf-border); }
@@ -3269,17 +3324,21 @@
     /* Mirrors .exp-settings-btn but in the navy/cream brand. Always shown on
        Watch Priority (not just mobile) — the three toggle groups live behind
        this single button, same drawer pattern as Exposure on mobile. */
+    /* Matches .league-filter-btn in the shared period bar: navy-300 edge, blue
+       tint, 44px box — the row's one actionable control. */
     .wp-settings-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      border: 1px solid var(--surf-border); border-radius: var(--radius-md);
-      background: transparent; color: var(--surf-text);
-      font: 500 12px/1 var(--font-sans);
-      padding: 9px 14px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      flex: 0 0 auto;
+      border: 1px solid var(--navy-300); border-radius: var(--radius-md);
+      background: color-mix(in oklab, var(--navy-300) 16%, transparent);
+      color: var(--surf-text);
+      font: 600 14px/1 var(--font-sans);
+      padding: 0 16px; min-height: 44px; cursor: pointer; white-space: nowrap;
       transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
     }
-    .wp-settings-btn:hover { background: rgba(255,255,255,0.04); color: var(--surf-text); }
-    .wp-settings-btn:active { background: rgba(255,255,255,0.08); }
-    .wp-settings-btn svg { width: 12px; height: 12px; flex: 0 0 12px; }
+    .wp-settings-btn:hover { background: color-mix(in oklab, var(--navy-300) 26%, transparent); color: var(--surf-text); }
+    .wp-settings-btn:active { background: color-mix(in oklab, var(--navy-300) 34%, transparent); }
+    .wp-settings-btn svg { width: 15px; height: 15px; flex: 0 0 15px; }
 
     /* ── Filters drawer content (Watch Priority) ──────────────── */
     /* Renders inside the shared BottomSheet (light/cream theme).
@@ -3533,13 +3592,12 @@
 
     @media (max-width: 640px) {
       #view-watch { padding: 12px 12px 48px; }
-      .wp-head { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 10px; }
+      .wp-head { gap: 10px; margin-bottom: 10px; }
       .wp-head__title h2 { font-size: 22px; }
-      /* Row 1 — context bar: selects left, settings right (mirrors Exposure) */
-      .wp-head__controls { width: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-      .wp-head__controls .exp-select-group { flex: 1 1 auto; }
-      .wp-head__controls .exp-select-group select.nav-select { flex: 1 1 auto; min-width: 0; }
-      .wp-head__controls .wp-settings-btn { display: inline-flex; flex: 0 0 auto; }
+      /* Consolidated period bar — same tightening as .nav-controls on phones */
+      .wp-head__controls { width: 100%; padding: 8px; gap: 6px; }
+      .wp-head__controls .wp-settings-btn { display: inline-flex; padding: 0 13px; font-size: 13.5px; }
+      .wp-head__controls .nav-divider { height: 30px; }
       .wp-view-toggle, .wp-bench-toggle, .wp-mustwatch-toggle { width: 100%; }
       .wp-view-toggle button, .wp-bench-toggle button, .wp-mustwatch-toggle button { flex: 1; justify-content: center; padding: 7px 8px; }
       .wp-pill__name { max-width: 18ch; }
@@ -4076,20 +4134,27 @@
      the league-visibility drawer. -->
 <div id="cf-period-bar">
   <div class="period-bar-inner">
+    <!-- CONSOLIDATED period control (2026-07-19): week + season are no longer two
+         labelled dropdowns side by side — they stack as ONE centered readout
+         ("Week 1" over the coral season) flanked by the step arrows. Both are
+         still real <select>s (tap either line to jump week/season); their carets
+         are hidden so they read as plain type. A hairline divider separates the
+         stepper from the view-aware Filters button. -->
     <div class="nav-controls">
-      <span class="nav-label">Week</span>
-      <button class="btn-icon" id="week-prev" onclick="changeWeek(-1)">‹</button>
-      <select class="nav-select week-select" id="week-select" onchange="changeWeekTo(+this.value)"></select>
-      <button class="btn-icon" id="week-next" onclick="changeWeek(+1)">›</button>
+      <div class="pb-stepper">
+        <button class="pb-arrow" id="week-prev" onclick="changeWeek(-1)" aria-label="Previous week">‹</button>
+        <div class="pb-period">
+          <select class="nav-select week-select" id="week-select" onchange="changeWeekTo(+this.value)" aria-label="Week"></select>
+          <select class="nav-select season-select" id="season-select" onchange="changeSeason(this.value)" aria-label="Season"></select>
+        </div>
+        <button class="pb-arrow" id="week-next" onclick="changeWeek(+1)" aria-label="Next week">›</button>
+      </div>
       <div class="nav-divider"></div>
-      <span class="nav-label">Season</span>
-      <select class="nav-select" id="season-select" onchange="changeSeason(this.value)"></select>
-      <div class="nav-spacer"></div>
       <span class="nav-ctx" id="nav-context-label" style="display:none"></span>
       <div class="league-filter-bar" id="league-filter-bar">
         <button type="button" class="league-filter-btn" id="league-filter-btn" onclick="cfOpenHeaderFilters()" aria-label="Open filters">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-          <span>Filters</span><span class="league-filter-count" id="league-filter-count"></span>
+          <span>Filters</span>
         </button>
       </div>
     </div>
@@ -4841,14 +4906,22 @@
       <h2 id="wp-title">Watch priority</h2>
       <p id="wp-subtitle">NFL games ranked by how many of your players are on the field.</p>
     </div>
+    <!-- Consolidated period control — same recipe as the shared #cf-period-bar
+         (2026-07-19): stacked Week/season readout between step arrows, hairline,
+         then Filters. WP owns its own arrows (wp-week-prev/next, wired in
+         attachWpDropdownHandlers) since it never had them before. -->
     <div class="wp-head__controls">
-      <div class="exp-select-group">
-        <select class="nav-select week-select" id="wp-week-select" aria-label="Week"></select>
-        <span class="exp-select-group__divider" aria-hidden="true"></span>
-        <select class="nav-select" id="wp-season-select" aria-label="Season"></select>
+      <div class="pb-stepper">
+        <button type="button" class="pb-arrow" id="wp-week-prev" aria-label="Previous week">‹</button>
+        <div class="pb-period">
+          <select class="nav-select week-select" id="wp-week-select" aria-label="Week"></select>
+          <select class="nav-select season-select" id="wp-season-select" aria-label="Season"></select>
+        </div>
+        <button type="button" class="pb-arrow" id="wp-week-next" aria-label="Next week">›</button>
       </div>
+      <div class="nav-divider" aria-hidden="true"></div>
       <button type="button" class="wp-settings-btn" id="wp-settings-btn" aria-label="Open filters" data-wp-settings-open="1">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 3h12M4 8h8M6 13h4"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
         Filters
       </button>
     </div>
@@ -12974,6 +13047,8 @@ loadExperimentState();
         }
       }
       wpSeasonSel.value = sn;
+      /* keep the new ‹ › arrows in step with the selected week */
+      if (typeof window.__wpSyncArrows === 'function') { try { window.__wpSyncArrows(); } catch(e){} }
     }
 
     var index = buildPlayerIndex(data);
@@ -13735,7 +13810,42 @@ loadExperimentState();
         }
       });
     }
+
+    /* ‹ › step arrows (added 2026-07-19 with the consolidated period bar — WP
+       had selects only). Same routing as the dropdown above: go through
+       window.changeWeekTo so the WP-wrapped version fires its refetch. Bounds
+       come from the select's own option list, so MAX_WEEK stays single-sourced
+       in buildWeekSelect and no `let` binding is read off window (see the
+       activeWeek accessor gotcha). */
+    ['wp-week-prev','wp-week-next'].forEach(function(id){
+      var btn = document.getElementById(id);
+      if (!btn || btn.__wpHandlerAttached) return;
+      btn.__wpHandlerAttached = true;
+      var step = (id === 'wp-week-prev') ? -1 : 1;
+      btn.addEventListener('click', function(){
+        var sel = document.getElementById('wp-week-select');
+        if (!sel) return;
+        var cur = parseInt(sel.value, 10);
+        if (!cur || isNaN(cur)) return;
+        var next = cur + step;
+        if (next < 1 || next > sel.options.length) return;
+        if (typeof window.changeWeekTo === 'function') window.changeWeekTo(next);
+      });
+    });
   }
+
+  /* Disable the arrows at the ends of the week range. Called from the WP
+     render, which already syncs the selects' .value every pass. */
+  function syncWpArrows(){
+    var sel = document.getElementById('wp-week-select');
+    var prev = document.getElementById('wp-week-prev');
+    var next = document.getElementById('wp-week-next');
+    if (!sel || !prev || !next) return;
+    var cur = parseInt(sel.value, 10) || 1;
+    prev.disabled = cur <= 1;
+    next.disabled = cur >= sel.options.length;
+  }
+  window.__wpSyncArrows = syncWpArrows;
 
   /* Attach immediately if DOM is ready, otherwise wait. */
   if (document.readyState === 'loading'){
@@ -16374,8 +16484,8 @@ if(typeof window.cfRegisterView==='function'){
      only — the --ldr-* vars are scoped to #view-leaders and don't reach here. */
   #cf-period-bar .pb-seg-row{display:none;background:var(--paper-soft);
     border:1px solid var(--navy-300,#2B6FA8);border-top:none;
-    border-radius:0 0 var(--radius-md,10px) var(--radius-md,10px);
-    padding:0 14px 10px;margin-bottom:12px;}
+    border-radius:0 0 var(--radius-lg,12px) var(--radius-lg,12px);
+    padding:0 12px 10px;margin-bottom:12px;}
   #cf-period-bar.pb-leaders .pb-seg-row,
   #cf-period-bar.pb-snapshot .pb-seg-row{display:block;}
   /* the row holds every view's toggle; only the active view's shows */
