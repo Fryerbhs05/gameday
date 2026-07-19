@@ -127,9 +127,28 @@
     (function(){
       try{
         var d=document.documentElement;
-        d.classList.add('booting');
-        /* Failsafe: never let the splash trap the user if boot stalls or throws. */
-        window.__bootSplashFailsafe=setTimeout(function(){d.classList.remove('booting');},8000);
+        /* Only raise the splash for a RETURNING CONNECTED user — someone who will
+           actually trigger a snapshot boot or a cold data pull. A logged-out
+           marketing visitor has none of these local signals, so the landing page
+           paints immediately with NO splash flash. (This matters more now: the
+           splash copy "All your leagues. One place." mirrors the landing hero, so
+           a flash reads as a duplicate headline.) ESPN/Yahoo are OAuth/cookie-only
+           and unknown synchronously, but once they've rendered a board they leave
+           last_surface==='board' + a board snapshot, so they're covered too. The
+           rare account-only-new-device user (no local markers yet) simply gets no
+           brand cover — no worse than before the splash existed. */
+        var ls=window.localStorage;
+        var returning = !!(ls && (
+             ls.getItem('conflicted_last_surface')==='board'
+          || ls.getItem('conflicted_board_snapshot_v1')
+          || ls.getItem('gd_sleeper_username')
+          || ls.getItem('gd_username')
+        ));
+        if(returning){
+          d.classList.add('booting');
+          /* Failsafe: never let the splash trap the user if boot stalls or throws. */
+          window.__bootSplashFailsafe=setTimeout(function(){d.classList.remove('booting');},8000);
+        }
       }catch(e){}
     })();
   </script>
@@ -6485,8 +6504,7 @@ function renderMatchupDrawer(ctx, lg){
     const pts = ppMap[pid] != null ? +ppMap[pid] : 0;
     const ptsStr = fmtPts(pts);
     const ptsZero = pts > 0 ? '' : ' matchup-drawer__player-pts--zero';
-    const nameHtml = escHtml(p.full_name)
-      + (p.team ? '<span class="matchup-drawer__player-team">' + escHtml(p.team) + '</span>' : '');
+    const nameHtml = escHtml(p.full_name);
     const loseName = outcome === 'lose' ? ' matchup-drawer__player-name--lose' : '';
     const losePts  = outcome === 'lose' ? ' matchup-drawer__player-pts--lose' : '';
     const nameSpan = '<span class="matchup-drawer__player-name matchup-drawer__player-name--' + side + loseName + '">' + nameHtml + '</span>';
@@ -11195,6 +11213,9 @@ loadExperimentState();
   /* Arm before the (slow) data pull so the ceiling can fire even if it hangs. */
   function armColdSplash(){
     if(_coldSplashArmed||_bootEnded)return;
+    /* Splash not raised (logged-out gate above, or account-only new device with
+       no local signal) → nothing to hold; let the normal endBoot path run. */
+    if(!document.documentElement.classList.contains('booting'))return;
     _coldSplashArmed=true;
     _coldCeilingT=setTimeout(function(){releaseColdSplash(true);}, Math.max(0, COLD_SPLASH_MAX_MS-_nowMs()));
   }
