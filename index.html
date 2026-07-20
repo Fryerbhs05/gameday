@@ -146,14 +146,30 @@
         ));
         if(returning){
           d.classList.add('booting');
-          /* QUICK MODE: a FRESH board snapshot means the board paints in ~100-400ms,
-             so the splash is only covering the pre-JS login paint — it isn't a brand
-             moment. Playing the full choreography there just shows a half-finished
-             assemble before it fades (the flicker daily users would see). Read the
+          /* DAILY BRAND MOMENT: play the FULL splash on the first open of each
+             calendar day, even when a fresh snapshot means the board could paint
+             instantly. Without this, constant users never see it at all — their
+             gap between opens never exceeds the snapshot's 24h TTL, so they'd sit
+             on the fast path forever. This is the ONE place we deliberately hold a
+             beat over ready content; every other path only ever covers real dead
+             time. Stamped immediately so rapid re-opens can't re-trigger it. */
+          var today='';
+          try{var n=new Date();today=n.getFullYear()+'-'+(n.getMonth()+1)+'-'+n.getDate();}catch(e2){}
+          var firstToday=false;
+          try{
+            if(today && ls.getItem('conflicted_splash_day')!==today){firstToday=true;ls.setItem('conflicted_splash_day',today);}
+          }catch(e2){}
+          window.__cfFirstOpenToday=firstToday;
+          /* QUICK MODE: not the day's first open, and a FRESH board snapshot means
+             the board paints in ~100-400ms — so the splash is only covering the
+             pre-JS login paint, not a brand moment. Playing the full choreography
+             there just shows a half-finished assemble before it fades. Read the
              O(1) timestamp mirror and mark the gate so CSS renders a clean STATIC
-             brand stamp instead. Full choreography is reserved for a real held load. */
-          var ts=0; try{ts=+(ls.getItem('conflicted_snapshot_ts')||0);}catch(e2){}
-          if(ts>0 && (Date.now()-ts) < 86400000) d.classList.add('boot-quick');
+             brand stamp instead. */
+          if(!firstToday){
+            var ts=0; try{ts=+(ls.getItem('conflicted_snapshot_ts')||0);}catch(e3){}
+            if(ts>0 && (Date.now()-ts) < 86400000) d.classList.add('boot-quick');
+          }
           /* Failsafe: never let the splash trap the user if boot stalls or throws. */
           window.__bootSplashFailsafe=setTimeout(function(){d.classList.remove('booting');},8000);
         }
@@ -6999,7 +7015,10 @@ function buildCardInner(player,isHist){
   }
 
   let injBadge='';
-  if(player.injuryStatus){
+  /* Injury status reflects the player's CURRENT state, not their status
+     during a historic week — suppress on prior seasons to avoid misleading data
+     (same rationale as metaTeam below). */
+  if(player.injuryStatus && !isPriorSeason()){
     const inj=player.injuryStatus;
     const cls=inj==='Questionable'?'inj-Q':inj==='Doubtful'?'inj-D':(inj==='Out'||inj==='IR'||inj==='Injured Reserve')?'inj-O':'inj-SUS';
     const lbl=inj==='Injured Reserve'?'IR':inj;
@@ -11340,6 +11359,10 @@ loadExperimentState();
      from the cold_load_timing percentiles (db/cold-load-timing.sql). */
   const COLD_SPLASH_MIN_MS=2000, COLD_SPLASH_MAX_MS=7000;
   let _coldSplashArmed=false, _coldCeilingT=null;
+  /* True when a snapshot boot is holding the splash purely for the once-a-day
+     brand beat. The connected branch below must NOT endBoot() in that case or it
+     would cut the beat short the moment the background revalidation lands. */
+  let _dailyHoldScheduled=false;
   function _nowMs(){try{return (performance&&performance.now)?performance.now():COLD_SPLASH_MIN_MS;}catch(e){return COLD_SPLASH_MIN_MS;}}
   /* Arm before the (slow) data pull so the ceiling can fire even if it hangs. */
   function armColdSplash(){
@@ -11424,7 +11447,13 @@ loadExperimentState();
         renderBoard(snap.data,snap.username||'');
         bootedFromSnapshot=true;
         const btn=document.getElementById('refresh-btn');if(btn)btn.classList.add('syncing');
-        endBoot(); // real board is up — fade the splash to it
+        /* The board is already painted. On the day's FIRST open, still hold the
+           splash for its 2s beat (the deliberate daily brand moment); the release
+           is scheduled off the clock, NOT off the revalidation, so a slow pull can
+           never stretch a splash sitting over ready content. Every other open
+           reveals immediately. */
+        if(window.__cfFirstOpenToday){armColdSplash();releaseColdSplash(false);_dailyHoldScheduled=true;}
+        else endBoot(); // real board is up — fade the splash to it
       }catch(e){console.warn('snapshot boot failed, falling back to cold boot:',e.message);clearBoardSnapshot();}
     }
   }
@@ -11471,7 +11500,7 @@ loadExperimentState();
     const ok=await run();
     _clMark('data'); // status → first board painted (NFL state + provider pull + render)
     _endSnapshotSync();
-    if(bootedFromSnapshot)endBoot();          // board already up — nothing to hold
+    if(bootedFromSnapshot){ if(!_dailyHoldScheduled)endBoot(); } // board already up; don't cut a daily beat short
     else releaseColdSplash(false);            // 2s min, then reveal the finished board (or ceiling already fired)
     if(bootedFromSnapshot&&ok)flashSyncedFeedback(); // same green snap as a manual sync
     /* Report the felt cold-load timing. Excludes snapshot boot (board was
