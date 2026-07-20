@@ -1705,6 +1705,14 @@
        badge, so scores no longer bleed into the names. */
     .matchup-drawer__player-name--my { text-align: left; }
     .matchup-drawer__player-name--opp { text-align: right; }
+    /* Stand-in for a Sleeper name that hasn't resolved yet (see normalizePlayer's
+       `pending`). Inherits the .skel shimmer + reduced-motion handling; sized to
+       a plausible name so the row doesn't reflow when the real name lands, and
+       inline-block so it honors the my/opp text-align above. */
+    .matchup-drawer__player-skel {
+      display: inline-block; width: 84px; max-width: 100%; height: 10px;
+      vertical-align: middle; border-radius: var(--radius-sm);
+    }
     .matchup-drawer__player-team {
       font: 400 10px/1 var(--font-sans); color: var(--ink-500); display: block; margin-top: 2px;
     }
@@ -1758,6 +1766,7 @@
       .matchup-drawer__paired-row { grid-template-columns: minmax(0,1fr) 44px auto 44px minmax(0,1fr); gap: 6px; }
       .matchup-drawer__player-name { font-size: 11px; }
       .matchup-drawer__player-pts { font-size: 11px; min-width: 28px; }
+      .matchup-drawer__player-skel { width: 68px; height: 9px; }
     }
 
     /* League filters */
@@ -6545,11 +6554,22 @@ function renderMatchupDrawer(ctx, lg){
   function normalizePlayer(p){
     if (p == null) return { pid: '', full_name: 'Player', position: '—', team: '' };
     if (typeof p === 'string'){
-      const db = (window.playerDB && window.playerDB[p]) || null;
-      const full_name = (db && (db.full_name || db.last_name)) || ('Player ' + p);
+      /* Sleeper stores raw player IDs; the name resolves from window.playerDB.
+         Two different things can make that lookup come back empty, and they need
+         opposite treatment — never render the raw "Player <id>" for either:
+           1. DB not loaded yet (cold open, cache miss) → TRANSIENT. Flag pending
+              so the row shimmers; rerenderOpenMatchupDrawer() fills it in when
+              the DB lands.
+           2. DB loaded but this ID isn't in it (very new signing / stale cache)
+              → PERMANENT. A shimmer here would spin forever and lie, so show a
+              neutral label instead. */
+      const dbReady = !!window.playerDB;
+      const db = (dbReady && window.playerDB[p]) || null;
+      const pending = !dbReady && !db;
+      const full_name = (db && (db.full_name || db.last_name)) || (pending ? '' : 'Unknown player');
       const position = (db && db.position) || (p.length <= 4 ? 'DEF' : '—');
       const team = suppressTeam ? '' : ((db && db.team) || '');
-      return { pid: p, full_name, position, team };
+      return { pid: p, full_name, position, team, pending };
     }
     /* Object (Yahoo / ESPN). Yahoo uses `name`, ESPN normalizes to `name` too. */
     const pid = p.player_key != null ? String(p.player_key)
@@ -6584,7 +6604,12 @@ function renderMatchupDrawer(ctx, lg){
     const pts = ppMap[pid] != null ? +ppMap[pid] : 0;
     const ptsStr = fmtPts(pts);
     const ptsZero = pts > 0 ? '' : ' matchup-drawer__player-pts--zero';
-    const nameHtml = escHtml(p.full_name);
+    /* Pending = Sleeper name not resolvable yet. Render the app's standard .skel
+       shimmer bar (reduced-motion handled globally) instead of a raw ID, so the
+       row reads as "filling in" rather than as broken data. */
+    const nameHtml = p.pending
+      ? '<span class="matchup-drawer__player-skel skel" role="img" aria-label="Loading player name"></span>'
+      : escHtml(p.full_name);
     const loseName = outcome === 'lose' ? ' matchup-drawer__player-name--lose' : '';
     const losePts  = outcome === 'lose' ? ' matchup-drawer__player-pts--lose' : '';
     const nameSpan = '<span class="matchup-drawer__player-name matchup-drawer__player-name--' + side + loseName + '">' + nameHtml + '</span>';
@@ -11446,13 +11471,21 @@ loadExperimentState();
      ~5 MB DB is already cached in localStorage for any returning user (i.e.
      exactly the population that boots from a snapshot), so parse it into
      window.playerDB synchronously NOW — before the snapshot paints and becomes
-     clickable — closing the race. Guarded + TTL-checked; a cold first load (no
-     cache) simply skips this and relies on the loadData pull + drawer self-heal
-     (rerenderOpenMatchupDrawer). Best-effort: never blocks boot on failure. */
+     clickable — closing the race. A genuine first load (no cache) skips this and
+     relies on the loadData pull + the pending shimmer + drawer self-heal
+     (rerenderOpenMatchupDrawer). Best-effort: never blocks boot on failure.
+
+     Deliberately IGNORES the 12h CACHE_TTL. The TTL governs when to REFETCH, but
+     a stale DB is still perfectly good for rendering names (players don't get
+     renamed), and honoring it here would skip the hydrate for anyone opening the
+     app a day later — i.e. most cold opens, the exact case this fixes. loadData
+     still refetches on its own schedule and overwrites window.playerDB, and
+     rerenderOpenMatchupDrawer() repaints any open drawer when it lands, so a
+     stale entry self-corrects. Classic stale-while-revalidate. */
   try{
     if(!window.playerDB){
-      const _pc=localStorage.getItem(CACHE_KEY),_pt=localStorage.getItem(CACHE_T_KEY);
-      if(_pc&&_pt&&Date.now()-parseInt(_pt,10)<CACHE_TTL){
+      const _pc=localStorage.getItem(CACHE_KEY);
+      if(_pc){
         window.playerDB=JSON.parse(_pc);
         _sleeperIdLookupCache=null;_sleeperNamePosCache=null;
       }
