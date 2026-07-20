@@ -7051,15 +7051,14 @@ function updatePillCounts(){
 
 function buildCardInner(player,isHist){
   const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
-  /* Conflicted cards swap the league-color dot for a rooting-direction dot:
+  /* ALL loyalty cards use rooting-direction dots on their league rows:
      green = he's on YOUR roster in that league (cheer when he scores),
      red   = your opponent has him there (root against). A league can't be on
-     both sides for one player, so every row resolves cleanly. Cheer/Enemy
-     cards keep their league-color dots — this styling is conflicted-only. */
-  const conflictedCard=player.myLeagues.length>0&&player.againstLeagues.length>0;
-  const dotColor=n=>conflictedCard
-    ?(player.myLeagues.includes(n)?'var(--cheer)':player.againstLeagues.includes(n)?'var(--enemy)':lc(n))
-    :lc(n);
+     both sides for one player, so every row resolves cleanly. On Cheer/Enemy
+     cards every row is one color by definition; on Conflicted cards the mix
+     of green/red rows is the per-league rooting guide (2026-07-20, replaced
+     the old league-color dots). */
+  const dotColor=n=>player.myLeagues.includes(n)?'var(--cheer)':player.againstLeagues.includes(n)?'var(--enemy)':lc(n);
   let ptsHTML='';
   if(hasAnyPts){
     const rows=Object.entries(lpd).map(([n,d])=>{const color=dotColor(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:var(--ink-700)">${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
@@ -7068,9 +7067,9 @@ function buildCardInner(player,isHist){
   let rosterHTML='';
   if(!hasAnyPts){
     const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${dotColor(n)}"></span><span style="color:var(--ink-700)">${n}</span></div>`).join('');
-    /* Opponent rows keep the 0.5 dim on normal Enemy cards; on conflicted cards
-       the red dot IS the signal, so it stays full-strength. */
-    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${dotColor(n)}${conflictedCard?'':';opacity:0.5'}"></span><span style="color:var(--ink-500)">${n}</span></div>`).join('');
+    /* No 0.5 dim on opponent-row dots anymore — the red IS the signal, so it
+       reads full-strength everywhere (label stays ink-500). */
+    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${dotColor(n)}"></span><span style="color:var(--ink-500)">${n}</span></div>`).join('');
     rosterHTML=`<div class="league-context">${myL}${opL}</div>`;
   }
 
