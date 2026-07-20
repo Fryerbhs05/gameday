@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v92'; // v92: Filters drawer now lists EVERY visible league (Matt, 2026-07-19). Bug: the league list was derived only from players in the cheer/conflicted/enemy buckets, so a league that renders a scoreboard tile while contributing zero rostered players — one renewed for the season but with no schedule or roster yet, e.g. Mantasy Footbrawl — appeared on the board with no toggle behind it and could not be hidden or excluded from a share. Fix: seed the list from contexts FIRST, then union the player-derived names. Contexts are the real answer to what the user is looking at, and seeding from them also makes the drawer order match the scoreboard order; the player pass still catches anything with a roster but no context (a bye-week league surfaced only in Loyalties). Standing rule: if a league is visible anywhere, it is filterable.
+const CACHE_VERSION = 'conflicted-v93'; // v93: Removed the doubled header above the league toggles (Matt, 2026-07-19). The shared cfRenderLeagueSection() partial already renders its own 'League / Show' column head, but both host sheets were wrapping it in another heading — Leaders in <h4>LEAGUES</h4> and Exposure in a 'Leagues' settings label — so the control read as two stacked headers saying nearly the same word. Dropped both wrappers and kept the shared column head, since that one also labels the Show column.
 const OFFLINE_URL = '/offline.html';
 const APP_SHELL_URL = '/'; // canonical cache key for the single-page shell
 

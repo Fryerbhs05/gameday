@@ -12424,9 +12424,11 @@ loadExperimentState();
         '</div>' +
       '</div>' +
       /* Shared global league show/hide — same hiddenLeagues set as GameDay,
-         Snapshot and Leaders. Renders '' when there's only one league. */
+         Snapshot and Leaders. Renders '' when there's only one league. No
+         "Leagues" label: the shared section brings its own "League / Show"
+         column head, and both together read as a doubled header. */
       (typeof window.cfRenderLeagueSection === 'function'
-        ? (function(html){ return html ? '<div class="exp-settings__section"><p class="exp-settings__label">Leagues</p>' + html + '</div>' : ''; })(window.cfRenderLeagueSection())
+        ? (function(html){ return html ? '<div class="exp-settings__section">' + html + '</div>' : ''; })(window.cfRenderLeagueSection())
         : '') +
       '<div class="exp-settings__footer">' +
         '<button type="button" class="exp-settings__reset" data-exp-settings-reset="1">Reset to defaults</button>' +
@@ -16966,11 +16968,14 @@ if(typeof window.cfRegisterView==='function'){
       +'<button type="button" class="ldrf-done" data-ldr-done>Done</button></div>';
   }
   /* Shared global league show/hide — same hiddenLeagues set the dashboard,
-     Snapshot and Exposure use. Returns '' with fewer than two leagues. */
+     Snapshot and Exposure use. Returns '' with fewer than two leagues.
+     NO <h4> wrapper: the shared section already renders its own "League / Show"
+     column head, and stacking a "LEAGUES" heading on top of it read as two
+     headers for one control (Matt, 2026-07-19). */
   function lgGrpHtml(){
     if(typeof window.cfRenderLeagueSection!=='function')return '';
     var html=window.cfRenderLeagueSection();
-    return html?('<div class="ldrf-grp"><h4>LEAGUES</h4>'+html+'</div>'):'';
+    return html?('<div class="ldrf-grp">'+html+'</div>'):'';
   }
   function fmtGrpHtml(){
     var fp=[['all','ALL'],['Std','STD'],['Half','HALF'],['PPR','PPR']].map(function(f){
