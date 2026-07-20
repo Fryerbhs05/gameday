@@ -7214,7 +7214,21 @@ function renderBoard(data,username){
     cols.dataset.expTab=want;
     bar.querySelectorAll('.exp-tab').forEach(function(x){const sel=x.dataset.tab===want;x.classList.toggle('is-active',sel);x.setAttribute('aria-selected',sel?'true':'false');});
   })();
-  const lgNames=[];[...cheerFor,...conflicted,...enemies].forEach(p=>[...p.myLeagues,...p.againstLeagues].forEach(n=>{if(!lgNames.includes(n))lgNames.push(n);}));
+  /* League list for the Filters drawer. Seeded from CONTEXTS first, then unioned
+     with the leagues that actually have rostered players.
+
+     Contexts have to come first because they're the real answer to "what is the
+     user looking at". A league renewed for the season but with no schedule or
+     roster yet still produces a scoreboard tile while contributing zero players
+     — deriving the list from players alone silently omitted it, so a tile on
+     screen had no toggle behind it (Matt, 2026-07-19). Contexts-first also makes
+     the drawer order match the scoreboard order. The player pass then catches
+     anything with a roster but no context (e.g. a bye-week league surfaced only
+     in Loyalties). Rule: if a league is visible anywhere, it is filterable. */
+  const lgNames=[];
+  const addLg=n=>{if(n&&!lgNames.includes(n))lgNames.push(n);};
+  (contexts||[]).forEach(c=>addLg(c&&c.leagueName));
+  [...cheerFor,...conflicted,...enemies].forEach(p=>[...p.myLeagues,...p.againstLeagues].forEach(addLg));
   lgNames.forEach(n=>assignColor(n));buildFilterPills(lgNames);
   // Keyed reconciliation: keep existing .player-card nodes across 60s refreshes
   // so the columns don't wipe-and-rebuild (the cause of the visual flash). New
