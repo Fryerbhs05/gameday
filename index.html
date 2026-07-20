@@ -1294,11 +1294,10 @@
     #cf-period-bar .period-bar-inner { max-width: var(--max-width-wide); margin: 0 auto; padding: 24px var(--gutter) 0; }
 
     /* Optional view title above the period controls — mirrors Watch Priority's
-       .wp-head stacking (kicker / title / subtitle, then the controls frame) but
-       in the paper theme. Only views that opt in via a bar class show it. */
+       .wp-head stacking (title / subtitle, then the controls frame) but in the
+       paper theme. Only views that opt in via a bar class show it. */
     .pb-view-head { display: none; margin-bottom: 14px; }
     #cf-period-bar.pb-exposure .pb-view-head { display: block; }
-    .pb-view-head__kicker { display: block; font: 700 9px/1 var(--font-sans); letter-spacing: .32em; color: var(--ink-500); text-transform: uppercase; margin-bottom: 6px; }
     .pb-view-head h2 { font: 900 28px/1.05 var(--font-sans); margin: 0 0 4px; color: var(--ink-900); letter-spacing: -0.02em; }
     .pb-view-head p { font: 700 11px/1.4 var(--font-sans); color: var(--ink-500); margin: 0; max-width: 56ch; letter-spacing: .03em; }
 
@@ -1807,6 +1806,26 @@
     /* Filters count badge retired 2026-07-19 (Matt) — the button carries no
        count. Kept as a no-op so any stale JS handle can't render a stray chip. */
     .league-filter-count { display: none !important; }
+    /* ACTIVE state — set by cfSyncFilterActive() whenever any league is hidden.
+       With the count chip gone this is the ONLY standing signal that the numbers
+       on Leaders / Exposure are filtered, so it has to be legible at a glance
+       without shouting. Coral = the brand's "something is on" colour. */
+    .league-filter-btn.is-filtering {
+      border-color: var(--coral-500);
+      background: color-mix(in oklab, var(--coral-500) 15%, transparent);
+      color: var(--ink-900);
+    }
+    .league-filter-btn.is-filtering:hover { background: color-mix(in oklab, var(--coral-500) 24%, transparent); }
+    .league-filter-btn.is-filtering svg { color: var(--coral-500); }
+
+    /* "Show all leagues" reset inside the shared league section. */
+    .lf-showall {
+      display: block; width: 100%; margin-top: 10px;
+      border: 1px solid var(--line); border-radius: var(--radius-md);
+      background: transparent; color: var(--ink-500);
+      font: 500 12px/1 var(--font-sans); padding: 10px; cursor: pointer;
+    }
+    .lf-showall:hover { background: var(--paper-deep); color: var(--ink-900); }
 
     /* League-visibility drawer body (rendered inside BottomSheet) */
     .league-filter-sheet { padding: 4px 0 8px; }
@@ -3240,7 +3259,6 @@
        control is a full-width framed bar under the title, matching the shared
        #cf-period-bar on GameDay / Snapshot / Leaders. */
     .wp-head { display: flex; flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 14px; }
-    .wp-head__kicker { display: block; font-size: 9px; font-weight: 700; letter-spacing: .32em; color: var(--surf-muted); text-transform: uppercase; margin-bottom: 6px; }
     .wp-head__title h2 { font: 900 28px/1.05 var(--font-sans); margin: 0 0 4px; color: var(--surf-text); letter-spacing: -0.02em; }
     .wp-head__title p { font: 700 11px/1.4 var(--font-sans); color: var(--surf-muted); margin: 0; max-width: 56ch; letter-spacing: .03em; }
     /* Framed consolidated period bar — mirrors .nav-controls in the WP surface
@@ -4138,9 +4156,8 @@
          frame). Hidden unless the bar carries a view class that opts in, so
          GameDay / Snapshot / Leaders are untouched. -->
     <div class="pb-view-head" id="pb-view-head">
-      <span class="pb-view-head__kicker" id="exp-kicker">Exposure</span>
       <h2 id="exp-title">Exposure map</h2>
-      <p id="exp-subtitle">Which players are sitting on the most of your rosters this week.</p>
+      <p id="exp-subtitle">The players you start most often across your leagues.</p>
     </div>
     <!-- CONSOLIDATED period control (2026-07-19): week + season are no longer two
          labelled dropdowns side by side — they stack as ONE centered readout
@@ -4869,7 +4886,6 @@
 <div id="view-watch">
   <div class="wp-head">
     <div class="wp-head__title">
-      <span class="wp-head__kicker">Schedule</span>
       <h2 id="wp-title">Watch priority</h2>
       <p id="wp-subtitle">NFL games ranked by how many of your players are on the field.</p>
     </div>
@@ -6339,6 +6355,11 @@ function renderScoresStrip(contexts){
      not here, mirroring the Weekend Snapshot's filter. Filtering up front also
      means stale NO_MATCHUP cells get pruned by the newNames diff below. */
   contexts=contexts.filter(c=>c.leagueState!=='NO_MATCHUP');
+  /* Global league visibility (2026-07-19): a league hidden in the Filters drawer
+     drops off the scoreboard too, not just Loyalties. The newNames diff below
+     prunes its tile, and the export "Winning N of X" hero counts the same
+     filtered set — so a shared card never shows a league you chose to hide. */
+  contexts=contexts.filter(c=>!hiddenLeagues.has(c.leagueName));
   if(!contexts.length){
     idx.forEach(n=>n.remove());idx.clear();
     strip.classList.remove('visible');
@@ -6804,6 +6825,7 @@ function cfSyncHeaderFilters(){
   if(window.__cfLeadersOpen){
     if(bar)bar.classList.add('visible');
     try{if(typeof window.__ldrSyncFilterBadge==='function')window.__ldrSyncFilterBadge();}catch(e){}
+    cfSyncFilterActive();
     return;
   }
   /* Exposure always shows Filters — its axis + roster-scope controls live behind
@@ -6811,12 +6833,23 @@ function cfSyncHeaderFilters(){
   if(window.__conflictedExposureOpen){
     if(bar)bar.classList.add('visible');
     updateFilterButton();
+    cfSyncFilterActive();
     return;
   }
-  if(bar)bar.classList.toggle('visible',leagueNamesCache.length>=2||liveToggleAvailable);
+  if(bar)bar.classList.toggle('visible',leagueNamesCache.length>=2||cfLiveToggleVisible());
   updateFilterButton();
+  cfSyncFilterActive();
 }
 window.cfSyncHeaderFilters=cfSyncHeaderFilters;
+/* Live-only ("show just players in a live game") is a LOYALTIES control — those
+   buckets only exist on GameDay, so the toggle must not appear in the drawer on
+   Snapshot or anywhere else it would silently do nothing. GameDay = the board is
+   on screen and no registered nav view has taken over. */
+function cfLiveToggleVisible(){
+  if(!liveToggleAvailable)return false;
+  try{if(typeof window.cfActiveView==='function'&&window.cfActiveView())return false;}catch(e){}
+  try{return typeof isDashboardVisible==='function'?isDashboardVisible():true;}catch(e){return true;}
+}
 /* Header Filters dispatcher — Leaders opens its own sheet, others the league drawer. */
 function cfOpenHeaderFilters(){
   if(window.__cfLeadersOpen&&typeof window.__ldrOpenFilters==='function'){window.__ldrOpenFilters();return;}
@@ -6831,29 +6864,68 @@ window.cfOpenHeaderFilters=cfOpenHeaderFilters;
 function renderLeagueFilterSheet(){
   const names=leagueNamesCache;
   let liveRow='';
-  if(liveToggleAvailable){
+  if(cfLiveToggleVisible()){
     liveRow=`<div class="lf-live-row">`
       +`<span class="lf-live-label">Show only players currently in a live game</span>`
       +`<button class="live-toggle${liveOnly?' on':''}" data-lf-live="1" type="button" aria-label="Toggle live-only view"></button>`
       +`</div>`;
   }
-  let leagueSection='';
-  if(names.length>=2){
-    const rows=names.map((n,i)=>{
-      const color=lc(n);const on=!hiddenLeagues.has(n);
-      return `<div class="lf-row">`
-        +`<span class="lf-league"><span class="lf-dot" style="background:${color}"></span><span class="lf-name" style="color:var(--ink-700)">${n}</span></span>`
-        +`<button class="live-toggle${on?' on':''}" data-lf-league="${i}" type="button" aria-label="Toggle ${n}"></button>`
-        +`</div>`;
-    }).join('');
-    leagueSection=`<div class="lf-cols-head"><span>League</span><span>Show</span></div>${rows}`;
-  }
   return `<div class="league-filter-sheet">`
     +`<div class="lf-head"><span class="lf-title">Filters</span><button class="lf-close" data-lf-close="1" type="button" aria-label="Close">&times;</button></div>`
     +liveRow
-    +leagueSection
+    +cfRenderLeagueSection()
     +`</div>`;
 }
+/* ── Shared league show/hide section ────────────────────────────────────────
+   ONE partial, injected by every sheet that offers league visibility: the
+   GameDay/Snapshot drawer above, Exposure's filters sheet, and Leaders'. All
+   three read and write the SAME `hiddenLeagues` set, so hiding a league is a
+   global act — it holds as the user hops views and it reaches the share
+   exports. Rows carry the league's INDEX (not the raw name) so names with
+   quotes or spaces can't break the attribute.
+
+   Returns '' when there are fewer than 2 leagues — with one league there's
+   nothing meaningful to filter, and an all-or-nothing toggle is a footgun. */
+function cfRenderLeagueSection(){
+  const names=leagueNamesCache;
+  if(names.length<2)return '';
+  const rows=names.map((n,i)=>{
+    const color=lc(n);const on=!hiddenLeagues.has(n);
+    return `<div class="lf-row">`
+      +`<span class="lf-league"><span class="lf-dot" style="background:${color}"></span><span class="lf-name" style="color:var(--ink-700)">${n}</span></span>`
+      +`<button class="live-toggle${on?' on':''}" data-lf-league="${i}" type="button" aria-label="Toggle ${n}"></button>`
+      +`</div>`;
+  }).join('');
+  const anyHidden=[...hiddenLeagues].some(l=>names.includes(l));
+  const showAll=anyHidden
+    ? `<button type="button" class="lf-showall" data-lf-showall="1">Show all leagues</button>`
+    : '';
+  return `<div class="lf-league-section">`
+    +`<div class="lf-cols-head"><span>League</span><span>Show</span></div>${rows}${showAll}`
+    +`</div>`;
+}
+window.cfRenderLeagueSection=cfRenderLeagueSection;
+/* Repaint whichever view is on screen after a league toggle. hiddenLeagues is
+   consumed at RENDER time by every view, so each one just needs a nudge. */
+function cfApplyLeagueVisibility(){
+  applyFilters();                                   /* GameDay loyalties + pill counts; also repaints Snapshot */
+  try{if(typeof renderScoresStrip==='function'&&Array.isArray(window.currentContexts))renderScoresStrip(window.currentContexts);}catch(e){}
+  try{if(window.__conflictedExposureOpen&&typeof window.renderExposureView==='function')window.renderExposureView();}catch(e){}
+  try{if(window.__cfLeadersOpen&&typeof window.__ldrRender==='function')window.__ldrRender();}catch(e){}
+  cfSyncFilterActive();
+}
+window.cfApplyLeagueVisibility=cfApplyLeagueVisibility;
+/* Filters button carries an ACTIVE state (not a count — the count chip was
+   retired 2026-07-19) whenever any league is hidden. This is the only standing
+   signal that aggregate numbers on Leaders / Exposure are filtered, so it has
+   to hold on every view. */
+function cfSyncFilterActive(){
+  const btn=document.getElementById('league-filter-btn');
+  if(!btn)return;
+  const anyHidden=[...hiddenLeagues].some(l=>leagueNamesCache.includes(l));
+  btn.classList.toggle('is-filtering',anyHidden);
+}
+window.cfSyncFilterActive=cfSyncFilterActive;
 function openLeagueFilterSheet(){
   if(!window.BottomSheet)return;
   window.BottomSheet.open(renderLeagueFilterSheet(),{owner:'league-filter'});
@@ -6870,10 +6942,34 @@ document.addEventListener('click',function(e){
     if(name==null)return;
     if(hiddenLeagues.has(name))hiddenLeagues.delete(name);else hiddenLeagues.add(name);
     lgBtn.classList.toggle('on',!hiddenLeagues.has(name));
-    applyFilters();updateFilterButton();return;
+    cfApplyLeagueVisibility();
+    cfRefreshOpenLeagueSection();
+    return;
+  }
+  const allBtn=e.target.closest('[data-lf-showall]');
+  if(allBtn){
+    leagueNamesCache.forEach(n=>hiddenLeagues.delete(n));
+    cfApplyLeagueVisibility();
+    cfRefreshOpenLeagueSection();
+    return;
   }
   if(e.target.closest('[data-lf-close]')&&window.BottomSheet){window.BottomSheet.close();}
 });
+/* Re-render just the league section inside whichever sheet is open, so the
+   "Show all leagues" button appears/disappears without rebuilding the sheet
+   (which would drop scroll position and any other open control). */
+function cfRefreshOpenLeagueSection(){
+  try{
+    const sheet=window.BottomSheet&&window.BottomSheet.getSheetEl&&window.BottomSheet.getSheetEl();
+    if(!sheet)return;
+    const sec=sheet.querySelector('.lf-league-section');
+    if(!sec)return;
+    const wrap=document.createElement('div');
+    wrap.innerHTML=cfRenderLeagueSection();
+    const next=wrap.firstElementChild;
+    if(next)sec.replaceWith(next);
+  }catch(e){}
+}
 function applyFilters(){
   /* live-only is only meaningful on the current/live week (not historic/demo/no-data). */
   const liveActive=liveOnly&&liveToggleAvailable;
@@ -8784,7 +8880,10 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
        just wordmark + kicker if contexts are unavailable. */
     let hero='';
     try{
-      const cs=(window.currentContexts||[]).filter(c=>c&&c.leagueState&&c.leagueState!=='NO_MATCHUP');
+      /* Same filtered set the strip renders — including global league
+         visibility — so N and X on the shared card match the tiles above it. */
+      const cs=(window.currentContexts||[]).filter(c=>c&&c.leagueState&&c.leagueState!=='NO_MATCHUP'
+        &&!(typeof hiddenLeagues!=='undefined'&&hiddenLeagues&&hiddenLeagues.has(c.leagueName)));
       if(cs.length){
         const isFin=s=>s==='FINAL_WIN'||s==='FINAL_LOSS'||s==='FINAL_TIE';
         const winning=cs.filter(c=>{
@@ -11610,8 +11709,8 @@ loadExperimentState();
       ? data.allRostered
       : [].concat(data.cheerFor || [], data.conflicted || [], data.enemies || []);
     all.forEach(function(p){
-      var primary = mode === 'positive' ? (p.myLeagues || []) : (p.againstLeagues || []);
-      var bench   = mode === 'positive' ? (p.myBenchLeagues || []) : (p.againstBenchLeagues || []);
+      var primary = visibleLeagues(mode === 'positive' ? (p.myLeagues || []) : (p.againstLeagues || []));
+      var bench   = visibleLeagues(mode === 'positive' ? (p.myBenchLeagues || []) : (p.againstBenchLeagues || []));
       var src = includeBench ? primary.concat(bench) : primary;
       src.forEach(function(n){ if(names.indexOf(n) === -1) names.push(n); });
     });
@@ -11632,9 +11731,20 @@ loadExperimentState();
   // Map a player into an exposure row { id, label, sub, pos, leagues:[names], count }
   // sub is retained internally because aggregateByTeam parses the team off it,
   // but is no longer rendered in the heat/list display.
+  /* Global league visibility — hidden leagues stop counting toward exposure
+     anywhere (row counts, KPIs, the leaderboard bars). Shared hiddenLeagues set,
+     same one GameDay / Snapshot / Leaders read. */
+  function visibleLeagues(list){
+    if(!Array.isArray(list))return [];
+    try{
+      if(typeof hiddenLeagues === 'undefined' || !hiddenLeagues || !hiddenLeagues.size)return list;
+      return list.filter(function(n){ return !hiddenLeagues.has(n); });
+    }catch(e){ return list; }
+  }
+
   function expoRowFromPlayer(p, mode, includeBench){
-    var primary = mode === 'positive' ? (p.myLeagues || []) : (p.againstLeagues || []);
-    var bench   = mode === 'positive' ? (p.myBenchLeagues || []) : (p.againstBenchLeagues || []);
+    var primary = visibleLeagues(mode === 'positive' ? (p.myLeagues || []) : (p.againstLeagues || []));
+    var bench   = visibleLeagues(mode === 'positive' ? (p.myBenchLeagues || []) : (p.againstBenchLeagues || []));
     var src;
     if (includeBench){
       // Defensive dedupe: same league shouldn't appear in both, but guard anyway.
@@ -11730,8 +11840,8 @@ loadExperimentState();
     return {
       title: 'Exposure map',
       subtitle: mode === 'negative'
-        ? "Which players are sitting on the most of your opponents' rosters this week."
-        : 'Which players are sitting on the most of your rosters this week.',
+        ? "The players your opponents start most often across your leagues."
+        : 'The players you start most often across your leagues.',
       kpiTopLabel: 'Top exposure',
       kpiTopSub: 'exposures',
       kpiFootprintLabel: 'Total footprint',
@@ -12299,6 +12409,11 @@ loadExperimentState();
           btn('data-exp-bench', 'all', 'Include bench') +
         '</div>' +
       '</div>' +
+      /* Shared global league show/hide — same hiddenLeagues set as GameDay,
+         Snapshot and Leaders. Renders '' when there's only one league. */
+      (typeof window.cfRenderLeagueSection === 'function'
+        ? (function(html){ return html ? '<div class="exp-settings__section"><p class="exp-settings__label">Leagues</p>' + html + '</div>' : ''; })(window.cfRenderLeagueSection())
+        : '') +
       '<div class="exp-settings__footer">' +
         '<button type="button" class="exp-settings__reset" data-exp-settings-reset="1">Reset to defaults</button>' +
         '<button type="button" class="exp-settings__done" data-exp-settings-close="1">Done</button>' +
@@ -16715,6 +16830,15 @@ if(typeof window.cfRegisterView==='function'){
     /* Week mode mirrors the shared header (global period) on every paint. */
     if(st.period==='week')syncFromGlobals();
     var all=periodRows();
+    /* Global league visibility — applied HERE, at render, not in extractRows:
+       the per-week localStorage cache must stay complete so toggling a league
+       back on never needs a refetch. Filtering before the gold pass also means
+       a player conflicted only in a hidden league correctly loses the tick. */
+    try{
+      if(typeof hiddenLeagues!=='undefined'&&hiddenLeagues&&hiddenLeagues.size){
+        all=all.filter(function(r){ return !hiddenLeagues.has(r.lg); });
+      }
+    }catch(e){}
     /* gold = same player on BOTH sides in this period (any league, any format) */
     var fIds={},aIds={};
     all.forEach(function(r){ if(r.pts>0){ if(r.s==='F')fIds[r.id]=1; else aIds[r.id]=1; } });
@@ -16824,7 +16948,15 @@ if(typeof window.cfRegisterView==='function'){
     return '<div class="ldrf">'
       +periodGrp
       +fmtGrpHtml()
+      +lgGrpHtml()
       +'<button type="button" class="ldrf-done" data-ldr-done>Done</button></div>';
+  }
+  /* Shared global league show/hide — same hiddenLeagues set the dashboard,
+     Snapshot and Exposure use. Returns '' with fewer than two leagues. */
+  function lgGrpHtml(){
+    if(typeof window.cfRenderLeagueSection!=='function')return '';
+    var html=window.cfRenderLeagueSection();
+    return html?('<div class="ldrf-grp"><h4>LEAGUES</h4>'+html+'</div>'):'';
   }
   function fmtGrpHtml(){
     var fp=[['all','ALL'],['Std','STD'],['Half','HALF'],['PPR','PPR']].map(function(f){
@@ -16837,6 +16969,7 @@ if(typeof window.cfRegisterView==='function'){
     window.BottomSheet.open(sheetHtml(),{owner:'leaders-filters'});
   }
   window.__ldrOpenFilters=openFilters; /* shared period bar's Filters button dispatches here */
+  window.__ldrRender=render;           /* cfApplyLeagueVisibility repaints Leaders on a league toggle */
   function refreshSheet(){
     if(window.BottomSheet&&window.BottomSheet.isOpen()&&window.BottomSheet.getOwner()==='leaders-filters')
       window.BottomSheet.setBody(sheetHtml());
