@@ -2370,7 +2370,9 @@
     }
 
     /* 4 · Exposure map ------------------------------------------------ */
-    /* 4a · one frame around the filter controls + the positional pills */
+    /* 4a · legacy filter frame — retired 2026-07-19 when week/season/Filters
+       moved to the shared #cf-period-bar. Kept only as a no-op guard in case a
+       cached shell still serves the old markup. */
     .exp-filterframe {
       flex: 1 1 100%;
       display: flex;
@@ -2383,15 +2385,6 @@
     .exp-filterframe .exp-head__controls { width: 100%; }
     .exp-filterframe .exp-filters { margin-bottom: 0; }
     @media (max-width: 480px) { .exp-filterframe { padding: 12px; } }
-    /* Desktop/tablet: compact the toggle controls so all of them
-       (selects + Leaderboard/Grid + My/Opp + Players/Teams + Starters/Bench)
-       fit on ONE row within the 980px column. Wrap is kept only as a
-       fallback for narrow windows. Mobile (≤480) uses its own column layout. */
-    @media (min-width: 481px) {
-      .exp-head__controls { gap: 6px; }
-      .exp-head__controls .exp-toggle button { padding: 7px 9px; font-size: 11.5px; }
-      .exp-head__controls .exp-select-group .nav-select { min-width: 72px; padding: 7px 8px; font-size: 12px; }
-    }
     /* 4b · the Top-exposure / Total-footprint KPI row */
     .exp-kpis {
       border: 1px solid var(--navy-300);
@@ -2979,8 +2972,6 @@
     .exp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
     .exp-head__title h2 { font: 600 22px/1.1 var(--font-sans); margin: 0 0 4px; color: var(--ink-900); letter-spacing: -0.02em; }
     .exp-head__title p { font: 400 13px/1.4 var(--font-sans); color: var(--ink-500); margin: 0; }
-    .exp-head__controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .exp-week-pill { font: 500 11px/1 var(--font-mono); letter-spacing: 0.08em; color: var(--ink-700); background: var(--paper-deep); padding: 8px 12px; border-radius: var(--radius-md); text-transform: uppercase; }
     .exp-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--paper); }
     .exp-toggle button { background: transparent; border: 0; padding: 9px 14px; color: var(--ink-500); cursor: pointer; font: 500 12px/1 var(--font-sans); transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
     .exp-toggle button + button { border-left: 1px solid var(--line); }
@@ -2988,24 +2979,11 @@
     .exp-toggle button.active { color: var(--paper); background: var(--ink-900); }
     .exp-toggle.mode-positive button.active { background: var(--coral-500); }
     .exp-toggle.mode-negative button.active { background: var(--navy-700); color: var(--paper-soft); }
-    /* View toggle: show only the active card */
-    body[data-exp-view="leaderboard"] #exp-heat-card { display: none; }
-    body[data-exp-view="grid"] #exp-list-card { display: none; }
-
-    /* Grouped controls: Week/Year selects share a bordered shell that matches the toggles */
-    .exp-select-group { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--paper); overflow: hidden; }
-    .exp-select-group select.nav-select { padding: 8px 22px 8px 12px; font: 500 12px/1 var(--font-sans); background-position: right 6px center; }
-    .exp-select-group__divider { width: 1px; background: var(--line); align-self: stretch; }
-
-    /* Context bar (row 1 on mobile): selects on the left, view switch on the right */
-    .exp-context-bar { display: contents; }
-    /* Filter strip (row 2 on mobile): the three data-shaping toggles */
-    .exp-filter-strip { display: contents; }
-
-    /* Settings button — mobile only; matches toggle chrome */
-    .exp-settings-btn { display: none; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--paper); color: var(--ink-700); font: 500 12px/1 var(--font-sans); padding: 9px 14px; cursor: pointer; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
-    .exp-settings-btn:hover { background: var(--paper-deep); color: var(--ink-900); }
-    .exp-settings-btn:active { background: var(--paper-deep); }
+    /* Exposure's mode switch rides in the shared period bar's seg row, so it
+       inherits that row's sizing rather than the old inline-header sizing. */
+    #cf-period-bar .pb-seg-row #exp-mode-toggle { display: none; }
+    #cf-period-bar.pb-exposure .pb-seg-row #exp-mode-toggle { display: flex; width: 100%; border: 0; background: transparent; }
+    #cf-period-bar.pb-exposure #exp-mode-toggle button { flex: 1 1 0; padding: 10px 14px; }
 
     /* Settings sheet content */
     .exp-settings { padding: 4px 2px 0; }
@@ -3023,10 +3001,23 @@
     .exp-settings__done { background: var(--ink-900); color: var(--paper); border: 0; padding: 10px 20px; border-radius: var(--radius-md); font: 500 13px/1 var(--font-sans); cursor: pointer; }
     .exp-settings__done:hover { background: var(--ink-700); }
 
-    .exp-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; }
-    .exp-filter-pill { font: 500 12px/1 var(--font-sans); padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--paper); color: var(--ink-500); cursor: pointer; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+    /* Position pills — deliberately NOT in the Filters sheet. They sit directly
+       under the shared period bar and echo its framing (navy-300 hairline,
+       paper-soft fill) so the two read as one control stack. Horizontal scroll
+       on narrow screens keeps all seven on a single row. */
+    .exp-filters {
+      display: flex; gap: 6px; margin-bottom: 22px;
+      background: var(--paper-soft); border: 1px solid var(--navy-300);
+      border-radius: var(--radius-lg); padding: 8px;
+      overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    }
+    .exp-filters::-webkit-scrollbar { display: none; }
+    .exp-filter-pill { flex: 0 0 auto; font: 500 12px/1 var(--font-sans); padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--paper); color: var(--ink-500); cursor: pointer; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
     .exp-filter-pill:hover:not(.active) { background: var(--paper-deep); }
     .exp-filter-pill.active { background: var(--ink-900); color: var(--paper); border-color: var(--ink-900); }
+    /* Active pill tracks the mode so it agrees with the bar's mode switch. */
+    .exp-filters.mode-positive .exp-filter-pill.active { background: var(--coral-500); border-color: var(--coral-500); color: var(--paper); }
+    .exp-filters.mode-negative .exp-filter-pill.active { background: var(--navy-700); border-color: var(--navy-700); color: var(--paper-soft); }
 
     .exp-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 22px; }
     .exp-kpi { background: var(--paper-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-md); padding: 14px 16px; }
@@ -3038,49 +3029,6 @@
     .exp-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
     .exp-card__head h3 { font: 600 14px/1 var(--font-sans); margin: 0; color: var(--ink-900); }
     .exp-card__sort { font: 500 11px/1 var(--font-mono); color: var(--ink-500); }
-    .exp-legend { display: flex; gap: 14px; font: 400 11px/1 var(--font-sans); color: var(--ink-500); align-items: center; flex-wrap: wrap; }
-    .exp-legend span { display: inline-flex; align-items: center; gap: 6px; }
-    .exp-legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
-
-    .exp-heat { display: flex; align-items: stretch; }
-    .exp-heat__names {
-      flex-shrink: 0;
-      background: var(--paper);
-      border-right: 1px solid var(--line);
-      box-shadow: 4px 0 8px -2px rgba(0,0,0,0.18);
-      padding-right: 14px;
-      position: relative;
-      z-index: 2;
-    }
-    .exp-heat__scroll {
-      flex: 1; min-width: 0; overflow-x: auto;
-      padding-left: 8px;
-    }
-    .exp-heat__cols { display: grid; gap: 6px; align-items: end; padding-bottom: 8px; min-width: 420px; height: 52px; box-sizing: border-box; }
-    .exp-heat__col-label {
-      font: 500 10px/1.2 var(--font-mono); color: var(--ink-500);
-      text-align: center; letter-spacing: 0.04em; text-transform: uppercase;
-      min-width: 0; padding: 0 3px;
-      word-break: break-word; overflow-wrap: break-word; hyphens: auto;
-      max-height: 38px; overflow: hidden;
-      align-self: end;
-    }
-    .exp-heat__row { display: grid; gap: 6px; align-items: center; padding: 4px 0; min-width: 420px; height: 34px; box-sizing: border-box; }
-    .exp-heat__name {
-      display: flex; align-items: center; gap: 8px;
-      height: 34px; box-sizing: border-box; padding: 4px 0;
-    }
-    .exp-heat__name--header {
-      height: 52px; padding: 0; box-sizing: border-box;
-    }
-    .exp-heat__name strong { font: 500 13px/1.2 var(--font-sans); color: var(--ink-900); white-space: nowrap; }
-    .exp-heat__name span { font: 500 10px/1 var(--font-mono); color: var(--ink-500); letter-spacing: 0.04em; flex-shrink: 0; white-space: nowrap; }
-    .exp-cell { height: 26px; border-radius: 4px; cursor: pointer; }
-    .exp-cell--empty { background: transparent; border: 1px dashed var(--line); }
-    .exp-cell--ir { background: var(--ink-300); }
-    .exp-cell.is-pos { background: var(--coral-500); }
-    .exp-cell.is-neg { background: var(--navy-700); }
-    .exp-heat__more { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft); font: 500 11px/1 var(--font-mono); color: var(--ink-500); letter-spacing: 0.04em; }
 
     .exp-list__row { display: grid; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
     .exp-list__row:last-child { border-bottom: 0; }
@@ -3669,22 +3617,9 @@
       #view-exposure { padding: 18px 12px 60px; }
       .exp-kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
       .exp-head { flex-direction: column; align-items: stretch; }
-      .exp-head__controls { width: 100%; flex-direction: column; align-items: stretch; gap: 10px; }
       .exp-drawer__summary { grid-template-columns: 1fr; }
-
-      /* Row 1 — context bar: selects left, view toggle + settings right */
-      .exp-context-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; width: 100%; }
-      .exp-context-bar .exp-select-group { flex: 1 1 auto; }
-      .exp-context-bar .exp-select-group select.nav-select { flex: 1 1 auto; min-width: 0; }
-      .exp-context-bar #exp-view-toggle { display: none; }
-      .exp-context-bar .exp-settings-btn { display: inline-flex; flex: 0 0 auto; }
-
-      /* Mobile always shows Leaderboard — Grid toggle removed, force the card state */
-      #exp-heat-card { display: none !important; }
-      #exp-list-card { display: block !important; }
-
-      /* Inline filter strip is moved into the Settings sheet on mobile */
-      .exp-filter-strip { display: none; }
+      .exp-filters { padding: 7px; gap: 5px; margin-bottom: 16px; }
+      .exp-filter-pill { padding: 8px 12px; }
     }
   </style>
 </head>
@@ -4228,6 +4163,13 @@
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
           Grid
         </button>
+      </div>
+      <!-- Exposure's My rosters / Opp rosters mode switch (.pb-exposure). It's the
+           headline semantic switch for that view, so it takes the same slot
+           Leaders and Snapshot use rather than hiding in the Filters sheet. -->
+      <div class="exp-toggle mode-positive" id="exp-mode-toggle" role="tablist" aria-label="Exposure mode">
+        <button type="button" class="active" data-exp-mode="positive" role="tab" aria-selected="true">My rosters</button>
+        <button type="button" data-exp-mode="negative" role="tab" aria-selected="false">Opp rosters</button>
       </div>
     </div>
   </div>
@@ -4886,36 +4828,10 @@
       <h2 id="exp-title">Exposure map</h2>
       <p id="exp-subtitle">Which players are sitting on the most of your rosters this week.</p>
     </div>
-    <div class="exp-filterframe">
-    <div class="exp-head__controls">
-      <div class="exp-context-bar">
-        <div class="exp-select-group">
-          <select class="nav-select week-select" id="exp-week-select" onchange="changeWeekTo(+this.value)"></select>
-          <span class="exp-select-group__divider" aria-hidden="true"></span>
-          <select class="nav-select" id="exp-season-select" onchange="changeSeason(this.value)"></select>
-        </div>
-        <div class="exp-toggle" id="exp-view-toggle" role="tablist" aria-label="View">
-          <button type="button" class="active" data-exp-view="leaderboard" role="tab" aria-selected="true">Leaderboard</button>
-          <button type="button" data-exp-view="grid" role="tab" aria-selected="false">Grid</button>
-        </div>
-        <button type="button" class="exp-settings-btn" id="exp-settings-btn" aria-label="Open filters" data-exp-settings-open="1">Filters</button>
-      </div>
-      <div class="exp-filter-strip">
-        <div class="exp-toggle mode-positive" id="exp-mode-toggle" role="tablist" aria-label="Exposure mode">
-          <button type="button" class="active" data-exp-mode="positive" role="tab" aria-selected="true">My rosters</button>
-          <button type="button" data-exp-mode="negative" role="tab" aria-selected="false">Opp rosters</button>
-        </div>
-        <div class="exp-toggle" id="exp-axis-toggle" role="tablist" aria-label="Axis">
-          <button type="button" class="active" data-exp-axis="players" role="tab" aria-selected="true">Players</button>
-          <button type="button" data-exp-axis="teams" role="tab" aria-selected="false">NFL teams</button>
-        </div>
-        <div class="exp-toggle" id="exp-bench-toggle" role="tablist" aria-label="Roster scope">
-          <button type="button" class="active" data-exp-bench="starters" role="tab" aria-selected="true">Starters only</button>
-          <button type="button" data-exp-bench="all" role="tab" aria-selected="false">Include bench</button>
-        </div>
-      </div>
-    </div>
-
+    <!-- Week/season/Filters now live in the shared #cf-period-bar above this view
+         (2026-07-19 normalization); the mode switch rides in that bar's seg row.
+         Only the position pills remain view-local — per product they must stay
+         visible at all times and never hide behind the Filters sheet. -->
     <div class="exp-filters" id="exp-filters" role="tablist" aria-label="Position filter">
       <button type="button" class="exp-filter-pill active" data-exp-pos="ALL">All</button>
       <button type="button" class="exp-filter-pill" data-exp-pos="QB">QB</button>
@@ -4925,21 +4841,9 @@
       <button type="button" class="exp-filter-pill" data-exp-pos="K">K</button>
       <button type="button" class="exp-filter-pill" data-exp-pos="DEF">DEF</button>
     </div>
-    </div>
   </div>
 
   <div class="exp-kpis" id="exp-kpis"></div>
-
-  <div class="exp-card" id="exp-heat-card">
-    <div class="exp-card__head">
-      <h3 id="exp-heat-title">Grid</h3>
-      <div class="exp-legend" id="exp-legend">
-        <span><i style="background:var(--coral-500)"></i>Rostered</span>
-        <span><i style="background:transparent;border:1px dashed var(--line);"></i>Not rostered</span>
-      </div>
-    </div>
-    <div class="exp-heat" id="exp-heat"></div>
-  </div>
 
   <div class="exp-card" id="exp-list-card">
     <div class="exp-card__head">
@@ -5587,6 +5491,10 @@ window.cfActiveView = function(){
 window.cfRegisterView({
   id:'view-exposure',
   isOpen:function(){return !!window.__conflictedExposureOpen;},
+  /* Exposure now rides the shared period bar, so a background refresh that ran
+     hideAll() (which hides the bar) has to put it back — otherwise the week /
+     season stepper vanishes mid-session on the 60s poll. */
+  onShow:function(){try{if(typeof window.cfShowPeriodBar==='function')window.cfShowPeriodBar();}catch(e){}},
   render:function(){if(typeof window.renderExposureView==='function')window.renderExposureView();}
 });
 window.cfRegisterView({
@@ -6140,6 +6048,7 @@ window.cfShowPeriodBar=function(){
        show the plain one-row bar. */
     b.classList.toggle('pb-leaders',!!window.__cfLeadersOpen);
     b.classList.toggle('pb-snapshot',!!window.__cfSnapshotOpen);
+    b.classList.toggle('pb-exposure',!!window.__conflictedExposureOpen);
   }
   try{if(typeof window.cfSyncHeaderFilters==='function')window.cfSyncHeaderFilters();}catch(e){}
 };
@@ -6886,6 +6795,13 @@ function cfSyncHeaderFilters(){
     try{if(typeof window.__ldrSyncFilterBadge==='function')window.__ldrSyncFilterBadge();}catch(e){}
     return;
   }
+  /* Exposure always shows Filters — its axis + roster-scope controls live behind
+     the button, so it must never hide the way the league-only views do. */
+  if(window.__conflictedExposureOpen){
+    if(bar)bar.classList.add('visible');
+    updateFilterButton();
+    return;
+  }
   if(bar)bar.classList.toggle('visible',leagueNamesCache.length>=2||liveToggleAvailable);
   updateFilterButton();
 }
@@ -6893,6 +6809,7 @@ window.cfSyncHeaderFilters=cfSyncHeaderFilters;
 /* Header Filters dispatcher — Leaders opens its own sheet, others the league drawer. */
 function cfOpenHeaderFilters(){
   if(window.__cfLeadersOpen&&typeof window.__ldrOpenFilters==='function'){window.__ldrOpenFilters();return;}
+  if(window.__conflictedExposureOpen&&typeof window.__expOpenFilters==='function'){window.__expOpenFilters();return;}
   openLeagueFilterSheet();
 }
 window.cfOpenHeaderFilters=cfOpenHeaderFilters;
@@ -11664,8 +11581,7 @@ loadExperimentState();
     mode: 'positive',          // 'positive' | 'negative'
     axis: 'players',           // 'players' | 'teams'
     pos: 'ALL',                // ALL | QB | RB | WR | TE | K | DEF
-    includeBench: false,       // false = starters only, true = include bench
-    view: 'leaderboard'        // 'leaderboard' | 'grid'
+    includeBench: false        // false = starters only, true = include bench
   };
 
   function esc(s){
@@ -11845,53 +11761,9 @@ loadExperimentState();
     }
   }
 
-  function renderHeat(payload){
-    var heat = document.getElementById('exp-heat');
-    if (!heat) return;
-    var mode = payload.mode;
-    var leagues = payload.leagues;
-    var rows = payload.rows; // full results, no truncation (product decision)
-
-    if (!rows.length || !leagues.length){
-      heat.innerHTML = '<div class="exp-empty"><h3>Nothing to map yet.</h3><p>Once players are rostered, this heatmap will populate.</p></div>';
-      return;
-    }
-
-    var leagueCols = leagues.map(function(){ return 'minmax(40px, 1fr)'; }).join(' ');
-
-    var html = '';
-    // LEFT: names column (no scroll, fixed)
-    html += '<div class="exp-heat__names">';
-    html += '<div class="exp-heat__name exp-heat__name--header"></div>';
-    rows.forEach(function(r){
-      html += '<div class="exp-heat__name" data-exp-row="' + esc(r.id) + '"><strong>' + esc(r.label) + '</strong></div>';
-    });
-    html += '</div>';
-
-    // RIGHT: scrollable cells column
-    html += '<div class="exp-heat__scroll">';
-    html += '<div class="exp-heat__cols" style="grid-template-columns:' + leagueCols + '">';
-    leagues.forEach(function(n){
-      html += '<div class="exp-heat__col-label" title="' + esc(n) + '">' + esc(n) + '</div>';
-    });
-    html += '</div>';
-    rows.forEach(function(r){
-      html += '<div class="exp-heat__row" data-exp-row="' + esc(r.id) + '" style="grid-template-columns:' + leagueCols + '">';
-      leagues.forEach(function(n){
-        var hit = r.leagues.indexOf(n) !== -1;
-        if (hit){
-          var cls = mode === 'positive' ? 'is-pos' : 'is-neg';
-          html += '<div class="exp-cell ' + cls + '" data-exp-row="' + esc(r.id) + '" data-exp-league="' + esc(n) + '"></div>';
-        } else {
-          html += '<div class="exp-cell exp-cell--empty" data-exp-row="' + esc(r.id) + '" data-exp-league="' + esc(n) + '" data-exp-notin="1"></div>';
-        }
-      });
-      html += '</div>';
-    });
-    html += '</div>';
-
-    heat.innerHTML = html;
-  }
+  /* renderHeat / the grid view were removed 2026-07-19 — the leaderboard is now
+     the only Exposure presentation on every breakpoint (the grid had already
+     been hidden on mobile via `#exp-heat-card { display:none !important }`). */
 
   function renderList(payload){
     var list = document.getElementById('exp-list');
@@ -11928,32 +11800,8 @@ loadExperimentState();
     if (titleEl) titleEl.textContent = copy.title;
     if (subEl) subEl.textContent = copy.subtitle;
 
-    // Week + season selects — populate on first render, sync value each render
-    var expWeekSel = document.getElementById('exp-week-select');
-    var expSeasonSel = document.getElementById('exp-season-select');
-    if (expWeekSel && expSeasonSel) {
-      var wk = (typeof activeWeek !== 'undefined' && activeWeek) ? activeWeek : (typeof liveWeek !== 'undefined' ? liveWeek : 1);
-      var sn = (typeof activeSeason !== 'undefined' && activeSeason) ? String(activeSeason) : (typeof liveSeason !== 'undefined' ? String(liveSeason) : String(new Date().getFullYear()));
-      if (!expWeekSel.options.length) {
-        var maxW = (typeof MAX_WEEK !== 'undefined') ? MAX_WEEK : 18;
-        for (var w = 1; w <= maxW; w++) {
-          var o = document.createElement('option');
-          o.value = w; o.textContent = 'Week ' + w;
-          expWeekSel.appendChild(o);
-        }
-      }
-      expWeekSel.value = wk;
-      if (!expSeasonSel.options.length) {
-        var firstYr = (typeof FIRST_YR !== 'undefined') ? FIRST_YR : 2019;
-        var thisYr = (typeof THIS_YR !== 'undefined') ? THIS_YR : new Date().getFullYear();
-        for (var yr = thisYr; yr >= firstYr; yr--) {
-          var o2 = document.createElement('option');
-          o2.value = String(yr); o2.textContent = String(yr);
-          expSeasonSel.appendChild(o2);
-        }
-      }
-      expSeasonSel.value = sn;
-    }
+    /* Week + season are owned by the shared #cf-period-bar (normalized
+       2026-07-19) — Exposure no longer builds or syncs its own selects. */
 
     // Mode toggle visuals
     var modeToggle = document.getElementById('exp-mode-toggle');
@@ -11966,75 +11814,37 @@ loadExperimentState();
         b.setAttribute('aria-selected', active ? 'true' : 'false');
       });
     }
-    var hidePriorAxis = (typeof window.isPriorSeason === 'function') && window.isPriorSeason();
-    if (hidePriorAxis && state.axis !== 'players') { state.axis = 'players'; }
-    var axisToggle = document.getElementById('exp-axis-toggle');
-    if (axisToggle){
-      axisToggle.style.display = hidePriorAxis ? 'none' : '';
-      axisToggle.classList.toggle('mode-positive', state.mode === 'positive');
-      axisToggle.classList.toggle('mode-negative', state.mode === 'negative');
-      axisToggle.querySelectorAll('button').forEach(function(b){
-        var active = b.getAttribute('data-exp-axis') === state.axis;
-        b.classList.toggle('active', active);
-        b.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
+    /* Prior seasons have no NFL-team axis data — force back to players so a
+       stale 'teams' choice can't survive a season switch. */
+    if ((typeof window.isPriorSeason === 'function') && window.isPriorSeason() && state.axis !== 'players'){
+      state.axis = 'players';
     }
-    var benchToggle = document.getElementById('exp-bench-toggle');
-    if (benchToggle){
-      benchToggle.classList.toggle('mode-positive', state.mode === 'positive');
-      benchToggle.classList.toggle('mode-negative', state.mode === 'negative');
-      var benchVal = state.includeBench ? 'all' : 'starters';
-      benchToggle.querySelectorAll('button').forEach(function(b){
-        var active = b.getAttribute('data-exp-bench') === benchVal;
-        b.classList.toggle('active', active);
-        b.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-    }
-    var viewToggle = document.getElementById('exp-view-toggle');
-    if (viewToggle){
-      viewToggle.classList.toggle('mode-positive', state.mode === 'positive');
-      viewToggle.classList.toggle('mode-negative', state.mode === 'negative');
-      viewToggle.querySelectorAll('button').forEach(function(b){
-        var active = b.getAttribute('data-exp-view') === state.view;
-        b.classList.toggle('active', active);
-        b.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-    }
-    // Reflect current view on body so CSS can show only the active card
-    document.body.setAttribute('data-exp-view', state.view);
+    /* Axis + roster scope live only in the Filters sheet now; the sheet syncs
+       its own toggles via updateSettingsSheetUI(). */
 
-    // Position filter pills
+    // Position filter pills — always visible, never behind the Filters sheet.
     document.querySelectorAll('#exp-filters [data-exp-pos]').forEach(function(b){
       b.classList.toggle('active', b.getAttribute('data-exp-pos') === state.pos);
     });
-
-    // Legend swatch color follows the active mode; label text is static.
-    var legend = document.getElementById('exp-legend');
-    if (legend){
-      var swatchColor = state.mode === 'negative' ? 'var(--navy-700)' : 'var(--coral-500)';
-      legend.innerHTML =
-        '<span><i style="background:' + swatchColor + '"></i>' + esc(copy.legendLabel) + '</span>' +
-        '<span><i style="background:transparent;border:1px dashed var(--line);"></i>Not rostered</span>';
+    var pillWrap = document.getElementById('exp-filters');
+    if (pillWrap){
+      pillWrap.classList.toggle('mode-positive', state.mode === 'positive');
+      pillWrap.classList.toggle('mode-negative', state.mode === 'negative');
     }
 
     // List card title
     var listTitle = document.getElementById('exp-list-title');
     if (listTitle) listTitle.textContent = copy.listTitle;
-    var heatTitle = document.getElementById('exp-heat-title');
-    if (heatTitle) heatTitle.textContent = state.axis === 'teams' ? 'Grid — NFL teams × leagues' : 'Grid — players × leagues';
 
-    var heat = document.getElementById('exp-heat');
     var list = document.getElementById('exp-list');
 
     if (!data){
-      if (heat) heat.innerHTML = '<div class="exp-empty"><h3>' + esc(copy.emptyTitle) + '</h3><p>' + esc(copy.emptyBody) + '</p></div>';
-      if (list) list.innerHTML = '';
+      if (list) list.innerHTML = '<div class="exp-empty"><h3>' + esc(copy.emptyTitle) + '</h3><p>' + esc(copy.emptyBody) + '</p></div>';
       var kpis = document.getElementById('exp-kpis'); if (kpis) kpis.innerHTML = '';
       return;
     }
 
     renderKPIs(payload, copy);
-    renderHeat(payload);
     renderList(payload);
   }
 
@@ -12057,6 +11867,9 @@ loadExperimentState();
     var v = document.getElementById('view-exposure');
     if (v) v.style.display = 'block';
     window.__conflictedExposureOpen = true;
+    /* Set the flag BEFORE showing the bar so cfShowPeriodBar can add .pb-exposure
+       and surface the mode switch in the shared seg row. */
+    try { if (typeof window.cfShowPeriodBar === 'function') window.cfShowPeriodBar(); } catch(e){}
     renderExposureView();
     window.scrollTo(0, 0);
   }
@@ -12453,7 +12266,6 @@ loadExperimentState();
       var sel = isActive(attr === 'data-exp-mode' ? 'mode' : attr === 'data-exp-axis' ? 'axis' : 'bench', val) ? 'true' : 'false';
       return '<button type="button"' + cls + ' ' + attr + '="' + val + '" role="tab" aria-selected="' + sel + '">' + esc(label) + '</button>';
     }
-    var modeClass = state.mode === 'positive' ? 'mode-positive' : 'mode-negative';
     var hidePriorAxis = (typeof window.isPriorSeason === 'function') && window.isPriorSeason();
     var groupBySection = hidePriorAxis ? '' :
       ('<div class="exp-settings__section">' +
@@ -12468,13 +12280,8 @@ loadExperimentState();
         '<h3 class="exp-settings__title">Filters</h3>' +
         '<button type="button" class="exp-settings__close" aria-label="Close" data-exp-settings-close="1">✕</button>' +
       '</div>' +
-      '<div class="exp-settings__section">' +
-        '<p class="exp-settings__label">Mode</p>' +
-        '<div class="exp-toggle ' + modeClass + '" id="exp-mode-toggle-sheet" role="tablist" aria-label="Exposure mode">' +
-          btn('data-exp-mode', 'positive', 'My rosters') +
-          btn('data-exp-mode', 'negative', 'Opp rosters') +
-        '</div>' +
-      '</div>' +
+      /* Mode (My rosters / Opp rosters) is NOT here — it lives in the shared
+         period bar's seg row so its state is always visible. */
       groupBySection +
       '<div class="exp-settings__section">' +
         '<p class="exp-settings__label">Roster scope</p>' +
@@ -12505,12 +12312,7 @@ loadExperimentState();
         b.setAttribute('aria-selected', on ? 'true' : 'false');
       });
     }
-    var modeT = body.querySelector('#exp-mode-toggle-sheet');
-    if (modeT){
-      modeT.classList.toggle('mode-positive', state.mode === 'positive');
-      modeT.classList.toggle('mode-negative', state.mode === 'negative');
-    }
-    syncToggle('exp-mode-toggle-sheet', 'data-exp-mode', state.mode);
+    /* Mode is no longer in the sheet — it lives in the shared period bar. */
     syncToggle('exp-axis-toggle-sheet', 'data-exp-axis', state.axis);
     syncToggle('exp-bench-toggle-sheet', 'data-exp-bench', state.includeBench ? 'all' : 'starters');
   }
@@ -12527,6 +12329,8 @@ loadExperimentState();
     openSettings = true;
     document.querySelectorAll('.is-active[data-exp-row]').forEach(function(el){ el.classList.remove('is-active'); });
   }
+  /* Shared period bar's Filters button dispatches here while Exposure is open. */
+  window.__expOpenFilters = openSettingsSheet;
 
   /* Dismissal: backdrop tap + Esc are now handled by BottomSheet itself.
      We still wire exposure-specific click triggers here. */
@@ -12586,19 +12390,12 @@ loadExperimentState();
       if (sec) sec.classList.toggle('is-open');
       return;
     }
-    /* Drawer open triggers:
-         - Exposure List rows (click anywhere on row) → drawer anchors to that row
-         - Heatmap tiles (click the colored or empty cell) → drawer anchors to the heat row
-       Heatmap name labels are intentionally NOT clickable — only the tiles. */
+    /* Drawer open trigger: an Exposure leaderboard row (click anywhere on it).
+       The heatmap tile trigger went away with the grid view (2026-07-19). */
     var listRow = e.target.closest('.exp-list__row[data-exp-row]');
     if (listRow){
       var lrid = listRow.getAttribute('data-exp-row');
       if (lrid){ openDrawerForRow(lrid, listRow); return; }
-    }
-    var heatCell = e.target.closest('.exp-cell[data-exp-row]');
-    if (heatCell){
-      var hrid = heatCell.getAttribute('data-exp-row');
-      if (hrid){ openDrawerForRow(hrid, heatCell); return; }
     }
 
     var t = e.target.closest('[data-exp-mode]');
@@ -12623,16 +12420,6 @@ loadExperimentState();
     if (bn){
       state.includeBench = bn.getAttribute('data-exp-bench') === 'all';
       /* Session-only state — no localStorage write. */
-      renderExposureView();
-      return;
-    }
-    var v = e.target.closest('[data-exp-view]');
-    if (v){
-      state.view = v.getAttribute('data-exp-view');
-      /* Session-only state — no localStorage write. */
-      document.body.setAttribute('data-exp-view', state.view);
-      // Close any open drawer when switching views so it doesn't dangle
-      if (typeof openDrawerRowId !== 'undefined' && openDrawerRowId) closeDrawer();
       renderExposureView();
       return;
     }
@@ -16561,7 +16348,8 @@ if(typeof window.cfRegisterView==='function'){
     border-radius:0 0 var(--radius-lg,12px) var(--radius-lg,12px);
     padding:0 12px 10px;margin-bottom:12px;}
   #cf-period-bar.pb-leaders .pb-seg-row,
-  #cf-period-bar.pb-snapshot .pb-seg-row{display:block;}
+  #cf-period-bar.pb-snapshot .pb-seg-row,
+  #cf-period-bar.pb-exposure .pb-seg-row{display:block;}
   /* the row holds every view's toggle; only the active view's shows */
   #cf-period-bar .pb-seg-row>*{display:none;}
   #cf-period-bar.pb-leaders .ldr-seg{display:flex;}
