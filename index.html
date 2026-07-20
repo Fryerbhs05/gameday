@@ -2979,11 +2979,13 @@
     .exp-toggle button.active { color: var(--paper); background: var(--ink-900); }
     .exp-toggle.mode-positive button.active { background: var(--coral-500); }
     .exp-toggle.mode-negative button.active { background: var(--navy-700); color: var(--paper-soft); }
-    /* Exposure's mode switch rides in the shared period bar's seg row, so it
-       inherits that row's sizing rather than the old inline-header sizing. */
-    #cf-period-bar .pb-seg-row #exp-mode-toggle { display: none; }
-    #cf-period-bar.pb-exposure .pb-seg-row #exp-mode-toggle { display: flex; width: 100%; border: 0; background: transparent; }
-    #cf-period-bar.pb-exposure #exp-mode-toggle button { flex: 1 1 0; padding: 10px 14px; }
+    /* Exposure's position pills ride the shared period bar's seg row. The row
+       already supplies the frame, so the pill strip drops its own border/fill
+       and just scrolls horizontally to keep all seven on one line. */
+    #cf-period-bar.pb-exposure .pb-seg-row #exp-filters {
+      border: 0; background: transparent; border-radius: 0;
+      padding: 0; margin: 0; width: 100%;
+    }
 
     /* Settings sheet content */
     .exp-settings { padding: 4px 2px 0; }
@@ -3001,14 +3003,11 @@
     .exp-settings__done { background: var(--ink-900); color: var(--paper); border: 0; padding: 10px 20px; border-radius: var(--radius-md); font: 500 13px/1 var(--font-sans); cursor: pointer; }
     .exp-settings__done:hover { background: var(--ink-700); }
 
-    /* Position pills — deliberately NOT in the Filters sheet. They sit directly
-       under the shared period bar and echo its framing (navy-300 hairline,
-       paper-soft fill) so the two read as one control stack. Horizontal scroll
-       on narrow screens keeps all seven on a single row. */
+    /* Position pills — deliberately NOT in the Filters sheet; they ride the
+       shared period bar's seg row, which supplies the frame. Horizontal scroll
+       keeps all seven on one line on narrow screens. */
     .exp-filters {
-      display: flex; gap: 6px; margin-bottom: 22px;
-      background: var(--paper-soft); border: 1px solid var(--navy-300);
-      border-radius: var(--radius-lg); padding: 8px;
+      display: flex; gap: 6px;
       overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
     }
     .exp-filters::-webkit-scrollbar { display: none; }
@@ -3618,7 +3617,7 @@
       .exp-kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
       .exp-head { flex-direction: column; align-items: stretch; }
       .exp-drawer__summary { grid-template-columns: 1fr; }
-      .exp-filters { padding: 7px; gap: 5px; margin-bottom: 16px; }
+      .exp-filters { gap: 5px; }
       .exp-filter-pill { padding: 8px 12px; }
     }
   </style>
@@ -4164,12 +4163,18 @@
           Grid
         </button>
       </div>
-      <!-- Exposure's My rosters / Opp rosters mode switch (.pb-exposure). It's the
-           headline semantic switch for that view, so it takes the same slot
-           Leaders and Snapshot use rather than hiding in the Filters sheet. -->
-      <div class="exp-toggle mode-positive" id="exp-mode-toggle" role="tablist" aria-label="Exposure mode">
-        <button type="button" class="active" data-exp-mode="positive" role="tab" aria-selected="true">My rosters</button>
-        <button type="button" data-exp-mode="negative" role="tab" aria-selected="false">Opp rosters</button>
+      <!-- Exposure's position pills (.pb-exposure) take the seg-row slot Leaders
+           and Snapshot use for their segmented controls. Per product these must
+           stay visible at all times and never hide behind the Filters sheet —
+           mode / axis / roster scope all live in the sheet instead. -->
+      <div class="exp-filters" id="exp-filters" role="tablist" aria-label="Position filter">
+        <button type="button" class="exp-filter-pill active" data-exp-pos="ALL">All</button>
+        <button type="button" class="exp-filter-pill" data-exp-pos="QB">QB</button>
+        <button type="button" class="exp-filter-pill" data-exp-pos="RB">RB</button>
+        <button type="button" class="exp-filter-pill" data-exp-pos="WR">WR</button>
+        <button type="button" class="exp-filter-pill" data-exp-pos="TE">TE</button>
+        <button type="button" class="exp-filter-pill" data-exp-pos="K">K</button>
+        <button type="button" class="exp-filter-pill" data-exp-pos="DEF">DEF</button>
       </div>
     </div>
   </div>
@@ -4828,19 +4833,9 @@
       <h2 id="exp-title">Exposure map</h2>
       <p id="exp-subtitle">Which players are sitting on the most of your rosters this week.</p>
     </div>
-    <!-- Week/season/Filters now live in the shared #cf-period-bar above this view
-         (2026-07-19 normalization); the mode switch rides in that bar's seg row.
-         Only the position pills remain view-local — per product they must stay
-         visible at all times and never hide behind the Filters sheet. -->
-    <div class="exp-filters" id="exp-filters" role="tablist" aria-label="Position filter">
-      <button type="button" class="exp-filter-pill active" data-exp-pos="ALL">All</button>
-      <button type="button" class="exp-filter-pill" data-exp-pos="QB">QB</button>
-      <button type="button" class="exp-filter-pill" data-exp-pos="RB">RB</button>
-      <button type="button" class="exp-filter-pill" data-exp-pos="WR">WR</button>
-      <button type="button" class="exp-filter-pill" data-exp-pos="TE">TE</button>
-      <button type="button" class="exp-filter-pill" data-exp-pos="K">K</button>
-      <button type="button" class="exp-filter-pill" data-exp-pos="DEF">DEF</button>
-    </div>
+    <!-- All Exposure controls now live in the shared #cf-period-bar above this
+         view (2026-07-19 normalization): week/season/Filters in row one, the
+         position pills in its seg row. Nothing view-local remains here. -->
   </div>
 
   <div class="exp-kpis" id="exp-kpis"></div>
@@ -11803,26 +11798,15 @@ loadExperimentState();
     /* Week + season are owned by the shared #cf-period-bar (normalized
        2026-07-19) — Exposure no longer builds or syncs its own selects. */
 
-    // Mode toggle visuals
-    var modeToggle = document.getElementById('exp-mode-toggle');
-    if (modeToggle){
-      modeToggle.classList.toggle('mode-positive', state.mode === 'positive');
-      modeToggle.classList.toggle('mode-negative', state.mode === 'negative');
-      modeToggle.querySelectorAll('button').forEach(function(b){
-        var active = b.getAttribute('data-exp-mode') === state.mode;
-        b.classList.toggle('active', active);
-        b.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-    }
+    /* Mode, axis and roster scope all live in the Filters sheet; it syncs its
+       own toggles via updateSettingsSheetUI(). Nothing to paint here. */
     /* Prior seasons have no NFL-team axis data — force back to players so a
        stale 'teams' choice can't survive a season switch. */
     if ((typeof window.isPriorSeason === 'function') && window.isPriorSeason() && state.axis !== 'players'){
       state.axis = 'players';
     }
-    /* Axis + roster scope live only in the Filters sheet now; the sheet syncs
-       its own toggles via updateSettingsSheetUI(). */
-
-    // Position filter pills — always visible, never behind the Filters sheet.
+    /* Position pills — in the shared period bar's seg row, always visible.
+       They're the only Exposure control NOT behind the Filters sheet. */
     document.querySelectorAll('#exp-filters [data-exp-pos]').forEach(function(b){
       b.classList.toggle('active', b.getAttribute('data-exp-pos') === state.pos);
     });
@@ -12280,8 +12264,13 @@ loadExperimentState();
         '<h3 class="exp-settings__title">Filters</h3>' +
         '<button type="button" class="exp-settings__close" aria-label="Close" data-exp-settings-close="1">✕</button>' +
       '</div>' +
-      /* Mode (My rosters / Opp rosters) is NOT here — it lives in the shared
-         period bar's seg row so its state is always visible. */
+      '<div class="exp-settings__section">' +
+        '<p class="exp-settings__label">Mode</p>' +
+        '<div class="exp-toggle ' + (state.mode === 'positive' ? 'mode-positive' : 'mode-negative') + '" id="exp-mode-toggle-sheet" role="tablist" aria-label="Exposure mode">' +
+          btn('data-exp-mode', 'positive', 'My rosters') +
+          btn('data-exp-mode', 'negative', 'Opp rosters') +
+        '</div>' +
+      '</div>' +
       groupBySection +
       '<div class="exp-settings__section">' +
         '<p class="exp-settings__label">Roster scope</p>' +
@@ -12312,7 +12301,12 @@ loadExperimentState();
         b.setAttribute('aria-selected', on ? 'true' : 'false');
       });
     }
-    /* Mode is no longer in the sheet — it lives in the shared period bar. */
+    var modeT = body.querySelector('#exp-mode-toggle-sheet');
+    if (modeT){
+      modeT.classList.toggle('mode-positive', state.mode === 'positive');
+      modeT.classList.toggle('mode-negative', state.mode === 'negative');
+    }
+    syncToggle('exp-mode-toggle-sheet', 'data-exp-mode', state.mode);
     syncToggle('exp-axis-toggle-sheet', 'data-exp-axis', state.axis);
     syncToggle('exp-bench-toggle-sheet', 'data-exp-bench', state.includeBench ? 'all' : 'starters');
   }
@@ -16354,9 +16348,11 @@ if(typeof window.cfRegisterView==='function'){
   #cf-period-bar .pb-seg-row>*{display:none;}
   #cf-period-bar.pb-leaders .ldr-seg{display:flex;}
   #cf-period-bar.pb-snapshot .cf-snap-toggle{display:flex;}
+  #cf-period-bar.pb-exposure #exp-filters{display:flex;}
   /* merge the two rows into ONE visual frame: nav-controls loses its bottom
      edge + gap while the seg row is attached below it */
   #cf-period-bar.pb-leaders .nav-controls,
+  #cf-period-bar.pb-exposure .nav-controls,
   #cf-period-bar.pb-snapshot .nav-controls{border-bottom:none;
     border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0;}
   @media (max-width:640px){
