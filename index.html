@@ -1293,6 +1293,15 @@
     #cf-period-bar { display: none; }
     #cf-period-bar .period-bar-inner { max-width: var(--max-width-wide); margin: 0 auto; padding: 24px var(--gutter) 0; }
 
+    /* Optional view title above the period controls — mirrors Watch Priority's
+       .wp-head stacking (kicker / title / subtitle, then the controls frame) but
+       in the paper theme. Only views that opt in via a bar class show it. */
+    .pb-view-head { display: none; margin-bottom: 14px; }
+    #cf-period-bar.pb-exposure .pb-view-head { display: block; }
+    .pb-view-head__kicker { display: block; font: 700 9px/1 var(--font-sans); letter-spacing: .32em; color: var(--ink-500); text-transform: uppercase; margin-bottom: 6px; }
+    .pb-view-head h2 { font: 900 28px/1.05 var(--font-sans); margin: 0 0 4px; color: var(--ink-900); letter-spacing: -0.02em; }
+    .pb-view-head p { font: 700 11px/1.4 var(--font-sans); color: var(--ink-500); margin: 0; max-width: 56ch; letter-spacing: .03em; }
+
     /* Nav controls — consolidated stepper (‹ Week N / season › | Filters).
        One frame, two zones: the stepper takes the free space and centers its
        readout; Filters is pinned right behind a hairline divider. Same layout
@@ -2705,6 +2714,8 @@
       .provider-card-grid { grid-template-columns: 1fr; }
       .board-inner { padding: 0 var(--gutter) 40px; }
       #cf-period-bar .period-bar-inner { padding: 16px var(--gutter) 0; }
+      .pb-view-head { margin-bottom: 10px; }
+      .pb-view-head h2 { font-size: 22px; }
       /* Consolidated stepper on phones: same structure, tighter gutters. The
          44px touch targets are already in the base rules. */
       .nav-controls { padding: 8px; gap: 6px; flex-wrap: nowrap; }
@@ -2968,7 +2979,9 @@
     .settings-priority-list .spl-name { font: 600 12px/1.3 var(--font-sans); color: var(--ink-900); }
 
     /* ── Exposure map view ──────────────────────────────────── */
-    #view-exposure { display: none; max-width: var(--max-width); margin: 0 auto; padding: 28px var(--gutter) 80px; }
+    /* Top padding is 0 — the shared period bar above now carries the title and
+       all controls, and its seg row already supplies the gap. */
+    #view-exposure { display: none; max-width: var(--max-width); margin: 0 auto; padding: 0 var(--gutter) 80px; }
     .exp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
     .exp-head__title h2 { font: 600 22px/1.1 var(--font-sans); margin: 0 0 4px; color: var(--ink-900); letter-spacing: -0.02em; }
     .exp-head__title p { font: 400 13px/1.4 var(--font-sans); color: var(--ink-500); margin: 0; }
@@ -3613,7 +3626,7 @@
     }
 
     @media (max-width: 640px) {
-      #view-exposure { padding: 18px 12px 60px; }
+      #view-exposure { padding: 0 12px 60px; }
       .exp-kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
       .exp-head { flex-direction: column; align-items: stretch; }
       .exp-drawer__summary { grid-template-columns: 1fr; }
@@ -4120,6 +4133,15 @@
      the league-visibility drawer. -->
 <div id="cf-period-bar">
   <div class="period-bar-inner">
+    <!-- Optional view title ABOVE the period controls — same stacking as Watch
+         Priority's .wp-head (kicker / title / subtitle, then the controls
+         frame). Hidden unless the bar carries a view class that opts in, so
+         GameDay / Snapshot / Leaders are untouched. -->
+    <div class="pb-view-head" id="pb-view-head">
+      <span class="pb-view-head__kicker" id="exp-kicker">Exposure</span>
+      <h2 id="exp-title">Exposure map</h2>
+      <p id="exp-subtitle">Which players are sitting on the most of your rosters this week.</p>
+    </div>
     <!-- CONSOLIDATED period control (2026-07-19): week + season are no longer two
          labelled dropdowns side by side — they stack as ONE centered readout
          ("Week 1" over the coral season) flanked by the step arrows. Both are
@@ -4828,15 +4850,9 @@
 
 <!-- ══ EXPOSURE MAP ════════════════════════════════════════════ -->
 <div id="view-exposure">
-  <div class="exp-head">
-    <div class="exp-head__title">
-      <h2 id="exp-title">Exposure map</h2>
-      <p id="exp-subtitle">Which players are sitting on the most of your rosters this week.</p>
-    </div>
-    <!-- All Exposure controls now live in the shared #cf-period-bar above this
-         view (2026-07-19 normalization): week/season/Filters in row one, the
-         position pills in its seg row. Nothing view-local remains here. -->
-  </div>
+  <!-- Title, week/season, Filters and the position pills ALL live in the shared
+       #cf-period-bar above this view (2026-07-19 normalization) so Exposure
+       stacks exactly like Watch Priority. Nothing view-local remains here. -->
 
   <div class="exp-kpis" id="exp-kpis"></div>
 
@@ -11706,12 +11722,16 @@ loadExperimentState();
     };
   }
 
-  // Copy is mode-agnostic to prevent header/card reflow when toggling Positive/Negative.
-  // The toggle's coral/navy color carries the meaning; text never changes.
-  function copyForMode(/* mode */){
+  /* The subtitle IS the mode indicator now. Mode moved into the Filters sheet
+     (2026-07-19), so nothing else on screen says whose rosters you're looking
+     at — this one line has to carry it. Title stays fixed so the header doesn't
+     jump when you flip modes. */
+  function copyForMode(mode){
     return {
       title: 'Exposure map',
-      subtitle: 'Each cell is one player on a roster this week. Flip Positive / Negative to swap whose rosters.',
+      subtitle: mode === 'negative'
+        ? "Which players are sitting on the most of your opponents' rosters this week."
+        : 'Which players are sitting on the most of your rosters this week.',
       kpiTopLabel: 'Top exposure',
       kpiTopSub: 'exposures',
       kpiFootprintLabel: 'Total footprint',
