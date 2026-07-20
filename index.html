@@ -7051,15 +7051,26 @@ function updatePillCounts(){
 
 function buildCardInner(player,isHist){
   const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
+  /* Conflicted cards swap the league-color dot for a rooting-direction dot:
+     green = he's on YOUR roster in that league (cheer when he scores),
+     red   = your opponent has him there (root against). A league can't be on
+     both sides for one player, so every row resolves cleanly. Cheer/Enemy
+     cards keep their league-color dots — this styling is conflicted-only. */
+  const conflictedCard=player.myLeagues.length>0&&player.againstLeagues.length>0;
+  const dotColor=n=>conflictedCard
+    ?(player.myLeagues.includes(n)?'var(--cheer)':player.againstLeagues.includes(n)?'var(--enemy)':lc(n))
+    :lc(n);
   let ptsHTML='';
   if(hasAnyPts){
-    const rows=Object.entries(lpd).map(([n,d])=>{const color=lc(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:var(--ink-700)">${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
+    const rows=Object.entries(lpd).map(([n,d])=>{const color=dotColor(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:var(--ink-700)">${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
     ptsHTML=`<div style="display:flex;flex-direction:column;gap:4px">${rows}</div>`;
   }
   let rosterHTML='';
   if(!hasAnyPts){
-    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)}"></span><span style="color:var(--ink-700)">${n}</span></div>`).join('');
-    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${lc(n)};opacity:0.5"></span><span style="color:var(--ink-500)">${n}</span></div>`).join('');
+    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${dotColor(n)}"></span><span style="color:var(--ink-700)">${n}</span></div>`).join('');
+    /* Opponent rows keep the 0.5 dim on normal Enemy cards; on conflicted cards
+       the red dot IS the signal, so it stays full-strength. */
+    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${dotColor(n)}${conflictedCard?'':';opacity:0.5'}"></span><span style="color:var(--ink-500)">${n}</span></div>`).join('');
     rosterHTML=`<div class="league-context">${myL}${opL}</div>`;
   }
 
@@ -7287,16 +7298,14 @@ function renderBoard(data,username){
       el.appendChild(node); // reorders without re-creating
     });
   }
-  /* MOBILE tabbed view: conflicted players are by definition on both sides, so
-     surface them inside the Cheer and Enemy lists too — sorted naturally (not
-     pinned), gold-framed via .conflicted-player. On desktop (3 columns visible
-     at once) the lists stay the three disjoint buckets to avoid showing the same
-     player three times simultaneously. */
-  const _mobileView=(typeof window.matchMedia==='function')&&window.matchMedia('(max-width: 640px)').matches;
+  /* The three buckets are strictly disjoint on EVERY viewport. Mobile used to
+     also surface conflicted players inside Cheer/Enemy (gold-framed) since
+     they're on both sides by definition — user feedback said seeing the same
+     player in three tabs was confusing, so conflicted players now live ONLY in
+     the Conflicted tab (2026-07-20). Their cards carry green/red rooting dots
+     per league row instead (see buildCardInner). */
   const _conflictedIds=new Set(conflicted.map(p=>String(p.id)));
-  const _cheerList=_mobileView?cheerFor.concat(conflicted):cheerFor;
-  const _enemyList=_mobileView?enemies.concat(conflicted):enemies;
-  renderList('cheer-list',_cheerList,_conflictedIds);renderList('conflicted-list',conflicted,_conflictedIds);renderList('enemy-list',_enemyList,_conflictedIds);
+  renderList('cheer-list',cheerFor,_conflictedIds);renderList('conflicted-list',conflicted,_conflictedIds);renderList('enemy-list',enemies,_conflictedIds);
   try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek,contexts:contexts});}catch(e){}
   try{if(window.__buildLiveUpdates)window.__buildLiveUpdates(data);}catch(e){}
   applyFilters();
@@ -7625,6 +7634,28 @@ function __histSig(){
 }
 function __histKey(season,week){return season+'|'+week+'|'+__histSig();}
 function clearHistCache(){__histCache.clear();}
+/* ══ MID-FLIGHT RACE SELF-HEAL (2026-07-20) ═════════════════════════════════
+   Signature of "what the user is asking for right now": period + connected
+   providers + account-disabled leagues. A request stamps this onto its in-flight
+   promise when it locks its params; the settle wrapper below compares it to the
+   LIVE signature once the request finishes. A mismatch means the user changed
+   week/season or toggled a league while the fetch flew (e.g. toggle-off → week
+   change → toggle-on), so the settled data describes a world nobody wants. */
+function __reqSigNow(){return activeSeason+'|'+activeWeek+'|'+__histSig();}
+/* Await the in-flight load; if the live signature moved while it flew, chain
+   ONE fresh loadData() and return that instead — the stale result is discarded,
+   never rendered. Re-chains only while the user keeps changing state mid-flight
+   (each pass is a genuinely required refetch), so it terminates as soon as the
+   inputs sit still. Every loadData caller (run, auto-refresh, coalescers) flows
+   through here, so the heal is global, not per-call-site. */
+async function __settleSelfHeal(){
+  const p=window.__conflictedInflight;
+  if(!p)return loadData();
+  const res=await p; // rejection propagates to the caller exactly as before
+  const builtFor=p.__builtFor;
+  if(builtFor!=null&&builtFor!==__reqSigNow())return loadData();
+  return res;
+}
 async function loadData(){
   /* Replay Mode (experiment-only offseason harness) supplies the entire
      dataset synthetically — no network, works with zero providers connected.
@@ -7640,9 +7671,11 @@ async function loadData(){
     const hit=__histCache.get(__histKey(activeSeason,activeWeek));
     if(hit)return hit;
   }
-  /* Re-entrancy guard: if a previous loadData() is still in flight, return its
-     promise so callers all settle on the same result instead of stacking fetches. */
-  if(isFetching&&window.__conflictedInflight)return window.__conflictedInflight;
+  /* Re-entrancy guard: if a previous loadData() is still in flight, coalesce
+     onto its promise instead of stacking fetches — but via the self-heal
+     wrapper, so a caller whose period/league-set no longer matches what that
+     request was built for gets one fresh chained load instead of stale data. */
+  if(isFetching&&window.__conflictedInflight)return __settleSelfHeal();
   isFetching=true;
   window.__conflictedInflight=(async()=>{
   try{
@@ -7685,6 +7718,19 @@ async function loadData(){
   buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);
   const connected=getConnectedProviders();
   const isHist=isHistoricalWeek();
+  /* ── Request lock (mid-flight race fixes, 2026-07-20) ──────────────────────
+     Freeze WHAT THIS REQUEST IS FOR at the moment its params are read:
+     · __reqKey      — historic-cache key computed NOW rather than at save time,
+                       so a league toggle mid-flight can never file results
+                       under a key describing a different disabled-set.
+     · __reqDisabled — snapshot of the account-disabled set; the post-fetch
+                       filter uses THIS, keeping the data and the key consistent
+                       no matter when the user toggles.
+     · __builtFor    — stamped on the in-flight promise so __settleSelfHeal can
+                       detect a mid-flight period/league change and refetch. */
+  const __reqKey=__histKey(activeSeason,activeWeek);
+  const __reqDisabled=new Set(disabledLeagueKeys);
+  try{if(window.__conflictedInflight)window.__conflictedInflight.__builtFor=__reqSigNow();}catch(e){}
   async function fetchAllProviders(season,week,isHist){
     setLoading(`Loading ${season} leagues from ${connected.map(id=>PROVIDERS[id].displayName).join(' + ')}.`);
     const providerResults=await Promise.all(connected.map(id=>
@@ -7718,13 +7764,17 @@ async function loadData(){
     // any math runs — this is the "global exclude" (vs the visual-only Filters
     // drawer). Disabled leagues never enter conflicts/exposure/priority at all.
     const rawValidCount=valid.length; // leagues this period BEFORE the global-exclude
-    if(disabledLeagueKeys.size){
-      valid=valid.filter(r=>!disabledLeagueKeys.has(leagueKey(r.platform,r.leagueName)));
-      leagueContexts=leagueContexts.filter(c=>!disabledLeagueKeys.has(leagueKey(c.platform,c.leagueName)));
+    /* Filter with the REQUEST-TIME snapshot (__reqDisabled), not the live set:
+       reading disabledLeagueKeys here (after the awaits) let a mid-flight toggle
+       desync the data from the request's cache key. If the user really did
+       toggle mid-flight, __settleSelfHeal refetches with the new set. */
+    if(__reqDisabled.size){
+      valid=valid.filter(r=>!__reqDisabled.has(leagueKey(r.platform,r.leagueName)));
+      leagueContexts=leagueContexts.filter(c=>!__reqDisabled.has(leagueKey(c.platform,c.leagueName)));
     }
     /* Leagues existed for this period but the global-exclude filtered them ALL
        out → the empty board is a user choice, not a missing-data situation. */
-    const allDisabled=rawValidCount>0&&valid.length===0&&disabledLeagueKeys.size>0;
+    const allDisabled=rawValidCount>0&&valid.length===0&&__reqDisabled.size>0;
     return{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds,allDisabled};
   }
   let{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds,allDisabled}=await fetchAllProviders(activeSeason,activeWeek,isHist);
@@ -7746,6 +7796,10 @@ async function loadData(){
       liveSeason=fallbackSeason;activeSeason=fallbackSeason;
       buildSeasonSelect(activeSeason);buildWeekSelect(activeWeek);
       ({valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds}=fb);
+      /* The request legitimately re-pointed itself at the fallback season —
+         re-stamp so __settleSelfHeal doesn't read the season shift as a user
+         mid-flight change and refetch for nothing. */
+      try{if(window.__conflictedInflight)window.__conflictedInflight.__builtFor=__reqSigNow();}catch(e){}
     }
   }
   if(!valid.length){
@@ -7884,11 +7938,14 @@ async function loadData(){
      ESPN-less / broken view for the rest of the session. */
   const __stillConn=getConnectedProviders();
   const __connStable=__stillConn.length===connected.length&&connected.every(id=>__stillConn.includes(id));
-  if(isHist&&!partialError&&__connStable){try{__histCache.set(__histKey(activeSeason,activeWeek),__result);}catch(e){}}
+  /* Save under the REQUEST-TIME key (__reqKey) — never a key recomputed here.
+     By save time the user may have toggled a league, and a recomputed key would
+     file this (differently-filtered) data under the new state's key. */
+  if(isHist&&!partialError&&__connStable){try{__histCache.set(__reqKey,__result);}catch(e){}}
   return __result;
   }finally{isFetching=false;window.__conflictedInflight=null;}
   })();
-  return window.__conflictedInflight;
+  return __settleSelfHeal();
 }
 
 function getDemoData(){
@@ -9641,6 +9698,65 @@ function parseEspnLeague(data,season,week,isHist){
   };
 }
 
+/* ══ ESPN RENEWAL-STATUS PROBE (diagnostic, 2026-07-20) ═════════════════════
+   ESPN has no clean renewal signal (unlike Sleeper's previous_league_id chain
+   or Yahoo's renew/renewed metadata), so un-renewed leagues carry last season's
+   roster into the new year and can't join the "Not yet renewed" pending list.
+   Before designing detection, this probe captures what ESPN's payload ACTUALLY
+   says for each connected league — for the live season AND the prior one, so a
+   real completed season sits next to the suspect carryover for comparison.
+   Candidate signals: draftDetail.drafted / draft date, status.isActive /
+   previousSeasons / teamsJoined, schedule shape, keeper settings (dynasty vs
+   redraft). Results go out via cfTrack('espn_renewal_probe') — readback SQL in
+   db/espn-renewal-probe.sql — and mirror to window.__espnProbe for console use.
+   Fire-and-forget, once per league+season per session, delayed off the render
+   path. Remove this whole block once detection ships. */
+const __espnProbeDone={};
+window.__espnProbe={};
+async function espnRenewalProbe(ids,season){
+  for(const lid of (ids||[])){
+    const gk=String(lid)+'|'+String(season);
+    if(__espnProbeDone[gk])continue;__espnProbeDone[gk]=1;
+    try{
+      const r=await fetch(`/api/espn/data?endpoint=probe&season=${encodeURIComponent(season)}&league_id=${encodeURIComponent(lid)}`,{credentials:'include'});
+      if(!r.ok){
+        /* A 404/401 on the requested season is itself a strong signal (league
+           may simply not exist that year) — record it, don't discard it. */
+        window.__espnProbe[gk]={http:r.status};
+        try{cfTrack('espn_renewal_probe',{lid:String(lid),probe_season:String(season),http:r.status});}catch(e){}
+        continue;
+      }
+      const d=await r.json();
+      const st=d.status||{},dd=d.draftDetail||{},s=d.settings||{},ds=s.draftSettings||{},ss=s.scheduleSettings||{};
+      const probe={
+        lid:String(lid),probe_season:String(season),http:200,
+        name:String(s.name||'').slice(0,40),
+        season_echo:d.seasonId!=null?d.seasonId:null,          // season ESPN says this data is for
+        is_active:st.isActive!=null?st.isActive:null,
+        activated:st.activatedDate||null,
+        cur_mp:st.currentMatchupPeriod!=null?st.currentMatchupPeriod:null,
+        latest_sp:st.latestScoringPeriod!=null?st.latestScoringPeriod:null,
+        teams_joined:st.teamsJoined!=null?st.teamsJoined:null,
+        prev_seasons:Array.isArray(st.previousSeasons)?st.previousSeasons.slice(-6).join(','):null,
+        standings_upd:st.standingsUpdateDate||null,
+        waiver_last:st.waiverLastExecutionDate||null,
+        drafted:dd.drafted!=null?dd.drafted:null,
+        draft_in_prog:dd.inProgress!=null?dd.inProgress:null,
+        draft_picks:Array.isArray(dd.picks)?dd.picks.length:null,
+        draft_date:ds.date||null,
+        draft_type:ds.type||null,
+        keeper_count:ds.keeperCount!=null?ds.keeperCount:null,
+        mp_count:ss.matchupPeriodCount!=null?ss.matchupPeriodCount:null,
+        playoff_teams:ss.playoffTeamCount!=null?ss.playoffTeamCount:null,
+        schedule_len:Array.isArray(d.schedule)?d.schedule.length:null,
+        team_count:Array.isArray(d.teams)?d.teams.length:(s.size!=null?s.size:null)
+      };
+      window.__espnProbe[gk]=probe;
+      try{cfTrack('espn_renewal_probe',probe);}catch(e){}
+    }catch(e){/* diagnostic only — never surface */}
+  }
+}
+
 /* Mirror the Sleeper username to the signed-in Conflicted account so it follows
    the user across devices (Sleeper is username-only, no credentials). No-op when
    accounts are off or nobody's signed in. Fire-and-forget — localStorage remains
@@ -9958,6 +10074,16 @@ const PROVIDERS={
         return{results:[],contexts:[],debugLeagues:[]};
       }
       renderSetupProviders();
+      /* Renewal-status probe (diagnostic, 2026-07-20): on live-period loads,
+         capture what ESPN says about each league for this season AND the prior
+         one (renewed-vs-carryover comparison). Delayed off the render path;
+         internally deduped per league+season per session. */
+      if(!isHist&&!isDemoMode){
+        try{setTimeout(function(){
+          espnRenewalProbe(ids,season);
+          espnRenewalProbe(ids,String(parseInt(season,10)-1));
+        },4000);}catch(e){}
+      }
       return{
         results:ok.map(x=>x.result),
         contexts:ok.map(x=>x.context),
@@ -16166,9 +16292,37 @@ if(typeof window.cfRegisterView==='function'){
     });
     return metas;
   }
+  /* ── shared global league show/hide (2026-07-20) ──────────────────────────
+     The dashboard hides Filters-drawer-toggled leagues (hiddenLeagues) at the
+     DOM level, but this card builds from the RAW data buckets — without this
+     pass, players from hidden leagues survived onto the shared image. Rule
+     (mirrors applyFilters): a player stays only if ≥1 of their leagues is
+     visible, and every count — hero numbers, ×N flanks, sort weights — is
+     computed from VISIBLE leagues only. Players are cloned, never mutated:
+     __conflictedLastData must stay pristine for the dashboard. */
+  function rcHiddenLg(n){
+    try{return typeof hiddenLeagues!=='undefined'&&hiddenLeagues&&hiddenLeagues.has(n);}catch(e){return false;}
+  }
+  function rcVisNames(names){
+    return (names||[]).filter(function(n){return !rcHiddenLg(n);});
+  }
+  function rcApplyLeagueFilter(arr){
+    var any=false;
+    try{any=typeof hiddenLeagues!=='undefined'&&hiddenLeagues&&hiddenLeagues.size>0;}catch(e){}
+    if(!any)return (arr||[]).slice();
+    var out=[];
+    (arr||[]).forEach(function(p){
+      var my=rcVisNames(p.myLeagues),vs=rcVisNames(p.againstLeagues);
+      if(!my.length&&!vs.length)return; // every league hidden → off the card
+      var q=Object.assign({},p);q.myLeagues=my;q.againstLeagues=vs;
+      out.push(q);
+    });
+    return out;
+  }
   function scopePlayers(arr,slotKey){
-    if(slotKey==='all')return (arr||[]).slice();
-    return (arr||[]).filter(function(p){return teamSlotKey(p.team)===slotKey;});
+    var vis=rcApplyLeagueFilter(arr);
+    if(slotKey==='all')return vis;
+    return vis.filter(function(p){return teamSlotKey(p.team)===slotKey;});
   }
   function scoped(slotKey){
     var d=data()||{};
@@ -16290,7 +16444,9 @@ if(typeof window.cfRegisterView==='function'){
     var d=data()||{},metas=slotMetas(),s=scoped(slotKey);
     var wk=1;try{wk=(window.getActiveWeek?window.getActiveWeek():1)||1;}catch(e){}
     var yr='';try{yr=(window.getActiveSeason?window.getActiveSeason():'')||'';}catch(e){}
-    var leagues=(d.contexts||[]).filter(function(c){return c&&c.leagueState!=='NO_MATCHUP';}).length;
+    /* "N leagues" sub-line: skip Filters-hidden leagues too — must match the
+       player lists above, which now exclude them. */
+    var leagues=(d.contexts||[]).filter(function(c){return c&&c.leagueState!=='NO_MATCHUP'&&!rcHiddenLg(c.leagueName);}).length;
     var myCount=function(p){return (p.myLeagues||[]).length;};
     var vsCount=function(p){return (p.againstLeagues||[]).length;};
     var myNames=function(p){return p.myLeagues||[];};
