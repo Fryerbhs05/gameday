@@ -227,6 +227,16 @@ module.exports = async (req, res) => {
     } else if (endpoint === 'history') {
       // Lightweight call to validate auth + show what season we're on.
       views = ['mNav'];
+    } else if (endpoint === 'probe') {
+      // ── Renewal-status probe (2026-07-20) ─────────────────────────────────
+      // One-shot diagnostic used by the client to learn what ESPN's payload
+      // actually says about a league's season status (renewed vs carried-over):
+      // mStatus → status.isActive / previousSeasons / teamsJoined / dates;
+      // mDraftDetail → draftDetail.drafted / inProgress / picks;
+      // mSettings → draftSettings (date, type, keeperCount) + scheduleSettings.
+      // Deliberately excludes rosters/boxscore — lean payload, fired at most a
+      // couple of times per league per session, never on the render path.
+      views = ['mSettings', 'mStatus', 'mDraftDetail', 'mNav'];
     } else {
       res.status(400).json({ error: `Unknown endpoint: ${endpoint}` });
       return;
