@@ -1192,7 +1192,11 @@
       display: flex; align-items: center; justify-content: center;
       background: var(--paper);
       opacity: 0; visibility: hidden; pointer-events: none;
-      transition: opacity 260ms var(--ease-out), visibility 0s linear 260ms;
+      /* Slow, soft dissolve. 260ms after a calm multi-second breath read as a
+         hard snap; 600ms lets the moment recede into the board underneath. The
+         icon keeps breathing THROUGH the fade, so the exit never freezes the
+         gesture mid-cycle. */
+      transition: opacity 600ms var(--ease-out), visibility 0s linear 600ms;
     }
     html.booting #boot-splash {
       opacity: 1; visibility: visible; pointer-events: auto;
@@ -1206,12 +1210,17 @@
        spinner); below it the bisected CONFLICTED wordmark ASSEMBLES from its own
        seam and holds; then the copy lines fade up. Icon bg is #0F1B26 = --paper,
        so it sits seamlessly on the field with no tile edge. Covers the cold data
-       pull; held 3.5s min / 7s ceiling by the boot controller. First painted frame
+       pull; held 4.5s min / 7s ceiling by the boot controller. First painted frame
        is pure CSS — never JS-load-bearing; the reduced-motion block below lands
        everything static. */
     .boot-splash__inner {
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+      /* Base doubles as the EXIT state: the content lifts a touch as it
+         dissolves, so the splash recedes rather than blinking off. html.booting
+         below pins it at rest while the splash is up. */
+      transform: scale(1.04); transition: transform 600ms var(--ease-out);
     }
+    html.booting .boot-splash__inner { transform: scale(1); transition: none; }
     .boot-splash__icon {
       width: 88px; height: 88px; display: block; transform-origin: 50% 50%; opacity: 0;
       animation: bootIcIn .5s ease-out both, bootIcBreathe 2.8s ease-in-out .65s infinite;
@@ -1241,6 +1250,7 @@
     @keyframes bootWmDot { 0%, 60% { opacity: 0; } 30% { opacity: 1; } }
     @media (prefers-reduced-motion: reduce) {
       #boot-splash { transition: none; }
+      .boot-splash__inner { transform: none; transition: none; }
       .boot-splash__icon { opacity: 1; animation: none; }
       .boot-wm-l, .boot-wm-r { transform: none; opacity: 1; animation: none; }
       .boot-wm-seam { transform: scaleY(1); opacity: 1; animation: none; }
@@ -11542,7 +11552,7 @@ loadExperimentState();
   /* ── FIRST-LOAD BRAND SPLASH HOLD (Matt, 2026-07-18) ──────────────────────
      On a felt cold load the branded boot splash is held as a brand moment that
      covers the data pull, instead of dismissing early to the skeleton. Release
-     rule: whichever comes FIRST of (a) data loaded, but never before a 3.5s
+     rule: whichever comes FIRST of (a) data loaded, but never before a 4.5s
      minimum, or (b) a 7s ceiling. All times are measured from page-open via
      performance.now() (the splash is up from the first paint), so they equal
      the wait the user actually feels. The <head> 8s failsafe stays as the
@@ -11550,11 +11560,13 @@ loadExperimentState();
      from the cold_load_timing percentiles (db/cold-load-timing.sql). */
   /* 3500ms = the animation's natural resting point. Entrances all settle by
      1.55s; the icon's breath starts at .65s with a 2.8s cycle, so one COMPLETE
-     breath lands at 3.45s. The old 2000ms cut at ~1.35s into that cycle — the
-     peak of the inhale, the worst possible frame to freeze on, which is why it
-     read as "cut short". Same value governs BOTH the daily beat and a genuine
-     cold load, so the two feel identical (Matt, 2026-07-19). */
-  const COLD_SPLASH_MIN_MS=3500, COLD_SPLASH_MAX_MS=7000;
+     breath lands at 3.45s. 4500ms gives that full breath plus room into the
+     second, and the 600ms dissolve carries the icon out mid-gesture rather than
+     freezing it — so exact breath alignment no longer matters (at 2000ms it did:
+     that cut at the peak of the inhale, which is why it read as "cut short").
+     Same value governs BOTH the daily beat and a genuine cold load, so the two
+     feel identical (Matt, 2026-07-19). */
+  const COLD_SPLASH_MIN_MS=4500, COLD_SPLASH_MAX_MS=7000;
   let _coldSplashArmed=false, _coldCeilingT=null;
   /* True when a snapshot boot is holding the splash purely for the once-a-day
      brand beat. The connected branch below must NOT endBoot() in that case or it
@@ -11653,7 +11665,7 @@ loadExperimentState();
         bootedFromSnapshot=true;
         const btn=document.getElementById('refresh-btn');if(btn)btn.classList.add('syncing');
         /* The board is already painted. On the day's FIRST open, still hold the
-           splash for its 3.5s beat (the deliberate daily brand moment); the release
+           splash for its 4.5s beat (the deliberate daily brand moment); the release
            is scheduled off the clock, NOT off the revalidation, so a slow pull can
            never stretch a splash sitting over ready content. Every other open
            reveals immediately. */
@@ -11676,7 +11688,7 @@ loadExperimentState();
         /* Paint the skeleton UNDER the held brand splash (not instead of it): the
            splash is the cover during the pull, and the skeleton is what shows if
            the 7s ceiling releases before data lands. No early endBoot() — the
-           cold-splash controller owns the release now (3.5s min / 7s ceiling). */
+           cold-splash controller owns the release now (4.5s min / 7s ceiling). */
         showBoard();showBoardSkeleton();
         bootedSkeleton=true;
       }
@@ -11697,7 +11709,7 @@ loadExperimentState();
   const _endSnapshotSync=()=>{const btn=document.getElementById('refresh-btn');if(btn)btn.classList.remove('syncing');};
   if(cameFromYahooOAuth){showSetup();endBoot();}
   else if(isAnyProviderConnected()){
-    /* Felt cold load → hold the brand splash over the pull (3.5s min / 7s ceiling).
+    /* Felt cold load → hold the brand splash over the pull (4.5s min / 7s ceiling).
        Snapshot boots skip this: the board is already painted, so the pull is a
        silent background revalidation and boot already ended. Arm BEFORE run() so
        the ceiling can still fire if the pull hangs. */
@@ -11706,7 +11718,7 @@ loadExperimentState();
     _clMark('data'); // status → first board painted (NFL state + provider pull + render)
     _endSnapshotSync();
     if(bootedFromSnapshot){ if(!_dailyHoldScheduled)endBoot(); } // board already up; don't cut a daily beat short
-    else releaseColdSplash(false);            // 3.5s min, then reveal the finished board (or ceiling already fired)
+    else releaseColdSplash(false);            // 4.5s min, then reveal the finished board (or ceiling already fired)
     if(bootedFromSnapshot&&ok)flashSyncedFeedback(); // same green snap as a manual sync
     /* Report the felt cold-load timing. Excludes snapshot boot (board was
        already on screen — the pull is a background revalidation, not a felt
