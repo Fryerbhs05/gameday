@@ -516,6 +516,9 @@
     .btn-hero--ghost { background: transparent; color: var(--ink-900); border: 1px solid var(--line); padding: 14px 26px; }
     .btn-hero--ghost:hover { border-color: var(--navy-700); }
     .lp-cta-row--secondary { margin-top: 12px; }
+    /* Symmetrical primary pair: Sign in + Get started render the same width
+       regardless of label length (the demo/ghost row is exempt). */
+    .lp-cta-row:not(.lp-cta-row--secondary) .btn-hero { min-width: 210px; text-align: center; }
 
     /* ── 1B phone stage — faithful port of the "Phone Loyalties" / "Phone
        Scoreboard" mockups. Screens are authored at native 402×874 in an iOS
@@ -10811,9 +10814,6 @@ function openSignInModal(){
       </div>
       <button type="button" class="btn-modal" id="signin-submit" style="width:100%">Email me a sign-in link</button>
       <div class="espn-modal-error" id="signin-modal-error" style="min-height:0;margin-top:8px"></div>
-      <div class="espn-modal-or"><span class="espn-modal-or__line"></span><span class="espn-modal-or__txt">or</span><span class="espn-modal-or__line"></span></div>
-      <h2 style="margin-bottom:14px">Get started</h2>
-      <button type="button" class="btn-modal" id="signin-signup" style="width:100%;background:var(--coral-500)">Sign up</button>
     </div>`;
   document.body.appendChild(backdrop);
 
@@ -10821,9 +10821,6 @@ function openSignInModal(){
   const errEl = backdrop.querySelector('#signin-modal-error');
   backdrop.addEventListener('click', e=>{ if(e.target===backdrop) close(); });
   backdrop.querySelector('#signin-x').addEventListener('click', close);
-
-  // Sign up → same destination as "Exit demo": the Get started / connect funnel.
-  backdrop.querySelector('#signin-signup').addEventListener('click', ()=>{ close(); goToSignUp(); });
 
   // Sign in (existing users only): email a one-time magic link.
   const submit = backdrop.querySelector('#signin-submit');
@@ -10844,6 +10841,7 @@ function openSignInModal(){
       if(r.ok){
         backdrop.querySelector('.espn-modal').innerHTML =
           `<h2>Check your email</h2><p class="espn-modal-sub">If an account exists for <strong>${email}</strong>, we've sent a one-time sign-in link. It works once and expires in 15 minutes.</p>
+           <p class="espn-modal-sub" style="margin-top:8px">No link within 10 seconds? Check your spam folder — it likes to hide there sometimes.</p>
            <div class="espn-modal-actions"><button type="button" class="btn-modal" id="signin-done">Done</button></div>`;
         backdrop.querySelector('#signin-done').addEventListener('click', close);
       } else {
