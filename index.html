@@ -3682,6 +3682,96 @@
 </head>
 <body>
 
+<!-- ══════════════════════════════════════════════════════════════════════
+     TEMP: Yahoo API outage banner (added 2026-07-22).
+     Yahoo dropped our Fantasy Sports read permission app-side, so Yahoo
+     league data is empty for all users. This is a self-contained,
+     dismissible notice shown on every screen (incl. the Yahoo connect flow).
+     REMOVE this whole block once the Yahoo app permission is restored.
+     ══════════════════════════════════════════════════════════════════════ -->
+<style id="cf-yahoo-outage-style">
+  #cf-yahoo-outage{
+    position:fixed;top:0;left:0;right:0;z-index:9000;
+    display:flex;align-items:flex-start;gap:12px;
+    padding:11px 16px;
+    background:var(--surf-panel,#122A40);
+    border-bottom:1px solid var(--surf-amber,#E0A82E);
+    box-shadow:0 2px 14px rgba(0,0,0,.38);
+    font-family:var(--font-sans,'Inter',-apple-system,sans-serif);
+    color:var(--surf-text,#F5EFE4);
+  }
+  #cf-yahoo-outage[hidden]{display:none;}
+  .cf-outage__dot{
+    flex:0 0 auto;width:9px;height:9px;margin-top:5px;border-radius:50%;
+    background:var(--surf-amber,#E0A82E);
+    box-shadow:0 0 0 0 rgba(224,168,46,.6);
+    animation:cfOutagePulse 1.9s var(--ease-out,ease) infinite;
+  }
+  @keyframes cfOutagePulse{
+    0%{box-shadow:0 0 0 0 rgba(224,168,46,.55)}
+    70%{box-shadow:0 0 0 7px rgba(224,168,46,0)}
+    100%{box-shadow:0 0 0 0 rgba(224,168,46,0)}
+  }
+  @media (prefers-reduced-motion:reduce){.cf-outage__dot{animation:none;}}
+  .cf-outage__body{flex:1 1 auto;min-width:0;font-size:13.5px;line-height:1.5;}
+  .cf-outage__tag{
+    display:inline-block;font-family:var(--font-mono,ui-monospace,monospace);
+    font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--surf-amber-text,#E2C792);font-weight:600;margin-right:8px;vertical-align:1px;
+  }
+  .cf-outage__body b{color:var(--surf-text,#F5EFE4);font-weight:700;}
+  .cf-outage__body span.cf-outage__soft{color:var(--surf-muted,#A8B5C2);}
+  .cf-outage__x{
+    flex:0 0 auto;appearance:none;background:transparent;border:0;cursor:pointer;
+    color:var(--surf-muted,#A8B5C2);font-size:20px;line-height:1;padding:2px 5px;
+    margin:-2px -3px 0 0;border-radius:6px;transition:color .12s,background .12s;
+  }
+  .cf-outage__x:hover{color:var(--surf-text,#F5EFE4);background:rgba(255,255,255,.06);}
+  /* Reserve space so the fixed banner doesn't cover the sticky header/hero,
+     and keep the sticky header parked just below the banner while scrolling. */
+  body.cf-outage-on{padding-top:var(--cf-outage-h,52px);}
+  body.cf-outage-on .site-header{top:var(--cf-outage-h,52px);}
+  @media (max-width:600px){.cf-outage__body{font-size:12.5px;}}
+</style>
+<div id="cf-yahoo-outage" role="status" aria-live="polite">
+  <span class="cf-outage__dot" aria-hidden="true"></span>
+  <div class="cf-outage__body">
+    <span class="cf-outage__tag">Yahoo outage</span><b>Yahoo cut off our data feed, so Yahoo leagues are showing empty right now &mdash; it&rsquo;s on their end, not yours.</b> <span class="cf-outage__soft">We&rsquo;re already on it. ESPN and Sleeper are unaffected.</span>
+  </div>
+  <button class="cf-outage__x" type="button" aria-label="Dismiss notice" onclick="window.__cfDismissOutage&&window.__cfDismissOutage()">&times;</button>
+</div>
+<script>
+(function(){
+  var KEY='cfYahooOutageDismissed_v1';
+  var el=document.getElementById('cf-yahoo-outage');
+  if(!el)return;
+  function measure(){
+    if(el.hasAttribute('hidden'))return;
+    document.documentElement.style.setProperty('--cf-outage-h', el.offsetHeight+'px');
+  }
+  function show(){
+    el.removeAttribute('hidden');
+    document.body.classList.add('cf-outage-on');
+    measure();
+  }
+  window.__cfDismissOutage=function(){
+    el.setAttribute('hidden','');
+    document.body.classList.remove('cf-outage-on');
+    document.documentElement.style.setProperty('--cf-outage-h','0px');
+    try{sessionStorage.setItem(KEY,'1');}catch(e){}
+  };
+  var dismissed=false;
+  try{dismissed=sessionStorage.getItem(KEY)==='1';}catch(e){}
+  if(dismissed){ el.setAttribute('hidden',''); }
+  else if(document.body){ show(); }
+  else { document.addEventListener('DOMContentLoaded',show); }
+  window.addEventListener('resize',measure);
+  window.addEventListener('load',measure);
+  window.addEventListener('orientationchange',function(){setTimeout(measure,120);});
+})();
+</script>
+<!-- ══ /TEMP Yahoo outage banner ══ -->
+
 <!-- ── Boot splash (covers the resume reload; faded out by endBoot()) ── -->
 <div id="boot-splash" aria-hidden="true">
   <div class="boot-splash__inner">
