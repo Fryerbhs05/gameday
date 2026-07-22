@@ -241,6 +241,9 @@ module.exports = async (req, res) => {
 
     if (!yRes.ok) {
       const txt = await yRes.text();
+      // TEMP DIAGNOSTIC: log Yahoo's verbatim rejection so it shows up in Vercel
+      // runtime logs. Safe to remove once the Yahoo 403 is diagnosed.
+      console.error(`YAHOO_DIAG ${yRes.status} endpoint=${endpoint} url=${url} body=${txt.slice(0, 800)}`);
       res.status(yRes.status).json({ error: 'Yahoo API error', detail: txt });
       return;
     }
