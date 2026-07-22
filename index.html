@@ -2750,6 +2750,10 @@
       .how-desc { grid-column: 2; font-size: 13px; }
       .lp-how { margin-top: 28px; padding: 40px var(--gutter) 44px; }
       .lp-cta-row .btn-hero--ghost { padding: 14px 18px; }
+      /* Mobile: keep Sign in + Get started on ONE row always — drop the fixed
+         min-width and let the pair share the row, shrinking to fit the screen. */
+      .lp-cta-row:not(.lp-cta-row--secondary) { flex-wrap: nowrap; gap: 10px; }
+      .lp-cta-row:not(.lp-cta-row--secondary) .btn-hero { flex: 1 1 0; min-width: 0; padding-left: 14px; padding-right: 14px; }
       .lp-signin { padding: 24px var(--gutter) 40px; }
       .signin-card { padding: 24px 20px; }
       .provider-card-grid { grid-template-columns: 1fr; }
