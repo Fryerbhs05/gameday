@@ -2457,13 +2457,13 @@
       display: inline-flex; align-items: center; justify-content: center;
       width: 32px; height: 32px; padding: 0; margin: 0;
       background: transparent; border: none; cursor: pointer;
-      color: var(--ink-500); border-radius: var(--radius-pill);
+      color: var(--ink-900); border-radius: var(--radius-pill);
       -webkit-tap-highlight-color: transparent;
       transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
     }
     .scoreboard-share:hover { color: var(--ink-900); background: var(--line-soft); }
     .scoreboard-share:active { transform: translateY(-50%) scale(0.9); }
-    .scoreboard-share svg { width: 18px; height: 18px; display: block; }
+    .scoreboard-share svg { width: 18px; height: 18px; display: block; stroke-width: 2.75; }
     .scoreboard-share.is-busy { opacity: 0.45; pointer-events: none; }
     /* Hide share when the section is collapsed (nothing to capture). */
     .scoreboard-frame.collapsed .scoreboard-share { display: none; }
