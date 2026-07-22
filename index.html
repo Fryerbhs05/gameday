@@ -2106,13 +2106,9 @@
       /* Float the experiment impact-test harness above the tab bar — experiment
          mode only, so this one stays gated to body.experiment-active. */
       body.experiment-active:not(.nav-landing) #impact-test-ctl { bottom: calc(var(--exp-ribbon-h, 64px) + 74px); }
-      /* PWA "Add to home screen" banner must sit ABOVE the tab bar (and any
-         pinned ribbon), never on top of it. Keep its bottom:16px anchor (so the
-         hidden translateY(120%) still slides it fully off-screen) and lift only
-         the SHOWN state up past the bar + ribbon + home-indicator inset. */
-      body:not(.nav-landing) #conflicted-install-banner.cib-visible {
-        transform: translateX(-50%) translateY(calc(-1 * (var(--exp-ribbon-h, 0px) + var(--cbnav-h) + env(safe-area-inset-bottom, 0px))));
-      }
+      /* (The old floating install banner's tab-bar offset lived here. The install
+         prompt is now the shared BottomSheet, which the sheet-open rules below
+         already lift above the tab bar — no dedicated offset needed.) */
     }
     @media (prefers-reduced-motion: reduce) { .cbnav-tab, .cbnav-ico, #exp-bottom-nav { transition: none; } }
 
@@ -11368,11 +11364,34 @@ function reconcilePriorityOrder(contexts){
   reconcileTiers(names);
   priorityOrder=sortNamesByTier(names,priorityTiers); /* order reflects tiers */
 }
+/* Only auto-launch the priority screen for a RETURNING user who still hasn't
+   set priorities — never on their very first visit. Rationale: a first-time
+   user should get to look around, see their leagues connected, and understand
+   the app before being handed the "rank your leagues" task. We record the first
+   dashboard visit (localStorage, persistent) and tag the session that created
+   it (sessionStorage, cleared when the app is fully closed). The prompt fires
+   only once BOTH are true: they've reached the dashboard before AND this is a
+   later session than the one where they first arrived. */
+const PRIORITY_FIRST_SEEN_KEY='gd_priority_first_seen';   // persistent: user has reached the dashboard w/ 2+ leagues before
+const PRIORITY_FIRST_SESSION_KEY='gd_priority_first_session'; // per-session: this session is the one that first arrived
 function shouldAutoLaunchPriority(contexts){
   if(!Array.isArray(contexts))return false;
   if(contexts.length<2)return false;
   if(isDemoMode)return false;
   if(isPrioritySet())return false;
+  let firstSeen=false, firstSession=false;
+  try{firstSeen=localStorage.getItem(PRIORITY_FIRST_SEEN_KEY)==='true';}catch(e){}
+  try{firstSession=sessionStorage.getItem(PRIORITY_FIRST_SESSION_KEY)==='true';}catch(e){}
+  if(!firstSeen){
+    /* First time they've ever landed here with 2+ leagues. Record it, tag this
+       session, and let them explore — don't prompt yet. */
+    try{localStorage.setItem(PRIORITY_FIRST_SEEN_KEY,'true');}catch(e){}
+    try{sessionStorage.setItem(PRIORITY_FIRST_SESSION_KEY,'true');}catch(e){}
+    return false;
+  }
+  /* They've been here before. If THIS session is the one that first arrived
+     (e.g. a refresh or re-render during that same first visit), still hold off. */
+  if(firstSession)return false;
   return true;
 }
 
@@ -14384,108 +14403,51 @@ loadExperimentState();
   })();
 </script>
 
-<!-- ============ PWA: install banner + service worker registration ============ -->
+<!-- ============ PWA: install drawer + service worker registration ============ -->
 <style>
-  #conflicted-install-banner {
-    position: fixed;
-    left: 50%;
-    bottom: 16px;
-    transform: translateX(-50%) translateY(120%);
-    z-index: 9999;
-    width: calc(100% - 32px);
-    max-width: 420px;
-    background: var(--paper-soft, #FAF6EC);
-    border: 1px solid var(--line, #D8D2C4);
-    border-radius: 14px;
-    padding: 12px 14px;
-    box-shadow: 0 12px 32px rgba(15, 34, 53, 0.12);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
-    font-family: var(--font-sans, 'Inter', sans-serif);
-    box-sizing: border-box;
+  /* Install prompt content — rendered into the shared BottomSheet (owner
+     'pwa-install') so it matches the app's other drawers (More, league filter,
+     matchup). The sheet shell owns the surface, 16px top radius, grab handle and
+     backdrop; these rules only style the body content. */
+  .cf-install { padding: 2px 2px 4px; }
+  .cf-install__head { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; }
+  .cf-install__icon {
+    flex-shrink: 0; width: 52px; height: 52px; border-radius: 13px;
+    overflow: hidden; background: var(--navy-900);
   }
-  #conflicted-install-banner.cib-visible {
-    transform: translateX(-50%) translateY(0);
+  .cf-install__icon img { width: 100%; height: 100%; display: block; }
+  .cf-install__intro { min-width: 0; }
+  .cf-install__title { font: 700 17px/1.2 var(--font-sans); color: var(--ink-900); }
+  .cf-install__sub { font: 400 13px/1.4 var(--font-sans); color: var(--ink-500); margin-top: 3px; }
+  .cf-install__benefits { list-style: none; margin: 0 0 18px; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .cf-install__benefits li { display: flex; align-items: center; gap: 12px; font: 400 14px/1.3 var(--font-sans); color: var(--ink-700); }
+  .cf-install__benefits svg {
+    flex-shrink: 0; width: 19px; height: 19px; stroke: var(--navy-700);
+    fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
   }
-  #conflicted-install-banner .cib-logo {
-    flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    border-radius: 9px;
-    object-fit: cover;
-    display: block;
+  .cf-install__cta { display: block; width: 100%; padding: 14px; font-size: 15px; }
+  .cf-install__dismiss { display: block; width: 100%; margin-top: 6px; text-align: center; }
+  .cf-install__steps {
+    background: var(--paper-soft); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
+    display: flex; flex-direction: column; gap: 12px;
   }
-  #conflicted-install-banner .cib-text {
-    flex: 1;
-    min-width: 0;
-    line-height: 1.3;
+  .cf-install__step { display: flex; align-items: center; gap: 11px; font: 400 13px/1.4 var(--font-sans); color: var(--ink-700); }
+  .cf-install__step-n {
+    flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--coral-500); color: var(--paper);
+    font: 700 12px/22px var(--font-sans); text-align: center;
   }
-  #conflicted-install-banner .cib-title {
-    font: 700 14px/1.2 var(--font-sans, 'Inter', sans-serif);
-    color: var(--ink-900, #15181C);
-    display: block;
-  }
-  #conflicted-install-banner .cib-sub {
-    font: 400 12px/1.35 var(--font-sans, 'Inter', sans-serif);
-    color: var(--ink-500, #5F5E5A);
-    display: block;
-    margin-top: 2px;
-  }
-  #conflicted-install-banner .cib-sub svg {
-    width: 12px;
-    height: 12px;
-    vertical-align: -2px;
-    margin: 0 2px;
-  }
-  #conflicted-install-banner .cib-action {
-    flex-shrink: 0;
-    font: 600 13px/1 var(--font-sans, 'Inter', sans-serif);
-    color: var(--paper, #F5EFE4);
-    background: var(--navy-700, #1A3A52);
-    border: none;
-    border-radius: 999px;
-    padding: 9px 16px;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    transition: background 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-  #conflicted-install-banner .cib-action:hover,
-  #conflicted-install-banner .cib-action:active {
-    background: var(--coral-500, #D85A30);
-  }
-  #conflicted-install-banner .cib-close {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    color: var(--ink-500, #5F5E5A);
-    font-size: 20px;
-    cursor: pointer;
-    border-radius: 50%;
-    -webkit-tap-highlight-color: transparent;
-    transition: background 150ms ease, color 150ms ease;
-  }
-  #conflicted-install-banner .cib-close:hover {
-    background: var(--paper-deep, #EDE5D4);
-    color: var(--ink-900, #15181C);
+  .cf-install__step b { color: var(--ink-900); font-weight: 600; }
+  .cf-install__step svg {
+    width: 15px; height: 15px; stroke: var(--navy-700); fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    vertical-align: -2px; margin: 0 1px;
   }
 </style>
 
-<div id="conflicted-install-banner" hidden role="dialog" aria-label="Install Conflicted">
-  <img class="cib-logo" src="/icons/icon-192.png?v=78" alt="" aria-hidden="true" />
-  <div class="cib-text">
-    <span class="cib-title">The App Is Even Better</span>
-    <span class="cib-sub">Add to your home screen for the full app experience.</span>
-  </div>
-  <button class="cib-action" type="button">Install</button>
-  <button class="cib-close" type="button" aria-label="Dismiss">&times;</button>
-</div>
+<!-- Install prompt now renders into the shared BottomSheet (owner 'pwa-install');
+     see the install-drawer script below. No standalone banner element. -->
 
 <script>
   (function() {
@@ -14556,27 +14518,24 @@ loadExperimentState();
       });
     }
 
-    /* ---- Install banner ---- */
-    var banner = document.getElementById('conflicted-install-banner');
-    if (!banner) return;
+    /* ---- Install prompt (bottom drawer) ----
+       Presentation moved off the old floating banner onto the shared BottomSheet
+       (owner 'pwa-install') so it matches the app's other drawers. All gating
+       logic (dwell timer, in-app/demo checks, iOS detection, beforeinstallprompt
+       capture) is unchanged. Naggy by design (Matt): re-summons every session —
+       a dismissal only suppresses for the current session, never persisted. */
 
     // Bail if already installed (PWA standalone mode).
     if (window.matchMedia('(display-mode: standalone)').matches) return;
     if (window.navigator.standalone === true) return;
 
-    // Bail if dismissed in last 30 days.
-    var DISMISS_KEY = 'conflicted-install-dismissed-at';
-    var dismissed = parseInt(localStorage.getItem(DISMISS_KEY) || '0', 10);
-    if (dismissed && (Date.now() - dismissed) < 30 * 24 * 60 * 60 * 1000) return;
-
-    var actionBtn = banner.querySelector('.cib-action');
-    var closeBtn = banner.querySelector('.cib-close');
-    var subEl = banner.querySelector('.cib-sub');
+    var SHEET_OWNER = 'pwa-install';
     var deferredPrompt = null;
+    var sessionDismissed = false;   // dismissed this session; resets on next load
 
     // Gating state: arm a 30-second clock once the user first reaches the
     // dashboard. The clock keeps running across tab navigation (Schedule,
-    // Exposure, Watch), and once it elapses the banner shows on whatever
+    // Exposure, Watch), and once it elapses the drawer shows on whatever
     // in-app tab the user is currently on — not just the dashboard.
     var DASHBOARD_DWELL_MS = 30000;
     var dashboardReady = false;
@@ -14600,28 +14559,80 @@ loadExperimentState();
       return !document.body.classList.contains('nav-landing');
     }
 
-    function show() {
-      if (!banner.hidden) return;
-      banner.hidden = false;
-      requestAnimationFrame(function() { banner.classList.add('cib-visible'); });
-    }
-    function hide() {
-      banner.classList.remove('cib-visible');
-      setTimeout(function() { banner.hidden = true; }, 320);
-    }
-    function dismiss() {
-      localStorage.setItem(DISMISS_KEY, Date.now().toString());
-      hide();
-    }
-
     function isInDemo() {
       return (typeof window.inDemoMode === 'function') && window.inDemoMode();
     }
 
+    // Inline glyphs — stroke inherits via the .cf-install CSS. Share = iOS share
+    // sheet; plus = the "Add to Home Screen" row; the rest mark benefit rows.
+    var SHARE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
+    var PLUS_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><line x1="12" y1="9" x2="12" y2="15"/><line x1="9" y1="12" x2="15" y2="12"/></svg>';
+    var BEN_FULLSCREEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4"/><path d="M20 9V5a1 1 0 0 0-1-1h-4"/><path d="M4 15v4a1 1 0 0 0 1 1h4"/><path d="M20 15v4a1 1 0 0 1-1 1h-4"/></svg>';
+    var BEN_HOME = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>';
+    var BEN_LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.7-1.5"/></svg>';
+
+    function benefitsHTML() {
+      return '<ul class="cf-install__benefits">' +
+          '<li>' + BEN_FULLSCREEN + '<span>Full screen, no browser bar</span></li>' +
+          '<li>' + BEN_HOME + '<span>One tap from your home screen</span></li>' +
+          '<li>' + BEN_LOCK + '<span>No password to remember</span></li>' +
+        '</ul>';
+    }
+
+    // Browser-aware iOS "Add to Home Screen" steps. In non-Safari iOS browsers
+    // the Share action lives behind a "⋯" menu, so name that first step.
+    function iosStepsHTML() {
+      var nonSafari = /CriOS|EdgiOS|FxiOS/.test(navigator.userAgent);
+      var s1 = nonSafari
+        ? 'Tap <b>⋯</b> in the toolbar, then ' + SHARE_SVG + ' <b>Share</b>'
+        : 'Tap the ' + SHARE_SVG + ' <b>Share</b> button in the toolbar';
+      return '<div class="cf-install__steps">' +
+          '<div class="cf-install__step"><span class="cf-install__step-n">1</span><span>' + s1 + '</span></div>' +
+          '<div class="cf-install__step"><span class="cf-install__step-n">2</span><span>Choose <b>Add to Home Screen</b> ' + PLUS_SVG + '</span></div>' +
+        '</div>';
+    }
+
+    function renderInstallSheet() {
+      var head = '<div class="cf-install__head">' +
+          '<div class="cf-install__icon"><img src="/icons/icon-192.png?v=78" alt="" aria-hidden="true"></div>' +
+          '<div class="cf-install__intro">' +
+            '<div class="cf-install__title">The app is even better</div>' +
+            '<div class="cf-install__sub">Add Conflicted to your home screen for the full experience.</div>' +
+          '</div>' +
+        '</div>';
+      var action = isIOS
+        ? iosStepsHTML() +
+          '<button type="button" class="btn-ghost cf-install__dismiss" data-cf-install-dismiss>Got it</button>'
+        : '<button type="button" class="btn-primary cf-install__cta" data-cf-install>Install</button>' +
+          '<button type="button" class="btn-ghost cf-install__dismiss" data-cf-install-dismiss>Not now</button>';
+      return '<div class="cf-install">' + head + benefitsHTML() + action + '</div>';
+    }
+
+    function sheetIsOurs() {
+      return !!(window.BottomSheet && window.BottomSheet.isOpen() &&
+                window.BottomSheet.getOwner() === SHEET_OWNER);
+    }
+
+    function show() {
+      if (!window.BottomSheet) return;
+      if (window.BottomSheet.isOpen()) return; // don't hijack another open drawer
+      window.BottomSheet.open(renderInstallSheet(), {
+        owner: SHEET_OWNER,
+        onClose: function() { sessionDismissed = true; } // backdrop/Esc also suppress
+      });
+    }
+
+    function dismiss() {
+      sessionDismissed = true;
+      if (sheetIsOurs()) window.BottomSheet.close();
+    }
+
     function maybeShow() {
       if (!dashboardReady) return;
+      if (sessionDismissed) return;
       if (!isInApp()) return; // not on the landing/setup screen
       if (isInDemo()) return; // never prompt to install while in demo mode
+      if (!window.BottomSheet || window.BottomSheet.isOpen()) return; // don't stack
       if (isIOS) { show(); return; }
       if (promptCaught) show();
     }
@@ -14677,32 +14688,21 @@ loadExperimentState();
       });
     }
 
-    closeBtn.addEventListener('click', dismiss);
+    // Delegated actions for the drawer's buttons (body is (re)rendered on open).
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-cf-install-dismiss]')) { dismiss(); return; }
+      var installBtn = e.target.closest('[data-cf-install]');
+      if (!installBtn) return;
+      if (!deferredPrompt) { dismiss(); return; }
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function() {
+        // Either outcome: close our drawer and consume the one-shot prompt.
+        if (sheetIsOurs()) window.BottomSheet.close();
+        deferredPrompt = null;
+      });
+    });
 
-    // Inline glyphs reused by the manual instructions below.
-    var SHARE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
-
-    // Browser-aware iOS "Add to Home Screen" instructions. Many people miss the
-    // Share action in non-Safari browsers because it lives behind a "⋯" menu,
-    // so spell out that first step explicitly.
-    function manualInstructionsHTML() {
-      var ua = navigator.userAgent;
-      // Chrome / Edge / Firefox on iOS: Share lives inside the "⋯" menu.
-      if (/CriOS|EdgiOS|FxiOS/.test(ua)) {
-        return 'Tap <b>⋯</b> in the toolbar, then ' + SHARE_SVG +
-               ' <b>Share</b>, then choose <b>Add to Home Screen</b>.';
-      }
-      // Safari on iOS: Share button is in the toolbar.
-      return 'Tap the ' + SHARE_SVG + ' <b>Share</b> button in the toolbar, ' +
-             'then choose <b>Add to Home Screen</b>.';
-    }
-
-    if (isIOS) {
-      // iOS doesn't fire beforeinstallprompt — show manual instructions.
-      subEl.innerHTML = manualInstructionsHTML();
-      actionBtn.hidden = true;
-      // No immediate show — maybeShow() will fire once the dwell timer elapses.
-    } else {
+    if (!isIOS) {
       // Android Chrome / Edge: catch the install prompt event.
       window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
@@ -14710,17 +14710,9 @@ loadExperimentState();
         promptCaught = true;
         maybeShow();
       });
-      actionBtn.addEventListener('click', function() {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(function(choice) {
-          if (choice.outcome === 'accepted') hide();
-          deferredPrompt = null;
-        });
-      });
       window.addEventListener('appinstalled', function() {
-        localStorage.setItem(DISMISS_KEY, Date.now().toString());
-        hide();
+        sessionDismissed = true;
+        if (sheetIsOurs()) window.BottomSheet.close();
       });
     }
   })();
