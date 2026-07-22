@@ -6029,6 +6029,9 @@ function showConnections(){
   const v=document.getElementById('view-connections');
   if(v)v.style.display='block';
   window.__connectionsViewActive=true;
+  /* Fresh open starts clean — drop any leftover Yahoo connect pending/error state
+     and stop a poll orphaned by a prior visit. */
+  try{stopConnYahooPoll();}catch(e){}window.__yahooConnUI=null;
   try{renderConnectionsPanel();}catch(e){console.warn('renderConnectionsPanel failed:',e.message);}
   /* The per-league on/off list now lives on this page — populate it on open. */
   try{renderAccountLeagues();}catch(e){console.warn('renderAccountLeagues failed:',e.message);}
@@ -6055,6 +6058,7 @@ function renderConnectionsPanel(){
 /* Connecting/disconnecting here marks the view dirty; we reload league data when
    the user leaves so the board reflects the new provider set. */
 function applyConnectionsAndView(){
+  try{stopConnYahooPoll();}catch(e){}window.__yahooConnUI=null;
   window.__connectionsDirty=false;window.__connectionsViewActive=false;
   if(isAnyProviderConnected()){isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();showLoading('Updating your leagues.');run();}
   else showSetup();
@@ -6063,6 +6067,7 @@ function exitConnections(){
   /* If platform connections changed, we must reload league data — that path lands
      on the dashboard. Otherwise this is a subpage of Account, so return there. */
   if(window.__connectionsDirty){applyConnectionsAndView();return;}
+  try{stopConnYahooPoll();}catch(e){}window.__yahooConnUI=null;
   window.__connectionsViewActive=false;
   showAccount();
 }
@@ -9935,9 +9940,15 @@ const PROVIDERS={
     },
     async connect(){
       /* In the connect wizard we open Yahoo OAuth in a NEW TAB so the wizard
-         survives the redirect, then poll for completion. Outside the wizard,
-         keep the original full-page redirect. */
+         survives the redirect, then poll for completion. The Account > League
+         Connections view does the SAME (connectionsConnectYahoo) so a signed-in
+         user is never bounced to the logged-out landing page if Yahoo hiccups
+         mid-connect — the old full-page redirect rebooted the whole app at '/'
+         and, during the 2026-07 Yahoo read-permission outage, dumped the user on
+         the landing screen. Only the pre-login setup grid keeps the full-page
+         redirect (landing there is fine — they aren't signed in yet). */
       if(window.__wizardActive){ wizardConnectYahoo(); return {success:false,pending:true}; }
+      if(window.__connectionsViewActive){ connectionsConnectYahoo(); return {success:false,pending:true}; }
       window.location.href='/api/auth/yahoo';
     },
     async disconnect(){
@@ -9967,9 +9978,22 @@ const PROVIDERS={
       if(connectionState.yahoo.connected){
         const lbl=providerLeagueLabel('yahoo');
         rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot"></span><span>Yahoo connected${lbl?` <span style="color:var(--ink-500)">· ${lbl}</span>`:''}</span></div><button class="btn-provider-disconnect" onclick="handleProviderDisconnect('yahoo')">Disconnect</button>`;
-      }else{
-        rootEl.innerHTML=`<button class="btn-yahoo provider-connect-btn" onclick="handleProviderConnect('yahoo')"><span class="btn-yahoo-icon">Y!</span><span>Connect to Yahoo</span></button>`;
+        return;
       }
+      /* Account connections view: reflect the no-redirect connect flow's state
+         (connectionsConnectYahoo / pollConnectionsYahoo) so the user stays on this
+         page the whole time — pending while OAuth runs in the other tab, or an
+         inline detail message if Yahoo declined. */
+      const cs=window.__connectionsViewActive?window.__yahooConnUI:null;
+      if(cs&&cs.phase==='pending'){
+        rootEl.innerHTML=`<div class="provider-status"><span class="provider-status-dot" style="background:var(--surf-amber,#E0A82E)"></span><span>Waiting for Yahoo… <span style="color:var(--ink-500)">finish sign-in in the new tab</span></span></div><button class="btn-yahoo provider-connect-btn" onclick="connectionsConnectYahoo()"><span class="btn-yahoo-icon">Y!</span><span>Reopen Yahoo sign-in</span></button>`;
+        return;
+      }
+      if(cs&&cs.phase==='error'){
+        rootEl.innerHTML=`<p class="provider-error" style="display:block">${cs.msg}</p><button class="btn-yahoo provider-connect-btn" onclick="connectionsConnectYahoo()"><span class="btn-yahoo-icon">Y!</span><span>Try Yahoo again</span></button>`;
+        return;
+      }
+      rootEl.innerHTML=`<button class="btn-yahoo provider-connect-btn" onclick="handleProviderConnect('yahoo')"><span class="btn-yahoo-icon">Y!</span><span>Connect to Yahoo</span></button>`;
     },
   },
   espn:{
@@ -10462,6 +10486,85 @@ function pollYahoo(){
 function stopYahooPoll(){
   window.__yahooPollActive = false;
   if(window.__yahooPollTimer){ clearTimeout(window.__yahooPollTimer); window.__yahooPollTimer = null; }
+}
+
+/* ── Account > League Connections: connect Yahoo WITHOUT a full-page redirect ──
+   The old yahoo.connect() ran window.location.href='/api/auth/yahoo', navigating
+   the entire app away; after OAuth the callback 302s the top window to '/' and
+   cold-boots the SPA. During the 2026-07 Yahoo read-permission outage that reboot
+   landed the signed-in user on the logged-out landing page — jarring and wrong.
+   Here we reuse the wizard's new-tab OAuth (?wizard=1 → self-closing callback page)
+   and poll /api/yahoo/data from THIS page, so the Account view never unmounts.
+   Poll signal (see api/yahoo/data.js): 200 = connected · 401 = no session yet
+   (user still finishing OAuth) · 403 = session exists but Yahoo declined the read
+   (the outage signature) → fail fast with a plain-language detail message. */
+function connectionsConnectYahoo(){
+  window.__yahooConnUI = { phase:'pending', msg:'' };
+  window.__connYahooTries = 0;
+  try{ window.open('/api/auth/yahoo?wizard=1','_blank'); }catch(e){}
+  window.__connYahooPollActive = true;
+  try{ renderConnectionsPanel(); }catch(e){}
+  pollConnectionsYahoo();
+}
+window.connectionsConnectYahoo = connectionsConnectYahoo;
+
+function stopConnYahooPoll(){
+  window.__connYahooPollActive = false;
+  if(window.__connYahooTimer){ clearTimeout(window.__connYahooTimer); window.__connYahooTimer = null; }
+}
+
+/* Raw status probe (checkStatus() flattens everything to connected:true/false and
+   hides the 401-vs-403 distinction we need for an accurate message). */
+async function probeYahooStatus(){
+  try{
+    const r = await fetch('/api/yahoo/data?endpoint=games', { credentials:'include' });
+    return r.status;
+  }catch(e){ return 0; }
+}
+
+function connYahooShowError(msg, reason){
+  stopConnYahooPoll();
+  window.__yahooConnUI = { phase:'error', msg:msg };
+  try{ cfTrack('yahoo_connect_failed', { reason:reason, via:'connections' }); }catch(e){}
+  try{ renderConnectionsPanel(); }catch(e){}
+}
+
+function pollConnectionsYahoo(){
+  if(!window.__connYahooPollActive) return;
+  window.__connYahooTries = (window.__connYahooTries || 0) + 1;
+  probeYahooStatus().then(st=>{
+    if(!window.__connYahooPollActive) return;
+    if(st === 200){
+      stopConnYahooPoll();
+      connectionState.yahoo = { connected:true, identity:'yahoo-session', displayName:'Yahoo User' };
+      window.__yahooConnUI = null;
+      window.__connectionsDirty = true; // leaving the view reloads leagues to include Yahoo
+      __pendingDiscoverDone = false; pendingLeaguesSeen = [];
+      try{ cfTrack('platform_connected', { platform:'yahoo', via:'connections' }); }catch(e){}
+      try{ showYahooToast('Yahoo connected'); }catch(e){}
+      try{ renderConnectionsPanel(); }catch(e){}
+      return;
+    }
+    if(st === 403){
+      // Session established but Yahoo turned the read request away — the app-side
+      // permission-drop signature. Polling won't fix it; tell the user plainly.
+      connYahooShowError(
+        'Yahoo approved the sign-in, but their fantasy data service turned the request away — a temporary problem on Yahoo’s end, not your account. Your other leagues are unaffected. Try again in a little while.',
+        '403_not_authorized'
+      );
+      return;
+    }
+    // 401 (no session yet) or a transient/network blip: keep waiting for the user
+    // to finish OAuth in the other tab, up to a ~75s ceiling.
+    if(window.__connYahooTries >= 30){
+      connYahooShowError(
+        'We couldn’t confirm your Yahoo connection. If you didn’t finish signing in, tap “Try Yahoo again.” If you did, Yahoo may be slow right now — your account and other leagues are safe.',
+        'timeout'
+      );
+      return;
+    }
+    window.__connYahooTimer = setTimeout(pollConnectionsYahoo, 2500);
+  });
 }
 
 /* Validate + create the account from the combined screen's fields. Returns true
