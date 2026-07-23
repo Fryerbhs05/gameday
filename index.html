@@ -17110,8 +17110,15 @@ if(typeof window.cfRegisterView==='function'){
     .ldr-phone{width:340px;border-radius:42px;padding:13px;position:relative;
       background:linear-gradient(160deg,#1c2c3c,#0c151f);border:1px solid #26384a;box-shadow:0 40px 80px -26px rgba(0,0,0,.6);}
     .ldr-phone-notch{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:104px;height:24px;background:#0a121b;border-radius:999px;z-index:3;}
-    .ldr-phone-screen{background:var(--ldr-navy900);border-radius:31px;overflow:hidden;padding:44px 14px 14px;}
-    .ldr-frame-d{background:transparent;}
+    /* fixed, phone-natural height: the wordmark/hero/total stay pinned and only
+       the player list (.ldr-rows) scrolls, so a long ALL list no longer stretches
+       the page — and both boards end up equal height regardless of list length */
+    .ldr-phone-screen{background:var(--ldr-navy900);border-radius:31px;overflow:hidden;padding:44px 14px 14px;height:620px;}
+    .ldr-frame-d{background:transparent;display:flex;flex-direction:column;height:100%;}
+    .ldr-frame-d .ldr-rows{flex:1 1 auto;min-height:0;overflow-y:auto;padding-right:5px;}
+    .ldr-frame-d .ldr-rows::-webkit-scrollbar{width:6px;}
+    .ldr-frame-d .ldr-rows::-webkit-scrollbar-thumb{background:var(--ldr-line);border-radius:3px;}
+    .ldr-frame-d .ldr-rows::-webkit-scrollbar-track{background:transparent;}
     .ldr-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
       padding:9px 10px 9px 16px;border:1px solid var(--ldr-line);border-radius:999px;background:#15293E;}
     .ldr-nudge-label{display:inline-flex;align-items:center;gap:8px;font:500 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--ldr-ink500);}
