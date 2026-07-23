@@ -3050,6 +3050,9 @@
     #cf-period-bar.pb-exposure .pb-seg-row #exp-filters {
       border: 0; background: transparent; border-radius: 0;
       padding: 0; margin: 0; width: 100%;
+      /* Centre the pill strip. `safe` keeps the first pill reachable if the seven
+         ever overflow a very narrow screen (falls back to start there). */
+      justify-content: safe center;
     }
 
     /* Settings sheet content */
@@ -3076,6 +3079,8 @@
       overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
     }
     .exp-filters::-webkit-scrollbar { display: none; }
+    /* In the Filters sheet the position pills wrap to fit instead of scrolling. */
+    .exp-filters--sheet { flex-wrap: wrap; overflow: visible; }
     .exp-filter-pill { flex: 0 0 auto; font: 500 12px/1 var(--font-sans); padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--paper); color: var(--ink-500); cursor: pointer; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
     .exp-filter-pill:hover:not(.active) { background: var(--paper-deep); }
     .exp-filter-pill.active { background: var(--ink-900); color: var(--paper); border-color: var(--ink-900); }
@@ -4243,19 +4248,10 @@
           Grid
         </button>
       </div>
-      <!-- Exposure's position pills (.pb-exposure) take the seg-row slot Leaders
-           and Snapshot use for their segmented controls. Per product these must
-           stay visible at all times and never hide behind the Filters sheet —
-           mode / axis / roster scope all live in the sheet instead. -->
-      <div class="exp-filters" id="exp-filters" role="tablist" aria-label="Position filter">
-        <button type="button" class="exp-filter-pill active" data-exp-pos="ALL">All</button>
-        <button type="button" class="exp-filter-pill" data-exp-pos="QB">QB</button>
-        <button type="button" class="exp-filter-pill" data-exp-pos="RB">RB</button>
-        <button type="button" class="exp-filter-pill" data-exp-pos="WR">WR</button>
-        <button type="button" class="exp-filter-pill" data-exp-pos="TE">TE</button>
-        <button type="button" class="exp-filter-pill" data-exp-pos="K">K</button>
-        <button type="button" class="exp-filter-pill" data-exp-pos="DEF">DEF</button>
-      </div>
+      <!-- Exposure's position filters moved into the Filters sheet (2026-07-23,
+           under the league list) — mode / axis / roster scope / position all
+           live in the sheet now, so Exposure uses no seg row. -->
+
     </div>
   </div>
 </div>
@@ -5048,9 +5044,16 @@
   .expd-list::-webkit-scrollbar{width:6px;}
   .expd-list::-webkit-scrollbar-thumb{background:rgba(122,168,209,.3);border-radius:3px;}
   .expd-list::-webkit-scrollbar-track{background:transparent;}
+  /* Name cell ellipsizes inside the narrow phone so the bar column keeps width. */
+  .expd-list .exp-list__name{min-width:0;}
+  .expd-list .exp-list__name strong{overflow:hidden;text-overflow:ellipsis;}
   /* Gold conflicted edge — a player on your roster AND against you this week. */
   .expd-list .exp-list__row.is-conflicted{padding-left:10px;position:relative;}
   .expd-list .exp-list__row.is-conflicted::before{content:'';position:absolute;left:0;top:7px;bottom:7px;width:3px;background:#E9B84A;border-radius:0 2px 2px 0;}
+
+  /* Mobile Preview: the page-level "Exposure map" title + subtitle are redundant
+     above the two labelled phones, so hide them (they return in Desktop View). */
+  body.exp-desk-preview #cf-period-bar.pb-exposure .pb-view-head{display:none;}
 
   .exp-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
     padding:9px 10px 9px 16px;border:1px solid rgba(43,111,168,.35);border-radius:999px;background:#15293E;}
@@ -7150,12 +7153,11 @@ function cfRenderLeagueSection(){
       +`<button class="live-toggle${on?' on':''}" data-lf-league="${i}" type="button" aria-label="Toggle ${n}"></button>`
       +`</div>`;
   }).join('');
-  const anyHidden=[...hiddenLeagues].some(l=>names.includes(l));
-  const showAll=anyHidden
-    ? `<button type="button" class="lf-showall" data-lf-showall="1">Show all leagues</button>`
-    : '';
+  /* "Show all leagues" reset button removed 2026-07-23 (Matt) — re-enabling a
+     hidden league is done per-row with its own toggle; the global reset was
+     redundant. The data-lf-showall handler is kept but now goes unused. */
   return `<div class="lf-league-section">`
-    +`<div class="lf-cols-head"><span>League</span><span>Show</span></div>${rows}${showAll}`
+    +`<div class="lf-cols-head"><span>League</span><span>Show</span></div>${rows}`
     +`</div>`;
 }
 window.cfRenderLeagueSection=cfRenderLeagueSection;
@@ -12437,15 +12439,21 @@ loadExperimentState();
      rosters AND against you this week with a gold edge (the literal meaning of
      "conflicted"; only supplied in the desktop preview where both modes render
      side by side). */
-  function expRowsHTML(rows, conflictedSet){
+  function expRowsHTML(rows, conflictedSet, compact){
     if (!rows || !rows.length) return '';
     var max = rows[0].count || 1;
-    var nameW = measureNameColWidth(rows);
+    /* Functional list measures a fixed name column off the widest name; the phone
+       preview is only ~282px wide inside the frame, where that measured width
+       swallows the whole bar column (leaves a sliver). So in compact mode the
+       name column flexes + ellipsizes and the bar keeps real width. */
+    var tpl = compact
+      ? 'minmax(0,1.35fr) minmax(34px,1fr) 30px'
+      : (measureNameColWidth(rows) + ' minmax(0,1fr) 60px');
     var html = '';
     rows.forEach(function(r){
       var pct = Math.max(6, Math.round((r.count / max) * 100));
       var gold = (conflictedSet && conflictedSet[r.id]) ? ' is-conflicted' : '';
-      html += '<div class="exp-list__row' + gold + '" data-exp-row="' + esc(r.id) + '" style="grid-template-columns:' + nameW + ' minmax(0,1fr) 60px;">' +
+      html += '<div class="exp-list__row' + gold + '" data-exp-row="' + esc(r.id) + '" style="grid-template-columns:' + tpl + ';">' +
         '<div class="exp-list__name"><strong>' + esc(r.label) + '</strong></div>' +
         '<div class="exp-list__bar"><div style="width:' + pct + '%"></div></div>' +
         '<div class="exp-list__count">' + r.count + '</div>' +
@@ -12484,7 +12492,7 @@ loadExperimentState();
 
   function expPhoneInner(heroText, rows, conflictedSet, mode){
     var body = (rows && rows.length)
-      ? '<div class="exp-list mode-' + mode + ' expd-list">' + expRowsHTML(rows, conflictedSet) + '</div>'
+      ? '<div class="exp-list mode-' + mode + ' expd-list">' + expRowsHTML(rows, conflictedSet, true) + '</div>'
       : '<div class="expd-note">No players in this slice yet.</div>';
     return '<div class="expd-wm">' + EXP_WM_SVG + '</div>' +
       '<div class="expd-kick">EXPOSURE</div>' +
@@ -13039,6 +13047,19 @@ loadExperimentState();
           btn('data-exp-mode', 'negative', 'Opp rosters') +
         '</div>' +
       '</div>') : '';
+    /* Position filter — moved out of the period bar into the sheet (2026-07-23),
+       placed LAST (under the league list). Pills carry data-exp-pos so the
+       existing global handler flips state.pos; wrap so all seven fit. */
+    var POS_LIST = [['ALL','All'],['QB','QB'],['RB','RB'],['WR','WR'],['TE','TE'],['K','K'],['DEF','DEF']];
+    var positionSection = '<div class="exp-settings__section">' +
+      '<p class="exp-settings__label">Position</p>' +
+      '<div class="exp-filters exp-filters--sheet" id="exp-pos-sheet" role="tablist" aria-label="Position filter">' +
+        POS_LIST.map(function(p){
+          var on = state.pos === p[0];
+          return '<button type="button" class="exp-filter-pill' + (on ? ' active' : '') + '" data-exp-pos="' + p[0] + '" role="tab" aria-selected="' + (on ? 'true' : 'false') + '">' + esc(p[1]) + '</button>';
+        }).join('') +
+      '</div>' +
+    '</div>';
     return '<div class="exp-settings">' +
       '<div class="exp-settings__head">' +
         '<h3 class="exp-settings__title">Filters</h3>' +
@@ -13061,6 +13082,7 @@ loadExperimentState();
       (typeof window.cfRenderLeagueSection === 'function'
         ? (function(html){ return html ? '<div class="exp-settings__section">' + html + '</div>' : ''; })(window.cfRenderLeagueSection())
         : '') +
+      positionSection +
       '<div class="exp-settings__footer">' +
         '<button type="button" class="exp-settings__reset" data-exp-settings-reset="1">Reset to defaults</button>' +
         '<button type="button" class="exp-settings__done" data-exp-settings-close="1">Done</button>' +
@@ -13091,6 +13113,7 @@ loadExperimentState();
     syncToggle('exp-mode-toggle-sheet', 'data-exp-mode', state.mode);
     syncToggle('exp-axis-toggle-sheet', 'data-exp-axis', state.axis);
     syncToggle('exp-bench-toggle-sheet', 'data-exp-bench', state.includeBench ? 'all' : 'starters');
+    syncToggle('exp-pos-sheet', 'data-exp-pos', state.pos);
   }
 
   function openSettingsSheet(){
@@ -17208,17 +17231,17 @@ if(typeof window.cfRegisterView==='function'){
     border-radius:0 0 var(--radius-lg,12px) var(--radius-lg,12px);
     padding:0 12px 10px;margin-bottom:12px;}
   #cf-period-bar.pb-leaders .pb-seg-row,
-  #cf-period-bar.pb-snapshot .pb-seg-row,
-  #cf-period-bar.pb-exposure .pb-seg-row{display:block;}
+  #cf-period-bar.pb-snapshot .pb-seg-row{display:block;}
   /* the row holds every view's toggle; only the active view's shows */
   #cf-period-bar .pb-seg-row>*{display:none;}
   #cf-period-bar.pb-leaders .ldr-seg{display:flex;}
   #cf-period-bar.pb-snapshot .cf-snap-toggle{display:flex;}
-  #cf-period-bar.pb-exposure #exp-filters{display:flex;}
+  /* Exposure's position filters moved into the Filters sheet (2026-07-23), so
+     Exposure no longer uses the seg row — its period bar is a single-row frame
+     (no merge / no divider). */
   /* merge the two rows into ONE visual frame: nav-controls loses its bottom
-     edge + gap while the seg row is attached below it */
+     edge + gap while the seg row is attached below it (Leaders / Snapshot) */
   #cf-period-bar.pb-leaders .nav-controls,
-  #cf-period-bar.pb-exposure .nav-controls,
   #cf-period-bar.pb-snapshot .nav-controls{border-bottom:none;
     border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0;}
   @media (max-width:640px){
@@ -17235,12 +17258,9 @@ if(typeof window.cfRegisterView==='function'){
     #cf-period-bar.pb-leaders .nav-controls{max-width:600px;margin:0 auto;
       border-bottom:1px solid var(--navy-300);
       border-bottom-left-radius:var(--radius-lg,12px);border-bottom-right-radius:var(--radius-lg,12px);}
-    /* Exposure keeps its position-pill seg row (it filters BOTH preview phones),
-       so unlike Snapshot/Leaders we don't hide the seg row — we just centre and
-       constrain the merged frame (nav-controls + attached pills row) to match
-       the new standard. Both halves share the 600px cap and centre together. */
-    #cf-period-bar.pb-exposure .nav-controls,
-    #cf-period-bar.pb-exposure .pb-seg-row{max-width:600px;margin-left:auto;margin-right:auto;}
+    /* Exposure is now a single-row frame (position filters moved to the sheet);
+       just centre + constrain it like the others. */
+    #cf-period-bar.pb-exposure .nav-controls{max-width:600px;margin:0 auto;}
   }
   .ldr-seg{display:flex;background:#15293E;
     border:1px solid var(--navy-300,#2B6FA8);border-radius:12px;padding:3px;gap:3px;}
