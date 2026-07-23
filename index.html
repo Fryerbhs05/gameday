@@ -4857,37 +4857,44 @@
   .cf-snap-foot .cf-snap-brand svg{width:120px;height:auto;display:block;}
   .cf-snap-foot-txt{font-size:9px;color:var(--cs-ink-500);font-weight:800;letter-spacing:.06em;white-space:nowrap;}
 
-  /* ── DESKTOP: List + Grid side by side, each in a phone frame ──────────────
-     Mobile is untouched (the single #cf-snap-frame + its List/Grid toggle).
-     At ≥900px the toggle disappears (both views show at once), the share button
-     hides (native share is a mobile action), and a quiet "Built for mobile"
-     nudge invites the user to email themselves a one-click sign-in link.
-     #cf-snap-desktop is painted by the SAME render() pipeline (buildRows /
-     cardHTML / tileHTML) so the framed preview can never drift from the real
-     cards. All --cs-* palette vars inherit from #view-snapshot above. */
+  /* ── DESKTOP (≥900px): 3-column feature layout — copy (framed) · List · Grid ─
+     Mobile is untouched (single #cf-snap-frame + its toggle). On desktop the
+     mobile frame + share button hide, and #cf-snap-desktop shows an informative
+     copy column beside two phone-framed previews. Painted by render()/
+     paintSnapDesktop() from the SAME buildRows/cardHTML/tileHTML, so the framed
+     preview can't drift from the real cards. --cs-* inherit from #view-snapshot.
+     (The period-bar centering + List/Grid-toggle hide live in a LATER <style>
+     block so they win source order over the shared .pb-snapshot rules.) */
   #cf-snap-desktop{display:none;}
   @media (min-width:900px){
-    /* Snapshot's List/Grid toggle row in the shared period bar → gone on desktop */
-    #cf-period-bar.pb-snapshot .pb-seg-row{display:none;}
-    #view-snapshot .cf-snap-wrap{max-width:1080px;}
+    #view-snapshot .cf-snap-wrap{max-width:none;}
     #view-snapshot .cf-snap-share{display:none;}
     #view-snapshot #cf-snap-frame{display:none;}
-    #cf-snap-desktop{display:block;text-align:center;}
-    .cf-snap-deskcols{display:flex;justify-content:center;align-items:flex-start;gap:44px;flex-wrap:wrap;}
+    #cf-snap-desktop{display:block;}
+    .cf-snap-layout{display:flex;gap:52px;justify-content:center;align-items:center;max-width:1240px;margin:0 auto;flex-wrap:nowrap;}
+    /* left copy column — framed (navy-300 recipe) */
+    .cf-snap-copy{max-width:360px;flex:none;padding:28px 26px;text-align:left;
+      border:1px solid var(--cs-navy-line);border-radius:18px;background:rgba(43,111,168,.06);}
+    .cf-snap-eyebrow{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--cs-ink-500);margin-bottom:14px;}
+    .cf-snap-copy h2{font:900 32px/1.12 var(--font-sans),'Inter',sans-serif;letter-spacing:-.02em;color:var(--cs-cream);margin:0 0 16px;}
+    .cf-snap-copy p{font:400 15px/1.6 var(--font-sans),'Inter',sans-serif;color:var(--cs-ink-500);margin:0 0 14px;}
+    .cf-snap-copy p .hl{color:var(--cs-ink-700);font-weight:600;}
+    /* phones */
+    .cf-snap-deskcols{display:flex;justify-content:center;align-items:flex-start;gap:40px;flex:none;}
     .cf-deskcol{display:flex;flex-direction:column;align-items:center;}
-    .cf-deskcol.single{width:100%;}
     .cf-col-cap{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.10em;text-transform:uppercase;color:var(--cs-ink-400);margin-bottom:14px;display:inline-flex;align-items:center;gap:8px;}
     .cf-col-cap svg{width:14px;height:14px;stroke:currentColor;fill:none;}
-    .cf-phone{width:360px;border-radius:42px;padding:13px;position:relative;
-      background:linear-gradient(160deg,#1c2c3c,#0c151f);border:1px solid #26384a;
-      box-shadow:0 40px 80px -26px rgba(0,0,0,.6);}
-    .cf-phone-notch{position:absolute;top:24px;left:50%;transform:translateX(-50%);
-      width:104px;height:24px;background:#0a121b;border-radius:999px;z-index:3;}
+    /* frame hugging the phone's edges */
+    .cf-phone-frame{padding:14px;border:1px solid var(--cs-navy-line);border-radius:56px;background:rgba(43,111,168,.06);}
+    .cf-phone{width:340px;border-radius:42px;padding:13px;position:relative;
+      background:linear-gradient(160deg,#1c2c3c,#0c151f);border:1px solid #26384a;box-shadow:0 40px 80px -26px rgba(0,0,0,.6);}
+    .cf-phone-notch{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:104px;height:24px;background:#0a121b;border-radius:999px;z-index:3;}
     /* extra top padding clears the notch so the wordmark sits below it */
-    .cf-phone-screen{background:var(--cs-navy-900);border-radius:31px;overflow:hidden;padding:44px 15px 15px;}
+    .cf-phone-screen{background:var(--cs-navy-900);border-radius:31px;overflow:hidden;padding:44px 14px 14px;}
     .cf-snap-frame-d{background:transparent;}
     .cf-snap-frame-d .cf-snap-content-d{margin-top:2px;}
-    .cf-snap-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:28px;
+    /* nudge (now inside the copy column) */
+    .cf-snap-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
       padding:9px 10px 9px 16px;border:1px solid var(--cs-navy-line);border-radius:999px;background:var(--cs-navy-800);}
     .cf-snap-nudge-label{display:inline-flex;align-items:center;gap:8px;font:500 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--cs-ink-500);}
     .cf-snap-nudge-label svg{stroke:var(--cs-blue);fill:none;}
@@ -4896,7 +4903,12 @@
       font:700 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--cs-blue);background:rgba(43,111,168,.18);transition:color .15s;}
     .cf-snap-nudge-btn:hover{color:var(--cs-coral);}
     .cf-snap-nudge-btn[disabled]{opacity:.6;cursor:default;}
-    .cf-snap-nudge-hint{margin-top:14px;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:var(--cs-ink-400);}
+    .cf-snap-hint{margin:12px 0 0;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:var(--cs-ink-400);}
+  }
+  /* 900–1199px: copy stacks on top (centered); the two phones sit side by side */
+  @media (min-width:900px) and (max-width:1199px){
+    .cf-snap-layout{flex-direction:column;align-items:center;gap:36px;}
+    .cf-snap-copy{max-width:560px;text-align:center;}
   }
 </style>
 <div id="view-snapshot">
@@ -4934,17 +4946,27 @@
       </div>
     </div>
 
-    <!-- Desktop-only (≥900px): List + Grid side by side, each in a phone frame.
-         Painted by render()/paintSnapDesktop() from the same rows as mobile. -->
+    <!-- Desktop-only (≥900px): 3-column feature layout — informative copy
+         (framed) beside List + Grid phone-framed previews. The phones are
+         painted by render()/paintSnapDesktop() from the same rows as mobile. -->
     <div id="cf-snap-desktop">
-      <div class="cf-snap-deskcols" id="cf-snap-deskcols"></div>
-      <div class="cf-snap-nudge" id="cf-snap-nudge">
-        <span class="cf-snap-nudge-label">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-          Built for mobile
-        </span>
-        <span class="cf-snap-nudge-sep" id="cf-snap-nudge-sep"></span>
-        <button class="cf-snap-nudge-btn" id="cf-snap-email-btn" type="button" onclick="cfSnapEmailLink()">Email me the link</button>
+      <div class="cf-snap-layout">
+        <div class="cf-snap-copy">
+          <div class="cf-snap-eyebrow">Weekend Snapshot</div>
+          <h2>Your weekend at a glance.</h2>
+          <p>Every league you're managing, together on <span class="hl">one screen</span> — who's cruising, who's sweating, and who's already out.</p>
+          <p>Snapshot is built for your phone, where you check and manage your leagues. This is a preview of both layouts — open it on your phone for the live, tappable version.</p>
+          <div class="cf-snap-nudge" id="cf-snap-nudge">
+            <span class="cf-snap-nudge-label">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+              Built for mobile
+            </span>
+            <span class="cf-snap-nudge-sep" id="cf-snap-nudge-sep"></span>
+            <button class="cf-snap-nudge-btn" id="cf-snap-email-btn" type="button" onclick="cfSnapEmailLink()">Email me the link</button>
+          </div>
+          <p class="cf-snap-hint" id="cf-snap-hint">We'll email you a one-tap sign-in link — open it on your phone.</p>
+        </div>
+        <div class="cf-snap-deskcols" id="cf-snap-deskcols"></div>
       </div>
     </div>
 
@@ -15657,29 +15679,32 @@ loadExperimentState();
   }
   function deskCol(cap,ico,inner){
     return '<div class="cf-deskcol"><div class="cf-col-cap">'+ico+cap+'</div>'
-      +'<div class="cf-phone"><div class="cf-phone-notch"></div><div class="cf-phone-screen">'
-      +'<div class="cf-snap-frame-d">'+inner+'</div></div></div></div>';
+      +'<div class="cf-phone-frame"><div class="cf-phone"><div class="cf-phone-notch"></div><div class="cf-phone-screen">'
+      +'<div class="cf-snap-frame-d">'+inner+'</div></div></div></div></div>';
   }
   function paintSnapDesktop(nodata,rows,kickerText,heroHTML,subText,footText){
     var cols=document.getElementById('cf-snap-deskcols'); if(!cols)return;
     var nudge=document.getElementById('cf-snap-nudge');
     if(nodata||!rows.length){
-      cols.innerHTML='<div class="cf-deskcol single"><div class="cf-phone"><div class="cf-phone-notch"></div><div class="cf-phone-screen"><div class="cf-snap-frame-d"><div class="cf-snap-wm">'+CF_WM_SVG+'</div><div class="cf-snap-content-d"><div class="cf-snap-note"><div class="ico">&#127944;</div><h4>No games to watch yet</h4><p>Your Weekend Snapshot lights up once the NFL week kicks off. Check back when the games begin.</p></div></div></div></div></div></div>';
+      cols.innerHTML='<div class="cf-deskcol single"><div class="cf-phone-frame"><div class="cf-phone"><div class="cf-phone-notch"></div><div class="cf-phone-screen"><div class="cf-snap-frame-d"><div class="cf-snap-wm">'+CF_WM_SVG+'</div><div class="cf-snap-content-d"><div class="cf-snap-note"><div class="ico">&#127944;</div><h4>No games to watch yet</h4><p>Your Weekend Snapshot lights up once the NFL week kicks off. Check back when the games begin.</p></div></div></div></div></div></div></div>';
       if(nudge)nudge.style.display='none';
+      var hint0=document.getElementById('cf-snap-hint'); if(hint0)hint0.style.display='none';
       return;
     }
     cols.innerHTML=deskCol('List',CF_LIST_ICO,deskFrameInner('list',kickerText,heroHTML,subText,footText,rows))
       +deskCol('Grid',CF_GRID_ICO,deskFrameInner('grid',kickerText,heroHTML,subText,footText,rows));
+    /* Demo mode has no account, so a one-click sign-in link is meaningless →
+       drop the email action, its divider, and the "we'll email you" hint,
+       leaving just the "Built for mobile" label. */
+    var demo=(typeof window.inDemoMode==='function')&&window.inDemoMode();
     if(nudge){
       nudge.style.display='';
-      /* Demo mode has no account, so a one-click sign-in link is meaningless →
-         drop the email action (and its divider), leaving just "Built for mobile". */
-      var demo=(typeof window.inDemoMode==='function')&&window.inDemoMode();
       var btn=document.getElementById('cf-snap-email-btn');
       var sep=document.getElementById('cf-snap-nudge-sep');
       if(btn)btn.style.display=demo?'none':'';
       if(sep)sep.style.display=demo?'none':'';
     }
+    var hint=document.getElementById('cf-snap-hint'); if(hint)hint.style.display=demo?'none':'';
   }
   function cfSnapEmailLink(){
     var email=(window.__account&&window.__account.email)||window.__onboardEmail||'';
@@ -16938,6 +16963,16 @@ if(typeof window.cfRegisterView==='function'){
     border-bottom-left-radius:0;border-bottom-right-radius:0;margin-bottom:0;}
   @media (max-width:640px){
     #cf-period-bar .pb-seg-row{padding:0 8px 8px;}
+  }
+  /* ── DESKTOP snapshot only: centre + constrain the shared period bar and drop
+     the List/Grid toggle row (both views show side by side). Placed AFTER the
+     shared .pb-snapshot rules above so it wins on source order — no !important
+     needed. Only affects Snapshot; Exposure / Watch / Leaders untouched. ── */
+  @media (min-width:900px){
+    #cf-period-bar.pb-snapshot .pb-seg-row{display:none;}
+    #cf-period-bar.pb-snapshot .nav-controls{max-width:600px;margin:0 auto;
+      border-bottom:1px solid var(--navy-300);
+      border-bottom-left-radius:var(--radius-lg,12px);border-bottom-right-radius:var(--radius-lg,12px);}
   }
   .ldr-seg{display:flex;background:#15293E;
     border:1px solid var(--navy-300,#2B6FA8);border-radius:12px;padding:3px;gap:3px;}
