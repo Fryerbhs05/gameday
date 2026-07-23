@@ -4874,7 +4874,10 @@
     #cf-snap-desktop{display:block;padding-top:30px;}
     .cf-snap-layout{display:flex;gap:52px;justify-content:center;align-items:flex-start;max-width:1240px;margin:0 auto;flex-wrap:nowrap;}
     /* left copy column — framed (navy-300 recipe) */
-    .cf-snap-copy{max-width:360px;flex:none;padding:28px 26px;text-align:left;
+    /* margin-top = the phone columns' label height (11px line) + its 14px
+       margin-bottom, so the copy frame top lines up with the phone FRAME top
+       (not the "List"/"Grid" label above it) */
+    .cf-snap-copy{max-width:360px;flex:none;margin-top:25px;padding:28px 26px;text-align:left;
       border:1px solid var(--cs-navy-line);border-radius:18px;background:rgba(43,111,168,.06);}
     .cf-snap-eyebrow{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--cs-ink-500);margin-bottom:14px;}
     .cf-snap-copy h2{font:900 32px/1.12 var(--font-sans),'Inter',sans-serif;letter-spacing:-.02em;color:var(--cs-cream);margin:0 0 16px;}
@@ -4909,7 +4912,7 @@
   /* 900–1199px: copy stacks on top (centered); the two phones sit side by side */
   @media (min-width:900px) and (max-width:1199px){
     .cf-snap-layout{flex-direction:column;align-items:center;gap:36px;}
-    .cf-snap-copy{max-width:560px;text-align:center;}
+    .cf-snap-copy{max-width:560px;text-align:center;margin-top:0;}
   }
 </style>
 <div id="view-snapshot">
