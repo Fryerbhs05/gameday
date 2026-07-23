@@ -207,6 +207,12 @@
          (2026-07 scoreboard/loyalties redesign, Claude Design 2a/3a/4a). */
       --tile-bg:#16304A; --tile-line:#27425F;
       --max-width:980px; --max-width-wide:1320px; --gutter:24px;
+      /* STANDARD desktop phone-preview scroll cap: the scrollable list region of
+         any phone-framed desktop board (Snapshot content, Leaders rows, and
+         future views) maxes out at this height and scrolls internally, so the
+         phone stays a natural height instead of stretching the page. Change here
+         once to retune every phone preview. */
+      --cf-phone-scroll-max:440px;
       --ease-out:cubic-bezier(0.2,0.8,0.2,1); --duration-fast:120ms; --duration-base:200ms;
       /* Shared section-header sizing — SCOREBOARD, LOYALTIES, and LIVE UPDATES
          all read from these. Change here once to resize all three together.
@@ -4901,7 +4907,14 @@
     /* extra top padding clears the notch so the wordmark sits below it */
     .cf-phone-screen{background:var(--cs-navy-900);border-radius:31px;overflow:hidden;padding:44px 14px 14px;}
     .cf-snap-frame-d{background:transparent;}
-    .cf-snap-frame-d .cf-snap-content-d{margin-top:2px;}
+    /* STANDARD phone scroll: the league list/grid caps at --cf-phone-scroll-max
+       and scrolls internally; wordmark/hero stay above and the foot stays below.
+       Short lists (a few leagues) render naturally shorter — the cap only bites
+       when the content would otherwise stretch the phone. */
+    .cf-snap-frame-d .cf-snap-content-d{margin-top:2px;max-height:var(--cf-phone-scroll-max,440px);overflow-y:auto;padding-right:5px;}
+    .cf-snap-frame-d .cf-snap-content-d::-webkit-scrollbar{width:6px;}
+    .cf-snap-frame-d .cf-snap-content-d::-webkit-scrollbar-thumb{background:var(--cs-navy-line);border-radius:3px;}
+    .cf-snap-frame-d .cf-snap-content-d::-webkit-scrollbar-track{background:transparent;}
     /* nudge (now inside the copy column) */
     .cf-snap-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
       padding:9px 10px 9px 16px;border:1px solid var(--cs-navy-line);border-radius:999px;background:var(--cs-navy-800);}
@@ -17110,15 +17123,13 @@ if(typeof window.cfRegisterView==='function'){
     .ldr-phone{width:340px;border-radius:42px;padding:13px;position:relative;
       background:linear-gradient(160deg,#1c2c3c,#0c151f);border:1px solid #26384a;box-shadow:0 40px 80px -26px rgba(0,0,0,.6);}
     .ldr-phone-notch{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:104px;height:24px;background:#0a121b;border-radius:999px;z-index:3;}
-    /* fixed, phone-natural height: the wordmark/hero/total stay pinned and only
-       the player list (.ldr-rows) scrolls, so a long ALL list no longer stretches
-       the page — and both boards end up equal height regardless of list length */
-    .ldr-phone-screen{background:var(--ldr-navy900);border-radius:31px;overflow:hidden;padding:44px 14px 14px;height:620px;}
-    .ldr-frame-d{background:transparent;display:flex;flex-direction:column;height:100%;}
-    .ldr-frame-d .ldr-rows{flex:1 1 auto;min-height:0;overflow-y:auto;padding-right:5px;}
-    /* .ldr-rows is a column flexbox, so its row children would otherwise shrink
-       to fit the fixed height and clip their own text (each .ldr-row is
-       overflow:hidden) — pin them to natural height so the list scrolls instead */
+    .ldr-phone-screen{background:var(--ldr-navy900);border-radius:31px;overflow:hidden;padding:44px 14px 14px;}
+    .ldr-frame-d{background:transparent;}
+    /* STANDARD phone scroll: the player list caps at --cf-phone-scroll-max and
+       scrolls internally; wordmark/hero/total stay above. .ldr-rows is a column
+       flexbox so pin its children to natural height or they'd shrink+clip (each
+       .ldr-row is overflow:hidden). */
+    .ldr-frame-d .ldr-rows{max-height:var(--cf-phone-scroll-max,440px);overflow-y:auto;padding-right:5px;}
     .ldr-frame-d .ldr-rows>*{flex:0 0 auto;}
     .ldr-frame-d .ldr-rows::-webkit-scrollbar{width:6px;}
     .ldr-frame-d .ldr-rows::-webkit-scrollbar-thumb{background:var(--ldr-line);border-radius:3px;}
