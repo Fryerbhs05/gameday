@@ -4856,6 +4856,48 @@
   .cf-snap-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--cs-navy-line);}
   .cf-snap-foot .cf-snap-brand svg{width:120px;height:auto;display:block;}
   .cf-snap-foot-txt{font-size:9px;color:var(--cs-ink-500);font-weight:800;letter-spacing:.06em;white-space:nowrap;}
+
+  /* ── DESKTOP: List + Grid side by side, each in a phone frame ──────────────
+     Mobile is untouched (the single #cf-snap-frame + its List/Grid toggle).
+     At ≥900px the toggle disappears (both views show at once), the share button
+     hides (native share is a mobile action), and a quiet "Built for mobile"
+     nudge invites the user to email themselves a one-click sign-in link.
+     #cf-snap-desktop is painted by the SAME render() pipeline (buildRows /
+     cardHTML / tileHTML) so the framed preview can never drift from the real
+     cards. All --cs-* palette vars inherit from #view-snapshot above. */
+  #cf-snap-desktop{display:none;}
+  @media (min-width:900px){
+    /* Snapshot's List/Grid toggle row in the shared period bar → gone on desktop */
+    #cf-period-bar.pb-snapshot .pb-seg-row{display:none;}
+    #view-snapshot .cf-snap-wrap{max-width:1080px;}
+    #view-snapshot .cf-snap-share{display:none;}
+    #view-snapshot #cf-snap-frame{display:none;}
+    #cf-snap-desktop{display:block;text-align:center;}
+    .cf-snap-deskcols{display:flex;justify-content:center;align-items:flex-start;gap:44px;flex-wrap:wrap;}
+    .cf-deskcol{display:flex;flex-direction:column;align-items:center;}
+    .cf-deskcol.single{width:100%;}
+    .cf-col-cap{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.10em;text-transform:uppercase;color:var(--cs-ink-400);margin-bottom:14px;display:inline-flex;align-items:center;gap:8px;}
+    .cf-col-cap svg{width:14px;height:14px;stroke:currentColor;fill:none;}
+    .cf-phone{width:360px;border-radius:42px;padding:13px;position:relative;
+      background:linear-gradient(160deg,#1c2c3c,#0c151f);border:1px solid #26384a;
+      box-shadow:0 40px 80px -26px rgba(0,0,0,.6);}
+    .cf-phone-notch{position:absolute;top:24px;left:50%;transform:translateX(-50%);
+      width:104px;height:24px;background:#0a121b;border-radius:999px;z-index:3;}
+    /* extra top padding clears the notch so the wordmark sits below it */
+    .cf-phone-screen{background:var(--cs-navy-900);border-radius:31px;overflow:hidden;padding:44px 15px 15px;}
+    .cf-snap-frame-d{background:transparent;}
+    .cf-snap-frame-d .cf-snap-content-d{margin-top:2px;}
+    .cf-snap-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:28px;
+      padding:9px 10px 9px 16px;border:1px solid var(--cs-navy-line);border-radius:999px;background:var(--cs-navy-800);}
+    .cf-snap-nudge-label{display:inline-flex;align-items:center;gap:8px;font:500 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--cs-ink-500);}
+    .cf-snap-nudge-label svg{stroke:var(--cs-blue);fill:none;}
+    .cf-snap-nudge-sep{width:1px;height:18px;background:var(--cs-navy-line);}
+    .cf-snap-nudge-btn{border:none;cursor:pointer;padding:6px 14px;border-radius:999px;
+      font:700 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--cs-blue);background:rgba(43,111,168,.18);transition:color .15s;}
+    .cf-snap-nudge-btn:hover{color:var(--cs-coral);}
+    .cf-snap-nudge-btn[disabled]{opacity:.6;cursor:default;}
+    .cf-snap-nudge-hint{margin-top:14px;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:var(--cs-ink-400);}
+  }
 </style>
 <div id="view-snapshot">
   <div class="cf-snap-wrap">
@@ -4889,6 +4931,20 @@
           </svg>
         </div>
         <div class="cf-snap-foot-txt" id="cf-snap-footcount"></div>
+      </div>
+    </div>
+
+    <!-- Desktop-only (≥900px): List + Grid side by side, each in a phone frame.
+         Painted by render()/paintSnapDesktop() from the same rows as mobile. -->
+    <div id="cf-snap-desktop">
+      <div class="cf-snap-deskcols" id="cf-snap-deskcols"></div>
+      <div class="cf-snap-nudge" id="cf-snap-nudge">
+        <span class="cf-snap-nudge-label">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+          Built for mobile
+        </span>
+        <span class="cf-snap-nudge-sep" id="cf-snap-nudge-sep"></span>
+        <button class="cf-snap-nudge-btn" id="cf-snap-email-btn" type="button" onclick="cfSnapEmailLink()">Email me the link</button>
       </div>
     </div>
 
@@ -6328,17 +6384,19 @@ function ctxDisplayState(ctx){
     const total=((ctx&&ctx.myPoints)||0)+((ctx&&ctx.oppPoints)||0);
     return {dataStatus:'',stTxt:total>0?'In progress':'Upcoming',stCls:'none'};
   }
-  /* 3a: live cells declare their projected disposition — WINNING / TOSS-UP /
-     LOSING · LIVE — instead of a bare "● Live", with matching top accent and
-     score color. Toss-up = projected margin within ±3 pts. Falls back to the
-     plain live badge when the provider gives no projections. */
+  /* 3a: live cells declare their PROJECTED disposition — PROJECTED WIN / TOSS-UP /
+     PROJECTED LOSS — instead of a bare "● Live", with matching top accent
+     and score color. The label is driven purely by projected final points, so it
+     reads as a forecast rather than the current on-field lead (which sits right
+     next to it). Toss-up only on an exact projection tie (effectively never).
+     Falls back to the plain live badge when the provider gives no projections. */
   if(st==='LIVE'){
     const myP=+ctx.myProjPts||0, oppP=+ctx.oppProjPts||0;
     if((myP+oppP)>0){
       const m=myP-oppP;
-      if(m>3)  return {dataStatus:'winning',stTxt:'● Winning · Live',stCls:'win'};
-      if(m<-3) return {dataStatus:'losing', stTxt:'● Losing · Live', stCls:'loss'};
-      return {dataStatus:'tossup',stTxt:'● Toss-up · Live',stCls:'tossup'};
+      if(m>0)  return {dataStatus:'winning',stTxt:'● Projected Win',stCls:'win'};
+      if(m<0)  return {dataStatus:'losing', stTxt:'● Projected Loss',stCls:'loss'};
+      return {dataStatus:'tossup',stTxt:'● Toss-up',stCls:'tossup'};
     }
   }
   /* 3a: finals carry their margin — "✓ Won · +22.3" reads at a glance. */
@@ -6352,7 +6410,7 @@ function ctxDisplayState(ctx){
   }
   return {
     dataStatus:{LIVE:'live',LOCKED_WIN:'winning',LOCKED_LOSS:'losing',FINAL_WIN:'winning',FINAL_LOSS:'losing',FINAL_TIE:'final',NO_MATCHUP:''}[st]||'',
-    stTxt:{LIVE:'● Live',LOCKED_WIN:'Clinched',LOCKED_LOSS:'Eliminated',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie',NO_MATCHUP:'No matchup'}[st]||'No matchup',
+    stTxt:{LIVE:'● Live',LOCKED_WIN:'Clinched',LOCKED_LOSS:'Lost',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie',NO_MATCHUP:'No matchup'}[st]||'No matchup',
     stCls:{LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final',NO_MATCHUP:'none'}[st]||'none'
   };
 }
@@ -15581,11 +15639,66 @@ loadExperimentState();
   }
   function getView(){ try{ var v=localStorage.getItem(VIEW_KEY); return (v==='grid')?'grid':'list'; }catch(e){ return 'list'; } }
 
+  /* ── Desktop dual-frame (List + Grid side by side) ─────────────────────────
+     Reuses cardHTML / tileHTML / the render() strings so the framed preview is
+     identical to the real cards (no second copy to drift). Painted on every
+     render(); CSS (@media ≥900px) decides whether the mobile single frame or
+     these desktop frames are visible, so no viewport JS is needed. */
+  var CF_WM_SVG='<svg viewBox="0 0 480 78" xmlns="http://www.w3.org/2000/svg" aria-label="Conflicted"><defs><clipPath id="cfsnapDWL"><rect x="0" y="0" width="240" height="78"/></clipPath><clipPath id="cfsnapDWR"><rect x="240" y="0" width="240" height="78"/></clipPath></defs><text x="240" y="54" text-anchor="middle" clip-path="url(#cfsnapDWL)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#7AA8D1">CONFLICTED</text><text x="240" y="54" text-anchor="middle" clip-path="url(#cfsnapDWR)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#E88761">CONFLICTED</text><line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>';
+  var CF_LIST_ICO='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>';
+  var CF_GRID_ICO='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>';
+  function deskFrameInner(view,kickerText,heroHTML,subText,footText,rows){
+    var body=(view==='grid')?('<div class="cf-grid">'+rows.map(tileHTML).join('')+'</div>'):rows.map(cardHTML).join('');
+    return '<div class="cf-snap-wm">'+CF_WM_SVG+'</div>'
+      +'<div class="cf-snap-kicker">'+kickerText+'</div>'
+      +'<div class="cf-snap-hero"><div class="cf-snap-hero-big">'+heroHTML+'</div><div class="cf-snap-hero-sub">'+(subText||'')+'</div></div>'
+      +'<div class="cf-snap-content-d">'+body+'</div>'
+      +'<div class="cf-snap-foot"><div class="cf-snap-brand">'+CF_WM_SVG+'</div><div class="cf-snap-foot-txt">'+footText+'</div></div>';
+  }
+  function deskCol(cap,ico,inner){
+    return '<div class="cf-deskcol"><div class="cf-col-cap">'+ico+cap+'</div>'
+      +'<div class="cf-phone"><div class="cf-phone-notch"></div><div class="cf-phone-screen">'
+      +'<div class="cf-snap-frame-d">'+inner+'</div></div></div></div>';
+  }
+  function paintSnapDesktop(nodata,rows,kickerText,heroHTML,subText,footText){
+    var cols=document.getElementById('cf-snap-deskcols'); if(!cols)return;
+    var nudge=document.getElementById('cf-snap-nudge');
+    if(nodata||!rows.length){
+      cols.innerHTML='<div class="cf-deskcol single"><div class="cf-phone"><div class="cf-phone-notch"></div><div class="cf-phone-screen"><div class="cf-snap-frame-d"><div class="cf-snap-wm">'+CF_WM_SVG+'</div><div class="cf-snap-content-d"><div class="cf-snap-note"><div class="ico">&#127944;</div><h4>No games to watch yet</h4><p>Your Weekend Snapshot lights up once the NFL week kicks off. Check back when the games begin.</p></div></div></div></div></div></div>';
+      if(nudge)nudge.style.display='none';
+      return;
+    }
+    cols.innerHTML=deskCol('List',CF_LIST_ICO,deskFrameInner('list',kickerText,heroHTML,subText,footText,rows))
+      +deskCol('Grid',CF_GRID_ICO,deskFrameInner('grid',kickerText,heroHTML,subText,footText,rows));
+    if(nudge){
+      nudge.style.display='';
+      /* Demo mode has no account, so a one-click sign-in link is meaningless →
+         drop the email action (and its divider), leaving just "Built for mobile". */
+      var demo=(typeof window.inDemoMode==='function')&&window.inDemoMode();
+      var btn=document.getElementById('cf-snap-email-btn');
+      var sep=document.getElementById('cf-snap-nudge-sep');
+      if(btn)btn.style.display=demo?'none':'';
+      if(sep)sep.style.display=demo?'none':'';
+    }
+  }
+  function cfSnapEmailLink(){
+    var email=(window.__account&&window.__account.email)||window.__onboardEmail||'';
+    if(!email){ if(window.showYahooToast)showYahooToast('Sign in first to email yourself a sign-in link.',true); return; }
+    var btn=document.getElementById('cf-snap-email-btn'), orig=btn?btn.textContent:'';
+    if(btn){btn.disabled=true;btn.textContent='Sending…';}
+    fetch('/api/auth/magic/request',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
+      .then(function(r){ if(btn)btn.textContent=r.ok?'✓ Link sent':'Try again'; if(window.showYahooToast)showYahooToast(r.ok?('We emailed a sign-in link to '+email+' — open it on your phone.'):'Could not send the link right now.',!r.ok); try{if(r.ok&&window.cfTrack)cfTrack('snapshot_mobile_link_sent',null);}catch(e){} })
+      .catch(function(){ if(btn)btn.textContent='Try again'; if(window.showYahooToast)showYahooToast('Could not send the link right now.',true); })
+      .finally(function(){ setTimeout(function(){ if(btn){btn.disabled=false;btn.textContent=orig;} },2400); });
+  }
+  window.cfSnapEmailLink=cfSnapEmailLink;
+
   function render(){
     var frame=document.getElementById('cf-snap-frame'); if(!frame)return;
     var built=buildRows(), rows=built.rows;
     var kicker=document.getElementById('cf-snap-kicker');
-    if(kicker)kicker.textContent='WEEKEND SNAPSHOT'+(built.week?(' · WEEK '+built.week+(built.season?(' · '+built.season):'')):'');
+    var kickerText='WEEKEND SNAPSHOT'+(built.week?(' · WEEK '+built.week+(built.season?(' · '+built.season):'')):'');
+    if(kicker)kicker.textContent=kickerText;
     var toggle=document.getElementById('cf-snap-toggle');
     var shareBtn=document.getElementById('cf-snap-share');
     var hero=document.getElementById('cf-snap-hero');
@@ -15604,6 +15717,7 @@ loadExperimentState();
       if(sub)sub.textContent='';
       if(foot)foot.textContent='';
       if(content)content.innerHTML='<div class="cf-snap-note"><div class="ico">&#127944;</div><h4>No games to watch yet</h4><p>Your Weekend Snapshot lights up once the NFL week kicks off. Check back when the games begin.</p></div>';
+      paintSnapDesktop(true,[],kickerText,'','','');
       return;
     }
     /* '' (not 'flex') — the toggle lives in the shared period bar now, so CSS
@@ -15615,7 +15729,8 @@ loadExperimentState();
     var wins=rows.filter(function(r){return r.state==='cwin'||r.prob>0.5;}).length;
     // Past-tense hero once every matchup is final (historic weeks) — "Won N of X".
     var allFinal=rows.every(function(r){return r.isFinal;});
-    if(hero)hero.innerHTML=(allFinal?'Won':'Winning')+' <span'+(wins===0?' style="color:var(--cs-cream)"':'')+'>'+wins+'</span> of '+rows.length;
+    var heroHTML=(allFinal?'Won':'Winning')+' <span'+(wins===0?' style="color:var(--cs-cream)"':'')+'>'+wins+'</span> of '+rows.length;
+    if(hero)hero.innerHTML=heroHTML;
     var parts=[],nC=rows.filter(function(r){return r.state==='cwin';}).length,
         nLive=rows.filter(function(r){return r.live;}).length,
         nP=rows.filter(function(r){return r.pending;}).length,
@@ -15623,14 +15738,17 @@ loadExperimentState();
     if(nC)parts.push(nC+(allFinal?' won':' clinched')); if(nLive)parts.push(nLive+' live now'); if(nP)parts.push(nP+' pending'); if(nL)parts.push(nL+' lost');
     /* Recap only reads when there's a MIX of outcomes — a single-category line
        ("6 clinched" / "6 lost") just echoes the hero, so hide it. */
-    if(sub)sub.textContent=(parts.length>1?parts.join('  ·  '):'');
-    if(foot)foot.textContent=rows.length+' LEAGUE'+(rows.length===1?'':'S')+' · ONE SCREEN';
+    var subText=(parts.length>1?parts.join('  ·  '):'');
+    if(sub)sub.textContent=subText;
+    var footText=rows.length+' LEAGUE'+(rows.length===1?'':'S')+' · ONE SCREEN';
+    if(foot)foot.textContent=footText;
 
     var view=getView();
     document.getElementById('cf-snap-btn-list').classList.toggle('is-on',view==='list');
     document.getElementById('cf-snap-btn-grid').classList.toggle('is-on',view==='grid');
     if(view==='grid')content.innerHTML='<div class="cf-grid">'+rows.map(tileHTML).join('')+'</div>';
     else content.innerHTML=rows.map(cardHTML).join('');
+    paintSnapDesktop(false,rows,kickerText,heroHTML,subText,footText);
     startPulse();
   }
   window.__cfRenderSnapshot=render;
