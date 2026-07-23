@@ -4870,7 +4870,8 @@
     #view-snapshot .cf-snap-wrap{max-width:none;}
     #view-snapshot .cf-snap-share{display:none;}
     #view-snapshot #cf-snap-frame{display:none;}
-    #cf-snap-desktop{display:block;}
+    /* padding-top = buffer so the column labels clear the period bar above */
+    #cf-snap-desktop{display:block;padding-top:30px;}
     .cf-snap-layout{display:flex;gap:52px;justify-content:center;align-items:center;max-width:1240px;margin:0 auto;flex-wrap:nowrap;}
     /* left copy column — framed (navy-300 recipe) */
     .cf-snap-copy{max-width:360px;flex:none;padding:28px 26px;text-align:left;
