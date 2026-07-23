@@ -17116,6 +17116,10 @@ if(typeof window.cfRegisterView==='function'){
     .ldr-phone-screen{background:var(--ldr-navy900);border-radius:31px;overflow:hidden;padding:44px 14px 14px;height:620px;}
     .ldr-frame-d{background:transparent;display:flex;flex-direction:column;height:100%;}
     .ldr-frame-d .ldr-rows{flex:1 1 auto;min-height:0;overflow-y:auto;padding-right:5px;}
+    /* .ldr-rows is a column flexbox, so its row children would otherwise shrink
+       to fit the fixed height and clip their own text (each .ldr-row is
+       overflow:hidden) — pin them to natural height so the list scrolls instead */
+    .ldr-frame-d .ldr-rows>*{flex:0 0 auto;}
     .ldr-frame-d .ldr-rows::-webkit-scrollbar{width:6px;}
     .ldr-frame-d .ldr-rows::-webkit-scrollbar-thumb{background:var(--ldr-line);border-radius:3px;}
     .ldr-frame-d .ldr-rows::-webkit-scrollbar-track{background:transparent;}
