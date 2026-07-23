@@ -3799,6 +3799,11 @@
         <span>Weekend Snapshot</span>
       </button>
     </li>
+    <li role="none" class="menu-app-only exp-tabbar-dupe">
+      <button class="menu-drawer__item" data-menu-action="leaders" role="menuitem" type="button">
+        <span>Leaders</span>
+      </button>
+    </li>
     <li role="none" class="menu-app-only exp-only menu-signedin-only">
       <button class="menu-drawer__item" data-menu-action="conflict" role="menuitem" type="button">
         <span>Conflict Card</span>
@@ -14321,6 +14326,7 @@ loadExperimentState();
     function syncActive() {
       var board = document.getElementById('board');
       var snap = document.getElementById('view-snapshot');
+      var leaders = document.getElementById('view-leaders');
       var expo = document.getElementById('view-exposure');
       var watch = document.getElementById('view-watch');
       var account = document.getElementById('view-account');
@@ -14328,6 +14334,7 @@ loadExperimentState();
       var connections = document.getElementById('view-connections');
       var onBoard = !!(board && board.style.display && board.style.display !== 'none');
       var onSnap = !!(snap && snap.style.display && snap.style.display !== 'none');
+      var onLeaders = !!(leaders && leaders.style.display && leaders.style.display !== 'none');
       var onExpo = !!(expo && expo.style.display && expo.style.display !== 'none');
       var onWatch = !!(watch && watch.style.display && watch.style.display !== 'none');
       var onAccount = !!(account && account.style.display && account.style.display !== 'none');
@@ -14341,6 +14348,9 @@ loadExperimentState();
       });
       drawer.querySelectorAll('[data-menu-action="snapshot"]').forEach(function(btn) {
         btn.classList.toggle('is-active', onSnap);
+      });
+      drawer.querySelectorAll('[data-menu-action="leaders"]').forEach(function(btn) {
+        btn.classList.toggle('is-active', onLeaders);
       });
       drawer.querySelectorAll('[data-menu-action="exposure"]').forEach(function(btn) {
         btn.classList.toggle('is-active', onExpo);
@@ -14394,6 +14404,8 @@ loadExperimentState();
           else if (typeof window.showBoard === 'function') window.showBoard();
         } else if (action === 'snapshot') {
           if (typeof window.showSnapshot === 'function') window.showSnapshot();
+        } else if (action === 'leaders') {
+          if (typeof window.showLeaders === 'function') window.showLeaders();
         } else if (action === 'conflict') {
           if (typeof window.showConflictCard === 'function') window.showConflictCard();
         } else if (action === 'exposure') {
@@ -16968,13 +16980,15 @@ if(typeof window.cfRegisterView==='function'){
   @media (max-width:640px){
     #cf-period-bar .pb-seg-row{padding:0 8px 8px;}
   }
-  /* ── DESKTOP snapshot only: centre + constrain the shared period bar and drop
-     the List/Grid toggle row (both views show side by side). Placed AFTER the
-     shared .pb-snapshot rules above so it wins on source order — no !important
-     needed. Only affects Snapshot; Exposure / Watch / Leaders untouched. ── */
+  /* ── DESKTOP Snapshot + Leaders: centre + constrain the shared period bar and
+     drop the segmented toggle row (both sub-views show side by side). Placed
+     AFTER the shared .pb-snapshot/.pb-leaders rules above so it wins on source
+     order — no !important needed. Exposure / Watch untouched. ── */
   @media (min-width:900px){
-    #cf-period-bar.pb-snapshot .pb-seg-row{display:none;}
-    #cf-period-bar.pb-snapshot .nav-controls{max-width:600px;margin:0 auto;
+    #cf-period-bar.pb-snapshot .pb-seg-row,
+    #cf-period-bar.pb-leaders .pb-seg-row{display:none;}
+    #cf-period-bar.pb-snapshot .nav-controls,
+    #cf-period-bar.pb-leaders .nav-controls{max-width:600px;margin:0 auto;
       border-bottom:1px solid var(--navy-300);
       border-bottom-left-radius:var(--radius-lg,12px);border-bottom-right-radius:var(--radius-lg,12px);}
   }
@@ -17066,6 +17080,54 @@ if(typeof window.cfRegisterView==='function'){
   .ldrf .ldrf-pill.on{background:var(--navy-700);color:var(--paper);border-color:var(--navy-700);}
   .ldrf .ldrf-done{width:100%;appearance:none;border:0;border-radius:11px;background:var(--coral-500,#E88761);color:#0F2235;
     font:900 12.5px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.02em;padding:8px 13px;cursor:pointer;margin-top:2px;}
+
+  /* ── DESKTOP (≥900px): 3-column feature layout — copy (framed) · Carried · Crushed ─
+     Mirrors the Weekend Snapshot desktop treatment. Mobile is untouched (single
+     #ldr-frame + its Carried/Crushed toggle). On desktop the mobile frame +
+     share button hide, and #ldr-desktop shows an informative copy column beside
+     two phone-framed boards (Carried Me / Crushed Me). Painted by render()/
+     paintLdrDesktop() from the SAME rows so the previews can't drift. --ldr-*
+     inherit from #view-leaders. Period-bar centering + toggle-hide live in the
+     shared override block above (source order). */
+  #ldr-desktop{display:none;}
+  @media (min-width:900px){
+    #view-leaders .ldr-sharebtn{display:none;}
+    #view-leaders #ldr-frame{display:none;}
+    #ldr-desktop{display:block;padding-top:30px;}
+    .ldr-layout{display:flex;gap:52px;justify-content:center;align-items:flex-start;max-width:1240px;margin:0 auto;flex-wrap:nowrap;}
+    .ldr-copy{max-width:360px;flex:none;margin-top:25px;padding:28px 26px;text-align:left;
+      border:1px solid var(--ldr-line);border-radius:18px;background:rgba(43,111,168,.06);}
+    .ldr-eyebrow{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--ldr-ink500);margin-bottom:14px;}
+    .ldr-copy h2{font:900 30px/1.14 var(--font-sans),'Inter',sans-serif;letter-spacing:-.02em;color:var(--ldr-cream);margin:0 0 16px;}
+    .ldr-copy p{font:400 15px/1.6 var(--font-sans),'Inter',sans-serif;color:var(--ldr-ink500);margin:0 0 14px;}
+    .ldr-copy p .hl{color:var(--ldr-cream);font-weight:600;}
+    .ldr-deskcols{display:flex;justify-content:center;align-items:flex-start;gap:40px;flex:none;}
+    .ldr-deskcol{display:flex;flex-direction:column;align-items:center;}
+    .ldr-col-cap{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.10em;text-transform:uppercase;color:var(--ldr-ink400);margin-bottom:14px;}
+    .ldr-col-cap.f{color:var(--ldr-green);}
+    .ldr-col-cap.a{color:var(--ldr-red);}
+    .ldr-phone-frame{padding:14px;border:1px solid var(--ldr-line);border-radius:56px;background:rgba(43,111,168,.06);}
+    .ldr-phone{width:340px;border-radius:42px;padding:13px;position:relative;
+      background:linear-gradient(160deg,#1c2c3c,#0c151f);border:1px solid #26384a;box-shadow:0 40px 80px -26px rgba(0,0,0,.6);}
+    .ldr-phone-notch{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:104px;height:24px;background:#0a121b;border-radius:999px;z-index:3;}
+    .ldr-phone-screen{background:var(--ldr-navy900);border-radius:31px;overflow:hidden;padding:44px 14px 14px;}
+    .ldr-frame-d{background:transparent;}
+    .ldr-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
+      padding:9px 10px 9px 16px;border:1px solid var(--ldr-line);border-radius:999px;background:#15293E;}
+    .ldr-nudge-label{display:inline-flex;align-items:center;gap:8px;font:500 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--ldr-ink500);}
+    .ldr-nudge-label svg{stroke:var(--ldr-blue);fill:none;}
+    .ldr-nudge-sep{width:1px;height:18px;background:var(--ldr-line);}
+    .ldr-nudge-btn{border:none;cursor:pointer;padding:6px 14px;border-radius:999px;
+      font:700 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--ldr-blue);background:rgba(43,111,168,.18);transition:color .15s;}
+    .ldr-nudge-btn:hover{color:var(--ldr-coral);}
+    .ldr-nudge-btn[disabled]{opacity:.6;cursor:default;}
+    .ldr-hint{margin:12px 0 0;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:var(--ldr-ink400);}
+  }
+  /* 900–1199px: copy stacks on top (centered); the two boards sit side by side */
+  @media (min-width:900px) and (max-width:1199px){
+    .ldr-layout{flex-direction:column;align-items:center;gap:36px;}
+    .ldr-copy{max-width:560px;text-align:center;margin-top:0;}
+  }
 </style>
 
 <div id="view-leaders">
@@ -17093,6 +17155,31 @@ if(typeof window.cfRegisterView==='function'){
     </div>
     <div class="ldr-rows" id="ldr-rows"></div>
   </div>
+
+  <!-- Desktop-only (≥900px): 3-column feature layout — informative copy (framed)
+       beside Carried Me + Crushed Me phone-framed boards. Boards painted by
+       render()/paintLdrDesktop() from the same rows as mobile. -->
+  <div id="ldr-desktop">
+    <div class="ldr-layout">
+      <div class="ldr-copy">
+        <div class="ldr-eyebrow">Leaders</div>
+        <h2>Who carried you. Who crushed you.</h2>
+        <p>Your best and worst starters across <span class="hl">every league</span>, ranked — the players who won you weeks, and the ones who sank you.</p>
+        <p>Leaders is built for your phone, where you check and manage your leagues. This is a preview of both boards — open it on your phone for the full, tappable version.</p>
+        <div class="ldr-nudge" id="ldr-nudge">
+          <span class="ldr-nudge-label">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+            Built for mobile
+          </span>
+          <span class="ldr-nudge-sep" id="ldr-nudge-sep"></span>
+          <button class="ldr-nudge-btn" id="ldr-email-btn" type="button" onclick="ldrEmailLink()">Email me the link</button>
+        </div>
+        <p class="ldr-hint" id="ldr-hint">We'll email you a one-tap sign-in link — open it on your phone.</p>
+      </div>
+      <div class="ldr-deskcols" id="ldr-deskcols"></div>
+    </div>
+  </div>
+
   <!-- retry sits OUTSIDE the share frame so it can never appear in the PNG -->
   <div class="ldr-retry" id="ldr-retry" style="display:none;"><button type="button" id="ldr-retry-btn"></button></div>
   <div class="ldr-float" id="ldr-float"><span class="dot"></span><span id="ldr-float-txt"></span></div>
@@ -17308,6 +17395,74 @@ if(typeof window.cfRegisterView==='function'){
     return extractRows(lastData())||[];
   }
 
+  /* ── Desktop dual-board (Carried + Crushed side by side) ────────────────────
+     Reuses the exact row markup + hero/sum logic, parametrized by side (F/A)
+     instead of st.side, so the framed boards can't drift from the mobile card.
+     Painted on every render(); CSS (@media ≥900px) shows either the mobile
+     single frame or these desktop boards. Desktop always shows ALL rows. */
+  var LDR_WM_SVG='<svg viewBox="0 0 480 78" xmlns="http://www.w3.org/2000/svg" aria-label="Conflicted"><defs><clipPath id="cfldrDL"><rect x="0" y="0" width="240" height="78"/></clipPath><clipPath id="cfldrDR"><rect x="240" y="0" width="240" height="78"/></clipPath></defs><text x="240" y="54" text-anchor="middle" clip-path="url(#cfldrDL)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#7AA8D1">CONFLICTED</text><text x="240" y="54" text-anchor="middle" clip-path="url(#cfldrDR)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#E88761">CONFLICTED</text><line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>';
+  function ldrFrameInner(side,all,fIds,aIds,kickText,ctxText){
+    var rows=all.filter(function(r){ return r.s===side&&r.pts>0&&(st.fmt==='all'||r.fmt===st.fmt); });
+    rows.sort(function(x,y){ return y.pts-x.pts; });
+    var shown=rows; /* desktop preview always shows ALL rows */
+    var sum=0; shown.forEach(function(r){sum+=r.pts;});
+    var heroHTML=(side==='F')?'Who <span class="hi-f">CARRIED</span> Me':'Who <span class="hi-a">CRUSHED</span> Me';
+    var lblText=(shown.length+' PLAYERS')+' · POINTS '+(side==='F'?'SCORED':'AGAINST');
+    var rowsHTML;
+    if(!shown.length){
+      var d=lastData(),msg;
+      if(st.building)msg='Building your '+esc(st.season)+' season… leaders appear as each week loads.';
+      else if(st.loadingWeek)msg='Loading week '+esc(st.week)+' · '+esc(st.season)+'…';
+      else if(!d||d.noData)msg='Connect a league to see your Leaders.';
+      else msg='No points '+(side==='F'?'scored':'against')+' for this view yet.';
+      rowsHTML='<div class="ldr-note">'+msg+'</div>';
+    }else{
+      rowsHTML=shown.map(function(r,i){
+        var gold=fIds[r.id]&&aIds[r.id];
+        return '<div class="ldr-row'+(gold?' gold':'')+'">'
+          +'<div class="ldr-rank">'+(i+1)+'</div>'
+          +'<div style="min-width:0;"><div class="ldr-pname">'+esc(r.n)+'</div>'
+          +'<div class="ldr-pmeta"><span class="lg">'+esc(r.lg)+'</span></div></div>'
+          +'<div class="ldr-scorecol"><div class="ldr-pts '+(side==='F'?'f':'a')+'">'+r.pts.toFixed(1)+'</div>'
+          +(r.fmt?'<span class="ldr-ftag">'+esc(fmtTag(r.fmt))+'</span>':'')
+          +'</div></div>';
+      }).join('');
+    }
+    return '<div class="ldr-wm">'+LDR_WM_SVG+'</div>'
+      +'<div class="ldr-kick">'+esc(kickText)+'</div>'
+      +'<div class="ldr-hero">'+heroHTML+'</div>'
+      +'<div class="ldr-sum"><div class="ldr-sum-num '+(side==='F'?'f':'a')+'">'+sum.toFixed(1)+'</div>'
+      +'<div class="ldr-sum-label">'+lblText+'</div>'
+      +'<div class="ldr-sum-ctx">'+esc(ctxText)+'</div></div>'
+      +'<div class="ldr-rows">'+rowsHTML+'</div>';
+  }
+  function ldrDeskCol(cap,capClass,inner){
+    return '<div class="ldr-deskcol"><div class="ldr-col-cap '+capClass+'">'+cap+'</div>'
+      +'<div class="ldr-phone-frame"><div class="ldr-phone"><div class="ldr-phone-notch"></div><div class="ldr-phone-screen">'
+      +'<div class="ldr-frame-d">'+inner+'</div></div></div></div></div>';
+  }
+  function paintLdrDesktop(all,fIds,aIds,kickText,ctxText){
+    var cols=document.getElementById('ldr-deskcols'); if(!cols)return;
+    cols.innerHTML=ldrDeskCol('Carried Me','f',ldrFrameInner('F',all,fIds,aIds,kickText,ctxText))
+      +ldrDeskCol('Crushed Me','a',ldrFrameInner('A',all,fIds,aIds,kickText,ctxText));
+    /* Demo has no account → drop the email action, divider and hint. */
+    var demo=(typeof window.inDemoMode==='function')&&window.inDemoMode();
+    var btn=document.getElementById('ldr-email-btn'); if(btn)btn.style.display=demo?'none':'';
+    var sep=document.getElementById('ldr-nudge-sep'); if(sep)sep.style.display=demo?'none':'';
+    var hint=document.getElementById('ldr-hint'); if(hint)hint.style.display=demo?'none':'';
+  }
+  function ldrEmailLink(){
+    var email=(window.__account&&window.__account.email)||window.__onboardEmail||'';
+    if(!email){ if(window.showYahooToast)showYahooToast('Sign in first to email yourself a sign-in link.',true); return; }
+    var btn=document.getElementById('ldr-email-btn'),orig=btn?btn.textContent:'';
+    if(btn){btn.disabled=true;btn.textContent='Sending…';}
+    fetch('/api/auth/magic/request',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
+      .then(function(r){ if(btn)btn.textContent=r.ok?'✓ Link sent':'Try again'; if(window.showYahooToast)showYahooToast(r.ok?('We emailed a sign-in link to '+email+' — open it on your phone.'):'Could not send the link right now.',!r.ok); try{if(r.ok&&window.cfTrack)cfTrack('leaders_mobile_link_sent',null);}catch(e){} })
+      .catch(function(){ if(btn)btn.textContent='Try again'; if(window.showYahooToast)showYahooToast('Could not send the link right now.',true); })
+      .finally(function(){ setTimeout(function(){ if(btn){btn.disabled=false;btn.textContent=orig;} },2400); });
+  }
+  window.ldrEmailLink=ldrEmailLink;
+
   /* ── render ────────────────────────────────────────────────────────────── */
   function render(){
     var v=document.getElementById('view-leaders');
@@ -17336,7 +17491,8 @@ if(typeof window.cfRegisterView==='function'){
     var hero=document.getElementById('ldr-hero');
     if(hero)hero.innerHTML=(st.side==='F')?'Who <span class="hi-f">CARRIED</span> Me':'Who <span class="hi-a">CRUSHED</span> Me';
     var kick=document.getElementById('ldr-kick');
-    if(kick)kick.textContent=(st.period==='season')?('SEASON TO DATE · '+st.season):('WEEK '+st.week+' · '+st.season);
+    var kickText=(st.period==='season')?('SEASON TO DATE · '+st.season):('WEEK '+st.week+' · '+st.season);
+    if(kick)kick.textContent=kickText;
 
     /* summary strip */
     var num=document.getElementById('ldr-sum-num');
@@ -17344,15 +17500,14 @@ if(typeof window.cfRegisterView==='function'){
     var lbl=document.getElementById('ldr-sum-label');
     if(lbl)lbl.textContent=(st.topN?('TOP '+shown.length):(shown.length+' PLAYERS'))+' · POINTS '+(st.side==='F'?'SCORED':'AGAINST');
     var ctx=document.getElementById('ldr-sum-ctx');
-    if(ctx){
-      var parts=[];
-      if(st.building)parts.push('BUILDING '+st.season+' · WEEK '+st.done+'/'+st.total);
-      else if(st.loadingWeek)parts.push('LOADING WEEK '+st.week+' · '+st.season);
-      else parts.push(st.period==='season'?('SEASON '+st.season):('WEEK '+st.week+' · '+st.season));
-      parts.push(st.fmt==='all'?'ALL FORMATS':fmtTag(st.fmt));
-      if(st.period==='season'&&st.agg&&st.agg.failed.length&&!st.building)parts.push(st.agg.failed.length+' WK UNAVAILABLE');
-      ctx.textContent=parts.join(' · ');
-    }
+    var ctxParts=[];
+    if(st.building)ctxParts.push('BUILDING '+st.season+' · WEEK '+st.done+'/'+st.total);
+    else if(st.loadingWeek)ctxParts.push('LOADING WEEK '+st.week+' · '+st.season);
+    else ctxParts.push(st.period==='season'?('SEASON '+st.season):('WEEK '+st.week+' · '+st.season));
+    ctxParts.push(st.fmt==='all'?'ALL FORMATS':fmtTag(st.fmt));
+    if(st.period==='season'&&st.agg&&st.agg.failed.length&&!st.building)ctxParts.push(st.agg.failed.length+' WK UNAVAILABLE');
+    var ctxText=ctxParts.join(' · ');
+    if(ctx)ctx.textContent=ctxText;
 
     /* rows */
     var host=document.getElementById('ldr-rows');
@@ -17386,6 +17541,9 @@ if(typeof window.cfRegisterView==='function'){
     var showRetry=(st.period==='season'&&st.agg&&st.agg.failed.length&&!st.building);
     if(retry)retry.style.display=showRetry?'':'none';
     if(rbtn&&showRetry)rbtn.textContent=st.agg.failed.length+' week'+(st.agg.failed.length>1?'s':'')+' unavailable · tap to retry';
+
+    /* Desktop: paint Carried + Crushed boards side by side from the same rows. */
+    paintLdrDesktop(all,fIds,aIds,kickText,ctxText);
 
     /* filters badge (on the shared header's Filters button): off-default
        format and/or season-to-date mode */
