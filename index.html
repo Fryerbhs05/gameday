@@ -13308,7 +13308,7 @@ loadExperimentState();
   var WP_BENCH_KEY = 'gd_wp_include_bench';
   var WP_COLLAPSE_KEY = 'gd_wp_collapsed_slots';
 
-  var initialView = 'maximum';
+  var initialView = 'cheer';   // default view = Cheer Watch (Matt, 2026-07-23)
   try { var sv = localStorage.getItem(WP_VIEW_KEY); if (sv === 'maximum' || sv === 'cheer' || sv === 'hate') initialView = sv; } catch(e){}
   var initialBench = false;
   try { initialBench = localStorage.getItem(WP_BENCH_KEY) === '1'; } catch(e){}
@@ -14009,10 +14009,13 @@ loadExperimentState();
     if (!br.length) br.push('<span class="wpc__chip">No players in this game</span>');
 
     var t = wpTier(s.score, isWeekLeader);
+    /* Tier text labels removed per Matt (2026-07-23) — the accent color still
+       signals priority. Only the Game of the Week keeps its label. */
+    var tierLabel = isWeekLeader ? '<span class="wpc__tier">Game of the Week</span>' : '';
     return '<article class="wpc' + (s.score === 0 ? ' zero' : '') + (isWeekLeader ? ' gotw' : '') + '" data-wp-game="' + esc(g.id) + '" role="button" tabindex="0" style="--accent:' + t.c + '">' +
       '<div class="wpc__num">' + s.score + '</div>' +
       '<div class="wpc__main">' +
-        '<div class="wpc__l1"><span class="wpc__match">' + esc(g.away) + ' <span class="at">@</span> ' + esc(g.home) + '</span><span class="wpc__tier">' + esc(t.label) + '</span></div>' +
+        '<div class="wpc__l1"><span class="wpc__match">' + esc(g.away) + ' <span class="at">@</span> ' + esc(g.home) + '</span>' + tierLabel + '</div>' +
         '<div class="wpc__l2"><span class="wpc__when">' + whenBits.join(' · ') + '</span><span class="wpc__break">' + br.join('') + '</span></div>' +
       '</div>' +
     '</article>';
@@ -14353,8 +14356,8 @@ loadExperimentState();
       '<div class="wp-settings__section">' +
         '<p class="wp-settings__label">Filter scope</p>' +
         '<div class="wp-mustwatch-toggle" role="tablist" aria-label="Filter scope">' +
-          wpBtn('data-wp-mustwatch', 'must', 'Must Watch Games <span class="wp-mw-count" id="wp-mw-count-must">' + (mustWatchSlots > 0 ? mustWatchSlots : '0') + '</span>', state.mustWatch) +
           wpBtn('data-wp-mustwatch', 'all', 'All games <span class="wp-mw-count" id="wp-mw-count-all">' + (allGamesCount > 0 ? allGamesCount : '—') + '</span>', !state.mustWatch) +
+          wpBtn('data-wp-mustwatch', 'must', 'Must Watch Games <span class="wp-mw-count" id="wp-mw-count-must">' + (mustWatchSlots > 0 ? mustWatchSlots : '0') + '</span>', state.mustWatch) +
         '</div>' +
       '</div>' +
       '<div class="wp-settings__footer">' +
@@ -14382,10 +14385,10 @@ loadExperimentState();
       if (window.BottomSheet) window.BottomSheet.close();
       return;
     }
-    /* Sheet reset → defaults (Maximum Investment, Starters only, All games).
+    /* Sheet reset → defaults (Cheer Watch, Starters only, All games).
        Must Watch scope is session-only per the filter-persistence rule. */
     if (e.target.closest('[data-wp-settings-reset]')){
-      state.view = 'maximum';
+      state.view = 'cheer';
       state.includeBench = false;
       state.mustWatch = false;
       try { localStorage.setItem(WP_VIEW_KEY, state.view); } catch(err){}
