@@ -5166,6 +5166,11 @@
   body.wp-desk-preview #view-watch .wp-head__title{display:none;}
   body.wp-desk-preview #wp-desktop{display:block;padding-top:6px;}
   /* Desktop View mode: #wp-desktop stays hidden (base rule), functional shows. */
+  /* In Mobile Preview the view widens to fit the 3-column layout (the functional
+     list stays at --max-width in Desktop View); the period controls stay
+     centered + constrained so they don't stretch the full 1320px. */
+  body.wp-desk-preview #view-watch{max-width:var(--max-width-wide,1320px);}
+  body.wp-desk-preview #view-watch .wp-head__controls{max-width:600px;margin-left:auto;margin-right:auto;}
 
   .wp-layout{display:flex;gap:52px;justify-content:center;align-items:flex-start;max-width:1240px;margin:0 auto;flex-wrap:nowrap;}
   .wp-copy{max-width:360px;flex:none;margin-top:39px;padding:28px 26px;text-align:left;
@@ -5193,12 +5198,25 @@
   .wpd-kick{text-align:center;font-size:9px;letter-spacing:.28em;font-weight:800;color:#8FA3B8;margin-bottom:6px;white-space:nowrap;}
   .wpd-hero{text-align:center;font:800 14px/1.25 var(--font-sans),'Inter',sans-serif;color:#F5EFE4;letter-spacing:-.01em;margin-bottom:12px;}
   /* Standard phone scroll: cap at --cf-phone-scroll-max, scroll internally;
-     wordmark/kicker/hero stay pinned above. The previews are non-interactive
-     (pointer-events:none) — the phone is the real, tappable thing. */
-  .wpd-list{max-height:var(--cf-phone-scroll-max,440px);overflow-y:auto;padding-right:5px;pointer-events:none;}
+     wordmark/kicker/hero stay pinned above. The LIST stays interactive so it
+     can scroll (wheel + scrollbar), but the cards/slot headers/pills are made
+     non-interactive so clicks don't open drawers or toggle slots — the phone is
+     a preview; the real, tappable thing is the user's actual phone. */
+  .wpd-list{max-height:var(--cf-phone-scroll-max,440px);overflow-y:auto;padding-right:5px;}
+  .wpd-list .wpc,.wpd-list .wp-slot__head,.wpd-list .wp-pill{pointer-events:none;}
   .wpd-list::-webkit-scrollbar{width:6px;}
   .wpd-list::-webkit-scrollbar-thumb{background:rgba(122,168,209,.3);border-radius:3px;}
   .wpd-list::-webkit-scrollbar-track{background:transparent;}
+  /* The live game cards are built for a full-width list; inside the ~286px phone
+     the yours/against breakdown chips would run off the right edge (the desktop
+     viewport is ≥900px so the card's own ≤380px wrap rule never fires). Force the
+     second line to wrap + compact the metrics so every card fits the phone. */
+  .wpd-list .wpc{gap:9px;}
+  .wpd-list .wpc__num{min-width:20px;font-size:19px;}
+  .wpd-list .wpc__l1{gap:8px;}
+  .wpd-list .wpc__l2{flex-wrap:wrap;gap:3px 8px;margin-top:5px;}
+  .wpd-list .wpc__when{white-space:normal;}
+  .wpd-list .wpc__break{gap:8px;flex-wrap:wrap;}
 
   .wp-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
     padding:9px 10px 9px 16px;border:1px solid rgba(43,111,168,.35);border-radius:999px;background:#15293E;}
@@ -5211,8 +5229,10 @@
   .wp-nudge-btn[disabled]{opacity:.6;cursor:default;}
   .wp-hint{margin:12px 0 0;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:#6E8296;}
 }
-/* 900–1199px: copy stacks on top (centered); the two phones sit side by side */
-@media (min-width:900px) and (max-width:1199px){
+/* 900–1319px: not enough room for the 3-column row (copy + two 340px phones ≈
+   1240px), so copy stacks on top (centered) and the two phones sit side by side.
+   True 3-across only ≥1320px, where the widened container fits it centered. */
+@media (min-width:900px) and (max-width:1319px){
   .wp-layout{flex-direction:column;align-items:center;gap:36px;}
   .wp-copy{max-width:560px;text-align:center;margin-top:0;}
 }
@@ -5259,7 +5279,7 @@
         <div class="wp-eyebrow">Watch priority</div>
         <h2>Know which screen matters.</h2>
         <p>Every NFL game ranked by how many of your players are on the field — so on a crowded Sunday you always know <span class="hl">which game to put front and center</span> and which to leave on mute.</p>
-        <p>Watch priority is built for your phone, where you actually manage game day across <span class="hl">all your leagues</span>. This is a preview of two of the three views — open it on your phone for the full, tappable version with Hate Watch.</p>
+        <p>Watch priority is built for your phone, where you actually manage game day across <span class="hl">all your leagues</span>. This is a preview — open it on your phone for the full, tappable version.</p>
         <div class="wp-nudge" id="wp-nudge">
           <span class="wp-nudge-label">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
@@ -14121,7 +14141,7 @@ loadExperimentState();
     var hint = document.getElementById('wp-hint'); if (hint) hint.style.display = demo ? 'none' : '';
     cols.innerHTML =
       wpDeskCol('Maximum investment', 'max', wpPhoneInner('WATCH PRIORITY', 'Every game with your players', 'maximum')) +
-      wpDeskCol('Cheer watch', 'cheer', wpPhoneInner('WATCH PRIORITY', 'Games to root for', 'cheer'));
+      wpDeskCol('Your Guys Only', 'cheer', wpPhoneInner('WATCH PRIORITY', 'Games to root for', 'cheer'));
   }
 
   function wpEmailLink(){
