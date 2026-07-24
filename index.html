@@ -3741,19 +3741,26 @@
 <body>
 
 <!-- ══════════════════════════════════════════════════════════════════════
-     TEMP — Yahoo API outage banner (re-added 2026-07-24, Matt).
-     Yahoo has again dropped our Fantasy Sports read permission app-side, so
-     all Yahoo league data comes back empty (runtime logs: /api/yahoo/data
-     returning 403 "This application is not authorized to perform this
-     action", most recent confirmed 2026-07-24 ~20:41 UTC). Self-contained,
-     dismissible fixed top banner shown on every screen incl. the Yahoo
-     connect flow, regardless of whether the user has a Yahoo league.
-     Dismissal is session-only (sessionStorage) so it returns next visit
-     while the outage persists. body.cf-outage-on reserves a JS-measured
-     --cf-outage-h padding-top and parks the sticky header just below it.
-     REMOVE this whole block (style + div + IIFE) + this note once Yahoo
-     restores the app's read permission. (Originally v109; removed v110 when
-     Yahoo briefly restored, now recurred.) -->
+     Yahoo API outage banner — AUTO-DETECTING (v132, 2026-07-24, Matt).
+     Yahoo intermittently denies the app's Fantasy Sports read at the API
+     layer (403 body "This application is not authorized to perform this
+     action") AFTER OAuth succeeds — a Yahoo-side transient we can't fix in
+     the console; it has self-healed each time (first seen 2026-07-22, again
+     2026-07-24). Rather than hand-toggling this banner per outage, it now
+     shows/hides ITSELF: the Yahoo fetch layer (yhFetch + provider
+     checkStatus) reports every /api/yahoo/data outcome to
+     window.cfYahooStatus(), which raises the banner on a 403-not-authorized
+     and drops it the moment a 200 returns. It also logs each status FLIP via
+     cfTrack('yahoo_api_status') so the scheduled uptime monitor can chart
+     403/200 over time (readback: db/yahoo-api-monitor.sql). Because it's
+     keyed to real API results, it only appears for users actually being
+     denied (i.e. those with a Yahoo league) — not everyone.
+     Self-contained: style#cf-yahoo-outage-style + div#cf-yahoo-outage +
+     controller IIFE. Session-only manual dismissal (sessionStorage
+     cfYahooOutageDismissed_v1), auto-re-armed on recovery so a later outage
+     the same session still surfaces. body.cf-outage-on reserves a
+     JS-measured --cf-outage-h padding-top and parks the sticky header below.
+     Safe to leave in place permanently; it's inert whenever Yahoo is 200. -->
 <style id="cf-yahoo-outage-style">
   #cf-yahoo-outage{
     position:fixed; top:0; left:0; right:0; z-index:101;
@@ -3803,28 +3810,43 @@
     var el=document.getElementById('cf-yahoo-outage');
     if(!el) return;
     var body=document.body;
-    var dismissed=false;
+    var shown=false, dismissed=false, lastCode=null;
     try{ dismissed=sessionStorage.getItem(KEY)==='1'; }catch(e){}
-    if(dismissed){ return; }
-    function measure(){
-      body.style.setProperty('--cf-outage-h', el.offsetHeight+'px');
-    }
+    function measure(){ body.style.setProperty('--cf-outage-h', el.offsetHeight+'px'); }
     function show(){
-      el.hidden=false;
-      body.classList.add('cf-outage-on');
-      measure();
+      if(shown||dismissed) return;
+      el.hidden=false; body.classList.add('cf-outage-on'); measure(); shown=true;
+      // Re-measure after fonts/layout settle so the header offset is exact.
+      setTimeout(function(){ if(shown) measure(); },300);
     }
-    function hide(){
-      el.hidden=true;
-      body.classList.remove('cf-outage-on');
-      try{ sessionStorage.setItem(KEY,'1'); }catch(e){}
+    function hide(isAuto){
+      el.hidden=true; body.classList.remove('cf-outage-on'); shown=false;
+      if(!isAuto){ dismissed=true; try{ sessionStorage.setItem(KEY,'1'); }catch(e){} }
     }
     var closeBtn=el.querySelector('.cf-outage-close');
-    if(closeBtn) closeBtn.addEventListener('click',hide);
-    window.addEventListener('resize',function(){ if(!el.hidden) measure(); });
-    show();
-    // Re-measure after fonts/layout settle so the header offset is exact.
-    setTimeout(function(){ if(!el.hidden) measure(); },400);
+    if(closeBtn) closeBtn.addEventListener('click',function(){ hide(false); });
+    window.addEventListener('resize',function(){ if(shown) measure(); });
+
+    /* Called by the Yahoo fetch layer (yhFetch + provider checkStatus) with
+       every /api/yahoo/data result. status = HTTP code; detail = Yahoo's
+       error body text (carries "not authorized" on the app-level 403). */
+    window.cfYahooStatus=function(status, detail, endpoint){
+      var denied = (status===403) && /not\s+authorized/i.test(detail||'');
+      var code = denied ? 'denied' : (status===200 ? 'ok' : ('http_'+status));
+      // Log only on a FLIP (incl. the session's first observation) so the
+      // uptime monitor gets clean transition points, not one row per call.
+      if(code!==lastCode){
+        lastCode=code;
+        try{ if(window.cfTrack) cfTrack('yahoo_api_status',{status:code, http:status||0, endpoint:endpoint||null}); }catch(e){}
+      }
+      if(denied){ show(); }
+      else if(status===200){
+        if(shown) hide(true);              // Yahoo recovered → drop the banner
+        if(dismissed){                     // re-arm: a LATER outage can resurface
+          dismissed=false; try{ sessionStorage.removeItem(KEY); }catch(e){}
+        }
+      }
+    };
   })();
 </script>
 
@@ -7973,8 +7995,15 @@ function yhFlatten(arr) {
   return out;
 }
 async function yhFetch(query) {
+  const ep = (query.match(/endpoint=([a-z_]+)/) || [])[1] || null;
   const r = await fetch('/api/yahoo/data?' + query, { credentials: 'include' });
-  if (!r.ok) throw new Error('Yahoo ' + query + ' → ' + r.status);
+  if (!r.ok) {
+    let detail = '';
+    try { const j = await r.clone().json(); detail = (j && (j.detail || j.error)) || ''; } catch (e) {}
+    try { if (window.cfYahooStatus) cfYahooStatus(r.status, detail, ep); } catch (e) {}
+    throw new Error('Yahoo ' + query + ' → ' + r.status);
+  }
+  try { if (window.cfYahooStatus) cfYahooStatus(200, '', ep); } catch (e) {}
   return await r.json();
 }
 function parseYahooLeagues(json, season) {
@@ -10526,7 +10555,8 @@ const PROVIDERS={
     async checkStatus(){
       try{
         const r=await fetch('/api/yahoo/data?endpoint=games',{credentials:'include'});
-        if(r.ok){connectionState.yahoo={connected:true,identity:'yahoo-session',displayName:'Yahoo User'};return connectionState.yahoo;}
+        if(r.ok){try{if(window.cfYahooStatus)cfYahooStatus(200,'','games');}catch(e){}connectionState.yahoo={connected:true,identity:'yahoo-session',displayName:'Yahoo User'};return connectionState.yahoo;}
+        else{let detail='';try{const j=await r.clone().json();detail=(j&&(j.detail||j.error))||'';}catch(e){}try{if(window.cfYahooStatus)cfYahooStatus(r.status,detail,'games');}catch(e){}}
       }catch(e){}
       connectionState.yahoo={connected:false,identity:null,displayName:null};
       return connectionState.yahoo;
