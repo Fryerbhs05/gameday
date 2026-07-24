@@ -3740,6 +3740,94 @@
 </head>
 <body>
 
+<!-- ══════════════════════════════════════════════════════════════════════
+     TEMP — Yahoo API outage banner (re-added 2026-07-24, Matt).
+     Yahoo has again dropped our Fantasy Sports read permission app-side, so
+     all Yahoo league data comes back empty (runtime logs: /api/yahoo/data
+     returning 403 "This application is not authorized to perform this
+     action", most recent confirmed 2026-07-24 ~20:41 UTC). Self-contained,
+     dismissible fixed top banner shown on every screen incl. the Yahoo
+     connect flow, regardless of whether the user has a Yahoo league.
+     Dismissal is session-only (sessionStorage) so it returns next visit
+     while the outage persists. body.cf-outage-on reserves a JS-measured
+     --cf-outage-h padding-top and parks the sticky header just below it.
+     REMOVE this whole block (style + div + IIFE) + this note once Yahoo
+     restores the app's read permission. (Originally v109; removed v110 when
+     Yahoo briefly restored, now recurred.) -->
+<style id="cf-yahoo-outage-style">
+  #cf-yahoo-outage{
+    position:fixed; top:0; left:0; right:0; z-index:101;
+    display:flex; align-items:center; gap:10px;
+    padding:9px calc(12px + env(safe-area-inset-right,0px)) 9px calc(14px + env(safe-area-inset-left,0px));
+    background:var(--surf-panel,#122A40);
+    color:var(--surf-text,#F5EFE4);
+    border-bottom:1px solid var(--surf-border,#1A3A52);
+    box-shadow:0 1px 0 rgba(0,0,0,.25), 0 6px 18px rgba(0,0,0,.22);
+    font:500 13px/1.4 'Inter',system-ui,-apple-system,sans-serif;
+    padding-top:calc(9px + env(safe-area-inset-top,0px));
+  }
+  #cf-yahoo-outage[hidden]{ display:none; }
+  #cf-yahoo-outage .cf-outage-dot{
+    flex:0 0 auto; width:9px; height:9px; border-radius:50%;
+    background:var(--surf-amber,#E0A82E);
+    box-shadow:0 0 0 0 rgba(224,168,46,.55);
+    animation:cfOutagePulse 1.8s ease-out infinite;
+  }
+  @keyframes cfOutagePulse{
+    0%{ box-shadow:0 0 0 0 rgba(224,168,46,.55); }
+    70%{ box-shadow:0 0 0 7px rgba(224,168,46,0); }
+    100%{ box-shadow:0 0 0 0 rgba(224,168,46,0); }
+  }
+  @media (prefers-reduced-motion:reduce){ #cf-yahoo-outage .cf-outage-dot{ animation:none; } }
+  #cf-yahoo-outage .cf-outage-msg{ flex:1 1 auto; min-width:0; }
+  #cf-yahoo-outage .cf-outage-msg strong{ color:#fff; font-weight:700; }
+  #cf-yahoo-outage .cf-outage-msg .cf-outage-sub{ color:var(--surf-muted,#A8B5C2); }
+  #cf-yahoo-outage .cf-outage-close{
+    flex:0 0 auto; appearance:none; -webkit-appearance:none; cursor:pointer;
+    width:26px; height:26px; border-radius:7px; border:1px solid var(--surf-border,#1A3A52);
+    background:transparent; color:var(--surf-muted,#A8B5C2); line-height:1;
+    font-size:16px; display:flex; align-items:center; justify-content:center;
+  }
+  #cf-yahoo-outage .cf-outage-close:hover{ color:var(--surf-text,#F5EFE4); background:rgba(255,255,255,.06); }
+  body.cf-outage-on{ padding-top:var(--cf-outage-h,44px); }
+  body.cf-outage-on .site-header{ top:var(--cf-outage-h,44px); }
+</style>
+<div id="cf-yahoo-outage" role="status" aria-live="polite" hidden>
+  <span class="cf-outage-dot" aria-hidden="true"></span>
+  <span class="cf-outage-msg"><strong>Yahoo leagues are temporarily paused.</strong> <span class="cf-outage-sub">Yahoo's fantasy data service isn't returning league info right now — a temporary issue on their end. Your ESPN and Sleeper leagues are unaffected.</span></span>
+  <button class="cf-outage-close" type="button" aria-label="Dismiss">&times;</button>
+</div>
+<script>
+  (function(){
+    var KEY='cfYahooOutageDismissed_v1';
+    var el=document.getElementById('cf-yahoo-outage');
+    if(!el) return;
+    var body=document.body;
+    var dismissed=false;
+    try{ dismissed=sessionStorage.getItem(KEY)==='1'; }catch(e){}
+    if(dismissed){ return; }
+    function measure(){
+      body.style.setProperty('--cf-outage-h', el.offsetHeight+'px');
+    }
+    function show(){
+      el.hidden=false;
+      body.classList.add('cf-outage-on');
+      measure();
+    }
+    function hide(){
+      el.hidden=true;
+      body.classList.remove('cf-outage-on');
+      try{ sessionStorage.setItem(KEY,'1'); }catch(e){}
+    }
+    var closeBtn=el.querySelector('.cf-outage-close');
+    if(closeBtn) closeBtn.addEventListener('click',hide);
+    window.addEventListener('resize',function(){ if(!el.hidden) measure(); });
+    show();
+    // Re-measure after fonts/layout settle so the header offset is exact.
+    setTimeout(function(){ if(!el.hidden) measure(); },400);
+  })();
+</script>
+
 <!-- ── Boot splash (covers the resume reload; faded out by endBoot()) ── -->
 <div id="boot-splash" aria-hidden="true">
   <div class="boot-splash__inner">
