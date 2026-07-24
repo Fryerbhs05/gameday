@@ -3561,14 +3561,10 @@
     .wp-spotlight__at { opacity: 0.65; font-weight: 500; padding: 0 3px; }
 
     /* ── Game of the Week (in-slot) ──────────────────────────────
-       The leader's slot header turns coral (replacing the old top-of-page
-       marquee strip), the leader card gets a coral frame, and an inline
-       "Game of the Week" chip sits between the matchup and the player chip. */
-    .wp-slot--gotw .wp-slot__head { background: var(--surf-coral); border-bottom-color: rgba(15,27,38,0.30); }
-    .wp-slot--gotw .wp-slot__head:hover { background: var(--surf-coral-deep); }
-    .wp-slot--gotw .wp-slot__title { color: var(--surf-text); }
-    .wp-slot--gotw .wp-slot__caret { color: rgba(245,239,228,0.85); }
-    .wp-slot--gotw .wp-slot__meta { color: rgba(245,239,228,0.85); }
+       The GOTW is identified by the card's own coral accent + full-width
+       "Game of the Week" banner row; its slot header is intentionally left
+       unstyled so it matches every other slot (the coral slot-header treatment
+       was removed 2026-07-24 as redundant). */
     /* Coral frame on the card — navy interior kept, coral border + soft glow. */
     .wp-spotlight--gotw { border-color: var(--surf-coral); box-shadow: 0 0 0 1px var(--surf-coral), 0 8px 24px -16px rgba(216,90,48,0.55); }
     .wp-spotlight--gotw:hover { border-color: var(--surf-coral-bright); box-shadow: 0 0 0 1px var(--surf-coral-bright), 0 8px 24px -14px rgba(216,90,48,0.55); }
@@ -14161,9 +14157,10 @@ loadExperimentState();
       }
       if (done) metaPieces.push('Final');
 
-      var slotIsWeekLeader = !!(weekLeader && top && weekLeader.id === top.id);
-
-      html += '<section class="wp-slot' + (collapsed?' is-collapsed':'') + (slotIsWeekLeader?' wp-slot--gotw':'') + '" id="wp-slot-' + cssIdSafe(s.key) + '" data-wp-slot="' + esc(s.key) + '">';
+      /* The slot header no longer gets a coral treatment for the Game-of-the-Week
+         slot — the GOTW is now identified by the card's own banner, so its slot
+         header (e.g. "Sunday Early") matches every other slot (Matt, 2026-07-24). */
+      html += '<section class="wp-slot' + (collapsed?' is-collapsed':'') + '" id="wp-slot-' + cssIdSafe(s.key) + '" data-wp-slot="' + esc(s.key) + '">';
       html +=   '<header class="wp-slot__head" data-wp-slot-toggle="' + esc(s.key) + '">';
       html +=     '<span class="wp-slot__title"><span class="wp-slot__caret">▾</span>' + esc(s.label) + '</span>';
       html +=     '<span class="wp-slot__meta">' + esc(metaPieces.join(' · ')) + '</span>';
@@ -14174,8 +14171,8 @@ loadExperimentState();
          one low-height card, sorted by score (sortedGames). Must Watch narrows
          to the single top game in each time window (its original behavior —
          one focused pick per slot); All games shows the whole slate (zero-player
-         games dimmed). The GOTW card gets the coral accent + its slot header
-         stays coral (.wp-slot--gotw). */
+         games dimmed). The GOTW card gets the coral accent + its own banner; its
+         slot header is unstyled like every other slot. */
       var gamesToShow = state.mustWatch
         ? (top && topScored.score > 0 ? [top] : [])
         : s.sortedGames;
