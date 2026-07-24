@@ -1321,6 +1321,11 @@
        paper theme. Only views that opt in via a bar class show it. */
     .pb-view-head { display: none; margin-bottom: 14px; }
     #cf-period-bar.pb-exposure .pb-view-head { display: block; }
+    #cf-period-bar.pb-watch .pb-view-head { display: block; }
+    /* Watch Priority now drives the shared bar (unified 2026-07-23); its old
+       in-view header (title + duplicate period stepper) is retired in favour of
+       the shared frame above the view. */
+    body.wp-active .wp-head { display: none; }
     .pb-view-head h2 { font: 900 28px/1.05 var(--font-sans); margin: 0 0 4px; color: var(--ink-900); letter-spacing: -0.02em; }
     .pb-view-head p { font: 700 11px/1.4 var(--font-sans); color: var(--ink-500); margin: 0; max-width: 56ch; letter-spacing: .03em; }
 
@@ -4342,12 +4347,12 @@
          stepper from the view-aware Filters button. -->
     <div class="nav-controls">
       <div class="pb-stepper">
-        <button class="pb-arrow" id="week-prev" onclick="changeWeek(-1)" aria-label="Previous week">‹</button>
+        <button class="pb-arrow" id="week-prev" onclick="window.changeWeek(-1)" aria-label="Previous week">‹</button>
         <div class="pb-period">
-          <select class="nav-select week-select" id="week-select" onchange="changeWeekTo(+this.value)" aria-label="Week"></select>
-          <select class="nav-select season-select" id="season-select" onchange="changeSeason(this.value)" aria-label="Season"></select>
+          <select class="nav-select week-select" id="week-select" onchange="window.changeWeekTo(+this.value)" aria-label="Week"></select>
+          <select class="nav-select season-select" id="season-select" onchange="window.changeSeason(this.value)" aria-label="Season"></select>
         </div>
-        <button class="pb-arrow" id="week-next" onclick="changeWeek(+1)" aria-label="Next week">›</button>
+        <button class="pb-arrow" id="week-next" onclick="window.changeWeek(+1)" aria-label="Next week">›</button>
       </div>
       <div class="nav-divider"></div>
       <span class="nav-ctx" id="nav-context-label" style="display:none"></span>
@@ -5266,6 +5271,10 @@
      centered + constrained so they don't stretch the full 1320px. */
   body.wp-desk-preview #view-watch{max-width:var(--max-width-wide,1320px);}
   body.wp-desk-preview #view-watch .wp-head__controls{max-width:600px;margin-left:auto;margin-right:auto;}
+  /* In Mobile Preview the copy column carries its own headline, so the shared
+     bar's title is redundant — hide it (mirrors the Exposure preview). The
+     stepper itself stays; it's already centered by the desktop :not() rule. */
+  body.wp-desk-preview #cf-period-bar.pb-watch .pb-view-head{display:none;}
 
   .wp-layout{display:flex;gap:52px;justify-content:center;align-items:flex-start;max-width:1240px;margin:0 auto;flex-wrap:nowrap;}
   .wp-copy{max-width:360px;flex:none;margin-top:39px;padding:28px 26px;text-align:left;
@@ -6004,7 +6013,7 @@ window.cfRegisterView({
   id:'view-watch',
   isOpen:function(){return !!window.__conflictedWatchOpen;},
   render:function(){if(typeof window.renderWatchView==='function')window.renderWatchView();},
-  onShow:function(){document.body.classList.add('wp-active');}
+  onShow:function(){document.body.classList.add('wp-active');try{if(typeof window.cfShowPeriodBar==='function')window.cfShowPeriodBar();}catch(e){}}
 });
 window.cfRegisterView({
   id:'view-snapshot',
@@ -6557,6 +6566,21 @@ window.cfShowPeriodBar=function(){
     b.classList.toggle('pb-leaders',!!window.__cfLeadersOpen);
     b.classList.toggle('pb-snapshot',!!window.__cfSnapshotOpen);
     b.classList.toggle('pb-exposure',!!window.__conflictedExposureOpen);
+    b.classList.toggle('pb-watch',!!window.__conflictedWatchOpen);
+    /* The optional view title (pb-view-head) is shared by Exposure and Watch —
+       set its text to match whichever view owns the bar so it never shows the
+       other view's heading after a hop. */
+    var pvh=document.getElementById('pb-view-head');
+    if(pvh){
+      var pvhH=pvh.querySelector('h2'), pvhP=pvh.querySelector('p');
+      if(window.__conflictedWatchOpen){
+        if(pvhH)pvhH.textContent='Watch priority';
+        if(pvhP)pvhP.textContent='NFL games ranked by how many of your players are on the field.';
+      }else if(window.__conflictedExposureOpen){
+        if(pvhH)pvhH.textContent='Exposure map';
+        if(pvhP)pvhP.textContent='The players you start most often across your leagues.';
+      }
+    }
   }
   try{if(typeof window.cfSyncHeaderFilters==='function')window.cfSyncHeaderFilters();}catch(e){}
 };
@@ -7335,6 +7359,14 @@ function cfSyncHeaderFilters(){
     cfSyncFilterActive();
     return;
   }
+  /* Watch Priority always shows Filters — its Layout/View/Roster/Filter-scope
+     controls live behind the button, same as Exposure. */
+  if(window.__conflictedWatchOpen){
+    if(bar)bar.classList.add('visible');
+    updateFilterButton();
+    cfSyncFilterActive();
+    return;
+  }
   if(bar)bar.classList.toggle('visible',leagueNamesCache.length>=2||cfLiveToggleVisible());
   updateFilterButton();
   cfSyncFilterActive();
@@ -7353,6 +7385,7 @@ function cfLiveToggleVisible(){
 function cfOpenHeaderFilters(){
   if(window.__cfLeadersOpen&&typeof window.__ldrOpenFilters==='function'){window.__ldrOpenFilters();return;}
   if(window.__conflictedExposureOpen&&typeof window.__expOpenFilters==='function'){window.__expOpenFilters();return;}
+  if(window.__conflictedWatchOpen&&typeof window.__wpOpenFilters==='function'){window.__wpOpenFilters();return;}
   openLeagueFilterSheet();
 }
 window.cfOpenHeaderFilters=cfOpenHeaderFilters;
@@ -14616,6 +14649,10 @@ loadExperimentState();
     document.body.classList.add('wp-active');
     applyWpViewModeClass();
     window.__conflictedWatchOpen = true;
+    /* WP now uses the shared #cf-period-bar (unified 2026-07-23). hideAllForWatch
+       ran hideAll() which hid the bar, so bring it back and let cfShowPeriodBar
+       tag it .pb-watch + set the title. */
+    try{if(typeof window.cfShowPeriodBar==='function')window.cfShowPeriodBar();}catch(e){}
     /* Use current dashboard activeSeason/activeWeek — read the live `let`
        bindings via accessors; window.activeWeek/activeSeason are undefined. */
     var season = (typeof window.getActiveSeason === 'function') ? window.getActiveSeason() : (new Date()).getFullYear();
@@ -14711,6 +14748,9 @@ loadExperimentState();
       window.BottomSheet.open(html, { owner: 'watch-settings' });
     }
   }
+  /* Exposed so the shared period bar's Filters button (cfOpenHeaderFilters)
+     can open the WP settings sheet when Watch Priority owns the bar. */
+  window.__wpOpenFilters = openWatchSettingsSheet;
 
   /* ── Event wiring ──────────────────────────────────────────── */
   document.addEventListener('click', function(e){
@@ -14841,7 +14881,7 @@ loadExperimentState();
      from the prior week (the bug Matt hit: NO @ DET showing as Game of the
      Week on both week 1 and week 4 because old games persisted in state).
      After clearing, we fire a fresh fetch and re-render once it lands. */
-  ['changeWeekTo','changeSeason'].forEach(function(fn){
+  ['changeWeek','changeWeekTo','changeSeason'].forEach(function(fn){
     var orig = window[fn];
     if (typeof orig !== 'function') return;
     window[fn] = function(){
