@@ -13867,12 +13867,13 @@ loadExperimentState();
       html +=   '<div class="wp-slot__body">';
 
       /* Unified compact cards (2026-07-23): every game in the slot renders as
-         one low-height card, sorted by score (sortedGames). Must Watch shows
-         only games with players; All games shows the whole slate (zero-player
-         games dimmed). The GOTW card gets the coral 'must watch' accent + its
-         slot header stays coral (.wp-slot--gotw). */
+         one low-height card, sorted by score (sortedGames). Must Watch narrows
+         to the single top game in each time window (its original behavior —
+         one focused pick per slot); All games shows the whole slate (zero-player
+         games dimmed). The GOTW card gets the coral accent + its slot header
+         stays coral (.wp-slot--gotw). */
       var gamesToShow = state.mustWatch
-        ? s.sortedGames.filter(function(g){ return (scoredByGameId[g.id] || { score: 0 }).score > 0; })
+        ? (top && topScored.score > 0 ? [top] : [])
         : s.sortedGames;
 
       if (!state.mustWatch && totalInvolved === 0){
