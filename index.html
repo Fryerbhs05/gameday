@@ -17261,6 +17261,11 @@ if(typeof window.cfRegisterView==='function'){
     /* Exposure is now a single-row frame (position filters moved to the sheet);
        just centre + constrain it like the others. */
     #cf-period-bar.pb-exposure .nav-controls{max-width:600px;margin:0 auto;}
+    /* GameDay/dashboard + Watch Priority use the plain one-row bar (no pb-*
+       view class), so match them to the same standard: centre + constrain the
+       week/season controls to 600px on desktop. Scoped by :not() so the three
+       special views keep their own rules above. */
+    #cf-period-bar:not(.pb-leaders):not(.pb-snapshot):not(.pb-exposure) .nav-controls{max-width:600px;margin:0 auto;}
   }
   .ldr-seg{display:flex;background:#15293E;
     border:1px solid var(--navy-300,#2B6FA8);border-radius:12px;padding:3px;gap:3px;}
