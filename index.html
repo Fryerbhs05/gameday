@@ -3384,7 +3384,10 @@
        tier-accent bar · priority number · matchup + tier · kickoff/network +
        yours/against/conflicted breakdown. Tap opens the game drawer (who's in
        it) via the existing data-wp-game hook. Navy surf palette (dark-only). */
-    .wpc { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    /* Card is a vertical stack: an optional Game-of-the-Week banner row on top,
+       then the main .wpc__row (number · matchup · breakdown). Non-GOTW cards have
+       a single child so gap has no effect — they render exactly as before. */
+    .wpc { position: relative; display: flex; flex-direction: column; gap: 8px; width: 100%; text-align: left;
       padding: 8px 12px 8px 15px; background: linear-gradient(160deg, var(--surf-panel), var(--surf-panel-2));
       border: 1px solid var(--surf-border); border-radius: 10px; cursor: pointer; font-family: var(--font-sans);
       transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
@@ -3393,25 +3396,30 @@
     .wpc::before { content: ''; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 0 2px 2px 0; background: var(--accent, #46586b); }
     .wpc.zero { opacity: 0.5; }
     .wpc.gotw { border-color: #E88761; }
+    .wpc__row { display: flex; align-items: center; gap: 12px; width: 100%; }
+    /* Game of the Week: a full-width centered coral strip on its own top row,
+       matching the GOTW slot header. Adds ~one row of height so the card stands
+       slightly taller than the rest. */
+    .wpc__gotw-banner { align-self: stretch; text-align: center; font: 800 9px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: #0F1B26; background: var(--accent, #E88761); padding: 5px 9px; border-radius: 5px; }
     .wpc__num { font: 900 21px/1 var(--font-sans); color: var(--accent, #F5EFE4); min-width: 24px; text-align: center; font-variant-numeric: tabular-nums; }
     .wpc__main { flex: 1; min-width: 0; }
     .wpc__l1 { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
     .wpc__match { font: 800 14px/1.2 var(--font-sans); color: var(--surf-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .wpc__match .at { color: var(--surf-muted); font-weight: 600; }
     .wpc__tier { flex: none; font: 800 9px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent, #F5EFE4); white-space: nowrap; }
-    .wpc__l2 { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
-    .wpc__when { font: 600 10px/1 var(--font-mono); letter-spacing: .03em; text-transform: uppercase; color: var(--surf-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .wpc__l2 { display: flex; align-items: center; margin-top: 4px; }
+    .wpc__when { flex: 1; font: 600 10px/1 var(--font-mono); letter-spacing: .03em; text-transform: uppercase; color: var(--surf-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     .wpc__when .wpc__net { color: #7AA8D1; }
     .wpc__when .wpc__live { color: var(--surf-coral-bright, #E88761); font-weight: 700; }
-    .wpc__break { display: flex; align-items: center; gap: 10px; flex: none; }
+    /* Breakdown is a VERTICAL column on the card's right edge (yours / vs / conf
+       stacked), so it never wraps or gets shunted to a second row regardless of
+       viewport (Matt, 2026-07-24). Divider hairline separates it from the main
+       column; the card's own align-items:center keeps it vertically centered. */
+    .wpc__break { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; flex: none; padding-left: 11px; border-left: 1px solid var(--surf-border); }
     .wpc__chip { display: inline-flex; align-items: center; gap: 5px; font: 600 10px/1 var(--font-sans); color: var(--surf-muted); white-space: nowrap; }
     .wpc__chip .wpc__n { color: var(--surf-text); font-weight: 800; }
     .wpc__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
     .wpc__dot.cheer { background: #5DCAA5; } .wpc__dot.enemy { background: #E07A6E; } .wpc__dot.conf { background: #E9B84A; }
-    @media (max-width: 560px) {
-      .wpc__l2 { flex-wrap: wrap; gap: 4px 10px; }
-      .wpc__when { white-space: normal; }
-    }
 
     /* ── Must Watch toggle (filter scope) ─────────────────────── */
     .wp-mustwatch-toggle { display: inline-flex; border: 1px solid var(--surf-border); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--surf-panel); }
@@ -5332,12 +5340,6 @@
      a preview; the real, tappable thing is the user's actual phone. */
   .wpd-list{flex:1;min-height:0;overflow-y:auto;padding-right:5px;}
   .wpd-list .wpc,.wpd-list .wp-slot__head,.wpd-list .wp-pill{pointer-events:none;}
-  /* The card's fit-to-phone layout lives in @media(max-width:560px) — VIEWPORT
-     based, so it never fires inside the 390px canvas on a ≥900px desktop. Force
-     the same wrap here so the kickoff line + yours/vs breakdown wrap to their own
-     lines instead of overrunning the canvas edge. */
-  .wpd-list .wpc__l2{flex-wrap:wrap;gap:4px 10px;}
-  .wpd-list .wpc__when{white-space:normal;}
   .wpd-list::-webkit-scrollbar{width:6px;}
   .wpd-list::-webkit-scrollbar-thumb{background:rgba(122,168,209,.3);border-radius:3px;}
   .wpd-list::-webkit-scrollbar-track{background:transparent;}
@@ -14377,20 +14379,26 @@ loadExperimentState();
       else enemy++;
     });
     var br = [];
-    if (cheer) br.push('<span class="wpc__chip"><span class="wpc__dot cheer"></span><span class="wpc__n">' + cheer + '</span> yours</span>');
-    if (enemy) br.push('<span class="wpc__chip"><span class="wpc__dot enemy"></span><span class="wpc__n">' + enemy + '</span> vs</span>');
-    if (conf)  br.push('<span class="wpc__chip"><span class="wpc__dot conf"></span><span class="wpc__n">' + conf + '</span> conf</span>');
+    if (cheer) br.push('<span class="wpc__chip"><span class="wpc__dot cheer"></span><span class="wpc__n">' + cheer + '</span> Cheer</span>');
+    if (enemy) br.push('<span class="wpc__chip"><span class="wpc__dot enemy"></span><span class="wpc__n">' + enemy + '</span> Enemy</span>');
+    if (conf)  br.push('<span class="wpc__chip"><span class="wpc__dot conf"></span><span class="wpc__n">' + conf + '</span> Conflicted</span>');
     if (!br.length) br.push('<span class="wpc__chip">No players in this game</span>');
 
     var t = wpTier(s.score, isWeekLeader);
     /* Tier text labels removed per Matt (2026-07-23) — the accent color still
-       signals priority. Only the Game of the Week keeps its label. */
-    var tierLabel = isWeekLeader ? '<span class="wpc__tier">Game of the Week</span>' : '';
+       signals priority. The Game of the Week keeps its label, now as its own
+       banner row at the TOP of the card (Matt, 2026-07-24) so that card sits a
+       touch taller than the rest. */
+    var banner = isWeekLeader ? '<div class="wpc__gotw-banner">Game of the Week</div>' : '';
     return '<article class="wpc' + (s.score === 0 ? ' zero' : '') + (isWeekLeader ? ' gotw' : '') + '" data-wp-game="' + esc(g.id) + '" role="button" tabindex="0" style="--accent:' + t.c + '">' +
-      '<div class="wpc__num">' + s.score + '</div>' +
-      '<div class="wpc__main">' +
-        '<div class="wpc__l1"><span class="wpc__match">' + esc(g.away) + ' <span class="at">@</span> ' + esc(g.home) + '</span>' + tierLabel + '</div>' +
-        '<div class="wpc__l2"><span class="wpc__when">' + whenBits.join(' · ') + '</span><span class="wpc__break">' + br.join('') + '</span></div>' +
+      banner +
+      '<div class="wpc__row">' +
+        '<div class="wpc__num">' + s.score + '</div>' +
+        '<div class="wpc__main">' +
+          '<div class="wpc__l1"><span class="wpc__match">' + esc(g.away) + ' <span class="at">@</span> ' + esc(g.home) + '</span></div>' +
+          '<div class="wpc__l2"><span class="wpc__when">' + whenBits.join(' · ') + '</span></div>' +
+        '</div>' +
+        '<div class="wpc__break">' + br.join('') + '</div>' +
       '</div>' +
     '</article>';
   }
