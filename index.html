@@ -5192,31 +5192,28 @@
   .wp-phone{width:340px;border-radius:42px;padding:13px;position:relative;
     background:linear-gradient(160deg,#1c2c3c,#0c151f);border:1px solid #26384a;box-shadow:0 40px 80px -26px rgba(0,0,0,.6);}
   .wp-phone-notch{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:104px;height:24px;background:#0a121b;border-radius:999px;z-index:3;}
-  .wp-phone-screen{background:var(--surf-bg,#0b1420);border-radius:31px;overflow:hidden;padding:44px 14px 14px;}
-  .wpd-wm{display:flex;justify-content:center;margin-bottom:7px;}
-  .wpd-wm svg{width:150px;height:auto;display:block;}
-  .wpd-kick{text-align:center;font-size:9px;letter-spacing:.28em;font-weight:800;color:#8FA3B8;margin-bottom:6px;white-space:nowrap;}
-  .wpd-hero{text-align:center;font:800 14px/1.25 var(--font-sans),'Inter',sans-serif;color:#F5EFE4;letter-spacing:-.01em;margin-bottom:12px;}
+  /* Fixed screen box; the 390px canvas inside is scaled to fill it (314×628). */
+  .wp-phone-screen{background:var(--surf-bg,#0b1420);border-radius:31px;overflow:hidden;width:314px;height:628px;position:relative;}
+  /* TRUE-device canvas: 390px wide (real iPhone) scaled 0.805 → 314px visual, so
+     cards render at their genuine on-device size rather than crammed into ~286px.
+     Its own notch-clearing top pad scales with everything. Flex column so the
+     list fills the phone height and scrolls internally. */
+  .wp-phone-canvas{width:390px;height:780px;transform:scale(.805);transform-origin:top left;
+    padding:44px 16px 16px;box-sizing:border-box;display:flex;flex-direction:column;}
+  .wpd-wm{display:flex;justify-content:center;margin-bottom:8px;flex:none;}
+  .wpd-wm svg{width:168px;height:auto;display:block;}
+  .wpd-kick{text-align:center;font-size:11px;letter-spacing:.28em;font-weight:800;color:#8FA3B8;margin-bottom:7px;white-space:nowrap;flex:none;}
+  .wpd-hero{text-align:center;font:800 17px/1.25 var(--font-sans),'Inter',sans-serif;color:#F5EFE4;letter-spacing:-.01em;margin-bottom:14px;flex:none;}
   /* Standard phone scroll: cap at --cf-phone-scroll-max, scroll internally;
      wordmark/kicker/hero stay pinned above. The LIST stays interactive so it
      can scroll (wheel + scrollbar), but the cards/slot headers/pills are made
      non-interactive so clicks don't open drawers or toggle slots — the phone is
      a preview; the real, tappable thing is the user's actual phone. */
-  .wpd-list{max-height:var(--cf-phone-scroll-max,440px);overflow-y:auto;padding-right:5px;}
+  .wpd-list{flex:1;min-height:0;overflow-y:auto;padding-right:5px;}
   .wpd-list .wpc,.wpd-list .wp-slot__head,.wpd-list .wp-pill{pointer-events:none;}
   .wpd-list::-webkit-scrollbar{width:6px;}
   .wpd-list::-webkit-scrollbar-thumb{background:rgba(122,168,209,.3);border-radius:3px;}
   .wpd-list::-webkit-scrollbar-track{background:transparent;}
-  /* The live game cards are built for a full-width list; inside the ~286px phone
-     the yours/against breakdown chips would run off the right edge (the desktop
-     viewport is ≥900px so the card's own ≤380px wrap rule never fires). Force the
-     second line to wrap + compact the metrics so every card fits the phone. */
-  .wpd-list .wpc{gap:9px;}
-  .wpd-list .wpc__num{min-width:20px;font-size:19px;}
-  .wpd-list .wpc__l1{gap:8px;}
-  .wpd-list .wpc__l2{flex-wrap:wrap;gap:3px 8px;margin-top:5px;}
-  .wpd-list .wpc__when{white-space:normal;}
-  .wpd-list .wpc__break{gap:8px;flex-wrap:wrap;}
 
   .wp-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
     padding:9px 10px 9px 16px;border:1px solid rgba(43,111,168,.35);border-radius:999px;background:#15293E;}
@@ -14117,10 +14114,16 @@ loadExperimentState();
   }
 
   function wpPhoneInner(kicker, heroText, view){
-    return '<div class="wpd-wm">' + WP_WM_SVG + '</div>' +
+    /* The content is rendered at TRUE iPhone width (.wp-phone-canvas = 390px) and
+       the whole canvas is transform:scaled down to the 314px phone screen, so the
+       cards keep their real on-device proportions instead of being squeezed into
+       a ~286px column (which crammed/wrapped everything). */
+    return '<div class="wp-phone-canvas">' +
+      '<div class="wpd-wm">' + WP_WM_SVG + '</div>' +
       '<div class="wpd-kick">' + esc(kicker) + '</div>' +
       '<div class="wpd-hero">' + esc(heroText) + '</div>' +
-      '<div class="wpd-list">' + watchPreviewHTML(view) + '</div>';
+      '<div class="wpd-list">' + watchPreviewHTML(view) + '</div>' +
+    '</div>';
   }
 
   function wpDeskCol(cap, capClass, inner){
