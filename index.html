@@ -5034,14 +5034,24 @@
     .cf-phone{width:340px;border-radius:42px;padding:13px;position:relative;
       background:linear-gradient(160deg,#1c2c3c,#0c151f);border:1px solid #26384a;box-shadow:0 40px 80px -26px rgba(0,0,0,.6);}
     .cf-phone-notch{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:104px;height:24px;background:#0a121b;border-radius:999px;z-index:3;}
-    /* extra top padding clears the notch so the wordmark sits below it */
-    .cf-phone-screen{background:var(--cs-navy-900);border-radius:31px;overflow:hidden;padding:44px 14px 14px;}
-    .cf-snap-frame-d{background:transparent;}
-    /* STANDARD phone scroll: the league list/grid caps at --cf-phone-scroll-max
-       and scrolls internally; wordmark/hero stay above and the foot stays below.
-       Short lists (a few leagues) render naturally shorter — the cap only bites
-       when the content would otherwise stretch the phone. */
-    .cf-snap-frame-d .cf-snap-content-d{margin-top:2px;max-height:var(--cf-phone-scroll-max,440px);overflow-y:auto;padding-right:5px;}
+    /* Fixed screen box; the 390px canvas inside is scaled to fill it (314×628). */
+    .cf-phone-screen{background:var(--cs-navy-900);border-radius:31px;overflow:hidden;width:314px;height:628px;position:relative;}
+    /* TRUE-device canvas: .cf-snap-frame-d renders at real iPhone width (390px)
+       and the whole canvas is transform:scaled 0.805 → 314px visual, so the
+       list/grid cards keep their genuine on-device proportions instead of being
+       crammed into a ~286px column (which wrapped/tightened everything). Its own
+       notch-clearing top pad scales with everything. Flex column so the list
+       fills the phone height and scrolls internally with the foot pinned below. */
+    .cf-snap-frame-d{background:transparent;width:390px;height:780px;
+      transform:scale(.805);transform-origin:top left;padding:44px 16px 16px;
+      box-sizing:border-box;display:flex;flex-direction:column;}
+    .cf-snap-frame-d .cf-snap-wm,
+    .cf-snap-frame-d .cf-snap-kicker,
+    .cf-snap-frame-d .cf-snap-hero,
+    .cf-snap-frame-d .cf-snap-foot{flex:none;}
+    /* STANDARD phone scroll: the league list/grid fills remaining height and
+       scrolls internally; wordmark/hero stay above and the foot stays below. */
+    .cf-snap-frame-d .cf-snap-content-d{margin-top:2px;flex:1;min-height:0;overflow-y:auto;padding-right:5px;}
     .cf-snap-frame-d .cf-snap-content-d::-webkit-scrollbar{width:6px;}
     .cf-snap-frame-d .cf-snap-content-d::-webkit-scrollbar-thumb{background:var(--cs-navy-line);border-radius:3px;}
     .cf-snap-frame-d .cf-snap-content-d::-webkit-scrollbar-track{background:transparent;}
@@ -5161,11 +5171,18 @@
   .exp-phone{width:340px;border-radius:42px;padding:13px;position:relative;
     background:linear-gradient(160deg,#1c2c3c,#0c151f);border:1px solid #26384a;box-shadow:0 40px 80px -26px rgba(0,0,0,.6);}
   .exp-phone-notch{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:104px;height:24px;background:#0a121b;border-radius:999px;z-index:3;}
-  .exp-phone-screen{background:#0b1420;border-radius:31px;overflow:hidden;padding:44px 16px 16px;
+  /* Fixed screen box; the 390px canvas inside is scaled to fill it (314×628). */
+  .exp-phone-screen{background:#0b1420;border-radius:31px;overflow:hidden;width:314px;height:628px;position:relative;
     --ink-900:#F5EFE4;--ink-700:#C9D6E4;--ink-500:#8FA3B8;--ink-300:#5A6B7D;
     --paper:#0f1a24;--paper-deep:#16232f;--line-soft:rgba(122,168,209,.16);
     --coral-500:#E88761;--navy-700:#5A8BBD;}
-  .exp-frame-d{background:transparent;}
+  /* TRUE-device canvas: rows render at real iPhone width (390px) then the whole
+     canvas scales 0.805 → 314px, keeping genuine on-device proportions instead of
+     cramming into ~286px. Flex column: wordmark/kicker/hero pinned, list scrolls. */
+  .exp-frame-d{background:transparent;width:390px;height:780px;
+    transform:scale(.805);transform-origin:top left;padding:44px 16px 16px;
+    box-sizing:border-box;display:flex;flex-direction:column;}
+  .exp-frame-d .expd-wm,.exp-frame-d .expd-kick,.exp-frame-d .expd-hero,.exp-frame-d .expd-note{flex:none;}
   .expd-wm{display:flex;justify-content:center;margin-bottom:7px;}
   .expd-wm svg{width:150px;height:auto;display:block;}
   .expd-kick{text-align:center;font-size:9px;letter-spacing:.28em;font-weight:800;color:#8FA3B8;margin-bottom:10px;white-space:nowrap;}
@@ -5174,7 +5191,7 @@
   /* Standard phone scroll: cap at --cf-phone-scroll-max, scroll internally;
      wordmark/kicker/hero stay pinned above. Rows are block grid (not a column
      flexbox) so no flex:0 0 auto pin needed. */
-  .expd-list{max-height:var(--cf-phone-scroll-max,440px);overflow-y:auto;padding-right:5px;}
+  .expd-list{flex:1;min-height:0;overflow-y:auto;padding-right:5px;}
   .expd-list::-webkit-scrollbar{width:6px;}
   .expd-list::-webkit-scrollbar-thumb{background:rgba(122,168,209,.3);border-radius:3px;}
   .expd-list::-webkit-scrollbar-track{background:transparent;}
@@ -5315,6 +5332,12 @@
      a preview; the real, tappable thing is the user's actual phone. */
   .wpd-list{flex:1;min-height:0;overflow-y:auto;padding-right:5px;}
   .wpd-list .wpc,.wpd-list .wp-slot__head,.wpd-list .wp-pill{pointer-events:none;}
+  /* The card's fit-to-phone layout lives in @media(max-width:560px) — VIEWPORT
+     based, so it never fires inside the 390px canvas on a ≥900px desktop. Force
+     the same wrap here so the kickoff line + yours/vs breakdown wrap to their own
+     lines instead of overrunning the canvas edge. */
+  .wpd-list .wpc__l2{flex-wrap:wrap;gap:4px 10px;}
+  .wpd-list .wpc__when{white-space:normal;}
   .wpd-list::-webkit-scrollbar{width:6px;}
   .wpd-list::-webkit-scrollbar-thumb{background:rgba(122,168,209,.3);border-radius:3px;}
   .wpd-list::-webkit-scrollbar-track{background:transparent;}
@@ -14338,7 +14361,10 @@ loadExperimentState();
     else if (isFinal) whenBits.push('Final');
     else whenBits.push(esc(kickoffLabel(g)));
     if (g.network) whenBits.push('<span class="wpc__net">' + esc(g.network) + '</span>');
-    if ((isLive || isFinal) && g.awayScore != null && g.homeScore != null){
+    /* Game score is omitted in the desktop phone PREVIEW (state._preview) — the
+       score + yours/vs breakdown together overran the narrow canvas and pushed
+       the breakdown off-screen. The real mobile card still shows it. */
+    if (!state._preview && (isLive || isFinal) && g.awayScore != null && g.homeScore != null){
       whenBits.push(esc(g.away) + ' ' + g.awayScore + '–' + g.homeScore + ' ' + esc(g.home));
     }
 
@@ -17908,13 +17934,17 @@ if(typeof window.cfRegisterView==='function'){
     .ldr-phone{width:340px;border-radius:42px;padding:13px;position:relative;
       background:linear-gradient(160deg,#1c2c3c,#0c151f);border:1px solid #26384a;box-shadow:0 40px 80px -26px rgba(0,0,0,.6);}
     .ldr-phone-notch{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:104px;height:24px;background:#0a121b;border-radius:999px;z-index:3;}
-    .ldr-phone-screen{background:var(--ldr-navy900);border-radius:31px;overflow:hidden;padding:44px 14px 14px;}
-    .ldr-frame-d{background:transparent;}
-    /* STANDARD phone scroll: the player list caps at --cf-phone-scroll-max and
-       scrolls internally; wordmark/hero/total stay above. .ldr-rows is a column
-       flexbox so pin its children to natural height or they'd shrink+clip (each
-       .ldr-row is overflow:hidden). */
-    .ldr-frame-d .ldr-rows{max-height:var(--cf-phone-scroll-max,440px);overflow-y:auto;padding-right:5px;}
+    /* Fixed screen box; the 390px canvas inside is scaled to fill it (314×628). */
+    .ldr-phone-screen{background:var(--ldr-navy900);border-radius:31px;overflow:hidden;width:314px;height:628px;position:relative;}
+    /* TRUE-device canvas: rows render at real iPhone width (390px) then the whole
+       canvas scales 0.805 → 314px, so rows keep genuine on-device proportions
+       instead of cramming into ~286px. Flex column: wordmark/hero/total pinned,
+       the player list fills remaining height and scrolls internally. */
+    .ldr-frame-d{background:transparent;width:390px;height:780px;
+      transform:scale(.805);transform-origin:top left;padding:44px 14px 14px;
+      box-sizing:border-box;display:flex;flex-direction:column;}
+    .ldr-frame-d .ldr-wm,.ldr-frame-d .ldr-kick,.ldr-frame-d .ldr-hero,.ldr-frame-d .ldr-sum{flex:none;}
+    .ldr-frame-d .ldr-rows{flex:1;min-height:0;overflow-y:auto;padding-right:5px;}
     .ldr-frame-d .ldr-rows>*{flex:0 0 auto;}
     .ldr-frame-d .ldr-rows::-webkit-scrollbar{width:6px;}
     .ldr-frame-d .ldr-rows::-webkit-scrollbar-thumb{background:var(--ldr-line);border-radius:3px;}
