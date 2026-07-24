@@ -5150,6 +5150,74 @@
   </div>
 </div>
 
+<!-- ══ WATCH PRIORITY DESKTOP MOBILE-PREVIEW ═══════════════════ -->
+<style>
+/* Watch Priority desktop Mobile-Preview (≥900px) — standard phone-frame funnel
+   (reference_conflicted_desktop_phone_frame): framed copy column + two phone
+   previews (Maximum investment / Cheer watch). Hidden below 900px and whenever
+   Layout = Desktop View. The phones reuse the SAME buildWatchSlots() markup as
+   the live #wp-slots list (via watchPreviewHTML) so they can't drift. Hate Watch
+   is intentionally NOT previewed here — it stays reachable in Desktop View. */
+#wp-desktop{display:none;}
+@media (min-width:900px){
+  /* Mobile Preview (default): show the phones, hide the functional list + the
+     now-redundant page title (the two labelled phones stand in for it). */
+  body.wp-desk-preview #view-watch #wp-slots{display:none;}
+  body.wp-desk-preview #view-watch .wp-head__title{display:none;}
+  body.wp-desk-preview #wp-desktop{display:block;padding-top:6px;}
+  /* Desktop View mode: #wp-desktop stays hidden (base rule), functional shows. */
+
+  .wp-layout{display:flex;gap:52px;justify-content:center;align-items:flex-start;max-width:1240px;margin:0 auto;flex-wrap:nowrap;}
+  .wp-copy{max-width:360px;flex:none;margin-top:39px;padding:28px 26px;text-align:left;
+    border:1px solid rgba(43,111,168,.35);border-radius:18px;background:rgba(43,111,168,.06);}
+  .wp-eyebrow{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8CA0B4;margin-bottom:14px;}
+  .wp-copy h2{font:900 30px/1.14 var(--font-sans),'Inter',sans-serif;letter-spacing:-.02em;color:#F5EFE4;margin:0 0 16px;}
+  .wp-copy p{font:400 15px/1.6 var(--font-sans),'Inter',sans-serif;color:#8CA0B4;margin:0 0 14px;}
+  .wp-copy p .hl{color:#F5EFE4;font-weight:600;}
+  .wp-switch-hint{margin-top:16px;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:#6E8296;}
+  .wp-switch-hint strong{color:#8CA0B4;font-weight:600;}
+
+  .wp-deskcols{display:flex;justify-content:center;align-items:flex-start;gap:40px;flex:none;}
+  .wp-deskcol{display:flex;flex-direction:column;align-items:center;}
+  .wp-col-cap{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.10em;text-transform:uppercase;color:#6E8296;margin-bottom:14px;}
+  .wp-col-cap.max{color:#E88761;}
+  .wp-col-cap.cheer{color:#4FA96E;}
+
+  .wp-phone-frame{padding:14px;border:1px solid rgba(43,111,168,.35);border-radius:56px;background:rgba(43,111,168,.06);}
+  .wp-phone{width:340px;border-radius:42px;padding:13px;position:relative;
+    background:linear-gradient(160deg,#1c2c3c,#0c151f);border:1px solid #26384a;box-shadow:0 40px 80px -26px rgba(0,0,0,.6);}
+  .wp-phone-notch{position:absolute;top:24px;left:50%;transform:translateX(-50%);width:104px;height:24px;background:#0a121b;border-radius:999px;z-index:3;}
+  .wp-phone-screen{background:var(--surf-bg,#0b1420);border-radius:31px;overflow:hidden;padding:44px 14px 14px;}
+  .wpd-wm{display:flex;justify-content:center;margin-bottom:7px;}
+  .wpd-wm svg{width:150px;height:auto;display:block;}
+  .wpd-kick{text-align:center;font-size:9px;letter-spacing:.28em;font-weight:800;color:#8FA3B8;margin-bottom:6px;white-space:nowrap;}
+  .wpd-hero{text-align:center;font:800 14px/1.25 var(--font-sans),'Inter',sans-serif;color:#F5EFE4;letter-spacing:-.01em;margin-bottom:12px;}
+  /* Standard phone scroll: cap at --cf-phone-scroll-max, scroll internally;
+     wordmark/kicker/hero stay pinned above. The previews are non-interactive
+     (pointer-events:none) — the phone is the real, tappable thing. */
+  .wpd-list{max-height:var(--cf-phone-scroll-max,440px);overflow-y:auto;padding-right:5px;pointer-events:none;}
+  .wpd-list::-webkit-scrollbar{width:6px;}
+  .wpd-list::-webkit-scrollbar-thumb{background:rgba(122,168,209,.3);border-radius:3px;}
+  .wpd-list::-webkit-scrollbar-track{background:transparent;}
+
+  .wp-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
+    padding:9px 10px 9px 16px;border:1px solid rgba(43,111,168,.35);border-radius:999px;background:#15293E;}
+  .wp-nudge-label{display:inline-flex;align-items:center;gap:8px;font:500 13px/1 var(--font-sans),'Inter',sans-serif;color:#8CA0B4;}
+  .wp-nudge-label svg{stroke:#7AA8D1;fill:none;}
+  .wp-nudge-sep{width:1px;height:18px;background:rgba(43,111,168,.35);}
+  .wp-nudge-btn{border:none;cursor:pointer;padding:6px 14px;border-radius:999px;
+    font:700 13px/1 var(--font-sans),'Inter',sans-serif;color:#7AA8D1;background:rgba(43,111,168,.18);transition:color .15s;}
+  .wp-nudge-btn:hover{color:#E88761;}
+  .wp-nudge-btn[disabled]{opacity:.6;cursor:default;}
+  .wp-hint{margin:12px 0 0;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:#6E8296;}
+}
+/* 900–1199px: copy stacks on top (centered); the two phones sit side by side */
+@media (min-width:900px) and (max-width:1199px){
+  .wp-layout{flex-direction:column;align-items:center;gap:36px;}
+  .wp-copy{max-width:560px;text-align:center;margin-top:0;}
+}
+</style>
+
 <!-- ============ Watch Priority view ============ -->
 <div id="view-watch">
   <div class="wp-head">
@@ -5178,6 +5246,34 @@
     </div>
   </div>
   <div id="wp-slots"></div>
+
+  <!-- Desktop-only (≥900px) Mobile Preview: framed copy column beside two
+       phone-framed previews — Maximum investment (center) + Cheer watch (right).
+       Painted by paintWatchDesktop() from the SAME buildWatchSlots() markup as
+       the functional list, under a swapped view, so previews can't drift. Shown
+       only when Layout = Mobile Preview (default); Desktop View hides this and
+       shows the functional list above. Hate Watch is not previewed here. -->
+  <div id="wp-desktop">
+    <div class="wp-layout">
+      <div class="wp-copy">
+        <div class="wp-eyebrow">Watch priority</div>
+        <h2>Know which screen matters.</h2>
+        <p>Every NFL game ranked by how many of your players are on the field — so on a crowded Sunday you always know <span class="hl">which game to put front and center</span> and which to leave on mute.</p>
+        <p>Watch priority is built for your phone, where you actually manage game day across <span class="hl">all your leagues</span>. This is a preview of two of the three views — open it on your phone for the full, tappable version with Hate Watch.</p>
+        <div class="wp-nudge" id="wp-nudge">
+          <span class="wp-nudge-label">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+            Built for mobile
+          </span>
+          <span class="wp-nudge-sep" id="wp-nudge-sep"></span>
+          <button class="wp-nudge-btn" id="wp-email-btn" type="button" onclick="wpEmailLink()">Email me the link</button>
+        </div>
+        <p class="wp-hint" id="wp-hint">We'll email you a one-tap sign-in link — open it on your phone.</p>
+        <p class="wp-switch-hint">Want the full interactive list with all three views? Open <strong>Filters → Layout → Desktop view</strong>.</p>
+      </div>
+      <div class="wp-deskcols" id="wp-deskcols"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ══ ANALYTICS ═══════════════════════════════════════════════ -->
@@ -13316,15 +13412,32 @@ loadExperimentState();
   // starts with all slots fully expanded, regardless of past manual folds.
   var initialCollapsed = {};
 
+  /* Desktop layout mode (≥900px only): 'preview' = the mobile-preview phone-frame
+     funnel (default, keeps WP consistent with Exposure / Snapshot / Leaders);
+     'desktop' = the current functional list. UNLIKE the data-shaping filters
+     above, this is a LAYOUT preference — it DOES persist across loads (a user
+     who picks Desktop View stays there; they may have phone + desktop open at
+     once), so it's exempt from the reset-on-load rule. */
+  var initialViewMode = 'preview';
+  try { var _wvm = localStorage.getItem('cf_watch_viewmode'); if (_wvm === 'desktop' || _wvm === 'preview') initialViewMode = _wvm; } catch(e){}
+
   var state = {
     view: initialView,            // 'maximum' | 'cheer' | 'hate'
     includeBench: initialBench,
     mustWatch: false,             // session-only filter; defaults to false (All games), resets each load
     collapsed: initialCollapsed,  // {slotKey: true} manual-collapse overrides
+    viewMode: initialViewMode,    // desktop layout pref: 'preview' | 'desktop' (persists)
+    _preview: false,              // true only during a swapped-view preview build (skips badge writes)
     games: [],                    // ESPN-derived game list
     gamesFetchedAt: 0,
     gamesFetchKey: ''
   };
+
+  /* Body class drives the ≥900px CSS that swaps functional list ⇄ phone preview.
+     Scoped selectors only touch #view-watch / #wp-desktop descendants, so a
+     lingering class off-view is harmless. */
+  function applyWpViewModeClass(){ try { document.body.classList.toggle('wp-desk-preview', state.viewMode === 'preview'); } catch(e){} }
+  applyWpViewModeClass();
 
   /* ── Utilities ─────────────────────────────────────────────── */
   function esc(s){
@@ -13755,6 +13868,25 @@ loadExperimentState();
       if (typeof window.__wpSyncArrows === 'function') { try { window.__wpSyncArrows(); } catch(e){} }
     }
 
+    slotsHost.innerHTML = buildWatchSlots().html;
+
+    /* Reflect the view toggle styling (cheer/hate variant) */
+    var vt = document.getElementById('wp-view-toggle');
+    if (vt) vt.setAttribute('data-view', state.view);
+
+    /* Paint the desktop Mobile-Preview phones (no-op on mobile / Desktop View). */
+    paintWatchDesktop();
+  }
+
+  /* Builds the slot HTML for the CURRENT state (view / includeBench / mustWatch)
+     and returns it, plus the two Filters-drawer count badges. Extracted from
+     renderWatchView so the desktop phone previews can reuse the EXACT same slot
+     markup under a swapped view (see watchPreviewHTML) — previews can't drift
+     from the live list. The badge/state-cache writes are skipped during a
+     preview build (state._preview) so the live Filters counts aren't clobbered
+     by a swapped-view pass. */
+  function buildWatchSlots(){
+    var data = getData();
     var index = buildPlayerIndex(data);
 
     /* Group games into slots dynamically. Each game's slot is determined by
@@ -13816,12 +13948,14 @@ loadExperimentState();
     /* Cache counts on state so the Filters drawer can read them when it
        opens (it's rendered outside this function and can't see the local
        orderedSlots). */
-    state._allGamesCount = allGamesCount;
-    state._mustWatchSlots = mustWatchSlots;
-    var allBadge = document.getElementById('wp-mw-count-all');
-    var mustBadge = document.getElementById('wp-mw-count-must');
-    if (allBadge) allBadge.textContent = allGamesCount > 0 ? String(allGamesCount) : '—';
-    if (mustBadge) mustBadge.textContent = mustWatchSlots > 0 ? String(mustWatchSlots) : '0';
+    if (!state._preview){
+      state._allGamesCount = allGamesCount;
+      state._mustWatchSlots = mustWatchSlots;
+      var allBadge = document.getElementById('wp-mw-count-all');
+      var mustBadge = document.getElementById('wp-mw-count-must');
+      if (allBadge) allBadge.textContent = allGamesCount > 0 ? String(allGamesCount) : '—';
+      if (mustBadge) mustBadge.textContent = mustWatchSlots > 0 ? String(mustWatchSlots) : '0';
+    }
 
     var html = '';
 
@@ -13900,11 +14034,7 @@ loadExperimentState();
       html = '<section class="wp-slot"><div class="wp-slot__body"><p class="wp-slot__empty">' + esc(emptyAllCopy()) + '</p></div></section>';
     }
 
-    slotsHost.innerHTML = html;
-
-    /* Reflect the view toggle styling (cheer/hate variant) */
-    var vt = document.getElementById('wp-view-toggle');
-    if (vt) vt.setAttribute('data-view', state.view);
+    return { html: html };
   }
 
   function emptySlotCopy(slotKey, view){
@@ -13938,6 +14068,73 @@ loadExperimentState();
   function emptyAllCopy(){
     return 'No NFL games on the schedule for this week.';
   }
+
+  /* ── Desktop Mobile-Preview (≥900px) ─────────────────────────────────────
+     Standard phone-frame funnel (see reference_conflicted_desktop_phone_frame):
+     framed copy column + two phone previews (Maximum investment / Cheer watch).
+     Both phones reuse buildWatchSlots() under a swapped view so they mirror the
+     real list exactly. Painted on every renderWatchView(); CSS keeps it hidden
+     below 900px and in Desktop View mode. */
+  var WP_WM_SVG =
+    '<svg viewBox="0 0 480 78" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Conflicted">' +
+    '<defs><clipPath id="cfwpHL"><rect x="0" y="0" width="240" height="78"/></clipPath><clipPath id="cfwpHR"><rect x="240" y="0" width="240" height="78"/></clipPath></defs>' +
+    '<text x="240" y="54" text-anchor="middle" clip-path="url(#cfwpHL)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#7AA8D1">CONFLICTED</text>' +
+    '<text x="240" y="54" text-anchor="middle" clip-path="url(#cfwpHR)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em;" fill="#E88761">CONFLICTED</text>' +
+    '<line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>';
+
+  /* Renders the slot HTML for a given view WITHOUT touching live state or the
+     Filters badges: temp-swaps state.view + forces mustWatch:false (previews
+     always show the whole slate), builds, then restores. Strips element ids and
+     the collapsed class so the preview can't collide with the live #wp-slots DOM
+     or render folded — interactivity is off via CSS (.wpd-list pointer-events). */
+  function watchPreviewHTML(view){
+    var sv = state.view, sm = state.mustWatch;
+    state.view = view; state.mustWatch = false; state._preview = true;
+    var out = '';
+    try { out = buildWatchSlots().html; }
+    finally { state.view = sv; state.mustWatch = sm; state._preview = false; }
+    return String(out).replace(/\sid="wp-slot-[^"]*"/g, '').replace(/ is-collapsed/g, '');
+  }
+
+  function wpPhoneInner(kicker, heroText, view){
+    return '<div class="wpd-wm">' + WP_WM_SVG + '</div>' +
+      '<div class="wpd-kick">' + esc(kicker) + '</div>' +
+      '<div class="wpd-hero">' + esc(heroText) + '</div>' +
+      '<div class="wpd-list">' + watchPreviewHTML(view) + '</div>';
+  }
+
+  function wpDeskCol(cap, capClass, inner){
+    return '<div class="wp-deskcol"><div class="wp-col-cap ' + capClass + '">' + esc(cap) + '</div>' +
+      '<div class="wp-phone-frame"><div class="wp-phone"><div class="wp-phone-notch"></div><div class="wp-phone-screen">' +
+      inner + '</div></div></div></div>';
+  }
+
+  function paintWatchDesktop(){
+    var cols = document.getElementById('wp-deskcols');
+    if (!cols) return;
+    /* Skip the work on mobile and in Desktop View mode — the phones are hidden. */
+    if (!(window.matchMedia && window.matchMedia('(min-width:900px)').matches)) return;
+    if (state.viewMode !== 'preview') return;
+    var demo = (typeof window.inDemoMode === 'function') && window.inDemoMode();
+    var btn = document.getElementById('wp-email-btn'); if (btn) btn.style.display = demo ? 'none' : '';
+    var sep = document.getElementById('wp-nudge-sep'); if (sep) sep.style.display = demo ? 'none' : '';
+    var hint = document.getElementById('wp-hint'); if (hint) hint.style.display = demo ? 'none' : '';
+    cols.innerHTML =
+      wpDeskCol('Maximum investment', 'max', wpPhoneInner('WATCH PRIORITY', 'Every game with your players', 'maximum')) +
+      wpDeskCol('Cheer watch', 'cheer', wpPhoneInner('WATCH PRIORITY', 'Games to root for', 'cheer'));
+  }
+
+  function wpEmailLink(){
+    var email = (window.__account && window.__account.email) || window.__onboardEmail || '';
+    if (!email){ if (window.showYahooToast) showYahooToast('Sign in first to email yourself a sign-in link.', true); return; }
+    var btn = document.getElementById('wp-email-btn'), orig = btn ? btn.textContent : '';
+    if (btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
+    fetch('/api/auth/magic/request', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email: email }) })
+      .then(function(r){ if (btn) btn.textContent = r.ok ? '✓ Link sent' : 'Try again'; if (window.showYahooToast) showYahooToast(r.ok ? ('We emailed a sign-in link to ' + email + ' — open it on your phone.') : 'Could not send the link right now.', !r.ok); try { if (r.ok && window.cfTrack) cfTrack('watch_mobile_link_sent', null); } catch(e){} })
+      .catch(function(){ if (btn) btn.textContent = 'Try again'; if (window.showYahooToast) showYahooToast('Could not send the link right now.', true); })
+      .finally(function(){ setTimeout(function(){ if (btn){ btn.disabled = false; btn.textContent = orig; } }, 2400); });
+  }
+  window.wpEmailLink = wpEmailLink;
 
   /* ── Player pill rendering (shared by spotlight) ─────────────── */
   function pillsHtmlFor(scored, isFinal){
@@ -14299,6 +14496,7 @@ loadExperimentState();
     var v = document.getElementById('view-watch');
     if (v) v.style.display = 'block';
     document.body.classList.add('wp-active');
+    applyWpViewModeClass();
     window.__conflictedWatchOpen = true;
     /* Use current dashboard activeSeason/activeWeek — read the live `let`
        bindings via accessors; window.activeWeek/activeSeason are undefined. */
@@ -14333,19 +14531,39 @@ loadExperimentState();
     var allGamesCount = (typeof state._allGamesCount === 'number') ? state._allGamesCount : (state.games || []).length;
     var mustWatchSlots = (typeof state._mustWatchSlots === 'number') ? state._mustWatchSlots : 0;
     var viewToggleAttr = state.view === 'cheer' ? ' data-view="cheer"' : state.view === 'hate' ? ' data-view="hate"' : '';
-    return '<div class="wp-settings">' +
-      '<div class="wp-settings__head">' +
-        '<h3 class="wp-settings__title">Filters</h3>' +
-        '<button type="button" class="wp-settings__close" aria-label="Close" data-wp-settings-close="1">&times;</button>' +
-      '</div>' +
-      '<div class="wp-settings__section">' +
+    /* Layout toggle only exists on desktop (≥900px). In Mobile Preview the two
+       phones are fixed (Maximum investment + Cheer watch), so the View toggle is
+       redundant there and is hidden — it returns in Desktop View (full list with
+       all three views, including Hate Watch). Layout is a persisted pref, so it
+       is exempt from the reset-on-load rule. */
+    var isDesk = !!(window.matchMedia && window.matchMedia('(min-width:900px)').matches);
+    var vmActive = function(v){ return state.viewMode === v ? ' class="active"' : ''; };
+    var vmSel = function(v){ return state.viewMode === v ? 'true' : 'false'; };
+    var layoutSection = isDesk ?
+      ('<div class="wp-settings__section">' +
+        '<p class="wp-settings__label">Layout</p>' +
+        '<div class="wp-view-toggle" role="tablist" aria-label="Watch layout">' +
+          '<button type="button"' + vmActive('preview') + ' data-wp-viewmode="preview" role="tab" aria-selected="' + vmSel('preview') + '">Mobile preview</button>' +
+          '<button type="button"' + vmActive('desktop') + ' data-wp-viewmode="desktop" role="tab" aria-selected="' + vmSel('desktop') + '">Desktop view</button>' +
+        '</div>' +
+      '</div>') : '';
+    var showViewToggle = !(isDesk && state.viewMode === 'preview');
+    var viewSection = showViewToggle ?
+      ('<div class="wp-settings__section">' +
         '<p class="wp-settings__label">View</p>' +
         '<div class="wp-view-toggle"' + viewToggleAttr + ' role="tablist" aria-label="Watch view">' +
           wpBtn('data-wp-view', 'maximum', 'Maximum Investment', state.view === 'maximum') +
           wpBtn('data-wp-view', 'cheer', 'Cheer Watch', state.view === 'cheer') +
           wpBtn('data-wp-view', 'hate', 'Hate Watch', state.view === 'hate') +
         '</div>' +
+      '</div>') : '';
+    return '<div class="wp-settings">' +
+      '<div class="wp-settings__head">' +
+        '<h3 class="wp-settings__title">Filters</h3>' +
+        '<button type="button" class="wp-settings__close" aria-label="Close" data-wp-settings-close="1">&times;</button>' +
       '</div>' +
+      layoutSection +
+      viewSection +
       '<div class="wp-settings__section">' +
         '<p class="wp-settings__label">Roster scope</p>' +
         '<div class="wp-bench-toggle" role="tablist" aria-label="Roster scope">' +
@@ -14398,6 +14616,17 @@ loadExperimentState();
         window.BottomSheet.setBody(renderWatchSettingsSheet());
       }
       renderWatchView();
+      return;
+    }
+    /* Layout toggle (desktop): Mobile preview ⇄ Desktop view. Persisted layout
+       pref — rebuild the sheet so the View section shows/hides with the mode. */
+    var wvm = e.target.closest('[data-wp-viewmode]');
+    if (wvm){
+      state.viewMode = wvm.getAttribute('data-wp-viewmode');
+      try { localStorage.setItem('cf_watch_viewmode', state.viewMode); } catch(err){}
+      applyWpViewModeClass();
+      renderWatchView();
+      openWatchSettingsSheet();
       return;
     }
     /* View toggle */
