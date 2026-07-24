@@ -3374,6 +3374,40 @@
     .wp-pill__count { font: 500 9px/1 var(--font-mono); background: rgba(255,255,255,0.25); padding: 2px 4px; border-radius: 6px; }
     .wp-pill.is-final { opacity: 0.55; }
 
+    /* ── Compact game card (2026-07-23 redesign) ──────────────────
+       Replaces the tall spotlight + strip cards with one low-height row:
+       tier-accent bar · priority number · matchup + tier · kickoff/network +
+       yours/against/conflicted breakdown. Tap opens the game drawer (who's in
+       it) via the existing data-wp-game hook. Navy surf palette (dark-only). */
+    .wpc { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+      padding: 8px 12px 8px 15px; background: linear-gradient(160deg, var(--surf-panel), var(--surf-panel-2));
+      border: 1px solid var(--surf-border); border-radius: 10px; cursor: pointer; font-family: var(--font-sans);
+      transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+    .wpc:hover { background: var(--surf-border); border-color: var(--surf-border-strong); }
+    .wpc:focus-visible { outline: 2px solid var(--accent, #7AA8D1); outline-offset: 2px; }
+    .wpc::before { content: ''; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 0 2px 2px 0; background: var(--accent, #46586b); }
+    .wpc.zero { opacity: 0.5; }
+    .wpc.gotw { border-color: #E88761; }
+    .wpc__num { font: 900 21px/1 var(--font-sans); color: var(--accent, #F5EFE4); min-width: 24px; text-align: center; font-variant-numeric: tabular-nums; }
+    .wpc__main { flex: 1; min-width: 0; }
+    .wpc__l1 { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .wpc__match { font: 800 14px/1.2 var(--font-sans); color: var(--surf-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .wpc__match .at { color: var(--surf-muted); font-weight: 600; }
+    .wpc__tier { flex: none; font: 800 9px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent, #F5EFE4); white-space: nowrap; }
+    .wpc__l2 { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
+    .wpc__when { font: 600 10px/1 var(--font-mono); letter-spacing: .03em; text-transform: uppercase; color: var(--surf-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .wpc__when .wpc__net { color: #7AA8D1; }
+    .wpc__when .wpc__live { color: var(--surf-coral-bright, #E88761); font-weight: 700; }
+    .wpc__break { display: flex; align-items: center; gap: 10px; flex: none; }
+    .wpc__chip { display: inline-flex; align-items: center; gap: 5px; font: 600 10px/1 var(--font-sans); color: var(--surf-muted); white-space: nowrap; }
+    .wpc__chip .wpc__n { color: var(--surf-text); font-weight: 800; }
+    .wpc__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+    .wpc__dot.cheer { background: #5DCAA5; } .wpc__dot.enemy { background: #E07A6E; } .wpc__dot.conf { background: #E9B84A; }
+    @media (max-width: 560px) {
+      .wpc__l2 { flex-wrap: wrap; gap: 4px 10px; }
+      .wpc__when { white-space: normal; }
+    }
+
     /* ── Must Watch toggle (filter scope) ─────────────────────── */
     .wp-mustwatch-toggle { display: inline-flex; border: 1px solid var(--surf-border); border-radius: var(--radius-md); overflow: hidden; font: 500 12px/1 var(--font-sans); background: var(--surf-panel); }
     .wp-mustwatch-toggle button { background: transparent; border: 0; padding: 8px 11px; color: var(--surf-muted); cursor: pointer; font: 500 11px/1 var(--font-sans); display: inline-flex; align-items: center; gap: 6px; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
@@ -13832,32 +13866,24 @@ loadExperimentState();
       html +=   '</header>';
       html +=   '<div class="wp-slot__body">';
 
-      if (top && topScored.score > 0){
-        /* Standard spotlight card. When it's the Game of the Week, the card
-           gets a coral frame + an inline "Game of the Week" chip, and its
-           slot header is turned coral (see .wp-slot--gotw). */
-        html += renderSpotlight(top, topScored, slotIsWeekLeader);
+      /* Unified compact cards (2026-07-23): every game in the slot renders as
+         one low-height card, sorted by score (sortedGames). Must Watch shows
+         only games with players; All games shows the whole slate (zero-player
+         games dimmed). The GOTW card gets the coral 'must watch' accent + its
+         slot header stays coral (.wp-slot--gotw). */
+      var gamesToShow = state.mustWatch
+        ? s.sortedGames.filter(function(g){ return (scoredByGameId[g.id] || { score: 0 }).score > 0; })
+        : s.sortedGames;
 
-        /* Strip: remaining games in this slot, all-games mode only. */
-        if (!state.mustWatch && s.sortedGames.length > 1){
-          html += '<div class="wp-strip">';
-          s.sortedGames.slice(1).forEach(function(g, i){
-            html += renderStripRow(g, scoredByGameId[g.id], i + 2);
-          });
-          html += '</div>';
-        }
-      } else if (!state.mustWatch){
-        /* All-games mode but no players in any game this slot — show empty copy + the slot's
-           game list as plain strip rows so users still see the matchups. */
+      if (!state.mustWatch && totalInvolved === 0){
+        /* No stakes anywhere in this slot — keep the informative line above the
+           (dimmed) matchup cards so users still see the schedule. */
         html += '<p class="wp-slot__empty">' + esc(emptySlotCopy(s.key, state.view)) + '</p>';
-        if (s.sortedGames.length){
-          html += '<div class="wp-strip">';
-          s.sortedGames.forEach(function(g, i){
-            html += renderStripRow(g, scoredByGameId[g.id], i + 1);
-          });
-          html += '</div>';
-        }
       }
+      gamesToShow.forEach(function(g){
+        var sc = scoredByGameId[g.id] || { score: 0, players: [] };
+        html += renderWpCard(g, sc, !!(weekLeader && top && g.id === weekLeader.id));
+      });
 
       html +=   '</div>';
       html += '</section>';
@@ -13939,6 +13965,56 @@ loadExperimentState();
         countText +
       '</span>';
     }).join('');
+  }
+
+  /* ── Compact game card (2026-07-23 redesign) ────────────────────
+     One low-height row for EVERY game (leader + rest). Tier accent + priority
+     number + matchup/tier + kickoff/network + yours/against/conflicted dots.
+     Keeps data-wp-game + role=button so the existing tap → game drawer works.
+     Replaces renderSpotlight/renderStripRow (kept below but no longer called). */
+  function wpTier(sc, isLeader){
+    if (isLeader) return { label: 'Game of the Week', c: '#E88761' };
+    if (sc >= 5)  return { label: 'Must watch',       c: '#E88761' };
+    if (sc >= 3)  return { label: 'High',             c: '#E9B84A' };
+    if (sc >= 1)  return { label: 'On your radar',    c: '#7AA8D1' };
+    return { label: 'Skip', c: '#46586b' };
+  }
+  function renderWpCard(g, scored, isWeekLeader){
+    var s = scored || { score: 0, players: [] };
+    var isFinal = g.status === 'post';
+    var isLive  = g.status === 'in';
+
+    var whenBits = [];
+    if (isLive) whenBits.push('<span class="wpc__live">● ' + esc(g.detail || 'Live') + '</span>');
+    else if (isFinal) whenBits.push('Final');
+    else whenBits.push(esc(kickoffLabel(g)));
+    if (g.network) whenBits.push('<span class="wpc__net">' + esc(g.network) + '</span>');
+    if ((isLive || isFinal) && g.awayScore != null && g.homeScore != null){
+      whenBits.push(esc(g.away) + ' ' + g.awayScore + '–' + g.homeScore + ' ' + esc(g.home));
+    }
+
+    /* Breakdown from the same players the number is built on, so it always
+       reconciles with s.score and the active view. */
+    var cheer = 0, enemy = 0, conf = 0;
+    (s.players || []).forEach(function(p){
+      if (p.role === 'conflict') conf++;
+      else if ((p.meCount || 0) > 0) cheer++;
+      else enemy++;
+    });
+    var br = [];
+    if (cheer) br.push('<span class="wpc__chip"><span class="wpc__dot cheer"></span><span class="wpc__n">' + cheer + '</span> yours</span>');
+    if (enemy) br.push('<span class="wpc__chip"><span class="wpc__dot enemy"></span><span class="wpc__n">' + enemy + '</span> vs</span>');
+    if (conf)  br.push('<span class="wpc__chip"><span class="wpc__dot conf"></span><span class="wpc__n">' + conf + '</span> conf</span>');
+    if (!br.length) br.push('<span class="wpc__chip">No players in this game</span>');
+
+    var t = wpTier(s.score, isWeekLeader);
+    return '<article class="wpc' + (s.score === 0 ? ' zero' : '') + (isWeekLeader ? ' gotw' : '') + '" data-wp-game="' + esc(g.id) + '" role="button" tabindex="0" style="--accent:' + t.c + '">' +
+      '<div class="wpc__num">' + s.score + '</div>' +
+      '<div class="wpc__main">' +
+        '<div class="wpc__l1"><span class="wpc__match">' + esc(g.away) + ' <span class="at">@</span> ' + esc(g.home) + '</span><span class="wpc__tier">' + esc(t.label) + '</span></div>' +
+        '<div class="wpc__l2"><span class="wpc__when">' + whenBits.join(' · ') + '</span><span class="wpc__break">' + br.join('') + '</span></div>' +
+      '</div>' +
+    '</article>';
   }
 
   /* ── Spotlight: the slot leader. When it's also the Game of the Week it
