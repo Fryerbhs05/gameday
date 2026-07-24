@@ -3415,7 +3415,11 @@
        stacked), so it never wraps or gets shunted to a second row regardless of
        viewport (Matt, 2026-07-24). Divider hairline separates it from the main
        column; the card's own align-items:center keeps it vertically centered. */
-    .wpc__break { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; flex: none; padding-left: 11px; border-left: 1px solid var(--surf-border); }
+    /* Fixed width (not content-sized) so the divider + chips start at the SAME x
+       on every card — otherwise a longer label ("Conflicted") makes that card's
+       column wider and shifts its start point left vs Cheer/Enemy-only cards
+       (Matt, 2026-07-24). 112px fits "NN Conflicted" on one line. */
+    .wpc__break { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; flex: none; width: 112px; padding-left: 11px; border-left: 1px solid var(--surf-border); }
     .wpc__chip { display: inline-flex; align-items: center; gap: 5px; font: 600 10px/1 var(--font-sans); color: var(--surf-muted); white-space: nowrap; }
     .wpc__chip .wpc__n { color: var(--surf-text); font-weight: 800; }
     .wpc__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
@@ -14379,7 +14383,7 @@ loadExperimentState();
     if (cheer) br.push('<span class="wpc__chip"><span class="wpc__dot cheer"></span><span class="wpc__n">' + cheer + '</span> Cheer</span>');
     if (enemy) br.push('<span class="wpc__chip"><span class="wpc__dot enemy"></span><span class="wpc__n">' + enemy + '</span> Enemy</span>');
     if (conf)  br.push('<span class="wpc__chip"><span class="wpc__dot conf"></span><span class="wpc__n">' + conf + '</span> Conflicted</span>');
-    if (!br.length) br.push('<span class="wpc__chip">No players in this game</span>');
+    if (!br.length) br.push('<span class="wpc__chip">No players</span>');
 
     var t = wpTier(s.score, isWeekLeader);
     /* Tier text labels removed per Matt (2026-07-23) — the accent color still
