@@ -1209,7 +1209,7 @@
          hard snap; 600ms lets the moment recede into the board underneath. The
          icon keeps breathing THROUGH the fade, so the exit never freezes the
          gesture mid-cycle. */
-      transition: opacity 600ms var(--ease-out), visibility 0s linear 600ms;
+      transition: opacity 900ms cubic-bezier(.4,0,.2,1), visibility 0s linear 900ms;
     }
     html.booting #boot-splash {
       opacity: 1; visibility: visible; pointer-events: auto;
@@ -1231,7 +1231,7 @@
       /* Base doubles as the EXIT state: the content lifts a touch as it
          dissolves, so the splash recedes rather than blinking off. html.booting
          below pins it at rest while the splash is up. */
-      transform: scale(1.04); transition: transform 600ms var(--ease-out);
+      transform: scale(1.06); transition: transform 900ms cubic-bezier(.4,0,.2,1);
     }
     html.booting .boot-splash__inner { transform: scale(1); transition: none; }
     .boot-splash__icon {
@@ -1245,7 +1245,7 @@
     .boot-wm-seam { transform: scaleY(0); transform-origin: 50% 50%; opacity: 0; animation: bootWmSeam .5s ease-out .75s forwards; }
     .boot-splash__copy { text-align: center; opacity: 0; transform: translateY(8px); animation: bootWmUp .6s ease-out .7s forwards; }
     .boot-splash__tag { font: 700 19px/1.35 var(--font-sans); letter-spacing: -.01em; color: var(--ink-900); }
-    .boot-splash__tag .accent { color: var(--coral-400); }
+    .boot-splash__tag .accent { color: var(--coral-500); }
     .boot-splash__status {
       margin-top: 13px; font: 500 10.5px/1 var(--font-mono);
       letter-spacing: .16em; text-transform: uppercase; color: var(--ink-500);
@@ -4057,6 +4057,15 @@
     body:not(.nav-landing) .site-header {
       margin-left: calc(var(--cf-rail-w) * -1);
       width: calc(100% + var(--cf-rail-w));
+    }
+    /* …but the header is now full-bleed while all content below lives in the
+       rail-offset area (body padding-left = rail width). Left un-corrected, the
+       centered inner — and thus the split wordmark — centers on the WHOLE
+       viewport and lands ~half-a-rail LEFT of the content beneath it. Re-add the
+       rail width as left padding so the inner shares the body's coordinate space
+       and the wordmark centers over the content, not the screen. */
+    body:not(.nav-landing) .site-header__inner {
+      padding-left: calc(var(--gutter) + var(--cf-rail-w));
     }
     /* The rail replaces the hamburger in-app on desktop (beats the inline
        display set by updateHeaderAuthControls, same as the mobile rule). */
