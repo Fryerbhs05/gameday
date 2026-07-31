@@ -2000,6 +2000,15 @@
     .exp-only { display: none !important; }
     body.experiment-active .exp-only { display: revert !important; }
 
+    /* Convenience hook: anything tagged .admin-only stays hidden unless the
+       signed-in account is in ADMIN_EMAILS (body.is-admin, synced on an
+       interval next to .nav-signedin). Used to keep the not-yet-built site
+       links (Shop / Blog / Partners / Contact) out of every normal user's nav
+       while leaving them visible to the owner for preview. Client-side gate =
+       cosmetic filter only, NOT a security boundary. */
+    .admin-only { display: none !important; }
+    body.is-admin .admin-only { display: revert !important; }
+
     /* ── Mobile bottom tab bar ───────────────────────────────────────────────
        Surfaces the three core views (Dashboard / Exposure / Watch) on a
        persistent mobile bar, with a More tab that opens a bottom sheet for
@@ -2542,6 +2551,10 @@
     .lu-delta.neg { color: var(--enemy); }
     .lu-tot { font: 400 11px/1 var(--font-mono); color: var(--ink-500); margin-top: 4px; }
     .lu-empty { font: 400 13px/1.4 var(--font-sans); color: var(--ink-500); padding: 12px 2px 2px; }
+    /* JS toggles lu-empty via inline style.display (block/none) for its own
+       empty-state logic, which otherwise beats the .collapsed > :not() rule
+       above on specificity — so the message stayed visible after a tap. */
+    .live-updates-section.collapsed .lu-empty { display: none !important; }
     @keyframes lu-flash { 0% { background: var(--split-soft); } 100% { background: transparent; } }
     @media (prefers-reduced-motion: reduce) { .lu-row.lu-new { animation: none; } }
     .lu-row.lu-new { animation: lu-flash 1.4s var(--ease-out); }
@@ -4000,13 +4013,15 @@
         <span>About</span>
       </button>
     </li>
-    <li role="none">
+    <!-- Not-yet-built site links: admin-only preview (see .admin-only above).
+         Normal users never see a dead "Soon" row. -->
+    <li role="none" class="admin-only">
       <button class="menu-drawer__item is-disabled" data-menu-action="blog" role="menuitem" type="button" aria-disabled="true" disabled>
         <span>Blog</span>
         <span class="menu-drawer__badge">Soon</span>
       </button>
     </li>
-    <li role="none">
+    <li role="none" class="admin-only">
       <button class="menu-drawer__item is-disabled" data-menu-action="contact" role="menuitem" type="button" aria-disabled="true" disabled>
         <span>Contact</span>
         <span class="menu-drawer__badge">Soon</span>
@@ -4192,10 +4207,15 @@
          (Its data-more-action="exposure" click handler below never left.) */
       { key: 'exposure', label: 'Exposure', soon: false, svg: '<g transform="translate(12,12) scale(0.7059) translate(-12,-11.5)"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></g>' },
       { key: 'schedule', label: 'Schedule', soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-11.5)"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></g>' },
-      { key: 'shop',     label: 'Shop',     soon: true,  svg: '<g transform="translate(12,12) scale(0.7273) translate(-12,-11.25)"><path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/></g>' },
-      { key: 'blog',     label: 'Blog',     soon: true,  svg: '<g transform="translate(12,12) scale(0.7500) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
-      { key: 'partners', label: 'Partners', soon: true,  svg: '<g transform="translate(12,12) scale(0.9231) translate(-12,-12.5)"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/></g>' },
-      { key: 'contact',  label: 'Contact',  soon: true,  svg: '<g transform="translate(12,12) scale(0.8571) translate(-12,-12)"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></g>' },
+      /* Shop / Blog / Partners / Contact are not built yet. They were showing
+         to everyone as dimmed "Soon" tiles, which reads as dead weight — so
+         they are now adminOnly: visible to the owner as a placeholder preview,
+         hidden entirely from every normal user until they go live. Drop the
+         adminOnly flag on each one as it ships. */
+      { key: 'shop',     label: 'Shop',     soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.7273) translate(-12,-11.25)"><path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/></g>' },
+      { key: 'blog',     label: 'Blog',     soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.7500) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
+      { key: 'partners', label: 'Partners', soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.9231) translate(-12,-12.5)"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/></g>' },
+      { key: 'contact',  label: 'Contact',  soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.8571) translate(-12,-12)"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></g>' },
       { key: 'about',    label: 'About',    soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-12)"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/></g>' },
       { key: 'account',  label: 'Account',  soon: false, svg: '<g transform="translate(12,12) scale(0.7742) translate(-12,-12.25)"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></g>' },
       /* Admin-only shortcut into experiment mode — avoids the sign-out →
@@ -4211,6 +4231,17 @@
         return !!(a && a.signedIn && a.email && ADMIN_EMAILS.indexOf(String(a.email).trim().toLowerCase()) >= 0);
       } catch (e) { return false; }
     }
+    /* Shared with the rest of the page: the hamburger drawer gates its own
+       not-yet-built site links in pure CSS via .admin-only, so mirror the admin
+       check onto body.is-admin. __account arrives asynchronously (magic-link
+       return, background /me restore), so sync on an interval exactly like
+       .nav-signedin / the experiment ribbon rather than once at boot. */
+    window.cfIsAdmin = isAdminUser;
+    function syncAdminClass() {
+      try { document.body.classList.toggle('is-admin', isAdminUser()); } catch (e) {}
+    }
+    syncAdminClass();
+    try { setInterval(syncAdminClass, 400); } catch (e) {}
     function renderMoreSheet() {
       var expOn = !!(window.experimentEnabled && window.experimentEnabled());
       var adminOk = isAdminUser();
@@ -4577,15 +4608,15 @@
          mirroring the LOYALTIES section. -->
     <div class="loyalties-section live-updates-section" id="live-updates-section">
       <div class="loyalties-header live-updates-header">
-        <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">LIVE</span><span class="loyalties-wordmark__b">&nbsp;UPDATES</span></div>
+        <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">SCORING</span><span class="loyalties-wordmark__b">&nbsp;UPDATES</span></div>
       </div>
       <!-- Impact-animation stage: phases 2–4 (hero → league split → net card)
            play INSIDE this fixed area, scrolling with the section. Opens to its
            row height while a batch runs, collapses to 0 after. Phase 1 (flash +
            CONFLICTED splash) stays on the full-screen #impact-overlay. -->
       <div id="ia-stage" aria-hidden="true"></div>
-      <div id="live-updates-log" class="lu-log"></div>
       <div class="lu-empty" id="lu-empty">No scoring changes yet — updates appear here as your players score.</div>
+      <div id="live-updates-log" class="lu-log"></div>
     </div>
     <div id="board-skeleton" aria-hidden="true" style="display:none;"></div>
     <div class="board-foot"><span class="t-stat-sm" id="board-refresh-time"></span></div>
