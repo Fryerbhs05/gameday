@@ -4454,7 +4454,7 @@
        …More menu — showAbout() works signed-out; the drawer's Home item leads back). -->
   <div class="lp-foot">
     <span>&copy; 2026 Conflicted Sports</span>
-    <span class="lp-foot__links"><a href="#" onclick="if(window.showAbout)showAbout();return false;">About</a><a href="/privacy.html">Privacy</a></span>
+    <span class="lp-foot__links"><a href="#" onclick="if(window.showAbout)showAbout();return false;">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a></span>
   </div>
 
   <div style="height:40px"></div>
@@ -4762,7 +4762,7 @@
       </div>
     </div>
 
-    <!-- Card 3b · Legal & help (placeholder rows; pages not yet wired) -->
+    <!-- Card 3b · Legal & help (Privacy + Terms wired; FAQ still a placeholder) -->
     <div class="settings-panel" style="display:block;margin:0 0 16px;">
       <div class="settings-body" style="display:block;">
         <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="FAQ">
@@ -4772,14 +4772,18 @@
           </div>
           <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
-        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Privacy Policy">
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Privacy Policy"
+             onclick="location.href='/privacy.html'"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='/privacy.html';}">
           <div class="settings-row-meta">
             <div class="settings-row-title">Privacy Policy</div>
             <div class="settings-row-sub">How your data is collected, used, and protected.</div>
           </div>
           <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
-        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Terms of Use">
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Terms of Use"
+             onclick="location.href='/terms.html'"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='/terms.html';}">
           <div class="settings-row-meta">
             <div class="settings-row-title">Terms of Use</div>
             <div class="settings-row-sub">The terms you agree to when using Conflicted.</div>
@@ -4848,7 +4852,7 @@
         </div>
       </div>
     </div>
-    <!-- Legal & help (placeholder rows; pages not yet wired) -->
+    <!-- Legal & help (Privacy + Terms wired; FAQ still a placeholder) -->
     <div class="settings-panel" style="display:block;margin:16px 0 0;">
       <div class="settings-body" style="display:block;">
         <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="FAQ">
@@ -4858,14 +4862,18 @@
           </div>
           <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
-        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Privacy Policy">
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Privacy Policy"
+             onclick="location.href='/privacy.html'"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='/privacy.html';}">
           <div class="settings-row-meta">
             <div class="settings-row-title">Privacy Policy</div>
             <div class="settings-row-sub">How your data is collected, used, and protected.</div>
           </div>
           <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
-        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Terms of Use">
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Terms of Use"
+             onclick="location.href='/terms.html'"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='/terms.html';}">
           <div class="settings-row-meta">
             <div class="settings-row-title">Terms of Use</div>
             <div class="settings-row-sub">The terms you agree to when using Conflicted.</div>
