@@ -3879,7 +3879,7 @@
         <text class="boot-wm-r" x="240" y="64" text-anchor="middle"
               style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:72px;letter-spacing:-0.04em;fill:var(--coral-500,#D85A30);"
               clip-path="url(#splashRightHalf)">CONFLICTED</text>
-        <line class="boot-wm-seam" x1="240" y1="14" x2="240" y2="78" style="stroke:var(--ink-900,#15181C);stroke-width:1.4;"/>
+        <line class="boot-wm-seam" x1="240" y1="3.5" x2="240" y2="81.3" style="stroke:var(--ink-900,#15181C);stroke-width:1.73;"/>
       </svg>
     </div>
     <div class="boot-splash__copy">
@@ -3907,6 +3907,20 @@
       <button class="dr-exit" type="button" onclick="exitDemo()"><span class="dr-exit-full">Exit Demo Mode</span><span class="dr-exit-short">Exit Demo</span></button>
     </div>
     </div>
+    <!-- ── SPLIT-WORDMARK SEAM SPEC (canonical) ──────────────────────
+         Every bisected CONFLICTED wordmark on the site draws its seam with the
+         SAME em-relative geometry, so the line reads identically at every size.
+         Given the <text> font-size F and baseline B:
+             y1 = B - 0.84 * F     (top: clears the cap height, ~0.15 cap above)
+             y2 = B + 0.24 * F     (bottom: descends past the baseline)
+             stroke-width = 0.024 * F
+         Reference instance (the 480x78 / F=50 / B=54 form used by every share
+         card + section header): y1=12, y2=66, stroke-width=1.2.
+         Derived: F=72/B=64 -> 3.5 / 81.3 / 1.73 · F=56/B=70 -> 22.96 / 83.44 / 1.34.
+         The seam must extend past the letters on BOTH ends — a seam that starts
+         inside the cap height is the bug fixed on 2026-07-31. Any NEW wordmark
+         must be derived from these ratios, never eyeballed.
+         ───────────────────────────────────────────────────────────── -->
     <a class="site-header__brand" href="/" aria-label="Conflicted — home">
       <svg xmlns="http://www.w3.org/2000/svg" width="480" height="90" viewBox="0 0 480 90" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="brandTitle brandDesc">
         <title id="brandTitle">Conflicted</title>
@@ -3921,7 +3935,7 @@
         <text x="240" y="64" text-anchor="middle"
               style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:72px;letter-spacing:-0.04em;fill:var(--coral-500,#D85A30);"
               clip-path="url(#rightHalf)">CONFLICTED</text>
-        <line x1="240" y1="14" x2="240" y2="78" style="stroke:var(--ink-900,#15181C);stroke-width:1.4;"/>
+        <line x1="240" y1="3.5" x2="240" y2="81.3" style="stroke:var(--ink-900,#15181C);stroke-width:1.73;"/>
       </svg>
     </a>
     <nav class="site-header__nav">
@@ -3948,7 +3962,7 @@
         <text x="240" y="70" text-anchor="middle"
               style="font-family:'Inter',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;fill:var(--coral-500,#D85A30);"
               clip-path="url(#menuRightHalf)">CONFLICTED</text>
-        <line x1="240" y1="22" x2="240" y2="82" style="stroke:var(--ink-900,#15181C);stroke-width:1.2;"/>
+        <line x1="240" y1="22.96" x2="240" y2="83.44" style="stroke:var(--ink-900,#15181C);stroke-width:1.34;"/>
       </svg>
     </a>
     <button class="menu-drawer__close" id="menu-close" type="button" aria-label="Close menu">
@@ -9628,7 +9642,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   /* Brand wordmark, hardcoded so the header NEVER depends on a network fetch (the
      dark bisected navy/coral wordmark + tagline). We still try the live file first
      to pick up any future brand edits, but fall back to this. */
-  const WORDMARK_SVG='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 130"><defs><clipPath id="lhDk"><rect x="0" y="0" width="240" height="130"/></clipPath><clipPath id="rhDk"><rect x="240" y="0" width="240" height="130"/></clipPath></defs><text x="240" y="70" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;" fill="#7AA8D1" clip-path="url(#lhDk)">CONFLICTED</text><text x="240" y="70" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;" fill="#E88761" clip-path="url(#rhDk)">CONFLICTED</text><line x1="240" y1="22" x2="240" y2="82" stroke="#F5EFE4" stroke-width="1.2"/><text x="240" y="110" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:500;font-size:11px;letter-spacing:0.25em;" fill="#9E988A">ALL YOUR LEAGUES, ONE PLACE</text></svg>';
+  const WORDMARK_SVG='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 130"><defs><clipPath id="lhDk"><rect x="0" y="0" width="240" height="130"/></clipPath><clipPath id="rhDk"><rect x="240" y="0" width="240" height="130"/></clipPath></defs><text x="240" y="70" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;" fill="#7AA8D1" clip-path="url(#lhDk)">CONFLICTED</text><text x="240" y="70" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:56px;letter-spacing:-0.04em;" fill="#E88761" clip-path="url(#rhDk)">CONFLICTED</text><line x1="240" y1="22.96" x2="240" y2="83.44" stroke="#F5EFE4" stroke-width="1.34"/><text x="240" y="110" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:500;font-size:11px;letter-spacing:0.25em;" fill="#9E988A">ALL YOUR LEAGUES, ONE PLACE</text></svg>';
   let wordmarkPromise=null;
   function loadWordmark(){
     if(wordmarkPromise)return wordmarkPromise;
@@ -16157,7 +16171,7 @@ loadExperimentState();
     var o=overlay(); if(!o){cb&&cb();return;}
     var flash=document.createElement('div'); flash.className='ia-flash'; o.appendChild(flash); nodes.push(flash);
     var sp=document.createElement('div'); sp.className='ia-splash';
-    sp.innerHTML='<div class="ia-splash__word"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 90" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Conflicted"><defs><clipPath id="iaLeftHalf"><rect x="0" y="0" width="240" height="90"/></clipPath><clipPath id="iaRightHalf"><rect x="240" y="0" width="240" height="90"/></clipPath></defs><text x="240" y="64" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:72px;letter-spacing:-0.04em;fill:var(--navy-700,#1A3A52);" clip-path="url(#iaLeftHalf)">CONFLICTED</text><text x="240" y="64" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:72px;letter-spacing:-0.04em;fill:var(--coral-500,#D85A30);" clip-path="url(#iaRightHalf)">CONFLICTED</text><line x1="240" y1="14" x2="240" y2="78" style="stroke:var(--ink-900,#15181C);stroke-width:1.4;"/></svg></div><div class="ia-splash__sub">conflicted player scored</div>';
+    sp.innerHTML='<div class="ia-splash__word"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 90" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Conflicted"><defs><clipPath id="iaLeftHalf"><rect x="0" y="0" width="240" height="90"/></clipPath><clipPath id="iaRightHalf"><rect x="240" y="0" width="240" height="90"/></clipPath></defs><text x="240" y="64" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:72px;letter-spacing:-0.04em;fill:var(--navy-700,#1A3A52);" clip-path="url(#iaLeftHalf)">CONFLICTED</text><text x="240" y="64" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:72px;letter-spacing:-0.04em;fill:var(--coral-500,#D85A30);" clip-path="url(#iaRightHalf)">CONFLICTED</text><line x1="240" y1="3.5" x2="240" y2="81.3" style="stroke:var(--ink-900,#15181C);stroke-width:1.73;"/></svg></div><div class="ia-splash__sub">conflicted player scored</div>';
     o.appendChild(sp); nodes.push(sp);
     requestAnimationFrame(function(){requestAnimationFrame(function(){flash.classList.add('on');sp.classList.add('in');});});
     after(780,function(){sp.classList.add('out');flash.classList.remove('on');});
