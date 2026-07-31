@@ -9609,6 +9609,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     if(libPromise)return libPromise;
     libPromise=new Promise((res,rej)=>{
       const s=document.createElement('script');
+      s.crossOrigin='anonymous';
       s.src='https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.js';
       s.onload=()=>res(window.htmlToImage);
       s.onerror=()=>{libPromise=null;rej(new Error('Snapshot library could not load — check your connection.'));};
@@ -16796,6 +16797,7 @@ loadExperimentState();
     if(htiPromise)return htiPromise;
     htiPromise=new Promise(function(res,rej){
       var s=document.createElement('script');
+      s.crossOrigin='anonymous';
       s.src='https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.js';
       s.onload=function(){res(window.htmlToImage);};
       s.onerror=function(){htiPromise=null;rej(new Error('Snapshot library could not load.'));};
@@ -17293,7 +17295,7 @@ if(typeof window.cfRegisterView==='function'){
 
   function loadScript(src){
     return new Promise(function(res,rej){
-      var s=document.createElement('script');s.src=src;
+      var s=document.createElement('script');s.crossOrigin='anonymous';s.src=src;
       s.onload=function(){res();};s.onerror=function(){rej(new Error('load fail: '+src));};
       document.head.appendChild(s);
     });
