@@ -4063,6 +4063,14 @@
       background: var(--paper); border-right: 1px solid var(--line);
       padding: 14px 0 12px; z-index: 90;
     }
+    /* When the Yahoo outage banner is up, body.cf-outage-on pushes the sticky
+       header DOWN by --cf-outage-h (its top becomes the banner height), so the
+       header now extends below 76px and would cover the top of the rail — the
+       app-icon mark got clipped behind it. Drop the rail by the same banner
+       height so it still tucks beneath the header's bottom hairline. */
+    body:not(.nav-landing).cf-outage-on #cf-side-rail {
+      top: calc(76px + var(--cf-outage-h, 44px));
+    }
     /* Shift all in-app content clear of the fixed rail. */
     body:not(.nav-landing) { padding-left: var(--cf-rail-w); }
     /* …but pull the sticky header back to full width so its bottom hairline runs
