@@ -3813,7 +3813,17 @@
     }
   </style>
 </head>
-<body>
+<!-- BOOT STATE: start in the LANDING surface (v142, Matt, 2026-08-01).
+     The bottom tab bar and desktop side rail are enabled by `body:not(.nav-landing)`,
+     and `.nav-landing` was only ever applied by updateHeaderAuthControls(), which
+     runs after the app script parses. So between first paint and that call the
+     body matched :not(.nav-landing) and the app-only nav PAINTED on the landing
+     page for every visitor, then vanished — a flash of signed-in chrome to
+     logged-out users. Shipping the class in the markup makes logged-out the
+     default surface; showBoard()/updateHeaderAuthControls(false) removes it once
+     the user is genuinely in the app. Same fail-toward-logged-out rule as the
+     __account.signedIn test: unknown auth must never paint app chrome. -->
+<body class="nav-landing">
 
 <!-- ══════════════════════════════════════════════════════════════════════
      Yahoo API outage banner — AUTO-DETECTING (v132, 2026-07-24, Matt).
