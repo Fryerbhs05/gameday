@@ -3935,6 +3935,11 @@
          403 means Yahoo accepted the token and then refused the fantasy read.
          That distinction drives the copy in cfConnectFailReason(). */
       window.__cfYahooDenied = denied;
+      /* When the denial was observed. The wizard's connect poll needs to tell a
+         denial seen during THIS attempt from one left over by an earlier status
+         check — otherwise it would declare "linked" the instant the user clicks
+         Connect, before they've signed in to Yahoo at all. */
+      if(denied) window.__cfYahooDeniedAt = Date.now();
       // Log only on a FLIP (incl. the session's first observation) so the
       // uptime monitor gets clean transition points, not one row per call.
       if(code!==lastCode){
@@ -11379,7 +11384,20 @@ function renderWizardStep(){
        <div class="wiz-note" id="wiz-note"></div>
      </div>`;
   const body = document.getElementById('wiz-step-body');
-  if(id==='yahoo' && window.__yahooPollActive && !connected){
+  /* Yahoo linked, data gated. This is a SETTLED state, not a pending one, so the
+     connect button must go: leaving "Click HERE To Complete Yahoo Connection" as
+     the loudest thing on screen invites a tap that cannot succeed and makes the
+     real forward action look like giving up. */
+  const yahooLinkedPaused = (id==='yahoo' && !connected &&
+    (window.__yahooLinkedPaused || (window.__cfYahooDenied && !window.__yahooPollActive)));
+  if(yahooLinkedPaused){
+    body.innerHTML =
+      `<div style="display:flex;gap:9px;align-items:center;padding:11px 13px;border:1px solid var(--cheer);border-radius:var(--radius-md);background:var(--cheer-soft);">
+         <span style="color:var(--cheer);font:700 15px/1 var(--font-sans);">&#10003;</span>
+         <span style="font:600 13px/1.4 var(--font-sans);color:var(--ink-900);">Yahoo account linked</span>
+       </div>`;
+  }
+  else if(id==='yahoo' && window.__yahooPollActive && !connected){
     body.innerHTML = `<button type="button" class="btn-yahoo" onclick="wizardConnectYahoo()"><span class="btn-yahoo-icon">Y!</span><span>Click HERE To Complete Yahoo Connection</span></button>`;
   } else {
     p.renderConnectCard(body);
@@ -11389,16 +11407,32 @@ function renderWizardStep(){
      token banked now means this user's leagues light up on their own the moment
      Yahoo approves, with no second visit required. So once we've seen the 403,
      say so plainly instead of leaving them tapping a button that can't succeed. */
-  if(id==='yahoo' && window.__cfYahooDenied && !connected){
+  if(yahooLinkedPaused){
     const r = cfConnectFailReason('yahoo');
     const n = document.createElement('div');
     n.style.cssText='margin-top:12px;padding:12px 14px;border:1px solid var(--surf-amber);border-radius:var(--radius-md);';
     n.innerHTML = `<div style="font:700 13px/1.4 var(--font-sans);color:var(--surf-amber);margin-bottom:4px;">${r.title}</div>
       <div style="font:400 13px/1.55 var(--font-sans);color:var(--ink-700);">${r.msg}</div>`;
     body.appendChild(n);
-    // Forward action is no longer a "skip" — there's nothing left for them to do.
+    /* The forward action is no longer a "skip" — nothing is being given up, the
+       token is saved. Promote it to primary, name the DESTINATION rather than the
+       act of leaving, and put a pointer right above it: the top banner is too far
+       from the button to be read as an instruction. */
     const nb = document.getElementById('wiz-next');
-    if(nb){ nb.className='btn-primary'; nb.textContent = last ? 'Finish' : 'Next'; }
+    if(nb){
+      nb.className='btn-primary';
+      nb.textContent = last ? 'Go to my dashboard' : 'Next';
+      if(last){
+        const hint=document.createElement('div');
+        hint.style.cssText='margin:14px 0 -4px;font:500 12px/1.5 var(--font-sans);color:var(--ink-500);text-align:center;';
+        hint.textContent='Nothing else to do here — your leagues appear on their own.';
+        const nav=nb.parentNode;
+        if(nav&&nav.parentNode) nav.parentNode.insertBefore(hint,nav);
+      }
+    }
+    // Step reads as done, not abandoned.
+    const head=root.querySelector('.wiz-step-title');
+    if(head && head.innerHTML.indexOf('wiz-ok')<0) head.innerHTML += ' <span class="wiz-ok">&#10003; linked</span>';
   }
   const back = document.getElementById('wiz-back');
   const next = document.getElementById('wiz-next');
@@ -11513,6 +11547,11 @@ function finishWizard(){
 function wizardConnectYahoo(){
   try{ window.open('/api/auth/yahoo?wizard=1','_blank'); }catch(e){}
   window.__yahooPollActive = true;
+  /* Stamp the attempt so pollYahoo only honours a denial observed from here on
+     (see the comment there) — a stale __cfYahooDenied must not short-circuit an
+     OAuth the user hasn't completed yet. */
+  window.__yahooPollStart = Date.now();
+  window.__yahooLinkedPaused = false;
   renderWizardStep();
   pollYahoo();
 }
@@ -11520,7 +11559,22 @@ function pollYahoo(){
   if(!window.__yahooPollActive) return;
   PROVIDERS.yahoo.checkStatus().then(s=>{
     if(!window.__yahooPollActive) return;
-    if(s && s.connected){ window.__yahooPollActive = false; renderWizardStep(); }
+    if(s && s.connected){ window.__yahooPollActive = false; window.__yahooLinkedPaused=false; renderWizardStep(); }
+    /* 403 "not authorized" means OAuth SUCCEEDED and Yahoo declined the fantasy
+       read — the API-approval pause. No amount of polling turns that into a 200,
+       so stop and repaint the step. Previously this branch didn't exist: the poll
+       retried every 2s forever, the step never changed, and the user sat on
+       "Click HERE To Complete Yahoo Connection" with only a distant generic
+       banner hinting at the problem. Mirrors pollConnectionsYahoo's fail-fast.
+       Only a denial observed AFTER this poll started counts — __cfYahooDenied
+       may be left over from an earlier status check, and trusting that would
+       declare success the moment the user clicks Connect. */
+    else if(window.__cfYahooDenied &&
+            (window.__cfYahooDeniedAt||0) >= (window.__yahooPollStart||0)){
+      window.__yahooPollActive = false;
+      window.__yahooLinkedPaused = true;   // OAuth done, data gated — a settled state
+      renderWizardStep();
+    }
     else { window.__yahooPollTimer = setTimeout(pollYahoo, 2000); }
   }).catch(()=>{ if(window.__yahooPollActive) window.__yahooPollTimer = setTimeout(pollYahoo, 2500); });
 }
