@@ -6993,7 +6993,14 @@ function markAllCardsFresh(){
 function shouldShowSampleBoard(){
   if(isDemoMode) return false;
   if(typeof isAnyProviderConnected==='function' && isAnyProviderConnected()) return false;
-  return !!window.__account;   // signed-in only; logged-out visitors get the landing page
+  /* MUST test .signedIn, never the object itself. bootstrapAccount() always
+     assigns window.__account — it defaults to { signedIn:false, enabled:false }
+     and keeps that shape when /api/account/me says the visitor is logged out —
+     so `!!window.__account` is TRUE for every anonymous visitor and would hand
+     the sample board to the whole landing page. .signedIn is the canonical test
+     used everywhere else in this file. */
+  const a = window.__account;
+  return !!(a && a.signedIn);
 }
 function getSampleBoardData(){
   const d=Object.assign({},getDemoData());
@@ -11710,7 +11717,13 @@ async function handleContinue(){
        dead-ended: Back went to Account, and Account's "Back to dashboard" threw
        them out to the logged-out landing page. */
     isDemoMode=false;
-    try{ showSampleBoard(); }catch(e){ try{ showConnections(); }catch(_){} }
+    /* Gate on the SAME predicate as every other entry point rather than calling
+       showSampleBoard() directly — an ungated call here would hand the board to
+       anyone who reached the wizard without an account (accounts disabled), and
+       an unintended sample board is exactly the failure this predicate exists to
+       prevent. */
+    if(shouldShowSampleBoard()){ try{ showSampleBoard(); }catch(e){ try{ showConnections(); }catch(_){} } }
+    else { try{ showConnections(); }catch(e){ try{ showSetup(); }catch(_){} } }
     maybeSendCrossDeviceLink();
     return;
   }
