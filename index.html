@@ -7002,6 +7002,7 @@ function shouldShowSampleBoard(){
   const a = window.__account;
   return !!(a && a.signedIn);
 }
+window.shouldShowSampleBoard=shouldShowSampleBoard;
 function getSampleBoardData(){
   const d=Object.assign({},getDemoData());
   d.__sample=true;             // read by saveBoardSnapshot + every share surface
@@ -15866,8 +15867,14 @@ loadExperimentState();
           // The bottom nav is in-app navigation, so GameDay must NEVER route to
           // the landing/setup screen (which sets .nav-landing and hides the bar).
           // Show the board only when there's one to show; otherwise stay put.
+          // The sample board (signed-in, nothing connected) IS a real board to
+          // show — before it existed, this branch correctly had nowhere to go and
+          // deliberately did nothing. Widening the condition only; the routing
+          // below is unchanged, and goToDashboardOrSetup() already knows how to
+          // land on the sample board.
           var connectedOrDemo = (typeof isAnyProviderConnected === 'function' && isAnyProviderConnected())
-            || (typeof window.inDemoMode === 'function' && window.inDemoMode());
+            || (typeof window.inDemoMode === 'function' && window.inDemoMode())
+            || (typeof window.shouldShowSampleBoard === 'function' && window.shouldShowSampleBoard());
           if (connectedOrDemo) {
             if (typeof window.goToDashboardOrSetup === 'function') window.goToDashboardOrSetup();
             else if (typeof window.showBoard === 'function') window.showBoard();
