@@ -3872,6 +3872,12 @@
     window.cfYahooStatus=function(status, detail, endpoint){
       var denied = (status===403) && /not\s+authorized/i.test(detail||'');
       var code = denied ? 'denied' : (status===200 ? 'ok' : ('http_'+status));
+      /* Expose the live verdict so the onboarding wizard can tell "Yahoo's data
+         service is paused" apart from "you didn't finish connecting". The 403 is
+         itself PROOF OAuth succeeded — an unauthenticated call returns 401, so a
+         403 means Yahoo accepted the token and then refused the fantasy read.
+         That distinction drives the copy in cfConnectFailReason(). */
+      window.__cfYahooDenied = denied;
       // Log only on a FLIP (incl. the session's first observation) so the
       // uptime monitor gets clean transition points, not one row per call.
       if(code!==lastCode){
@@ -4999,6 +5005,11 @@
     <h2 style="font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);margin:0 0 6px;">Manage League Connections</h2>
     <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">Add or remove fantasy platforms, and turn individual leagues on or off. Platform changes apply when you head back to the dashboard.</p>
   </div>
+
+  <!-- Pending-connection notice. Painted by renderPendingConnectionNotice() for a
+       user who finished onboarding without a live connection, so this page reads
+       as "here's exactly where you stand" instead of a bare settings screen. -->
+  <div id="cf-pending-notice" style="display:none;margin:0 0 22px;"></div>
 
   <!-- Platform Connections -->
   <div style="font:600 11px/1.4 var(--font-sans);letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-500);margin:0 0 10px;">Platform Connections</div>
@@ -6721,7 +6732,60 @@ function showConnections(){
   try{renderConnectionsPanel();}catch(e){console.warn('renderConnectionsPanel failed:',e.message);}
   /* The per-league on/off list now lives on this page — populate it on open. */
   try{renderAccountLeagues();}catch(e){console.warn('renderAccountLeagues failed:',e.message);}
+  try{renderPendingConnectionNotice();}catch(e){console.warn('renderPendingConnectionNotice failed:',e.message);}
 }
+
+/* ── "You're set up, but nothing's connected yet" ────────────────────────────
+   Shown to a user who completed onboarding without a live connection. The whole
+   point of the attempt-not-success gate is that this screen has to be worth
+   arriving at — so it names the platform they actually picked and the real
+   reason it didn't land, rather than a generic prompt to go connect something.
+   Clears itself automatically once a connection succeeds. */
+function renderPendingConnectionNotice(){
+  const el=document.getElementById('cf-pending-notice'); if(!el)return;
+  let pending = window.__cfPendingPlatforms;
+  if(!pending){
+    try{ pending = JSON.parse(localStorage.getItem('cf_pending_platforms')||'null'); }catch(e){ pending=null; }
+  }
+  // Drop anything that has since connected; if nothing is outstanding, stand down.
+  pending = (pending||[]).filter(id => PROVIDERS[id] && !(connectionState[id] && connectionState[id].connected));
+  if(!pending.length){
+    el.style.display='none'; el.innerHTML='';
+    window.__cfPendingPlatforms=null;
+    try{ localStorage.removeItem('cf_pending_platforms'); }catch(e){}
+    return;
+  }
+  const anyConnected = (typeof isAnyProviderConnected==='function') && isAnyProviderConnected();
+  const blocks = pending.map(id=>{
+    const r = cfConnectFailReason(id);
+    const p = PROVIDERS[id];
+    // A platform-side pause is not the user's problem — style it as information
+    // (amber) rather than an error, and never imply they did something wrong.
+    const accent = r.code==='platform_paused' ? 'var(--surf-amber)' : 'var(--navy-500)';
+    return `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line);">
+      <span class="provider-icon" style="background:${p.accentColor};flex:none;">${p.displayName.charAt(0)}</span>
+      <div style="min-width:0;">
+        <div style="font:700 13px/1.4 var(--font-sans);color:${accent};margin-bottom:3px;">${r.title}</div>
+        <div style="font:400 13px/1.55 var(--font-sans);color:var(--ink-700);">${r.msg}</div>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML =
+    `<div style="border:1px solid var(--navy-300, var(--line));border-radius:var(--radius-md);padding:16px 18px;background:var(--navy-900, transparent);">
+       <div style="font:700 15px/1.3 var(--font-sans);color:var(--ink-900);margin-bottom:4px;">
+         ${anyConnected?'One platform still needs attention':'Your account is saved'}
+       </div>
+       <div style="font:400 13px/1.55 var(--font-sans);color:var(--ink-500);">
+         ${anyConnected
+           ? 'Everything else is connected — this one just isn’t through yet.'
+           : 'Nothing’s connected yet, so there’s no board to show. Here’s exactly where things stand:'}
+       </div>
+       ${blocks}
+     </div>`;
+  el.style.display='block';
+  try{cfTrackOnce('pending_notice','pending_connection_notice_seen',{platforms:pending});}catch(e){}
+}
+window.renderPendingConnectionNotice=renderPendingConnectionNotice;
 window.showConnections=showConnections;
 function renderConnectionsPanel(){
   const grid=document.getElementById('connections-grid'); if(!grid)return;
@@ -6747,6 +6811,11 @@ function applyConnectionsAndView(){
   try{stopConnYahooPoll();}catch(e){}window.__yahooConnUI=null;
   window.__connectionsDirty=false;window.__connectionsViewActive=false;
   if(isAnyProviderConnected()){isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();showLoading('Updating your leagues.');run();}
+  /* Still nothing connected. Do NOT fall back to showSetup() for a user who
+     already has an account — that drops them into the sign-up wizard they just
+     completed and reads as if their account vanished. Keep them here, where the
+     pending notice explains the state and the connect cards are one tap away. */
+  else if(window.__account){ window.__connectionsViewActive=true; showConnections(); }
   else showSetup();
 }
 function exitConnections(){
@@ -11155,6 +11224,22 @@ function renderWizardStep(){
   } else {
     p.renderConnectCard(body);
   }
+  /* Yahoo's OAuth is healthy; only the fantasy DATA read is gated behind a
+     pending API approval. We deliberately still run the full OAuth here — a
+     token banked now means this user's leagues light up on their own the moment
+     Yahoo approves, with no second visit required. So once we've seen the 403,
+     say so plainly instead of leaving them tapping a button that can't succeed. */
+  if(id==='yahoo' && window.__cfYahooDenied && !connected){
+    const r = cfConnectFailReason('yahoo');
+    const n = document.createElement('div');
+    n.style.cssText='margin-top:12px;padding:12px 14px;border:1px solid var(--surf-amber);border-radius:var(--radius-md);';
+    n.innerHTML = `<div style="font:700 13px/1.4 var(--font-sans);color:var(--surf-amber);margin-bottom:4px;">${r.title}</div>
+      <div style="font:400 13px/1.55 var(--font-sans);color:var(--ink-700);">${r.msg}</div>`;
+    body.appendChild(n);
+    // Forward action is no longer a "skip" — there's nothing left for them to do.
+    const nb = document.getElementById('wiz-next');
+    if(nb){ nb.className='btn-primary'; nb.textContent = last ? 'Finish' : 'Next'; }
+  }
   const back = document.getElementById('wiz-back');
   const next = document.getElementById('wiz-next');
   if(back) back.onclick = wizardBack;
@@ -11178,15 +11263,91 @@ function wizardNext(){
   if(i+1 < q.length){ window.__wizIdx = i+1; renderWizardStep(); }
   else { finishWizard(); }
 }
+/* ══ ONBOARDING GATE: attempt, not success ═══════════════════════════════════
+   The wizard requires the user to PICK a platform (that's a real commitment
+   signal and it qualifies the funnel), but it deliberately does NOT require the
+   connection to succeed. Rationale: there is no failure mode where blocking
+   helps us. A Yahoo outage, a stale ESPN cookie, a mistyped Sleeper username and
+   a dropped wifi connection all end the same way — if we wall the user off we
+   lose the email too, and the email is the asset. Someone who signs up and
+   connects nothing is still reachable; someone who bounces off "connect at least
+   one platform" is gone and we never even learn they came.
+
+   So: ONE gate rule (you picked something and we tried), THREE messages (why it
+   didn't land). All the effort goes into the copy, none into a fragile
+   classifier — see cfConnectFailReason(). */
+
+/* Platforms the user chose that aren't reporting a live connection. */
+function wizPendingPlatforms(){
+  const q = window.__wizQueue || [];
+  return q.filter(id => !(connectionState[id] && connectionState[id].connected));
+}
+
+/* Why a chosen platform didn't connect. Three honest buckets — we do not try to
+   detect every possible cause, only the ones we can distinguish RELIABLY and
+   that imply genuinely different next actions for the user. */
+function cfConnectFailReason(id){
+  // Yahoo's fantasy read is gated behind a pending API approval. The 403 proves
+  // OAuth itself succeeded, so their account IS linked — the leagues will simply
+  // appear on their own once Yahoo restores access. Nothing for them to do.
+  if(id==='yahoo' && window.__cfYahooDenied){
+    return { code:'platform_paused',
+      title:'Yahoo account linked — leagues are paused',
+      msg:'Your Yahoo sign-in worked and is saved. Yahoo’s fantasy data service isn’t returning league info right now, so your leagues will stay empty until they restore it. Nothing more for you to do — they’ll appear automatically.' };
+  }
+  // ESPN needs a desktop cookie paste; on a phone this is expected, not an error.
+  if(id==='espn' && typeof isMobileDevice==='function' && isMobileDevice()){
+    return { code:'needs_desktop',
+      title:'ESPN needs a quick desktop step',
+      msg:'ESPN only hands out league access from a desktop browser. We’ll email you a link — open it on a computer and it takes about a minute.' };
+  }
+  // Everything else: didn't finish, or finished with bad details. Fixable by them.
+  return { code:'incomplete',
+    title:'Not connected yet',
+    msg:'We didn’t get a completed connection for this one. You can finish it any time from Manage League Connections — your account is already saved.' };
+}
+
 function finishWizard(){
-  if(!isAnyProviderConnected()){
+  const q = window.__wizQueue || [];
+  // The ONLY hard requirement: they picked at least one platform to try.
+  if(!q.length){
     const note = document.getElementById('wiz-note');
-    if(note) note.textContent = 'Connect at least one platform to continue — or use “Try demo mode” below.';
+    if(note) note.textContent = 'Pick at least one platform to continue — or use “Try demo mode” below.';
     return;
   }
   stopYahooPoll();
   window.__wizardActive = false;
-  try{cfTrack('onboarding_finished',{platforms:(typeof getConnectedProviders==='function')?getConnectedProviders():[],mobile:isMobileDevice()});}catch(e){}
+  const pending = wizPendingPlatforms();
+  // Remember what they INTENDED so the Connections view can name it, rather than
+  // showing a generic "connect a league" prompt to someone who already tried.
+  window.__cfPendingPlatforms = pending;
+  /* Only persist an ACTUAL outstanding list. Writing "[]" for a clean connect
+     would leave a truthy value behind (an empty array is truthy in JS), which
+     would later divert a fully-connected user whose sessions merely expired. */
+  try{
+    if(pending.length) localStorage.setItem('cf_pending_platforms', JSON.stringify(pending));
+    else localStorage.removeItem('cf_pending_platforms');
+  }catch(e){}
+  try{cfTrack('onboarding_finished',{
+    platforms:(typeof getConnectedProviders==='function')?getConnectedProviders():[],
+    pending: pending,
+    pending_reasons: pending.map(id=>cfConnectFailReason(id).code),
+    completed_clean: pending.length===0,
+    mobile:isMobileDevice()
+  });}catch(e){}
+  /* Yahoo-blocked signups go on the recovery list so we can mail them the moment
+     approval lands. Rides the EXISTING /api/integrations/request endpoint (it
+     already attaches user_id + the account email) — Vercel Hobby is at its 12
+     function cap, so no new api/*.js. Fire-and-forget; never blocks the flow. */
+  if(pending.indexOf('yahoo')>=0 && window.__cfYahooDenied){
+    try{
+      fetch('/api/integrations/request',{
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ platforms:['yahoo-restore'], notify:true, source:'yahoo_outage_signup' })
+      }).catch(()=>{});
+    }catch(e){}
+  }
   handleContinue();
 }
 function wizardConnectYahoo(){
@@ -11385,7 +11546,17 @@ function refreshConnectUI(){
 }
 
 async function handleContinue(){
-  if(!isAnyProviderConnected())return;
+  /* No live connection (Yahoo paused, ESPN pending a desktop step, or they just
+     didn't finish) — there is no board to paint, so land them on Manage League
+     Connections instead of the dashboard. This used to `return` silently, which
+     after the attempt-not-success gate change would have stranded the user on
+     the wizard with nothing happening. */
+  if(!isAnyProviderConnected()){
+    isDemoMode=false;
+    try{ showConnections(); }catch(e){ try{ showSetup(); }catch(_){} }
+    maybeSendCrossDeviceLink();
+    return;
+  }
   isDemoMode=false;colorMap={};hiddenLeagues.clear();stopAutoRefresh();
   await run();
   maybeSendCrossDeviceLink();
@@ -12598,7 +12769,21 @@ loadExperimentState();
        sessions) — the snapshot no longer represents this user. Drop it so the
        next boot doesn't flash a board they can't have. */
     if(bootedFromSnapshot)clearBoardSnapshot();
-    showSetup();endBoot();
+    /* A SIGNED-IN user with no live connection is not a new visitor, and must not
+       be dropped into the sign-up wizard — they already have an account, and
+       re-running onboarding every visit reads as if it got lost. This is the
+       returning case for anyone who finished onboarding while their platform was
+       unavailable (e.g. the Yahoo API approval pause): send them to Manage League
+       Connections, where the pending notice explains where things stand. Genuinely
+       logged-out visitors still get showSetup(). */
+    let _hasPending=false;
+    try{
+      const _p = JSON.parse(localStorage.getItem('cf_pending_platforms')||'null');
+      _hasPending = Array.isArray(_p) && _p.length > 0;
+    }catch(e){}
+    if(window.__account && _hasPending){ try{ showConnections(); }catch(e){ showSetup(); } }
+    else showSetup();
+    endBoot();
   }
 })();
 </script>
