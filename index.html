@@ -29,6 +29,31 @@
 
         var sent = 0;            // hard cap so an error loop can't flood Sentry
         var seen = {};           // dedupe identical errors within a session
+
+        // Third-party noise filter. In-app browsers (Instagram, Facebook, TikTok,
+        // Snapchat, LinkedIn) inject their OWN scripts into the page — bridge calls
+        // to window.webkit.messageHandlers, pixel/tracking shims, autofill hooks.
+        // Those scripts throw inside their own wrapper, but window.onerror is
+        // global, so the exception surfaces here under our DSN even though not one
+        // line of it is ours. Same for the well-known benign browser noise below.
+        // Nothing here is actionable, so drop it before it ever reaches Sentry.
+        var IGNORE = [
+          /webkit\.messageHandlers/i,                                  // iOS in-app bridge, missing outside a real WKWebView
+          /sendDataToNative|sendPageHideMessage|sendMessageToNative/i,  // Meta (IG/FB) in-app browser bridge fns
+          /_AutofillCallbackHandler|__gCrWeb|instantSearch/i,           // Android WebView + Chrome iOS injected shims
+          /\bfbq\b|\bttq\b|_tfa\b/i,                                    // Meta / TikTok / Taboola pixels
+          /ResizeObserver loop (limit exceeded|completed)/i,            // benign, spec'd browser warning
+          /Non-Error promise rejection captured/i
+        ];
+        function isThirdPartyNoise(value, stack, extra) {
+          try {
+            var hay = String(value || '') + '\n' + String(stack || '') +
+                      '\n' + String((extra && extra.source) || '');
+            for (var i = 0; i < IGNORE.length; i++) if (IGNORE[i].test(hay)) return true;
+          } catch (_) {}
+          return false;
+        }
+
         function uuid() {
           var s = '';
           for (var i = 0; i < 32; i++) s += Math.floor(Math.random() * 16).toString(16);
@@ -37,6 +62,7 @@
         function send(type, value, stack, extra) {
           try {
             if (sent >= 25) return;
+            if (isThirdPartyNoise(value, stack, extra)) return;
             var sig = (type || '') + '|' + (value || '');
             if (seen[sig]) return;
             seen[sig] = 1; sent++;
