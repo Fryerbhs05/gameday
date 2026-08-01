@@ -1972,6 +1972,42 @@
        on-screen through scrolling and every in-app view. Hardcoded navy/blue
        (not theme vars) so it reads identically in light + dark mode. */
     #demo-ribbon { display: none; align-items: center; flex: 0 0 auto; }
+    /* ── SAMPLE BOARD (signed-in, nothing connected) ──────────────────────────
+       Marker "B": an amber hairline frame around the board with a label riding
+       the top edge. Scoped to the region that is actually fake, and it stays on
+       screen while the user scrolls the board — unlike a header chip, which
+       scrolls away and leaves unlabelled fake scores below it.
+       The label is positioned on the frame's border, so #board needs a
+       positioning context and a little top padding to clear it. */
+    body.cf-sample-board #board {
+      position: relative;
+      border: 1px solid var(--surf-amber);
+      border-radius: var(--radius-md);
+      padding-top: 18px;
+      margin-top: 10px;
+    }
+    body.cf-sample-board #board::before {
+      content: "Sample data";
+      position: absolute; top: -8px; left: 16px;
+      background: var(--paper); padding: 0 7px;
+      font: 500 10px/1.6 var(--font-sans); letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--surf-amber);
+    }
+    /* Nothing here is theirs, so there is nothing to share. One rule covers all
+       six share surfaces — safer than patching six handlers and missing the
+       seventh when it ships. */
+    body.cf-sample-board #scoreboard-share,
+    body.cf-sample-board #loyalties-share,
+    body.cf-sample-board #cf-snap-share,
+    body.cf-sample-board #cfc-share,
+    body.cf-sample-board #rc-sharego,
+    body.cf-sample-board #ldr-share { display: none !important; }
+    /* Frozen period controls: sample data doesn't change by week. */
+    body.cf-sample-board #week-select,
+    body.cf-sample-board #season-select,
+    body.cf-sample-board #week-prev,
+    body.cf-sample-board #week-next { opacity: 0.4; pointer-events: none; }
+
     body.demo-active #demo-ribbon { display: flex; }
     #demo-ribbon .dr-text { display: none; }
     #demo-ribbon .dr-exit {
@@ -3864,6 +3900,27 @@
     }
     var closeBtn=el.querySelector('.cf-outage-close');
     if(closeBtn) closeBtn.addEventListener('click',function(){ hide(false); });
+
+    /* Two copies of the same outage, aimed at two different people. The GENERIC
+       message is for anyone whose Yahoo leagues stopped loading. The LINKED
+       message is for someone who just finished OAuth during the outage: their
+       token IS saved server-side and their leagues will populate the moment
+       Yahoo restores API access, so telling them "leagues are paused" without
+       that reassurance reads like their sign-up failed. Only ever one banner —
+       this swaps the text in place rather than adding a second element. */
+    var MSG={
+      generic:'<strong>Yahoo leagues are temporarily paused.</strong> <span class="cf-outage-sub">Yahoo’s fantasy data service isn’t returning league info right now — a temporary issue on their end. Your ESPN and Sleeper leagues are unaffected.</span>',
+      linked:'<strong>Your Yahoo account is linked — leagues are paused.</strong> <span class="cf-outage-sub">Your sign-in worked and is saved. Yahoo’s fantasy data service isn’t returning league info yet, so your leagues will appear automatically once they restore it. Nothing more for you to do.</span>'
+    };
+    var mode='generic';
+    window.cfYahooBannerMode=function(next){
+      if(next!=='linked'&&next!=='generic') return;
+      if(next===mode) return;
+      mode=next;
+      var m=el.querySelector('.cf-outage-msg');
+      if(m) m.innerHTML=MSG[next];
+      if(shown) measure();   // the linked copy is taller; re-reserve header offset
+    };
     window.addEventListener('resize',function(){ if(shown) measure(); });
 
     /* Called by the Yahoo fetch layer (yhFetch + provider checkStatus) with
@@ -6726,6 +6783,10 @@ function showConnections(){
   const v=document.getElementById('view-connections');
   if(v)v.style.display='block';
   window.__connectionsViewActive=true;
+  /* Always land at the top — this is a full page, and it's reachable straight
+     from onboarding, which leaves the window scrolled to the bottom of the
+     landing page. Matches showAccount()'s behavior. */
+  window.scrollTo(0,0);
   /* Fresh open starts clean — drop any leftover Yahoo connect pending/error state
      and stop a poll orphaned by a prior visit. */
   try{stopConnYahooPoll();}catch(e){}window.__yahooConnUI=null;
@@ -6810,12 +6871,12 @@ function renderConnectionsPanel(){
 function applyConnectionsAndView(){
   try{stopConnYahooPoll();}catch(e){}window.__yahooConnUI=null;
   window.__connectionsDirty=false;window.__connectionsViewActive=false;
-  if(isAnyProviderConnected()){isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();showLoading('Updating your leagues.');run();}
+  if(isAnyProviderConnected()){isDemoMode=false;colorMap={};hiddenLeagues.clear();resetRenderIndexes();stopAutoRefresh();clearSampleBoard();showLoading('Updating your leagues.');run();}
   /* Still nothing connected. Do NOT fall back to showSetup() for a user who
      already has an account — that drops them into the sign-up wizard they just
-     completed and reads as if their account vanished. Keep them here, where the
-     pending notice explains the state and the connect cards are one tap away. */
-  else if(window.__account){ window.__connectionsViewActive=true; showConnections(); }
+     completed and reads as if their account vanished. Send them to the sample
+     board, which is a real dashboard they can navigate out of. */
+  else if(shouldShowSampleBoard()) showSampleBoard();
   else showSetup();
 }
 function exitConnections(){
@@ -6907,8 +6968,85 @@ function markAllCardsFresh(){
     cards.forEach(c=>c.removeAttribute('data-fresh'));
   }));
 }
+/* ══ SAMPLE BOARD ═══════════════════════════════════════════════════════════
+   A signed-in user with no working platform connection still gets a dashboard,
+   painted with sample data, instead of being bounced to a settings page or (the
+   bug Matt hit) the logged-out landing page. Introduced for the Yahoo API
+   approval pause, where a Yahoo-only signup completes OAuth successfully and
+   still has zero readable leagues.
+
+   KEYED ON CONNECTION STATE, NEVER ON DATA. The trigger is "no platform can
+   return anything", NOT "no data came back". Those are very different: a real
+   connected user legitimately has no data during the preseason, on a historic
+   season before they joined, with every league toggled off, or when a fetch
+   transiently fails — and swapping sample scores into any of those would show a
+   real user fake numbers where they expect their own. The loader already draws
+   this same distinction (every-provider-erred vs responded-with-no-leagues).
+
+   NOT isDemoMode. Demo mode is deliberately hardened to look like "not a real
+   account" (grayed account menu, exit ribbon, blocked PWA prompt), which is
+   wrong for someone who genuinely signed up. Instead the DATA carries a
+   __sample stamp — the same approach Replay Mode uses with __replay — so the
+   guards key off the payload rather than a global flag that other code paths
+   can silently flip. Anything that could leak sample data into the user's real
+   world (the board snapshot, every share surface) checks that stamp. */
+function shouldShowSampleBoard(){
+  if(isDemoMode) return false;
+  if(typeof isAnyProviderConnected==='function' && isAnyProviderConnected()) return false;
+  return !!window.__account;   // signed-in only; logged-out visitors get the landing page
+}
+function getSampleBoardData(){
+  const d=Object.assign({},getDemoData());
+  d.__sample=true;             // read by saveBoardSnapshot + every share surface
+  return d;
+}
+function isSampleBoard(){
+  return !!(window.__conflictedLastData && window.__conflictedLastData.__sample);
+}
+window.isSampleBoard=isSampleBoard;
+function showSampleBoard(){
+  isDemoMode=false;
+  activeWeek=liveWeek;activeSeason=liveSeason;
+  colorMap={};hiddenLeagues.clear();stopAutoRefresh();
+  buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();
+  renderBoard(getSampleBoardData(),getPrimaryDisplayName()||'');
+  showBoard();
+  try{ document.body.classList.add('cf-sample-board'); }catch(e){}
+  try{ syncSampleBoardControls(); }catch(e){}
+  try{ ensureDemoHeadshots('sample'); }catch(e){}
+  /* Someone who linked Yahoo during the outage gets the reassuring copy rather
+     than the generic "leagues are paused" — their token really is saved. */
+  try{
+    if(window.__cfYahooDenied && window.cfYahooBannerMode) window.cfYahooBannerMode('linked');
+  }catch(e){}
+  try{cfTrackOnce('sample_board','sample_board_shown',{yahoo_denied:!!window.__cfYahooDenied});}catch(e){}
+  window.scrollTo(0,0);
+}
+window.showSampleBoard=showSampleBoard;
+/* Sample data doesn't vary by week, so period controls that appear live but do
+   nothing read as broken. Freeze them while previewing; they re-enable the
+   moment a real connection lands (clearSampleBoard). */
+function syncSampleBoardControls(){
+  const on=document.body.classList.contains('cf-sample-board');
+  ['week-select','season-select','week-prev','week-next'].forEach(function(id){
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.disabled=on;
+    if(on) el.setAttribute('aria-disabled','true'); else el.removeAttribute('aria-disabled');
+  });
+}
+function clearSampleBoard(){
+  try{ document.body.classList.remove('cf-sample-board'); }catch(e){}
+  try{ syncSampleBoardControls(); }catch(e){}
+}
+window.clearSampleBoard=clearSampleBoard;
+
 function goToDashboardOrSetup(){
   if(isAnyProviderConnected()||isDemoMode) showBoard();
+  /* A signed-in user with nothing connected must NOT land on showSetup() — that
+     is the logged-out landing page, and it reads as if their account vanished.
+     This was reachable from the Connections view's "Back to dashboard". */
+  else if(shouldShowSampleBoard()) showSampleBoard();
   else showSetup();
 }
 
@@ -9520,6 +9658,15 @@ async function ensureDemoHeadshots(previewLabel){
     // Re-render now that headshots can resolve. Demo mode uses the 'demo' label;
     // the TestMode preview board (isDemoMode deliberately false) passes its own.
     if(isDemoMode)renderBoard(getDemoData(),'demo');
+    /* Sample board must re-render from getSampleBoardData(), NOT getDemoData():
+       the re-render overwrites __conflictedLastData, and unstamped data would
+       silently disarm the __sample guards on the board snapshot and every share
+       surface. It also keeps the user's real display name — previewLabel is a
+       mode tag here, not a username. */
+    else if(previewLabel==='sample'){
+      if(document.body.classList.contains('cf-sample-board'))
+        renderBoard(getSampleBoardData(),getPrimaryDisplayName()||'');
+    }
     else if(previewLabel)renderBoard(getDemoData(),previewLabel);
   }catch(e){console.warn('demo headshots load failed:',e.message);}
 }
@@ -9621,6 +9768,11 @@ function saveBoardSnapshot(data,username){
     /* Only snapshot real, live-week boards: never demo/preview data, never a
        historical week (boot always lands on the live week), never no-data. */
     if(isDemoMode||!data||data.noData||data.isHist)return;
+    /* Sample-board data must never be snapshotted. It renders with isDemoMode
+       FALSE (the user has a real account), so the demo guard above doesn't catch
+       it — without this the next cold boot would paint fake scores as the user's
+       actual board before revalidation. Same reasoning as the __replay guard. */
+    if(data.__sample)return;
     if(!isAnyProviderConnected())return;
     const snap={ts:Date.now(),week:activeWeek,season:activeSeason,liveWeek:liveWeek,liveSeason:liveSeason,username:username||'',data:data};
     try{localStorage.setItem(BOARD_SNAPSHOT_KEY,JSON.stringify(snap));localStorage.setItem(SNAPSHOT_TS_KEY,String(snap.ts));}
@@ -11552,13 +11704,28 @@ async function handleContinue(){
      after the attempt-not-success gate change would have stranded the user on
      the wizard with nothing happening. */
   if(!isAnyProviderConnected()){
+    /* Nothing readable yet (Yahoo paused mid-approval, ESPN pending its desktop
+       step, or they didn't finish). Land them on a real dashboard painted with
+       sample data rather than a settings page — the earlier Connections routing
+       dead-ended: Back went to Account, and Account's "Back to dashboard" threw
+       them out to the logged-out landing page. */
     isDemoMode=false;
-    try{ showConnections(); }catch(e){ try{ showSetup(); }catch(_){} }
+    try{ showSampleBoard(); }catch(e){ try{ showConnections(); }catch(_){} }
     maybeSendCrossDeviceLink();
     return;
   }
   isDemoMode=false;colorMap={};hiddenLeagues.clear();stopAutoRefresh();
+  clearSampleBoard();
   await run();
+  /* Land at the TOP of the new board. Onboarding runs at the BOTTOM of a long
+     landing page (the hero's "Get started" scrolls down to #get-started-section),
+     and swapping in the dashboard doesn't reset the scroll offset — so the user
+     finished the wizard and arrived partway down their own dashboard.
+     Deliberately scoped to handleContinue(), the one-time onboarding handoff, and
+     NOT to run(): run() is also the refresh path, which preserves scroll position
+     on purpose so a background refresh doesn't yank the user to the top. Fires
+     after the await so the board has laid out. Mirrors handleDemo(). */
+  window.scrollTo(0,0);
   maybeSendCrossDeviceLink();
 }
 
@@ -12773,15 +12940,13 @@ loadExperimentState();
        be dropped into the sign-up wizard — they already have an account, and
        re-running onboarding every visit reads as if it got lost. This is the
        returning case for anyone who finished onboarding while their platform was
-       unavailable (e.g. the Yahoo API approval pause): send them to Manage League
-       Connections, where the pending notice explains where things stand. Genuinely
-       logged-out visitors still get showSetup(). */
-    let _hasPending=false;
-    try{
-      const _p = JSON.parse(localStorage.getItem('cf_pending_platforms')||'null');
-      _hasPending = Array.isArray(_p) && _p.length > 0;
-    }catch(e){}
-    if(window.__account && _hasPending){ try{ showConnections(); }catch(e){ showSetup(); } }
+       unavailable (e.g. the Yahoo API approval pause): give them the sample board,
+       a real dashboard they can navigate out of, with the amber frame marking the
+       data as sample and the banner explaining why. Genuinely logged-out visitors
+       still get showSetup(). */
+    if(typeof shouldShowSampleBoard==='function' && shouldShowSampleBoard()){
+      try{ showSampleBoard(); }catch(e){ showSetup(); }
+    }
     else showSetup();
     endBoot();
   }
