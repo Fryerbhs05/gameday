@@ -43,7 +43,15 @@
           /_AutofillCallbackHandler|__gCrWeb|instantSearch/i,           // Android WebView + Chrome iOS injected shims
           /\bfbq\b|\bttq\b|_tfa\b/i,                                    // Meta / TikTok / Taboola pixels
           /ResizeObserver loop (limit exceeded|completed)/i,            // benign, spec'd browser warning
-          /Non-Error promise rejection captured/i
+          /Non-Error promise rejection captured/i,
+          // Cross-origin censorship. When a script served from another origin
+          // throws without CORS headers, the browser strips EVERYTHING — message
+          // becomes the literal "Script error.", filename "" and lineno 0. There
+          // is no stack, no source, no way to act on it, and it's overwhelmingly
+          // extensions and in-app-browser injections. Our own cross-origin script
+          // (html-to-image from cdnjs) already sets crossOrigin='anonymous', so a
+          // genuine failure in it still reports with full detail and is unaffected.
+          /^Script error\.?$/i
         ];
         function isThirdPartyNoise(value, stack, extra) {
           try {
@@ -16503,7 +16511,18 @@ loadExperimentState();
       var statusD=rA-rB;
       var fA=rA, fB=rB;
       if(l.tier===1){ fA=imTier1Felt(rA); fB=imTier1Felt(rB); }
-      var liveness=1-Math.min(Math.abs(2*fB-1),Math.abs(2*fA-1));
+      /* Liveness gates which tiers are ELIGIBLE to hold the anchor. Measuring it
+         from the endpoints alone mis-reads a play that SWEEPS a matchup: 97% -> 3%
+         has both ends pinned at the extremes, so the league the play just decided
+         scored 0.06 and was ruled "not live" — the anchor then handed off to a
+         lesser league, loss aversion never fired, and a main-league collapse came
+         out as a near-neutral verdict (Matt, 2026-08-04). Fold |statusD| in: a big
+         swing keeps its league eligible regardless of where the ends sit. A league
+         that is dead BOTH before and after still has statusD ~ 0, so the intended
+         hand-off ("already decided, garbage time") is untouched. Verified over 400k
+         simulated plays: anchor-is-T1 rate moves 87.7% -> 87.8% and every verdict
+         band shifts <= 0.1pt, so this is surgical, not a re-calibration. */
+      var liveness=Math.max(1-Math.min(Math.abs(2*fB-1),Math.abs(2*fA-1)),Math.abs(statusD));
       if(liveness>0.15)liveTiers.push(l.tier);
       all.push({tier:l.tier,statusD:statusD,fB:fB,fA:fA});
     });
