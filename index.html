@@ -5308,6 +5308,8 @@
   .cf-c-vs{font-size:10px;color:var(--cs-ink-500);font-weight:700;}
   .cf-c-tag{font-size:9px;color:var(--cs-ink-500);font-weight:700;letter-spacing:.03em;margin-left:auto;align-self:center;text-transform:uppercase;white-space:nowrap;}
   .cf-c-barwrap{margin-bottom:8px;}
+  /* completed matchup drops the commentary row — the bar's trailing gap goes with it */
+  .cf-card.no-detail .cf-c-barwrap{margin-bottom:0;}
   .cf-c-bar{height:6px;border-radius:4px;background:var(--cs-navy-700);overflow:hidden;}
   .cf-c-bar i{height:100%;display:block;border-radius:4px;}
   .cf-c-barlbl{display:flex;justify-content:space-between;margin-top:5px;font-size:10px;font-weight:700;gap:8px;}
@@ -17275,11 +17277,18 @@ loadExperimentState();
           .sort(function(a,b){ var pa=(a.leaguePoints&&a.leaguePoints[name]&&a.leaguePoints[name].proj)||0, pb=(b.leaguePoints&&b.leaguePoints[name]&&b.leaguePoints[name].proj)||0; return pb-pa; })
           .map(shortName).filter(Boolean).slice(0,2);
       }
+      /* Players with any snap left to play. Unknown game state counts as REMAINING
+         (conservative) so we never call a matchup "done" on missing scoreboard data. */
+      function remainingCount(list){ return list.filter(function(p){ return gameState(p.team)!=='post'; }).length; }
+      var remaining=remainingCount(mine)+remainingCount(opp);
       rows.push({
         name:name, tier:tierOf(name), state:state, prob:prob,
         curMy:curMy, curOpp:curOpp, projMy:projMy, projOpp:projOpp,
         hasProj:hasProj,
-        pending:pending, live:live,
+        pending:pending, live:live, remaining:remaining,
+        /* fully complete = platform says FINAL, or every player on both sides is post.
+           Drives the "no commentary once it's over" rule in cardDetail(). */
+        done:(isFinal || (!pending && remaining===0)),
         isFinal:isFinal, myToGo:toGo(mine), oppToGo:toGo(opp)
       });
     });
@@ -17332,6 +17341,8 @@ loadExperimentState();
     return '<div class="cf-c-barwrap"><div class="cf-c-bar"><i style="width:'+w+'%;background:'+fill+(r.state==='closs'?';opacity:.6':'')+'"></i></div></div>';
   }
   function cardDetail(r){
+    /* Matchup is over — no commentary at all. Score + status row already say it. */
+    if(r.done) return '';
     var ic,txt,gap=r.curMy-r.curOpp;
     if(r.state==='cwin'){ic='&#127942;';txt='Locked in &mdash; nothing left to sweat.';}
     else if(r.state==='closs'){ic='&#128577;';txt='Out of reach &mdash; <b>&minus;'+nf(margin(r))+'</b>.';}
@@ -17352,7 +17363,7 @@ loadExperimentState();
      at render so the share PNG, which is cloned off this DOM, inherits it. */
   function snapMaskLg(n){ try{ return (typeof window.cfMaskLeague==='function')?window.cfMaskLeague(n):n; }catch(e){ return n; } }
   function cardHTML(r){
-    return '<div class="cf-card '+r.state+'"><div class="cf-c-row1"><span class="cf-c-name">'+snapMaskLg(r.name)+'</span>'+cardStatus(r)+'</div>'
+    return '<div class="cf-card '+r.state+(r.done?' no-detail':'')+'"><div class="cf-c-row1"><span class="cf-c-name">'+snapMaskLg(r.name)+'</span>'+cardStatus(r)+'</div>'
       +cardScore(r)+cardBar(r)+cardDetail(r)+'</div>';
   }
 
