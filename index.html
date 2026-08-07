@@ -1914,6 +1914,38 @@
       border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
     }
     .lf-live-label { font: 500 13px/1.35 var(--font-sans); color: var(--ink-700); }
+
+    /* ── Screenshot privacy toggles (Hide League / Team Names) ──────────────
+       Sit at the TOP of every Filters sheet that carries league visibility,
+       directly above the League show/hide list. Phone + tablet only: the
+       feature exists to make a shareable screenshot safe, which is a mobile
+       act, so the whole section is hidden from 900px up (same breakpoint the
+       desktop phone-preview modes use). */
+    .lf-privacy-section { margin: 2px 0 6px; }
+    .lf-privacy-head {
+      padding: 4px 4px 8px;
+      font: 600 10px/1 var(--font-sans); letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--ink-500);
+    }
+    .lf-privacy-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 4px; border-bottom: 1px solid var(--line);
+    }
+    .lf-privacy-row:first-of-type { border-top: 1px solid var(--line); }
+    .lf-privacy-label { font: 500 13px/1.35 var(--font-sans); color: var(--ink-700); min-width: 0; }
+    .lf-privacy-note {
+      padding: 8px 4px 2px;
+      font: 400 11.5px/1.45 var(--font-sans); color: var(--ink-500);
+    }
+    /* Phone + tablet only. The wrapper class rides on the per-sheet group box
+       (Exposure's .exp-settings__section, Leaders' .ldrf-grp) so desktop hides
+       the whole framed group, not just its contents — otherwise those sheets
+       would show an empty bordered box. */
+    @media (min-width: 900px) {
+      .lf-privacy-section,
+      .lf-privacy-wrap { display: none !important; }
+    }
+
     .lf-cols-head {
       display: flex; align-items: center; justify-content: space-between;
       padding: 10px 4px 8px;
@@ -7356,7 +7388,7 @@ function renderScoresStrip(contexts){
       cell=document.createElement('div');cell.className='score-cell';
       cell.dataset.league=ctx.leagueName;
       cell.innerHTML=`
-      <div class="score-cell__league"><span class="score-cell__league-name">${ctx.leagueName}</span></div>
+      <div class="score-cell__league"><span class="score-cell__league-name">${cfMaskLeague(ctx.leagueName)}</span></div>
       <div class="score-cell__scores"><span class="score-cell__points score-cell__points--you">${ctx.myPoints.toFixed(2)}</span><span class="score-cell__points score-cell__points--opp">${ctx.oppPoints.toFixed(2)}</span></div>
       <div class="score-cell__divider"></div>
       <div class="score-cell__proj" hidden>
@@ -7367,7 +7399,16 @@ function renderScoresStrip(contexts){
       <div class="score-cell__state ${stCls}">${stTxt}</div>`;
       idx.set(ctx.leagueName,cell);
     } else {
-      // Update points + state in place; league name/dot are immutable.
+      /* Update points + state in place. The dot is immutable, but the league
+         NAME is not any more: the screenshot-privacy mask rewrites it without
+         the underlying data changing, and cells are keyed on the real name so
+         the diff above never rebuilds them. Restamp it every pass — it's one
+         textContent write against a string that's usually identical. */
+      const nameEl=cell.querySelector('.score-cell__league-name');
+      if(nameEl){
+        const lbl=cfMaskLeague(ctx.leagueName);
+        if(nameEl.textContent!==lbl)nameEl.textContent=lbl;
+      }
       const youEl=cell.querySelector('.score-cell__points--you');
       const oppEl=cell.querySelector('.score-cell__points--opp');
       const stateEl=cell.querySelector('.score-cell__state');
@@ -7382,7 +7423,7 @@ function renderScoresStrip(contexts){
       cell.classList.add('is-tappable');
       cell.setAttribute('role','button');
       cell.setAttribute('tabindex','0');
-      cell.setAttribute('aria-label',`Open matchup detail for ${ctx.leagueName}`);
+      cell.setAttribute('aria-label',`Open matchup detail for ${cfMaskLeague(ctx.leagueName)}`);
     } else {
       cell.classList.remove('is-tappable');
       cell.removeAttribute('role');
@@ -7677,8 +7718,8 @@ function renderMatchupDrawer(ctx, lg){
      Yahoo/ESPN and bye-week leagues. nowrap+ellipsis in CSS keeps long/duplicate
      names on one line so the two score columns stay aligned; the league name in
      the drawer head disambiguates managers who reuse a name across leagues. */
-  const myNm  = ctx.myTeamName  ? escHtml(ctx.myTeamName)  : '';
-  const oppNm = ctx.oppTeamName ? escHtml(ctx.oppTeamName) : '';
+  const myNm  = ctx.myTeamName  ? escHtml(cfMaskTeam(ctx.myTeamName,'mine')) : '';
+  const oppNm = ctx.oppTeamName ? escHtml(cfMaskTeam(ctx.oppTeamName,'opp')) : '';
   const myLabel  = myNm  || 'You';
   const oppLabel = oppNm || 'Opp';
   const benchTotal = myBench.length + oppBench.length;
@@ -7693,7 +7734,7 @@ function renderMatchupDrawer(ctx, lg){
   return '<div class="matchup-drawer" data-status="' + dataStatus + '" data-matchup-league="' + escHtml(ctx.leagueName) + '">'
     + '<div class="matchup-drawer__head">'
     +   '<span class="matchup-drawer__dot" style="background:' + color + '"></span>'
-    +   '<h3 class="matchup-drawer__name">' + escHtml(ctx.leagueName) + '</h3>'
+    +   '<h3 class="matchup-drawer__name">' + escHtml(cfMaskLeague(ctx.leagueName)) + '</h3>'
     +   (fmt ? '<span class="matchup-drawer__fmt">' + escHtml(fmt) + '</span>' : '')
     +   '<button type="button" class="matchup-drawer__close" data-matchup-drawer-close="1">Close</button>'
     + '</div>'
@@ -7874,9 +7915,99 @@ function renderLeagueFilterSheet(){
   return `<div class="league-filter-sheet">`
     +`<div class="lf-head"><span class="lf-title">Filters</span><button class="lf-close" data-lf-close="1" type="button" aria-label="Close">&times;</button></div>`
     +liveRow
+    +cfRenderPrivacySection()
     +cfRenderLeagueSection()
     +`</div>`;
 }
+/* ── Screenshot privacy: Hide League Names / Hide Team Names ────────────────
+   Sleeper-style masking so a screenshot can be shared without doxxing the
+   league or its managers. This is a DISPLAY-LAYER RENAME ONLY — nothing is
+   removed from the data. hiddenLeagues, priority tiers, colour assignment,
+   dedupe and every calculation keep operating on the real names underneath,
+   so masking can never change a number on screen.
+
+   SESSION-ONLY by design (feedback_filter_persistence): neither flag touches
+   localStorage or the account, so a reload always comes back showing real
+   names. That's deliberate — you should never be able to forget the mask is
+   on and later wonder why your leagues are called "League 2".
+
+   Labels are generic and STABLE for the life of the page. Once a league is
+   assigned "League 3" it keeps that number as you hop views, change weeks, or
+   flip the mask off and back on, so a masked screenshot lines up with an
+   unmasked one. cfMaskSeq only ever grows — it never renumbers. Numbering is
+   seeded from leagueNamesCache (board/context order) rather than from whatever
+   view happened to ask first, so "League 1" is the same league everywhere. */
+let hideLeagueNames=false,hideTeamNames=false;
+const cfMaskSeq=new Map();
+function cfSeedMaskSeq(){
+  try{(leagueNamesCache||[]).forEach(function(n){if(n&&!cfMaskSeq.has(n))cfMaskSeq.set(n,cfMaskSeq.size+1);});}catch(e){}
+}
+/* Returns the display label for a league. Call this at the point of RENDER and
+   let the site's own escaper wrap it — never store the result. */
+function cfMaskLeague(name){
+  if(!hideLeagueNames)return name;
+  const key=(name==null)?'':String(name);
+  if(!key)return key;
+  if(!cfMaskSeq.has(key)){cfSeedMaskSeq();if(!cfMaskSeq.has(key))cfMaskSeq.set(key,cfMaskSeq.size+1);}
+  return 'League '+cfMaskSeq.get(key);
+}
+/* Team names only ever render two-up (your side vs theirs) in the matchup
+   drawer, so the mask needs no numbering — just a side. Manager/display names
+   are what these actually are; masking them covers both. */
+function cfMaskTeam(name,side){
+  if(!hideTeamNames)return name;
+  return (side==='opp')?'Opponent':'Your Team';
+}
+function cfMaskActive(){return hideLeagueNames||hideTeamNames;}
+window.cfMaskLeague=cfMaskLeague;window.cfMaskTeam=cfMaskTeam;window.cfMaskActive=cfMaskActive;
+
+/* Repaint everything on screen after a mask toggle. Masking is applied at
+   render time by every surface, so each one just needs a nudge — same shape as
+   cfApplyLeagueVisibility, but it also covers the overlay views (Snapshot,
+   Conflict Card, Watch Priority) via the nav-view registry, and an open
+   matchup drawer, which league visibility never had to. */
+function cfApplyNameMask(){
+  cfSeedMaskSeq();
+  try{applyFilters();}catch(e){}
+  try{if(typeof renderScoresStrip==='function'&&Array.isArray(window.currentContexts))renderScoresStrip(window.currentContexts);}catch(e){}
+  /* Live Updates is an append-only feed — already-rendered rows would keep the
+     real names until the next scoring delta, so force a repaint of the log. */
+  try{if(typeof window.__luRepaint==='function')window.__luRepaint();}catch(e){}
+  /* Whichever non-board view is open repaints itself from the latest data. */
+  try{const v=(typeof window.cfActiveView==='function')?window.cfActiveView():null;if(v&&typeof v.render==='function')v.render();}catch(e){}
+  /* An open matchup drawer holds team names, so rebuild its body in place. */
+  try{
+    if(window.BottomSheet&&window.BottomSheet.isOpen()){
+      const owner=window.BottomSheet.getOwner()||'';
+      if(owner.indexOf('matchup:')===0){
+        const nm=owner.slice('matchup:'.length);
+        const ctx=(window.currentContexts||[]).find(c=>c.leagueName===nm);
+        const lg =(window.currentLeagues ||[]).find(l=>l.leagueName===nm);
+        if(ctx&&typeof window.renderMatchupDrawer==='function')window.BottomSheet.setBody(window.renderMatchupDrawer(ctx,lg));
+      }
+    }
+  }catch(e){}
+}
+window.cfApplyNameMask=cfApplyNameMask;
+
+/* The two toggle rows. Rendered by EVERY sheet that carries league visibility,
+   pinned above the league list. Unlike cfRenderLeagueSection this never returns
+   '' — masking a single-league account is still worth doing, and team names are
+   worth hiding no matter how many leagues you're in. */
+function cfRenderPrivacySection(){
+  const row=(key,label,on)=>`<div class="lf-privacy-row">`
+    +`<span class="lf-privacy-label">${label}</span>`
+    +`<button class="live-toggle${on?' on':''}" data-lf-mask="${key}" type="button" role="switch" aria-checked="${on?'true':'false'}" aria-label="${label}"></button>`
+    +`</div>`;
+  return `<div class="lf-privacy-section">`
+    +`<div class="lf-privacy-head">Screenshot privacy</div>`
+    +row('league','Hide League Names',hideLeagueNames)
+    +row('team','Hide Team Names',hideTeamNames)
+    +`<div class="lf-privacy-note">Names are replaced with generic labels so you can share a screenshot. Resets when you reload.</div>`
+    +`</div>`;
+}
+window.cfRenderPrivacySection=cfRenderPrivacySection;
+
 /* ── Shared league show/hide section ────────────────────────────────────────
    ONE partial, injected by every sheet that offers league visibility: the
    GameDay/Snapshot drawer above, Exposure's filters sheet, and Leaders'. All
@@ -7892,9 +8023,13 @@ function cfRenderLeagueSection(){
   if(names.length<2)return '';
   const rows=names.map((n,i)=>{
     const color=lc(n);const on=!hiddenLeagues.has(n);
+    /* Masked here too — otherwise a screenshot with the drawer open leaks every
+       name the mask just hid on the board. The colour dot plus the stable
+       "League N" label still tell you which row is which. */
+    const lbl=cfMaskLeague(n);
     return `<div class="lf-row">`
-      +`<span class="lf-league"><span class="lf-dot" style="background:${color}"></span><span class="lf-name" style="color:var(--ink-700)">${n}</span></span>`
-      +`<button class="live-toggle${on?' on':''}" data-lf-league="${i}" type="button" aria-label="Toggle ${n}"></button>`
+      +`<span class="lf-league"><span class="lf-dot" style="background:${color}"></span><span class="lf-name" style="color:var(--ink-700)">${lbl}</span></span>`
+      +`<button class="live-toggle${on?' on':''}" data-lf-league="${i}" type="button" aria-label="Toggle ${lbl}"></button>`
       +`</div>`;
   }).join('');
   /* "Show all leagues" reset button removed 2026-07-23 (Matt) — re-enabling a
@@ -7936,6 +8071,24 @@ function openLeagueFilterSheet(){
 document.addEventListener('click',function(e){
   const liveBtn=e.target.closest('[data-lf-live]');
   if(liveBtn){toggleLiveOnly();liveBtn.classList.toggle('on',liveOnly);return;}
+  /* Screenshot privacy toggles. Flip state, flip the switch, repaint every
+     surface behind the sheet so the mask lands immediately — the user is about
+     to screenshot, so there must be no stale real name left on screen. */
+  const maskBtn=e.target.closest('[data-lf-mask]');
+  if(maskBtn){
+    const which=maskBtn.getAttribute('data-lf-mask');
+    if(which==='league')hideLeagueNames=!hideLeagueNames;
+    else if(which==='team')hideTeamNames=!hideTeamNames;
+    else return;
+    const on=(which==='league')?hideLeagueNames:hideTeamNames;
+    maskBtn.classList.toggle('on',on);
+    maskBtn.setAttribute('aria-checked',on?'true':'false');
+    cfApplyNameMask();
+    /* The league list behind these toggles shows names too — restamp it. */
+    cfRefreshOpenLeagueSection();
+    try{cfTrack('name_mask_toggled',{which:which,on:on});}catch(e2){}
+    return;
+  }
   const lgBtn=e.target.closest('[data-lf-league]');
   if(lgBtn){
     const name=leagueNamesCache[+lgBtn.getAttribute('data-lf-league')];
@@ -8036,15 +8189,15 @@ function buildCardInner(player,isHist){
   const dotColor=n=>player.myLeagues.includes(n)?'var(--cheer)':player.againstLeagues.includes(n)?'var(--enemy)':lc(n);
   let ptsHTML='';
   if(hasAnyPts){
-    const rows=Object.entries(lpd).map(([n,d])=>{const color=dotColor(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:var(--ink-700)">${n}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
+    const rows=Object.entries(lpd).map(([n,d])=>{const color=dotColor(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:var(--ink-700)">${cfMaskLeague(n)}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
     ptsHTML=`<div style="display:flex;flex-direction:column;gap:4px">${rows}</div>`;
   }
   let rosterHTML='';
   if(!hasAnyPts){
-    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${dotColor(n)}"></span><span style="color:var(--ink-700)">${n}</span></div>`).join('');
+    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${dotColor(n)}"></span><span style="color:var(--ink-700)">${cfMaskLeague(n)}</span></div>`).join('');
     /* No 0.5 dim on opponent-row dots anymore — the red IS the signal, so it
        reads full-strength everywhere (label stays ink-500). */
-    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${dotColor(n)}"></span><span style="color:var(--ink-500)">${n}</span></div>`).join('');
+    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${dotColor(n)}"></span><span style="color:var(--ink-500)">${cfMaskLeague(n)}</span></div>`).join('');
     rosterHTML=`<div class="league-context">${myL}${opL}</div>`;
   }
 
@@ -10165,7 +10318,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const fmt=r.fmt?'<span class="lu-fmt">'+r.fmt+'</span>':'';
     return '<div class="lu-lrow">'
       +'<div class="lu-bar '+r.side+'"></div>'
-      +'<div class="lu-league '+r.side+'">'+esc(r.league)+fmt+'</div>'
+      +'<div class="lu-league '+r.side+'">'+esc(cfMaskLeague(r.league))+fmt+'</div>'
       +'<div class="lu-crow-right">'
         +'<span class="lu-tot">'+r.total.toFixed(1)+' pt</span>'
         +'<span class="lu-delta'+negCls+'">'+sign+mag+'</span>'
@@ -10187,7 +10340,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const tail=r.clk?(' · '+r.clk):'';
     return '<div class="lu-lrow">'
       +'<div class="lu-bar '+r.side+'"></div>'
-      +'<div class="lu-league '+r.side+'">'+esc(r.league)+fmt+'</div>'
+      +'<div class="lu-league '+r.side+'">'+esc(cfMaskLeague(r.league))+fmt+'</div>'
       +'<div class="lu-right">'
         +'<div class="lu-delta'+negCls+'">'+sign+mag+'</div>'
         +'<div class="lu-tot">'+r.total.toFixed(1)+' pt'+tail+'</div>'
@@ -10487,6 +10640,10 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   };
 
   /* Reset on disconnect / user change so one user's log never bleeds into another. */
+  /* Repaint the feed from the existing luLog without touching state. Needed by
+     the screenshot-privacy mask: the log is append-only, so already-rendered
+     rows would keep showing real league names until the next scoring delta. */
+  window.__luRepaint=function(){try{render();}catch(e){}};
   window.__resetLiveUpdates=function(){clearAll();luDay=null;if(luPaceTimer){clearTimeout(luPaceTimer);luPaceTimer=null;}luRevealedThrough=luSeq;const l=document.getElementById('live-updates-log');if(l)l.innerHTML='';const e=document.getElementById('lu-empty');if(e)e.style.display='block';};
 
   scheduleMidnightWipe(); // nightly clean slate
@@ -13717,6 +13874,10 @@ loadExperimentState();
     return '<span class="exp-pill exp-pill--slot exp-pill--slot-notin">not rostered</span>';
   }
 
+  /* Screenshot-privacy mask (shared, session-only) — see cfMaskLeague. Guarded
+     so this view still renders if the helper ever moves. */
+  function expMaskLg(n){ try{ return (typeof window.cfMaskLeague==='function')?window.cfMaskLeague(n):n; }catch(e){ return n; } }
+
   function renderDrawer(player){
     var data = getData(); if (!data) return '';
     var allLeagueNames = (data.contexts||[]).map(function(c){ return c.leagueName; });
@@ -13755,7 +13916,7 @@ loadExperimentState();
           : '<span class="exp-pill exp-pill--rank exp-pill--rank-unknown">—</span>';
       }
       return '<div class="exp-drawer__lg-row' + (isMuted?' is-muted':'') + '">' +
-        '<span class="exp-drawer__lg-name">' + esc(name) + '</span>' +
+        '<span class="exp-drawer__lg-name">' + esc(expMaskLg(name)) + '</span>' +
         rightPillHtml +
         '</div>';
     }
@@ -14030,6 +14191,11 @@ loadExperimentState();
          Snapshot and Leaders. Renders '' when there's only one league. No
          "Leagues" label: the shared section brings its own "League / Show"
          column head, and both together read as a doubled header. */
+      /* Screenshot privacy rides directly above the league list here too — one
+         partial, same two toggles, same session-only state on every sheet. */
+      (typeof window.cfRenderPrivacySection === 'function'
+        ? '<div class="exp-settings__section lf-privacy-wrap">' + window.cfRenderPrivacySection() + '</div>'
+        : '') +
       (typeof window.cfRenderLeagueSection === 'function'
         ? (function(html){ return html ? '<div class="exp-settings__section">' + html + '</div>' : ''; })(window.cfRenderLeagueSection())
         : '') +
@@ -16682,7 +16848,7 @@ loadExperimentState();
       var cards=[];
       ev.legs.forEach(function(l,i){
         var c=document.createElement('div'); c.className='ia-lcard '+(l.side==='mine'?'mine':'opp'); c.style.transformOrigin='top left';
-        c.innerHTML='<div class="ia-lcard__head">'+esc(l.league)+'</div><div class="ia-lcard__main"><div class="ia-lcard__delta">'+fmt(l.delta)+'</div><div class="ia-lcard__name">'+esc(ev.name)+'</div></div>';
+        c.innerHTML='<div class="ia-lcard__head">'+esc((typeof window.cfMaskLeague==='function')?window.cfMaskLeague(l.league):l.league)+'</div><div class="ia-lcard__main"><div class="ia-lcard__delta">'+fmt(l.delta)+'</div><div class="ia-lcard__name">'+esc(ev.name)+'</div></div>';
         var x=x0+i*(cw+sgap);
         c.style.transform='translate('+(cx-cw/2)+'px,'+cardY+'px) scale('+(scale*0.4)+')'; c.style.opacity='0';
         o.appendChild(c); nodes.push(c); cards.push({el:c,x:x});
@@ -17120,8 +17286,11 @@ loadExperimentState();
     else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myToGo.length?' &mdash; '+names(r.myToGo)+' to go.':'.');}
     return '<div class="cf-c-detail'+(r.pending?' is-1line':'')+'"><span>'+txt+'</span></div>';
   }
+  /* Screenshot-privacy mask (shared, session-only) — see cfMaskLeague. Applied
+     at render so the share PNG, which is cloned off this DOM, inherits it. */
+  function snapMaskLg(n){ try{ return (typeof window.cfMaskLeague==='function')?window.cfMaskLeague(n):n; }catch(e){ return n; } }
   function cardHTML(r){
-    return '<div class="cf-card '+r.state+'"><div class="cf-c-row1"><span class="cf-c-name">'+r.name+'</span>'+cardStatus(r)+'</div>'
+    return '<div class="cf-card '+r.state+'"><div class="cf-c-row1"><span class="cf-c-name">'+snapMaskLg(r.name)+'</span>'+cardStatus(r)+'</div>'
       +cardScore(r)+cardBar(r)+cardDetail(r)+'</div>';
   }
 
@@ -17148,7 +17317,7 @@ loadExperimentState();
     }else{
       inner='<div class="cf-t-row"><div class="cf-t-stat" style="color:'+COL[r.state]+'">'+Math.round(r.prob*100)+'<small>%</small></div>'+gridStatus(r)+'</div>'+gridScore(r);
     }
-    return '<div class="cf-tile '+r.state+'"><div class="cf-t-name">'+r.name+'</div>'+inner+'</div>';
+    return '<div class="cf-tile '+r.state+'"><div class="cf-t-name">'+snapMaskLg(r.name)+'</div>'+inner+'</div>';
   }
 
   /* ---- render ---- */
@@ -17534,7 +17703,7 @@ function cfClusterHTML(c,idx,featured){
   else if(live <= c.window.ceiling){ tag='IN THE WINDOW'; cls='s-in'; }
   else { tag='COLLATERAL DAMAGE'; cls='s-hot'; }
   var players = c.players.map(function(p){ return '<div class="cfc-p"><div class="nm">'+cfEsc(p.name)+'</div><div class="mt">'+cfEsc(p.pos)+' &middot; '+cfEsc(p.team)+'</div></div>'; }).join('');
-  var rows = c.leagues.map(function(lg){ return '<div class="cfc-row '+(lg.side==='mine'?'mine':'opp')+'"><div class="nm">'+cfEsc(lg.name)+'<span class="side">'+(lg.side==='mine'?'yours':'theirs')+'</span></div><div class="req">'+lg.req+'</div></div>'; }).join('');
+  var rows = c.leagues.map(function(lg){ return '<div class="cfc-row '+(lg.side==='mine'?'mine':'opp')+'"><div class="nm">'+cfEsc((typeof window.cfMaskLeague==='function')?window.cfMaskLeague(lg.name):lg.name)+'<span class="side">'+(lg.side==='mine'?'yours':'theirs')+'</span></div><div class="req">'+lg.req+'</div></div>'; }).join('');
   var nowin = c.window.hasGreen ? '' : '<div class="cfc-nowin">No single score wins all of them tonight &mdash; here\'s your best available window.</div>';
   return '<div class="cfc-cl'+(featured?' feat':'')+'">'+
     '<div class="cfc-sent">'+sent+'</div>'+
@@ -18937,7 +19106,7 @@ if(typeof window.cfRegisterView==='function'){
         return '<div class="ldr-row'+(gold?' gold':'')+'">'
           +'<div class="ldr-rank">'+(i+1)+'</div>'
           +'<div style="min-width:0;"><div class="ldr-pname">'+esc(r.n)+'</div>'
-          +'<div class="ldr-pmeta"><span class="lg">'+esc(r.lg)+'</span></div></div>'
+          +'<div class="ldr-pmeta"><span class="lg">'+esc(ldrMaskLg(r.lg))+'</span></div></div>'
           +'<div class="ldr-scorecol"><div class="ldr-pts '+(side==='F'?'f':'a')+'">'+r.pts.toFixed(1)+'</div>'
           +(r.fmt?'<span class="ldr-ftag">'+esc(fmtTag(r.fmt))+'</span>':'')
           +'</div></div>';
@@ -19041,7 +19210,7 @@ if(typeof window.cfRegisterView==='function'){
           return '<div class="ldr-row'+(gold?' gold':'')+'">'
             +'<div class="ldr-rank">'+(i+1)+'</div>'
             +'<div style="min-width:0;"><div class="ldr-pname">'+esc(r.n)+'</div>'
-            +'<div class="ldr-pmeta"><span class="lg">'+esc(r.lg)+'</span></div></div>'
+            +'<div class="ldr-pmeta"><span class="lg">'+esc(ldrMaskLg(r.lg))+'</span></div></div>'
             +'<div class="ldr-scorecol"><div class="ldr-pts '+(st.side==='F'?'f':'a')+'">'+r.pts.toFixed(1)+'</div>'
             +(r.fmt?'<span class="ldr-ftag">'+esc(fmtTag(r.fmt))+'</span>':'')
             +'</div>'
@@ -19106,8 +19275,18 @@ if(typeof window.cfRegisterView==='function'){
     return '<div class="ldrf">'
       +periodGrp
       +fmtGrpHtml()
+      +privGrpHtml()
       +lgGrpHtml()
       +'<button type="button" class="ldrf-done" data-ldr-done>Done</button></div>';
+  }
+  /* Screenshot-privacy mask (shared, session-only) — see cfMaskLeague. */
+  function ldrMaskLg(n){ try{ return (typeof window.cfMaskLeague==='function')?window.cfMaskLeague(n):n; }catch(e){ return n; } }
+  /* Screenshot privacy — same shared partial as the dashboard drawer and
+     Exposure, pinned directly above the league list. No <h4>: the partial
+     brings its own "SCREENSHOT PRIVACY" head, same reasoning as lgGrpHtml. */
+  function privGrpHtml(){
+    if(typeof window.cfRenderPrivacySection!=='function')return '';
+    return '<div class="ldrf-grp lf-privacy-wrap">'+window.cfRenderPrivacySection()+'</div>';
   }
   /* Shared global league show/hide — same hiddenLeagues set the dashboard,
      Snapshot and Exposure use. Returns '' with fewer than two leagues.
