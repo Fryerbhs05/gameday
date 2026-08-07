@@ -3457,8 +3457,13 @@
     .wp-slot__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: pointer; user-select: none; background: transparent; border-bottom: 1px solid var(--surf-border); }
     .wp-slot.is-collapsed .wp-slot__head { border-bottom-color: transparent; }
     .wp-slot__head:hover { background: rgba(255,255,255,0.02); }
-    .wp-slot__title { font: 500 11px/1 var(--font-mono); color: var(--surf-text); letter-spacing: 0.10em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
-    .wp-slot__caret { display: inline-block; transition: transform var(--duration-fast) var(--ease-out); color: var(--surf-muted); font-size: 11px; }
+    /* Slot title is SANS (not mono) on purpose: the page is dense with mono
+       metadata (.wpc__when, .wpc__tier, .wp-slot__meta) and a mono header read
+       as one more data label instead of a section head. Inter 800/15px sits
+       just above .wpc__match (800/14px) so the header outranks its own cards
+       (Matt, 2026-08-07). */
+    .wp-slot__title { font: 800 15px/1.1 var(--font-sans); color: var(--surf-text); letter-spacing: 0.06em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+    .wp-slot__caret { display: inline-block; transition: transform var(--duration-fast) var(--ease-out); color: var(--surf-muted); font-size: 12px; }
     .wp-slot.is-collapsed .wp-slot__caret { transform: rotate(-90deg); }
     .wp-slot__meta { font: 500 10px/1 var(--font-mono); color: var(--surf-muted); letter-spacing: .04em; text-transform: uppercase; }
     .wp-slot__body { padding: 10px 12px 12px; display: grid; gap: 8px; background: transparent; }
@@ -3837,6 +3842,7 @@
       /* Tighter slot spacing */
       .wp-slot { margin-bottom: 6px; }
       .wp-slot__head { padding: 7px 10px; }
+      .wp-slot__title { font-size: 13px; }
       .wp-slot__body { padding: 6px 8px 8px; gap: 6px; }
       .wp-spotlight { padding: 8px 10px; margin: 0 0 4px; }
       .wp-spotlight__match { font-size: 14px; }
