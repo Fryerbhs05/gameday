@@ -7931,16 +7931,37 @@ function renderLeagueFilterSheet(){
    names. That's deliberate — you should never be able to forget the mask is
    on and later wonder why your leagues are called "League 2".
 
-   Labels are generic and STABLE for the life of the page. Once a league is
-   assigned "League 3" it keeps that number as you hop views, change weeks, or
-   flip the mask off and back on, so a masked screenshot lines up with an
-   unmasked one. cfMaskSeq only ever grows — it never renumbers. Numbering is
-   seeded from leagueNamesCache (board/context order) rather than from whatever
-   view happened to ask first, so "League 1" is the same league everywhere. */
+   Numbering runs over the VISIBLE leagues (Matt, 2026-08-07): whatever is on
+   screen always reads League 1..N with no gaps. Hiding a league in the Filters
+   drawer renumbers the rest — a board showing two leagues must never label
+   them "League 2" and "League 3" just because a third one is switched off.
+   Leagues hidden in the drawer are numbered AFTER the visible ones, so the
+   Filters list can still label its own off-rows without stealing a low number
+   from a league that's actually on screen.
+
+   Consequence worth knowing: numbers are stable only while the visible SET is.
+   Toggling league visibility reshuffles them, so two screenshots taken either
+   side of a Filters change won't line up. That's the direct trade for "what I
+   see is always 1..N", and every league-visibility toggle triggers a full mask
+   repaint so the renumber lands everywhere at once.
+
+   The order map is memoized on a signature of (all names + hidden set) so the
+   hundreds of per-row calls in a board render cost one rebuild, not one each. */
 let hideLeagueNames=false,hideTeamNames=false;
-const cfMaskSeq=new Map();
-function cfSeedMaskSeq(){
-  try{(leagueNamesCache||[]).forEach(function(n){if(n&&!cfMaskSeq.has(n))cfMaskSeq.set(n,cfMaskSeq.size+1);});}catch(e){}
+let cfMaskOrder=new Map(),cfMaskOrderSig='';
+function cfLeagueOrderMap(){
+  let names=[],hidden=[];
+  try{names=(leagueNamesCache||[]).filter(Boolean);}catch(e){names=[];}
+  try{hidden=[...hiddenLeagues];}catch(e){hidden=[];}
+  const sig=names.join('')+''+hidden.slice().sort().join('');
+  if(sig===cfMaskOrderSig)return cfMaskOrder;
+  const isHidden=n=>{try{return hiddenLeagues.has(n);}catch(e){return false;}};
+  /* Visible first (so they own 1..N), then the hidden ones. */
+  const ordered=names.filter(n=>!isHidden(n)).concat(names.filter(isHidden));
+  const m=new Map();
+  ordered.forEach((n,i)=>{if(!m.has(n))m.set(n,m.size+1);});
+  cfMaskOrder=m;cfMaskOrderSig=sig;
+  return m;
 }
 /* Returns the display label for a league. Call this at the point of RENDER and
    let the site's own escaper wrap it — never store the result. */
@@ -7948,8 +7969,12 @@ function cfMaskLeague(name){
   if(!hideLeagueNames)return name;
   const key=(name==null)?'':String(name);
   if(!key)return key;
-  if(!cfMaskSeq.has(key)){cfSeedMaskSeq();if(!cfMaskSeq.has(key))cfMaskSeq.set(key,cfMaskSeq.size+1);}
-  return 'League '+cfMaskSeq.get(key);
+  const m=cfLeagueOrderMap();
+  /* Not in the cache at all (historic period, league that dropped out): give it
+     the next number rather than leaking the real name. Lives only until the
+     signature changes. */
+  if(!m.has(key))m.set(key,m.size+1);
+  return 'League '+m.get(key);
 }
 /* Team names only ever render two-up (your side vs theirs) in the matchup
    drawer, so the mask needs no numbering — just a side. Manager/display names
@@ -7967,7 +7992,12 @@ window.cfMaskLeague=cfMaskLeague;window.cfMaskTeam=cfMaskTeam;window.cfMaskActiv
    Conflict Card, Watch Priority) via the nav-view registry, and an open
    matchup drawer, which league visibility never had to. */
 function cfApplyNameMask(){
-  cfSeedMaskSeq();
+  cfMaskOrderSig='';                                  /* force a renumber next call */
+  /* Loyalties cards are built once and kept in a per-list _cardIndex; applyFilters
+     only toggles .filtered-out classes, so it would NEVER restamp a league name.
+     Re-run the three buckets through renderList (updateCard rebuilds inner HTML
+     behind a hash check, so unchanged cards are untouched). */
+  try{if(typeof window.__cfRepaintLoyalties==='function')window.__cfRepaintLoyalties();}catch(e){}
   try{applyFilters();}catch(e){}
   try{if(typeof renderScoresStrip==='function'&&Array.isArray(window.currentContexts))renderScoresStrip(window.currentContexts);}catch(e){}
   /* Live Updates is an append-only feed — already-rendered rows would keep the
@@ -7987,6 +8017,8 @@ function cfApplyNameMask(){
       }
     }
   }catch(e){}
+  /* Masking lights the Filters button's active state, same as a hidden league. */
+  try{cfSyncFilterActive();}catch(e){}
 }
 window.cfApplyNameMask=cfApplyNameMask;
 
@@ -8043,6 +8075,12 @@ window.cfRenderLeagueSection=cfRenderLeagueSection;
 /* Repaint whichever view is on screen after a league toggle. hiddenLeagues is
    consumed at RENDER time by every view, so each one just needs a nudge. */
 function cfApplyLeagueVisibility(){
+  /* While the name mask is on, league numbering is derived from the VISIBLE
+     set — so hiding or showing a league renumbers every other one. That needs
+     the full mask fan-out (loyalties cards, Live Updates, overlay views, an
+     open matchup drawer), not just the league-visibility repaints below. */
+  let masking=false;try{masking=cfMaskActive();}catch(e){}
+  if(masking){cfApplyNameMask();return;}   /* it calls cfSyncFilterActive itself */
   applyFilters();                                   /* GameDay loyalties + pill counts; also repaints Snapshot */
   try{if(typeof renderScoresStrip==='function'&&Array.isArray(window.currentContexts))renderScoresStrip(window.currentContexts);}catch(e){}
   try{if(window.__conflictedExposureOpen&&typeof window.renderExposureView==='function')window.renderExposureView();}catch(e){}
@@ -8058,7 +8096,12 @@ function cfSyncFilterActive(){
   const btn=document.getElementById('league-filter-btn');
   if(!btn)return;
   const anyHidden=[...hiddenLeagues].some(l=>leagueNamesCache.includes(l));
-  btn.classList.toggle('is-filtering',anyHidden);
+  /* Masking counts as "the board is not showing you the plain truth" for the
+     same reason hiding a league does, so it lights the same active state
+     (Matt, 2026-08-07). Without it you can leave the mask on, walk away, and
+     have nothing on the header telling you why your leagues are numbered. */
+  let masking=false;try{masking=cfMaskActive();}catch(e){}
+  btn.classList.toggle('is-filtering',anyHidden||masking);
 }
 window.cfSyncFilterActive=cfSyncFilterActive;
 function openLeagueFilterSheet(){
@@ -8433,6 +8476,19 @@ function renderBoard(data,username){
      per league row instead (see buildCardInner). */
   const _conflictedIds=new Set(conflicted.map(p=>String(p.id)));
   renderList('cheer-list',cheerFor,_conflictedIds);renderList('conflicted-list',conflicted,_conflictedIds);renderList('enemy-list',enemies,_conflictedIds);
+  /* Re-run just the three buckets against the CURRENT data, no reload and none
+     of renderBoard's side effects (live-updates seeding, impact detection,
+     snapshot save). Exists for the screenshot-privacy mask: card HTML carries
+     league names, but applyFilters only toggles visibility classes, so a mask
+     toggle needs the cards themselves rebuilt. Reassigned on every renderBoard
+     so the closure always holds the latest buckets. */
+  window.__cfRepaintLoyalties=function(){
+    try{
+      renderList('cheer-list',cheerFor,_conflictedIds);
+      renderList('conflicted-list',conflicted,_conflictedIds);
+      renderList('enemy-list',enemies,_conflictedIds);
+    }catch(e){}
+  };
   try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek,contexts:contexts});}catch(e){}
   try{if(window.__buildLiveUpdates)window.__buildLiveUpdates(data);}catch(e){}
   applyFilters();
