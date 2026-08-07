@@ -7260,8 +7260,8 @@ function applyScoreCellProj(cell, ctx, st){
     if(labelEl)labelEl.textContent='Final Score';
     if(fill)fill.style.width='100%';
     if(mid)mid.style.left='50%';
-    if(youEl)youEl.textContent=(+ctx.myPoints||0).toFixed(1);
-    if(oppEl)oppEl.textContent=(+ctx.oppPoints||0).toFixed(1);
+    if(youEl)youEl.textContent=(+ctx.myPoints||0).toFixed(2);
+    if(oppEl)oppEl.textContent=(+ctx.oppPoints||0).toFixed(2);
     return;
   }
   wrap.classList.remove('is-final');
@@ -7285,8 +7285,8 @@ function applyScoreCellProj(cell, ctx, st){
   const pct=Math.max(6,Math.min(94,50+dev*100*PROJ_SENSITIVITY));
   if(fill)fill.style.width=pct.toFixed(1)+'%';
   if(mid)mid.style.left=pct.toFixed(1)+'%';                  // divider rides the coral/navy boundary
-  if(youEl)youEl.textContent=myP.toFixed(1);
-  if(oppEl)oppEl.textContent=oppP.toFixed(1);
+  if(youEl)youEl.textContent=myP.toFixed(2);
+  if(oppEl)oppEl.textContent=oppP.toFixed(2);
 }
 /* Map a league context to its score-strip / drawer status display. The "● Live"
    badge only appears when one of the matchup's starters is actually in an
@@ -7319,7 +7319,7 @@ function ctxDisplayState(ctx){
     const d=((+ctx.myPoints||0)-(+ctx.oppPoints||0));
     return {
       dataStatus:st==='FINAL_WIN'?'winning':'losing',
-      stTxt:st==='FINAL_WIN'?('✓ Won · +'+d.toFixed(1)):('✕ Lost · '+d.toFixed(1)),
+      stTxt:st==='FINAL_WIN'?('✓ Won · +'+d.toFixed(2)):('✕ Lost · '+d.toFixed(2)),
       stCls:st==='FINAL_WIN'?'win':'loss'
     };
   }
@@ -8232,7 +8232,7 @@ function buildCardInner(player,isHist){
   const dotColor=n=>player.myLeagues.includes(n)?'var(--cheer)':player.againstLeagues.includes(n)?'var(--enemy)':lc(n);
   let ptsHTML='';
   if(hasAnyPts){
-    const rows=Object.entries(lpd).map(([n,d])=>{const color=dotColor(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(1)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:var(--ink-700)">${cfMaskLeague(n)}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
+    const rows=Object.entries(lpd).map(([n,d])=>{const color=dotColor(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(2)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:var(--ink-700)">${cfMaskLeague(n)}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
     ptsHTML=`<div style="display:flex;flex-direction:column;gap:4px">${rows}</div>`;
   }
   let rosterHTML='';
@@ -9281,7 +9281,7 @@ function getDemoData(){
   /* Build contexts (score strip + matchup drawer), the normalized per-league
      roster shapes the drawer consumes, and a player map for bucket derivation. */
   const sum=(arr,k)=>arr.reduce((t,x)=>t+(x[k]||0),0);
-  const projSum=arr=>arr.every(x=>x.proj!=null)?+sum(arr,'proj').toFixed(1):null;
+  const projSum=arr=>arr.every(x=>x.proj!=null)?+sum(arr,'proj').toFixed(2):null;
   function toDP(x){return{id:x.id,player_key:x.id,full_name:x.name,position:x.pos,team:x.team,slot:x.slot};}
 
   const contexts=[],demoLeagues=[];
@@ -9426,10 +9426,10 @@ async function cfRecordReplaySnapshot(){
     }
     const k=(typeof p==='string')?p:(p.player_key||id);
     const pts=isBench?0:+(((pp&&pp[k])!=null?pp[k]:0)).toFixed(2);
-    let proj=(!isBench&&projpp&&projpp[k]!=null)?+(+projpp[k]).toFixed(1):null;
+    let proj=(!isBench&&projpp&&projpp[k]!=null)?+(+projpp[k]).toFixed(2):null;
     /* Historic weeks carry no projections — synthesize a plausible one around
        the actual final so Conflict Card window math + win prob have inputs. */
-    if(proj==null&&!isBench){const base=Math.abs(pts)>2?pts:(2+8*projRng());proj=+((base*(0.8+0.4*projRng()))).toFixed(1);}
+    if(proj==null&&!isBench){const base=Math.abs(pts)>2?pts:(2+8*projRng());proj=+((base*(0.8+0.4*projRng()))).toFixed(2);}
     /* uid = the CANONICAL cross-platform identity (canonicalPlayerKey), the
        same key loadData uses. Team-based keys split the same human into
        duplicate cheer/enemy entries whenever platforms disagreed on team. */
@@ -9566,7 +9566,7 @@ const cfReplay=(function(){
      their own remaining-math from proj − current. A live-drifting projection
      here made Snapshot's numbers slide every tick and collapse to equal the
      final score once games ended. */
-  function staticProjOf(p){return +(p.proj!=null?p.proj:(p.pts||0)).toFixed(1);}
+  function staticProjOf(p){return +(p.proj!=null?p.proj:(p.pts||0)).toFixed(2);}
 
   /* Assemble a full loadData()-shaped result for "now" (mirrors getDemoData,
      but from the recorded snapshot with the virtual clock applied). */
@@ -9588,7 +9588,7 @@ const cfReplay=(function(){
       const state=allPost?(myPts>oppPts?'LOCKED_WIN':'LOCKED_LOSS'):'LIVE';
       contexts.push({leagueName:lg.name,platform:lg.platform,leagueState:state,fmt:lg.fmt,
         myPoints:+myPts.toFixed(2),oppPoints:+oppPts.toFixed(2),
-        myProjPts:+myProj.toFixed(1),oppProjPts:+oppProj.toFixed(1),
+        myProjPts:+myProj.toFixed(2),oppProjPts:+oppProj.toFixed(2),
         myPP,oppPP,myProjPP,oppProjPP});
       leagues.push({leagueName:lg.name,platform:lg.platform,fmt:lg.fmt,hasMatchup:true,
         myPlayers:lg.my.map(toDP),oppPlayers:lg.opp.map(toDP),
@@ -9740,7 +9740,7 @@ const cfReplay=(function(){
       if(!active)return;
       const pid=selPlayer.value;if(!pid)return;
       if(!bonuses[pid])bonuses[pid]=[];
-      bonuses[pid].push({t:vt,pts:+(5.5+Math.random()*3.5).toFixed(1)});
+      bonuses[pid].push({t:vt,pts:+(5.5+Math.random()*3.5).toFixed(2)});
       render();updatePanel();
       setStatus('Scoring event injected.');
     });
@@ -10369,14 +10369,14 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
      No game clock; the running total sits just left of the delta. */
   function catchRowHtml(r){
     const sign=r.delta>=0?'+':'−';
-    const mag=Math.abs(r.delta).toFixed(1);
+    const mag=Math.abs(r.delta).toFixed(2);
     const negCls=r.delta<0?' neg':'';
     const fmt=r.fmt?'<span class="lu-fmt">'+r.fmt+'</span>':'';
     return '<div class="lu-lrow">'
       +'<div class="lu-bar '+r.side+'"></div>'
       +'<div class="lu-league '+r.side+'">'+esc(cfMaskLeague(r.league))+fmt+'</div>'
       +'<div class="lu-crow-right">'
-        +'<span class="lu-tot">'+r.total.toFixed(1)+' pt</span>'
+        +'<span class="lu-tot">'+r.total.toFixed(2)+' pt</span>'
         +'<span class="lu-delta'+negCls+'">'+sign+mag+'</span>'
       +'</div></div>';
   }
@@ -10390,7 +10390,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
      header), just the per-league side bar + delta. Shared by live and catch-up. */
   function lgRowHtml(r){
     const sign=r.delta>=0?'+':'−';
-    const mag=Math.abs(r.delta).toFixed(1);
+    const mag=Math.abs(r.delta).toFixed(2);
     const negCls=r.delta<0?' neg':'';
     const fmt=r.fmt?'<span class="lu-fmt">'+r.fmt+'</span>':'';
     const tail=r.clk?(' · '+r.clk):'';
@@ -10399,7 +10399,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       +'<div class="lu-league '+r.side+'">'+esc(cfMaskLeague(r.league))+fmt+'</div>'
       +'<div class="lu-right">'
         +'<div class="lu-delta'+negCls+'">'+sign+mag+'</div>'
-        +'<div class="lu-tot">'+r.total.toFixed(1)+' pt'+tail+'</div>'
+        +'<div class="lu-tot">'+r.total.toFixed(2)+' pt'+tail+'</div>'
       +'</div></div>';
   }
   /* Net-impact verdict for a player's grouped rows. Faithful path uses the impact
@@ -16649,7 +16649,7 @@ loadExperimentState();
   function canAnimate(){if(reduced())return false;if(testMode)return expOn();return expOn()&&prefOn()&&!demo()&&boardVisible()&&!document.hidden;}
   function overlay(){return document.getElementById('impact-overlay');}
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
-  function fmt(d){d=Number(d)||0;return (d>=0?'+':'')+d.toFixed(1);}
+  function fmt(d){d=Number(d)||0;return (d>=0?'+':'')+d.toFixed(2);}
   function announce(t){var el=document.getElementById('ia-live');if(el)el.textContent=t;}
   function clearTimers(){timers.forEach(function(t){clearTimeout(t);});timers=[];}
   function after(ms,fn){var t=setTimeout(fn,ms);timers.push(t);return t;}
@@ -17292,7 +17292,7 @@ loadExperimentState();
     return {rows:rows, week:(data.debugInfo&&data.debugInfo.week)||null, season:(data.debugInfo&&data.debugInfo.season)||null, nodata:false};
   }
 
-  function nf(v){ return (Math.round(v*10)/10).toFixed(1); }
+  function nf(v){ return (Math.round(v*100)/100).toFixed(2); }
   function names(arr){ return arr.map(function(n){return '<span class="nm">'+n+'</span>';}).join(' &amp; '); }
   function margin(r){ return Math.abs(r.curMy-r.curOpp); }
 
@@ -17763,11 +17763,11 @@ function cfClusterHTML(c,idx,featured){
   var nowin = c.window.hasGreen ? '' : '<div class="cfc-nowin">No single score wins all of them tonight &mdash; here\'s your best available window.</div>';
   return '<div class="cfc-cl'+(featured?' feat':'')+'">'+
     '<div class="cfc-sent">'+sent+'</div>'+
-    '<div class="cfc-chip '+cls+'"><span class="pts">LIVE '+live.toFixed(1)+'</span><span class="tag">'+tag+'</span></div>'+
+    '<div class="cfc-chip '+cls+'"><span class="pts">LIVE '+live.toFixed(2)+'</span><span class="tag">'+tag+'</span></div>'+
     (featured?('<div class="cfc-players">'+players+'</div>'):'')+
     '<div class="cfc-barwrap"><div class="cfc-bar" id="cfc-bar-'+idx+'"></div>'+
       '<div class="cfc-ghost" id="cfc-ghost-'+idx+'"></div>'+
-      '<div class="cfc-live" id="cfc-live-'+idx+'"><span class="lab">'+live.toFixed(1)+'</span></div></div>'+
+      '<div class="cfc-live" id="cfc-live-'+idx+'"><span class="lab">'+live.toFixed(2)+'</span></div></div>'+
     '<div class="cfc-ticks" id="cfc-ticks-'+idx+'"></div>'+
     nowin + (featured?('<div class="cfc-why">'+rows+'</div>'):'') +
   '</div>';
@@ -19163,7 +19163,7 @@ if(typeof window.cfRegisterView==='function'){
           +'<div class="ldr-rank">'+(i+1)+'</div>'
           +'<div style="min-width:0;"><div class="ldr-pname">'+esc(r.n)+'</div>'
           +'<div class="ldr-pmeta"><span class="lg">'+esc(ldrMaskLg(r.lg))+'</span></div></div>'
-          +'<div class="ldr-scorecol"><div class="ldr-pts '+(side==='F'?'f':'a')+'">'+r.pts.toFixed(1)+'</div>'
+          +'<div class="ldr-scorecol"><div class="ldr-pts '+(side==='F'?'f':'a')+'">'+r.pts.toFixed(2)+'</div>'
           +(r.fmt?'<span class="ldr-ftag">'+esc(fmtTag(r.fmt))+'</span>':'')
           +'</div></div>';
       }).join('');
@@ -19171,7 +19171,7 @@ if(typeof window.cfRegisterView==='function'){
     return '<div class="ldr-wm">'+LDR_WM_SVG+'</div>'
       +'<div class="ldr-kick">'+esc(kickText)+'</div>'
       +'<div class="ldr-hero">'+heroHTML+'</div>'
-      +'<div class="ldr-sum"><div class="ldr-sum-num '+(side==='F'?'f':'a')+'">'+sum.toFixed(1)+'</div>'
+      +'<div class="ldr-sum"><div class="ldr-sum-num '+(side==='F'?'f':'a')+'">'+sum.toFixed(2)+'</div>'
       +'<div class="ldr-sum-label">'+lblText+'</div>'
       +'<div class="ldr-sum-ctx">'+esc(ctxText)+'</div></div>'
       +'<div class="ldr-rows">'+rowsHTML+'</div>';
@@ -19236,7 +19236,7 @@ if(typeof window.cfRegisterView==='function'){
 
     /* summary strip */
     var num=document.getElementById('ldr-sum-num');
-    if(num){ num.textContent=sum.toFixed(1); num.className='ldr-sum-num '+(st.side==='F'?'f':'a'); }
+    if(num){ num.textContent=sum.toFixed(2); num.className='ldr-sum-num '+(st.side==='F'?'f':'a'); }
     var lbl=document.getElementById('ldr-sum-label');
     if(lbl)lbl.textContent=(st.topN?('TOP '+shown.length):(shown.length+' PLAYERS'))+' · POINTS '+(st.side==='F'?'SCORED':'AGAINST');
     var ctx=document.getElementById('ldr-sum-ctx');
@@ -19267,7 +19267,7 @@ if(typeof window.cfRegisterView==='function'){
             +'<div class="ldr-rank">'+(i+1)+'</div>'
             +'<div style="min-width:0;"><div class="ldr-pname">'+esc(r.n)+'</div>'
             +'<div class="ldr-pmeta"><span class="lg">'+esc(ldrMaskLg(r.lg))+'</span></div></div>'
-            +'<div class="ldr-scorecol"><div class="ldr-pts '+(st.side==='F'?'f':'a')+'">'+r.pts.toFixed(1)+'</div>'
+            +'<div class="ldr-scorecol"><div class="ldr-pts '+(st.side==='F'?'f':'a')+'">'+r.pts.toFixed(2)+'</div>'
             +(r.fmt?'<span class="ldr-ftag">'+esc(fmtTag(r.fmt))+'</span>':'')
             +'</div>'
             +'</div>';
