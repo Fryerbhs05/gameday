@@ -2510,14 +2510,71 @@
     .loyalties-wordmark__a,
     .loyalties-wordmark__b { color: var(--ink-900); }
     /* Frame lives on .loyalties-section — drop the inner buckets frame so we
-       don't double-border, and let the section own the padding. */
-    .loyalties-section > #columns {
+       don't double-border, and let the section own the padding. (Descendant, not
+       child: #columns now sits inside #loy-stage for the view-flip transition.) */
+    .loyalties-section #columns {
       border-color: transparent;
       padding: 0;
       margin-top: 0;
     }
     /* Tabs sit just under the header now, not floating above a separate frame. */
     .exp-tabbar { margin-top: 0; margin-bottom: 12px; }
+
+    /* ══════════════════════════════════════════════════════════════════════
+       ROOTING CARD IN-APP VIEW (2026-08-18) — the Loyalties section flips
+       between today's player cards and a live, in-app render of the shareable
+       Rooting Card. View toggle = the Snapshot List/Grid switch (.cf-snap-toggle,
+       reused verbatim). The Cheer/Conflicted/Enemy tabs are one shared filter
+       across both views (no "All" chip; nothing selected = all). Flip = directional
+       slide, driven by __loyView. See rooting-card-spec.md.
+       ══════════════════════════════════════════════════════════════════════ */
+    .loy-view-toggle { margin: 12px 0 2px; }
+    /* Stage: both views live here so the slide can cross them + morph height. */
+    .loy-stage { position: relative; transition: height .32s var(--ease-out); }
+    .loy-stage.anim, .loy-stage.hmorph { overflow: hidden; }
+    .loy-stage.anim > .loy-view { position: absolute; top: 0; left: 0; width: 100%; will-change: opacity, transform; }
+    /* Resting view gating (overridden inline during a flip). */
+    #rc-inapp { display: none; }
+    .loyalties-section.rc-mode #rc-inapp { display: block; }
+    .loyalties-section.rc-mode #columns { display: none; }
+    /* In-app card host: the 390px .rc-frame is scaled to fit by __loyView.fit(). */
+    .rc-inapp-scale { transform-origin: top left; }
+    /* Solo-bucket hero (one big count) when a bucket filter is active in the card. */
+    .rc-hero-solo { display: block; text-align: center; margin-bottom: 15px; }
+    .rc-hero-solo .rc-hero-n { font-size: 40px; }
+    .rc-hero-solo .rc-hero-l { letter-spacing: .16em; margin-top: 7px; }
+    /* In Rooting Card view the shared bucket filter shows at ALL widths (the
+       exp-tabbar is otherwise mobile-only). Appearance mirrors the mobile tabs
+       so the control is identical in both views. */
+    .loyalties-section.rc-mode #exp-tabbar { display: flex; gap: 6px; margin-top: 0; margin-bottom: 12px; }
+    .loyalties-section.rc-mode .exp-tab {
+      flex: 1 1 0; display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 5px;
+      padding: 11px 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+      background: transparent; border: 1px solid; border-radius: var(--radius-md);
+      font: 600 13px/1 var(--font-sans); letter-spacing: -0.01em;
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+    }
+    .loyalties-section.rc-mode .exp-tab .exp-tab-ct { font: 500 11px/1 var(--font-mono); opacity: 0.75; }
+    .loyalties-section.rc-mode .exp-tab[data-tab="cheer"]      { color: var(--cheer); border-color: var(--cheer); }
+    .loyalties-section.rc-mode .exp-tab[data-tab="enemy"]      { color: var(--enemy); border-color: var(--enemy); }
+    .loyalties-section.rc-mode .exp-tab[data-tab="conflicted"] { color: var(--split); border-color: var(--split); }
+    .loyalties-section.rc-mode .exp-tab.is-active { border-width: 2px; padding: 10px 3px; }
+    .loyalties-section.rc-mode .exp-tab[data-tab="cheer"].is-active      { background: var(--cheer-soft); }
+    .loyalties-section.rc-mode .exp-tab[data-tab="enemy"].is-active      { background: var(--enemy-soft); }
+    .loyalties-section.rc-mode .exp-tab[data-tab="conflicted"].is-active { background: var(--split-soft); }
+    /* Directional slide: Cards exits left / Rooting enters right (forward); reversed on the way back. */
+    @keyframes loy-sl-out-f { to   { opacity: 0; transform: translateX(-9%); } }
+    @keyframes loy-sl-in-f  { from { opacity: 0; transform: translateX(9%); } to { opacity: 1; transform: none; } }
+    @keyframes loy-sl-out-b { to   { opacity: 0; transform: translateX(9%); } }
+    @keyframes loy-sl-in-b  { from { opacity: 0; transform: translateX(-9%); } to { opacity: 1; transform: none; } }
+    .loy-stage.anim.dir-f > .loy-view.exit  { animation: loy-sl-out-f .32s var(--ease-out) forwards; }
+    .loy-stage.anim.dir-f > .loy-view.enter { animation: loy-sl-in-f  .34s var(--ease-out) forwards; }
+    .loy-stage.anim.dir-b > .loy-view.exit  { animation: loy-sl-out-b .32s var(--ease-out) forwards; }
+    .loy-stage.anim.dir-b > .loy-view.enter { animation: loy-sl-in-b  .34s var(--ease-out) forwards; }
+    @media (prefers-reduced-motion: reduce) {
+      .loy-stage, .loy-stage * { transition: none !important; animation: none !important; }
+    }
+
     @media (max-width: 480px) {
       .loyalties-section { padding: 12px 10px; }
       /* Wordmark shrink handled globally via --section-wordmark-size (see scoreboard block). */
@@ -4754,12 +4811,29 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
       </button>
     </div>
+    <!-- View toggle (Player Cards ⇄ Rooting Card) — chrome cloned from the
+         Snapshot List/Grid switch (.cf-snap-toggle). Hidden until data lands;
+         __loyView shows it whenever the Rooting Card share is available (same
+         gating as #loyalties-share). Collapse hides it (direct child, non-header). -->
+    <div class="cf-snap-toggle loy-view-toggle" id="loy-view-toggle" role="tablist" aria-label="Loyalties view" style="display:none;">
+      <button data-view="cards" class="is-on" type="button" role="tab" aria-selected="true">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2.5" width="12" height="4" rx="1"/><rect x="2" y="9.5" width="12" height="4" rx="1"/></svg>
+        Player Cards
+      </button>
+      <button data-view="rc" type="button" role="tab" aria-selected="false">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3" y="1.8" width="10" height="12.4" rx="1.6"/><line x1="5.4" y1="5" x2="10.6" y2="5"/><line x1="5.4" y1="8" x2="10.6" y2="8"/><line x1="5.4" y1="11" x2="9" y2="11"/></svg>
+        Rooting Card
+      </button>
+    </div>
     <div id="exp-tabbar" class="exp-tabbar" role="tablist" aria-label="Player buckets">
-      <button class="exp-tab" data-tab="cheer" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-cheer">0</span><span>Cheer for</span></button>
-      <button class="exp-tab is-active" data-tab="conflicted" role="tab" aria-selected="true"><span class="exp-tab-ct" id="exp-ct-conflicted">0</span><span>Conflicted</span></button>
+      <button class="exp-tab is-active" data-tab="cheer" role="tab" aria-selected="true"><span class="exp-tab-ct" id="exp-ct-cheer">0</span><span>Cheer for</span></button>
+      <button class="exp-tab" data-tab="conflicted" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-conflicted">0</span><span>Conflicted</span></button>
       <button class="exp-tab" data-tab="enemy" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-enemy">0</span><span>Enemy</span></button>
     </div>
-    <div class="columns" id="columns" data-exp-tab="conflicted">
+    <!-- Stage holds both views so the directional-slide flip can cross them and
+         morph the panel height. #columns kept its id (all handlers/CSS key off it). -->
+    <div class="loy-stage" id="loy-stage">
+    <div class="columns loy-view" id="columns" data-exp-tab="cheer">
       <div class="column cheer">
         <div class="column-header"><span class="col-count" id="count-cheer">0</span><span class="col-title">Cheer for</span><span class="col-subtitle">Your rosters only</span></div>
         <div id="cheer-list"></div>
@@ -4772,6 +4846,10 @@
         <div class="column-header"><span class="col-count" id="count-enemy">0</span><span class="col-title">Enemies</span><span class="col-subtitle">Only against you</span></div>
         <div id="enemy-list"></div>
       </div>
+    </div>
+    <!-- In-app Rooting Card (mirrors the shareable export via __rcInApp). The
+         390px .rc-frame is scaled to fit by __loyView. -->
+    <div class="rc-inapp loy-view" id="rc-inapp"><div class="rc-inapp-scale" id="rc-inapp-scale"></div></div>
     </div>
     </div>
     <!-- ══ LIVE UPDATES ═════════════════════════════════════════════════════════
@@ -8456,6 +8534,10 @@ function renderBoard(data,username){
      When no players are conflicted this week, open on Cheer For instead. Only auto-
      default until the user manually picks a tab (then __expTabUserPicked locks it). */
   (function(){
+    /* __loyView (view toggle + shared bucket filter) owns tab state when present:
+       it gates the Rooting Card toggle and refreshes the in-app card with fresh
+       data, without disturbing the user's bucket selection. */
+    if(window.__loyView){try{window.__loyView.onData();}catch(e){}return;}
     if(window.__expTabUserPicked)return;
     const cols=document.getElementById('columns'),bar=document.getElementById('exp-tabbar');
     if(!cols||!bar)return;
@@ -10759,6 +10841,9 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   if(!cols.dataset.expTab)cols.dataset.expTab='conflicted';
   bar.addEventListener('click',function(e){
     const b=e.target.closest('.exp-tab');if(!b)return;
+    /* Shared bucket filter (both views): __loyView applies toggle semantics
+       (tap = filter, tap again = back to all) + Cheer-fallback highlight. */
+    if(window.__loyView){window.__loyView.onBucketTap(b.dataset.tab);return;}
     window.__expTabUserPicked=true; // user override — stop auto-defaulting the bucket
     cols.dataset.expTab=b.dataset.tab;
     bar.querySelectorAll('.exp-tab').forEach(function(x){
@@ -18767,8 +18852,166 @@ if(typeof window.cfRegisterView==='function'){
     }
     if(e.target.closest('#rc-sharego')){doShare();return;}
   });
+  /* ── in-app view renderer (2026-08-18) ────────────────────────────────────
+     The Loyalties section can render this card inline (not just as a share).
+     No bucket → the full-week frame, identical to the share's ALL WEEK. A bucket
+     ('cheer'|'conflicted'|'enemy') → a solo card: that band only, a single-count
+     hero, kicker "... X ONLY". Reuses buildFrame / scoped / band builders, so the
+     in-app view and the export can never drift. Always full-week scope — the
+     time-slot windows stay in the share sheet, per spec. */
+  function buildInApp(bucket){
+    if(!bucket){ var f=buildFrame('all'); f.removeAttribute('id'); return f; }
+    var s=scoped('all');
+    var wk=1;try{wk=(window.getActiveWeek?window.getActiveWeek():1)||1;}catch(e){}
+    var yr='';try{yr=(window.getActiveSeason?window.getActiveSeason():'')||'';}catch(e){}
+    var myCount=function(p){return (p.myLeagues||[]).length;};
+    var vsCount=function(p){return (p.againstLeagues||[]).length;};
+    var myNames=function(p){return p.myLeagues||[];};
+    var vsNames=function(p){return p.againstLeagues||[];};
+    var pick;
+    if(bucket==='cheer')      pick={n:s.cheer.length,label:'CHEER',color:'rc-green',band:namesBandHtml(s.cheer,'CHEER','green',myCount,myNames)};
+    else if(bucket==='enemy') pick={n:s.enemy.length,label:'ENEMY',color:'rc-red', band:namesBandHtml(s.enemy,'ENEMY','red', vsCount,vsNames)};
+    else                      pick={n:s.conf.length, label:'CONFLICTED',color:'rc-gold',band:confBandHtml(s.conf)};
+    var head='<div class="rc-wm">'+RC_WM+'</div>'+
+      '<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+(yr?(' &middot; '+yr):'')+' &middot; '+pick.label+' ONLY</div>';
+    var mid='<div class="rc-hero rc-hero-solo"><div class="rc-hero-cell">'+
+      '<div class="rc-hero-n '+pick.color+'">'+pick.n+'</div><div class="rc-hero-l">'+pick.label+'</div></div></div>';
+    var frame=document.createElement('div');
+    frame.className='rc-frame';
+    frame.innerHTML=head+mid+'<div class="rc-bands">'+pick.band+'</div>';
+    return frame;
+  }
+  window.__rcInApp=buildInApp;
+
   /* If the board already rendered before this module parsed, sync now. */
   try{window.__rcSyncShareBtn(window.__conflictedLastData);}catch(e){}
+})();
+</script>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     LOYALTIES VIEW CONTROLLER (2026-08-18) — owns the Player Cards ⇄ Rooting
+     Card toggle and the shared Cheer/Conflicted/Enemy bucket filter. One state:
+     view ('cards'|'rc') + bucket (null=all | cheer | conflicted | enemy). The
+     bucket persists across the view flip; nothing selected = all. In Player
+     Cards, "all" can't be shown, so it falls back to DISPLAYING Cheer (and
+     highlights it) without committing the selection — flip back to the card and
+     it still shows all three bands. Flip = directional slide with a height morph.
+     Bucket taps + the render-time auto-default delegate here (see below).
+     ════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+  var section=document.getElementById('loyalties-section');
+  var toggle =document.getElementById('loy-view-toggle');
+  var bar    =document.getElementById('exp-tabbar');
+  var cols   =document.getElementById('columns');
+  var stage  =document.getElementById('loy-stage');
+  var host   =document.getElementById('rc-inapp');
+  var scale  =document.getElementById('rc-inapp-scale');
+  if(!section||!toggle||!bar||!cols||!stage||!host||!scale)return;
+  var RC_W=390, DUR=420;
+  var st={view:'cards', bucket:null};
+  var busy=false;
+  var reduce=false; try{reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
+
+  /* Rooting available? Mirror the share icon's gating (offseason/no-data hide). */
+  function avail(){var b=document.getElementById('loyalties-share');return !!(b&&b.style.display!=='none');}
+
+  function setToggleBtns(){
+    Array.prototype.forEach.call(toggle.querySelectorAll('button[data-view]'),function(b){
+      var on=b.dataset.view===st.view; b.classList.toggle('is-on',on); b.setAttribute('aria-selected',on?'true':'false');
+    });
+  }
+  /* Cards fallback: null → display Cheer (highlighted) without committing it. */
+  function highlightTabs(){
+    var hl=(st.view==='cards')?(st.bucket||'cheer'):st.bucket;
+    Array.prototype.forEach.call(bar.querySelectorAll('.exp-tab'),function(t){
+      var sel=t.dataset.tab===hl; t.classList.toggle('is-active',sel); t.setAttribute('aria-selected',sel?'true':'false');
+    });
+  }
+  function applyCards(){ cols.dataset.expTab=st.bucket||'cheer'; }
+  function fit(){
+    var wrap=scale.parentElement, frame=scale.firstChild;
+    if(!wrap||!frame)return;
+    var w=wrap.clientWidth; if(!w)return;
+    var f=Math.min(1,w/RC_W);
+    scale.style.transform='scale('+f+')';
+    scale.style.marginLeft=Math.max(0,(w-RC_W*f)/2)+'px';
+    scale.style.height=(frame.offsetHeight*f)+'px';
+  }
+  function buildCard(){
+    scale.innerHTML='';
+    if(window.__rcInApp){ try{ scale.appendChild(window.__rcInApp(st.bucket)); }catch(e){} }
+    fit();
+  }
+
+  /* Smooth stage-height morph around an in-place content change (bucket taps). */
+  function morphHeight(mutate){
+    var el=(st.view==='rc')?host:cols;
+    if(reduce){ mutate(); return; }
+    var h0=el.offsetHeight; mutate(); var h1=el.offsetHeight;
+    if(h0===h1)return;
+    stage.classList.add('hmorph'); stage.style.height=h0+'px';
+    requestAnimationFrame(function(){ stage.style.height=h1+'px'; });
+    var done=function(){ stage.classList.remove('hmorph'); stage.style.height=''; stage.removeEventListener('transitionend',done); };
+    stage.addEventListener('transitionend',done);
+  }
+
+  /* Directional slide between the two views + height morph. */
+  function flip(target){
+    if(busy||target===st.view)return;
+    var forward=(target==='rc');
+    var outEl=(st.view==='rc')?host:cols;
+    var inEl =(target==='rc')?host:cols;
+    var h0=outEl.offsetHeight;
+    st.view=target; setToggleBtns();
+    inEl.style.display=(inEl===cols)?'grid':'block';
+    if(target==='rc')buildCard(); else applyCards();
+    highlightTabs();
+    if(reduce){ inEl.style.display=''; section.classList.toggle('rc-mode',target==='rc'); if(target==='rc')fit(); return; }
+    busy=true;
+    outEl.style.display=(outEl===cols)?'grid':'block';
+    stage.classList.add('anim', forward?'dir-f':'dir-b');
+    var h1=inEl.offsetHeight;
+    stage.style.height=h0+'px';
+    requestAnimationFrame(function(){
+      outEl.classList.add('exit'); inEl.classList.add('enter');
+      stage.style.height=h1+'px';
+    });
+    setTimeout(function(){
+      stage.classList.remove('anim','dir-f','dir-b');
+      outEl.classList.remove('exit'); inEl.classList.remove('enter');
+      outEl.style.display=''; inEl.style.display=''; stage.style.height='';
+      section.classList.toggle('rc-mode',st.view==='rc');
+      busy=false; if(st.view==='rc')fit();
+    },DUR);
+  }
+
+  /* Shared bucket toggle: tap selects; tap the active one clears to all. */
+  function onBucketTap(tab){
+    window.__expTabUserPicked=true;
+    st.bucket=(st.bucket===tab)?null:tab;
+    highlightTabs();
+    morphHeight(function(){ if(st.view==='rc')buildCard(); else applyCards(); });
+  }
+
+  /* Called every render: gate the toggle, refresh the card with fresh data. */
+  function onData(){
+    var ok=avail();
+    toggle.style.display=ok?'':'none';
+    if(!ok && st.view==='rc'){ st.view='cards'; section.classList.remove('rc-mode'); setToggleBtns(); }
+    applyCards(); highlightTabs();
+    if(section.classList.contains('rc-mode'))buildCard();
+  }
+
+  toggle.addEventListener('click',function(e){ var b=e.target.closest('button[data-view]'); if(b)flip(b.dataset.view); });
+  window.addEventListener('resize',function(){ if(section.classList.contains('rc-mode'))fit(); });
+
+  window.__loyView={ onData:onData, onBucketTap:onBucketTap };
+
+  /* Initial paint (toggle stays hidden until data arrives via onData). */
+  setToggleBtns(); applyCards(); highlightTabs();
+  try{ if(window.__conflictedLastData)onData(); }catch(e){}
 })();
 </script>
 
