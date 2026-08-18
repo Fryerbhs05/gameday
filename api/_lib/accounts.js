@@ -76,14 +76,23 @@ function parseCookies(req) {
 }
 
 // The logged-in account cookie. 30-day, HttpOnly, encrypted { uid, email, exp }.
+// 400 days — the ceiling Chrome/Safari clamp any longer Max-Age down to, so
+// asking for more just silently becomes this. Paired with the rolling refresh in
+// api/account/me.js it means the clock measures INACTIVITY, and the only user it
+// can still catch is one who hasn't opened Conflicted in over a year. That
+// matters here specifically: fantasy has an eight-month offseason, so a 30-day
+// session guaranteed that every returning user in August arrived logged out.
+// Exported so the refresh check in me.js can't drift out of sync with it.
+const ACCOUNT_SESSION_SECS = 34560000;
+
 function makeAccountCookie(uid, email) {
   const payload = JSON.stringify({
     uid,
     email,
-    exp: Math.floor(Date.now() / 1000) + 2592000
+    exp: Math.floor(Date.now() / 1000) + ACCOUNT_SESSION_SECS
   });
   const sealed = encrypt(payload);
-  return `account_session=${sealed}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`;
+  return `account_session=${sealed}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${ACCOUNT_SESSION_SECS}`;
 }
 function clearAccountCookie() {
   return `account_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
@@ -434,6 +443,7 @@ async function sendMagicLink(email, token) {
 }
 
 module.exports = {
+  ACCOUNT_SESSION_SECS,
   accountsConfigured,
   emailConfigured,
   appUrl,
