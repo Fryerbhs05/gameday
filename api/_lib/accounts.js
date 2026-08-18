@@ -95,7 +95,10 @@ function readAccount(req) {
     if (!cookies.account_session) return null;
     const a = JSON.parse(decrypt(cookies.account_session));
     if (!a || !a.uid || (a.exp && Math.floor(Date.now() / 1000) > a.exp)) return null;
-    return { uid: a.uid, email: a.email };
+    // exp is surfaced so /api/account/me can roll the session forward before
+    // it lapses (see the rolling-session block there). Existing callers that
+    // only read uid/email are unaffected.
+    return { uid: a.uid, email: a.email, exp: a.exp || null };
   } catch (e) {
     return null;
   }
