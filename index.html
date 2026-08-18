@@ -11013,16 +11013,60 @@ async function espnRenewalProbe(ids,season){
    the user across devices (Sleeper is username-only, no credentials). No-op when
    accounts are off or nobody's signed in. Fire-and-forget — localStorage remains
    the primary store and the source of truth on this device. */
+/* ── Undelivered account writes ───────────────────────────────────────────────
+   This used to `return` when signed out and that was the whole handler — the
+   write vanished with no error, no retry, and a connect card that said
+   "Connected as <name>" because localStorage had taken it. It cost real data:
+   on 2026-08-01 a desktop session lapsed at 19:20 UTC and the Sleeper username
+   was re-connected at 19:23, three minutes later, signed out. The POST was
+   dropped, the account kept the PREVIOUS username, and 17 days later a phone
+   with empty localStorage signed in, found the account authoritative, and
+   handed back the stale name — someone else's Sleeper ID, in Matt's account,
+   looking for all the world like the app had invented it.
+
+   So: a write we cannot deliver is QUEUED, not discarded, and replayed on the
+   next signed-in load. Only genuinely undelivered intents replay — never "this
+   device's local value", which would let any stale device clobber a newer one. */
+const SLEEPER_PENDING_KEY='cf_sleeper_pending';
+
+function queueSleeperWrite(username){
+  try{ localStorage.setItem(SLEEPER_PENDING_KEY, JSON.stringify({u:username||'',ts:Date.now()})); }catch(e){}
+}
+function readSleeperPending(){
+  try{ const raw=localStorage.getItem(SLEEPER_PENDING_KEY); if(!raw)return null;
+       const p=JSON.parse(raw); return (p&&typeof p.u==='string')?p:null; }catch(e){ return null; }
+}
+function clearSleeperPending(){ try{ localStorage.removeItem(SLEEPER_PENDING_KEY); }catch(e){} }
+
+function postSleeperToAccount(username){
+  return fetch('/api/account/me?action=sleeper',{
+    method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:username||''})
+  }).then(function(r){ if(!r.ok) throw new Error('save failed: '+r.status); return true; });
+}
+
 function syncSleeperToAccount(username){
   try{
     const acct=window.__account||{};
-    if(!acct.enabled||!acct.signedIn)return;
-    fetch('/api/account/me?action=sleeper',{
-      method:'POST',credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({username:username||''})
-    }).catch(()=>{});
-  }catch(e){}
+    /* Signed out (or accounts unavailable): the intent is real, the delivery
+       isn't. Hold it for the next sign-in rather than pretending it landed. */
+    if(!acct.enabled||!acct.signedIn){ queueSleeperWrite(username); return; }
+    postSleeperToAccount(username)
+      .then(function(){ clearSleeperPending(); })
+      .catch(function(){ queueSleeperWrite(username); }); /* network/5xx — same deal */
+  }catch(e){ queueSleeperWrite(username); }
+}
+
+/* Replayed from bootstrapAccount the moment we're signed in again. Returns the
+   username the account should now hold, or null if there was nothing pending —
+   the caller uses it to correct info.sleeper BEFORE hydrating this device from
+   it, so a fresh device never renders the stale value even once. */
+async function flushSleeperPending(){
+  const p=readSleeperPending();
+  if(!p) return null;
+  try{ await postSleeperToAccount(p.u); clearSleeperPending(); return p.u; }
+  catch(e){ return null; }   /* still undeliverable — keep it queued, try next load */
 }
 
 /* Count the leagues loaded for a given provider from the last dashboard pull
@@ -12141,6 +12185,16 @@ async function bootstrapAccount(){
   // !connected guards mean a local (localStorage/cookie) connection always wins.
   try{
     if(info && info.signedIn){
+      /* Replay any write this device made while signed out, BEFORE deciding what
+         to hydrate from. The queued value is provably newer than whatever the
+         account holds — it was made after it and only failed to send — so it
+         corrects info.sleeper in place and the hydrate below uses the right name.
+         Without this, the account's stale value wins and then gets written into
+         localStorage, spreading it. */
+      try{
+        const flushed=await flushSleeperPending();
+        if(flushed!==null) info.sleeper=flushed||null;
+      }catch(e){}
       if(info.sleeper && !connectionState.sleeper.connected){
         // Account has a Sleeper username → hydrate this (fresh) device from it.
         connectionState.sleeper={connected:true,identity:info.sleeper,displayName:info.sleeper};
@@ -12407,7 +12461,11 @@ async function checkEspnStatus(){
 function cfSessionSeen(){ try{ return localStorage.getItem('cf_acct_seen')==='1'; }catch(e){ return false; } }
 function cfSessionEmail(){ try{ return localStorage.getItem('cf_acct_email')||''; }catch(e){ return ''; } }
 function cfRememberSession(email){ try{ localStorage.setItem('cf_acct_seen','1'); if(email) localStorage.setItem('cf_acct_email',email); }catch(e){} }
-function cfForgetSession(){ try{ localStorage.removeItem('cf_acct_seen'); localStorage.removeItem('cf_acct_email'); }catch(e){} }
+function cfForgetSession(){ try{ localStorage.removeItem('cf_acct_seen'); localStorage.removeItem('cf_acct_email'); }catch(e){}
+  /* A deliberate sign-out/delete also retires any queued write — replaying a
+     username from before an intentional exit would be the same stale-value bug
+     in the other direction. */
+  try{ clearSleeperPending(); }catch(e){} }
 
 function cfSessionLapsed(){
   try{
