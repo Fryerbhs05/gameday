@@ -81,8 +81,11 @@ async function handleMe(req, res) {
   // here makes the session 30 days of INACTIVITY instead of 30 days absolute.
   // Refresh only once the cookie is a day old so we're not stamping a
   // Set-Cookie on every request. Best-effort — never block the response.
+  // This also silently UPGRADES every cookie still carrying the old 30-day exp:
+  // its remaining life is far below the new window, so the next load re-issues
+  // it at 400 days with nothing asked of the user.
   try {
-    const LIFETIME = 2592000;      // 30d, must match makeAccountCookie
+    const LIFETIME = A.ACCOUNT_SESSION_SECS;
     const REFRESH_AFTER = 86400;   // re-issue once the cookie is >1 day old
     const remaining = (acct.exp || 0) - Math.floor(Date.now() / 1000);
     if (!acct.exp || remaining < LIFETIME - REFRESH_AFTER) {
