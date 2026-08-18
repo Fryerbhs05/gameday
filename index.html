@@ -4736,7 +4736,7 @@
     </div>
     <div class="banner banner-offseason" id="banner-offseason"><div><strong>Roster mode</strong> — no matchup data yet. Everyone defaults to your guys until lineups are set.</div></div>
     <div class="banner banner-warn"      id="banner-partial"><div id="banner-partial-msg"></div></div>
-    <div class="banner banner-warn"      id="banner-espn-reconnect"><div><strong>ESPN needs reconnecting.</strong> <span id="banner-espn-reconnect-body"></span></div><button id="banner-espn-reconnect-btn" type="button"></button></div>
+    <div class="banner banner-warn"      id="banner-espn-reconnect"><div><strong id="banner-espn-reconnect-head">ESPN needs reconnecting.</strong> <span id="banner-espn-reconnect-body"></span></div><button id="banner-espn-reconnect-btn" type="button"></button></div>
     <div id="no-data-state">
       <div class="no-data-title" id="no-data-title">No league data</div>
       <div class="no-data-msg" id="no-data-msg"></div>
@@ -8379,10 +8379,29 @@ function renderBoard(data,username){
   (function(){
     var b=document.getElementById('banner-espn-reconnect'); if(!b)return;
     if(typeof cfEspnReconnectNeeded==='function' && cfEspnReconnectNeeded()){
+      var head=document.getElementById('banner-espn-reconnect-head');
       var body=document.getElementById('banner-espn-reconnect-body');
       var btn=document.getElementById('banner-espn-reconnect-btn');
       var mob=(typeof isMobileDevice==='function')&&isMobileDevice();
       var email=(window.__account&&window.__account.email)||window.__onboardEmail||'';
+      /* Signed OUT is a DIFFERENT failure from an expired espn_s2, and it looks
+         identical from here: the ESPN session is alive in the account, we just
+         can't read it without the account cookie. On a device with no
+         espn_session of its own (any phone) ESPN disappears while
+         localStorage-backed Sleeper survives — which used to render as "ESPN
+         expired, go re-paste cookies on a desktop", a fix for the wrong problem.
+         Test signedIn===true; __account is always truthy. */
+      var signedOut=!(window.__account&&window.__account.signedIn===true);
+      if(signedOut){
+        if(head)head.textContent="You're signed out on this device.";
+        if(body)body.textContent='Your ESPN leagues are stored in your Conflicted account — sign back in and they come right back, with nothing to re-enter. Your Sleeper leagues are unaffected.';
+        if(btn){ btn.style.display=''; btn.textContent='Sign in'; btn.onclick=function(){ try{openSignInModal();}catch(e){} }; }
+        b.classList.add('visible');
+        /* renderBoard re-runs this block on every refresh — fire the event once per page. */
+        try{if(!window.__cfLapseTracked){window.__cfLapseTracked=true;cfTrack('account_session_lapsed',{mobile:!!mob});}}catch(e){}
+        return;
+      }
+      if(head)head.textContent='ESPN needs reconnecting.';
       if(mob){
         if(body)body.textContent='Your ESPN sign-in expired (ESPN logs sessions out periodically). Reconnecting ESPN has to be done on a computer — open Conflicted on a desktop to reconnect. Your Yahoo and Sleeper leagues are unaffected.';
         if(btn){ if(email){ btn.style.display=''; btn.textContent='Email me a desktop link'; btn.onclick=cfEspnReconnectEmailLink; } else { btn.style.display='none'; } }
