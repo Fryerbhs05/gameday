@@ -4736,6 +4736,7 @@
     </div>
     <div class="banner banner-offseason" id="banner-offseason"><div><strong>Roster mode</strong> — no matchup data yet. Everyone defaults to your guys until lineups are set.</div></div>
     <div class="banner banner-warn"      id="banner-partial"><div id="banner-partial-msg"></div></div>
+    <div class="banner banner-warn"      id="banner-session"><div><strong>You're signed out on this device.</strong> <span id="banner-session-body"></span></div><button id="banner-session-btn" type="button"></button></div>
     <div class="banner banner-warn"      id="banner-espn-reconnect"><div><strong id="banner-espn-reconnect-head">ESPN needs reconnecting.</strong> <span id="banner-espn-reconnect-body"></span></div><button id="banner-espn-reconnect-btn" type="button"></button></div>
     <div id="no-data-state">
       <div class="no-data-title" id="no-data-title">No league data</div>
@@ -6474,6 +6475,7 @@ function renderAccountPanel(){
          leagues would linger after sign-out. Server keeps the account copy and
          rehydrates on next sign-in. Mirrors the account modal's sign-out. */
       try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+      try{cfForgetSession();}catch(e){} /* deliberate exit — don't offer to sign back in */
       clearBoardSnapshot();
       window.location.href='/?account=signed_out';
     });
@@ -6513,6 +6515,7 @@ function wireAccountDeleteBtn(){
       const r=await fetch('/api/account/me?action=delete',{method:'POST',credentials:'include'});
       if(r.ok){
         try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+        try{cfForgetSession();}catch(e){} /* deliberate exit — don't offer to sign back in */
         clearBoardSnapshot();
         window.location.href='/?account=signed_out';
       }else{
@@ -7063,7 +7066,17 @@ function shouldShowSampleBoard(){
      the sample board to the whole landing page. .signedIn is the canonical test
      used everywhere else in this file. */
   const a = window.__account;
-  return !!(a && a.signedIn);
+  if (a && a.signedIn) return true;
+  /* A LAPSED session is the same argument, only stronger. Someone whose only
+     connections were account-stored (ESPN, Yahoo) has nothing left in local
+     storage once the cookie dies, so isAnyProviderConnected() is false and the
+     old code dropped them into the SIGN-UP WIZARD — a returning user of two
+     seasons greeted as a brand-new visitor, which is the ugliest form the silent
+     logout takes. Route them to the sample board instead: it's the existing
+     "you have an account but no live data" surface, it's __sample-stamped so
+     nothing leaks, and it's where #banner-session renders to say what happened
+     and offer the one-tap link back in. */
+  return (typeof cfSessionLapsed==='function') && cfSessionLapsed();
 }
 window.shouldShowSampleBoard=shouldShowSampleBoard;
 function getSampleBoardData(){
@@ -8376,6 +8389,26 @@ function renderBoard(data,username){
      cfEspnReconnectNeeded() only fires when we KNOW ESPN was connected and a real
      status check now says it isn't — never a cold false-positive for Yahoo/Sleeper-
      only users. Mobile can't run the paste modal, so we send them to desktop. */
+  /* Session-expiry notice. Deliberately PLATFORM-AGNOSTIC: a lapsed account
+     cookie takes down every account-stored connection at once, so gating this on
+     one provider (as the ESPN banner does) would leave a Sleeper-only user
+     staring at a board that quietly lost data with nothing on screen saying why.
+     That silence is the actual bug — the expiry itself is recoverable in one tap.
+     Only fires when this device has been signed in BEFORE (cf_acct_seen), so a
+     genuine first-time visitor never sees it. */
+  (function(){
+    var b=document.getElementById('banner-session'); if(!b)return;
+    if(typeof cfSessionLapsed==='function' && cfSessionLapsed()){
+      var sbody=document.getElementById('banner-session-body');
+      var sbtn=document.getElementById('banner-session-btn');
+      var semail=cfSessionEmail();
+      if(sbody)sbody.textContent='Your sign-in expired, so any league stored in your account is hidden until you sign back in. Nothing was lost and there is nothing to re-enter.';
+      if(sbtn){ sbtn.style.display=''; sbtn.disabled=false; sbtn.textContent=semail?'Email me a sign-in link':'Sign in'; sbtn.onclick=cfSessionResendLink; }
+      b.classList.add('visible');
+      /* renderBoard re-runs this block on every refresh — fire the event once per page. */
+      try{if(!window.__cfLapseTracked){window.__cfLapseTracked=true;cfTrack('account_session_lapsed',{mobile:(typeof isMobileDevice==='function')&&isMobileDevice(),known_email:!!semail});}}catch(e){}
+    } else { b.classList.remove('visible'); }
+  })();
   (function(){
     var b=document.getElementById('banner-espn-reconnect'); if(!b)return;
     if(typeof cfEspnReconnectNeeded==='function' && cfEspnReconnectNeeded()){
@@ -8384,23 +8417,6 @@ function renderBoard(data,username){
       var btn=document.getElementById('banner-espn-reconnect-btn');
       var mob=(typeof isMobileDevice==='function')&&isMobileDevice();
       var email=(window.__account&&window.__account.email)||window.__onboardEmail||'';
-      /* Signed OUT is a DIFFERENT failure from an expired espn_s2, and it looks
-         identical from here: the ESPN session is alive in the account, we just
-         can't read it without the account cookie. On a device with no
-         espn_session of its own (any phone) ESPN disappears while
-         localStorage-backed Sleeper survives — which used to render as "ESPN
-         expired, go re-paste cookies on a desktop", a fix for the wrong problem.
-         Test signedIn===true; __account is always truthy. */
-      var signedOut=!(window.__account&&window.__account.signedIn===true);
-      if(signedOut){
-        if(head)head.textContent="You're signed out on this device.";
-        if(body)body.textContent='Your ESPN leagues are stored in your Conflicted account — sign back in and they come right back, with nothing to re-enter. Your Sleeper leagues are unaffected.';
-        if(btn){ btn.style.display=''; btn.textContent='Sign in'; btn.onclick=function(){ try{openSignInModal();}catch(e){} }; }
-        b.classList.add('visible');
-        /* renderBoard re-runs this block on every refresh — fire the event once per page. */
-        try{if(!window.__cfLapseTracked){window.__cfLapseTracked=true;cfTrack('account_session_lapsed',{mobile:!!mob});}}catch(e){}
-        return;
-      }
       if(head)head.textContent='ESPN needs reconnecting.';
       if(mob){
         if(body)body.textContent='Your ESPN sign-in expired (ESPN logs sessions out periodically). Reconnecting ESPN has to be done on a computer — open Conflicted on a desktop to reconnect. Your Yahoo and Sleeper leagues are unaffected.';
@@ -12106,6 +12122,11 @@ async function bootstrapAccount(){
   try{ const r = await fetch('/api/account/me',{credentials:'include'}); info = await r.json(); }
   catch(e){ /* keep defaults */ }
   window.__account = info;
+  /* Record, on THIS device, that an account has been signed in here and to what
+     address — see cfRememberSession. Written on every signed-in load, not just
+     at sign-in, so devices that were already signed in when this shipped pick it
+     up on their next open instead of having to lapse first. */
+  try{ if(info && info.signedIn) cfRememberSession(info.email||''); }catch(e){}
   // Hydrate the account-level disabled-league set from the server so the "global
   // exclude" is in place BEFORE the first loadData() filters the calc layer.
   try{
@@ -12224,6 +12245,7 @@ function openAccountModal(){
          or its leagues would linger after sign-out. The account copy is kept
          server-side and rehydrates on the next sign-in via info.sleeper. */
       try{localStorage.removeItem(SLEEPER_LS_KEY);localStorage.removeItem(USER_KEY);}catch(e){}
+      try{cfForgetSession();}catch(e){} /* deliberate exit — don't offer to sign back in */
       clearBoardSnapshot();
       window.location.href = '/?account=signed_out';
     });
@@ -12375,9 +12397,53 @@ async function checkEspnStatus(){
    prior session on this device, or the account's stored platform list) AND a
    real status check has since come back disconnected. Guarding on
    __espnStatusChecked prevents a cold false-positive before the first check. */
+/* ── Account-session memory (this device) ─────────────────────────────────────
+   A lapsed session is indistinguishable from a first-time visit unless the
+   device remembers it was signed in — the app just renders the logged-out
+   surface and nothing on screen admits anything was lost. cf_acct_seen is that
+   memory; cf_acct_email is what turns recovery into one tap instead of a
+   retyped address. Both are cleared on a DELIBERATE sign-out or delete, so an
+   intentional exit never nags. Neither is a credential. */
+function cfSessionSeen(){ try{ return localStorage.getItem('cf_acct_seen')==='1'; }catch(e){ return false; } }
+function cfSessionEmail(){ try{ return localStorage.getItem('cf_acct_email')||''; }catch(e){ return ''; } }
+function cfRememberSession(email){ try{ localStorage.setItem('cf_acct_seen','1'); if(email) localStorage.setItem('cf_acct_email',email); }catch(e){} }
+function cfForgetSession(){ try{ localStorage.removeItem('cf_acct_seen'); localStorage.removeItem('cf_acct_email'); }catch(e){} }
+
+function cfSessionLapsed(){
+  try{
+    if(isDemoMode) return false;
+    if(!window.__account) return false;                 /* bootstrap hasn't run yet */
+    if(window.__account.enabled===false) return false;  /* accounts not configured */
+    if(window.__account.signedIn===true) return false;  /* signedIn===true, never !!__account */
+    return cfSessionSeen();
+  }catch(e){ return false; }
+}
+
+/* One tap back in: the address is already known, so this sends a fresh magic
+   link rather than making the user retype it on a phone. Falls back to the
+   sign-in modal if the device somehow remembers the session but not the email. */
+function cfSessionResendLink(){
+  var email=cfSessionEmail();
+  if(!email){ try{openSignInModal();}catch(e){} return; }
+  var btn=document.getElementById('banner-session-btn');
+  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  fetch('/api/auth/magic/request',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
+    .then(function(r){
+      if(btn){ btn.disabled=false; btn.textContent=r.ok?'Link sent':'Email me a sign-in link'; }
+      showYahooToast(r.ok?('Sign-in link sent to '+email+'.'):'Could not send the link right now.', !r.ok);
+      try{ if(r.ok) cfTrack('session_relink_sent',null); }catch(e){}
+    })
+    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Email me a sign-in link'; } showYahooToast('Could not send the link right now.', true); });
+}
+
 function cfEspnReconnectNeeded(){
   try{
     if(isDemoMode) return false;
+    /* Signed out is not an ESPN failure: the ESPN session is alive in the
+       account, we just can't read it without the account cookie. The session
+       banner owns this state — otherwise a phone (no espn_session of its own)
+       gets told to go re-paste cookies on a desktop, a fix for the wrong bug. */
+    if(cfSessionLapsed()) return false;
     if(!window.__espnStatusChecked) return false;
     if(connectionState.espn && connectionState.espn.connected) return false;
     return !!window.__espnEverConnected;
