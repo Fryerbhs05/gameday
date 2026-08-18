@@ -2539,13 +2539,13 @@
     .loyalties-section.rc-mode #columns { display: none; }
     /* In-app card host: the 390px .rc-frame is scaled to fit by __loyView.fit(). */
     .rc-inapp-scale { transform-origin: top left; }
-    /* Solo-bucket hero (one big centered count) when a bucket filter is active.
-       Two-class selector so it beats .rc-hero (grid), which is defined later in
-       the file — otherwise the lone cell falls into the left grid column. */
-    .rc-hero.rc-hero-solo { display: block; text-align: center; margin-bottom: 15px; }
-    .rc-hero-solo .rc-hero-cell { text-align: center; }
+    /* Solo-bucket hero when a bucket filter is active: "N Word" side by side in
+       the hero font (e.g. "16 Cheer"). Two-class selector so it beats .rc-hero
+       (grid), which is defined later in the file. */
+    .rc-hero.rc-hero-solo { display: block; margin-bottom: 15px; }
+    .rc-hero-solo-row { display: flex; align-items: baseline; justify-content: center; gap: 12px; }
     .rc-hero-solo .rc-hero-n { font-size: 40px; }
-    .rc-hero-solo .rc-hero-l { letter-spacing: .16em; margin-top: 7px; }
+    .rc-hero-word { font: 900 40px/1 var(--font-sans, 'Inter'); letter-spacing: -.02em; }
     /* In Rooting Card view the shared bucket filter shows at ALL widths (the
        exp-tabbar is otherwise mobile-only). Appearance mirrors the mobile tabs
        so the control is identical in both views. */
@@ -18861,10 +18861,11 @@ if(typeof window.cfRegisterView==='function'){
   /* ── in-app view renderer (2026-08-18) ────────────────────────────────────
      The Loyalties section can render this card inline (not just as a share).
      No bucket → the full-week frame, identical to the share's ALL WEEK. A bucket
-     ('cheer'|'conflicted'|'enemy') → a solo card: that band only, a single-count
-     hero, kicker "... X ONLY". Reuses buildFrame / scoped / band builders, so the
-     in-app view and the export can never drift. Always full-week scope — the
-     time-slot windows stay in the share sheet, per spec. */
+     ('cheer'|'conflicted'|'enemy') → a solo card: that band only, with a single
+     hero reading "N Word" (count + bucket word side by side, same hero font). The
+     kicker is the plain ROOTING CARD line — no "X ONLY" tag. Reuses buildFrame /
+     scoped / band builders, so the in-app view and the export can never drift.
+     Always full-week scope — the time-slot windows stay in the share sheet. */
   function buildInApp(bucket){
     if(!bucket){ var f=buildFrame('all'); f.removeAttribute('id'); return f; }
     var s=scoped('all');
@@ -18875,13 +18876,15 @@ if(typeof window.cfRegisterView==='function'){
     var myNames=function(p){return p.myLeagues||[];};
     var vsNames=function(p){return p.againstLeagues||[];};
     var pick;
-    if(bucket==='cheer')      pick={n:s.cheer.length,label:'CHEER',color:'rc-green',band:namesBandHtml(s.cheer,'CHEER','green',myCount,myNames)};
-    else if(bucket==='enemy') pick={n:s.enemy.length,label:'ENEMY',color:'rc-red', band:namesBandHtml(s.enemy,'ENEMY','red', vsCount,vsNames)};
-    else                      pick={n:s.conf.length, label:'CONFLICTED',color:'rc-gold',band:confBandHtml(s.conf)};
+    if(bucket==='cheer')      pick={n:s.cheer.length,word:'Cheer',color:'rc-green',band:namesBandHtml(s.cheer,'CHEER','green',myCount,myNames)};
+    else if(bucket==='enemy') pick={n:s.enemy.length,word:'Enemy',color:'rc-red', band:namesBandHtml(s.enemy,'ENEMY','red', vsCount,vsNames)};
+    else                      pick={n:s.conf.length, word:'Conflicted',color:'rc-gold',band:confBandHtml(s.conf)};
     var head='<div class="rc-wm">'+RC_WM+'</div>'+
-      '<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+(yr?(' &middot; '+yr):'')+' &middot; '+pick.label+' ONLY</div>';
-    var mid='<div class="rc-hero rc-hero-solo"><div class="rc-hero-cell">'+
-      '<div class="rc-hero-n '+pick.color+'">'+pick.n+'</div><div class="rc-hero-l">'+pick.label+'</div></div></div>';
+      '<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+(yr?(' &middot; '+yr):'')+'</div>';
+    var mid='<div class="rc-hero rc-hero-solo"><div class="rc-hero-solo-row">'+
+      '<span class="rc-hero-n '+pick.color+'">'+pick.n+'</span>'+
+      '<span class="rc-hero-word '+pick.color+'">'+pick.word+'</span>'+
+      '</div></div>';
     var frame=document.createElement('div');
     frame.className='rc-frame';
     frame.innerHTML=head+mid+'<div class="rc-bands">'+pick.band+'</div>';
