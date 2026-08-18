@@ -70,6 +70,27 @@ async function handleMe(req, res) {
   } catch (e) {
     console.error('account/me disabled-leagues read:', e.message);
   }
+  // ── Rolling session ────────────────────────────────────────────
+  // The account cookie was issued at sign-in with a hard 30-day Max-Age and
+  // never refreshed, so an actively-used device got silently signed out exactly
+  // 30 days later. The symptom was confusing rather than obvious: ACCOUNT-ONLY
+  // connections (ESPN on a phone, which has no espn_session cookie of its own)
+  // vanished, while localStorage-backed Sleeper stayed put — so it read as
+  // "ESPN broke on mobile" while the desktop, authing off its own espn_session
+  // cookie, looked fine. This endpoint runs on every app load, so re-issuing
+  // here makes the session 30 days of INACTIVITY instead of 30 days absolute.
+  // Refresh only once the cookie is a day old so we're not stamping a
+  // Set-Cookie on every request. Best-effort — never block the response.
+  try {
+    const LIFETIME = 2592000;      // 30d, must match makeAccountCookie
+    const REFRESH_AFTER = 86400;   // re-issue once the cookie is >1 day old
+    const remaining = (acct.exp || 0) - Math.floor(Date.now() / 1000);
+    if (!acct.exp || remaining < LIFETIME - REFRESH_AFTER) {
+      res.setHeader('Set-Cookie', A.makeAccountCookie(acct.uid, acct.email));
+    }
+  } catch (e) {
+    console.error('account/me session refresh (non-fatal):', e.message);
+  }
   res
     .status(200)
     .json({ signedIn: true, enabled: true, email: acct.email, name, platforms, sleeper: sleeperUsername, disabledLeagues });
