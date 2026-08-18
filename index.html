@@ -2539,14 +2539,20 @@
     .loyalties-section.rc-mode #columns { display: none; }
     /* In-app card host: the 390px .rc-frame is scaled to fit by __loyView.fit(). */
     .rc-inapp-scale { transform-origin: top left; }
-    /* Solo-bucket hero (one big count) when a bucket filter is active in the card. */
-    .rc-hero-solo { display: block; text-align: center; margin-bottom: 15px; }
+    /* Solo-bucket hero (one big centered count) when a bucket filter is active.
+       Two-class selector so it beats .rc-hero (grid), which is defined later in
+       the file — otherwise the lone cell falls into the left grid column. */
+    .rc-hero.rc-hero-solo { display: block; text-align: center; margin-bottom: 15px; }
+    .rc-hero-solo .rc-hero-cell { text-align: center; }
     .rc-hero-solo .rc-hero-n { font-size: 40px; }
     .rc-hero-solo .rc-hero-l { letter-spacing: .16em; margin-top: 7px; }
     /* In Rooting Card view the shared bucket filter shows at ALL widths (the
        exp-tabbar is otherwise mobile-only). Appearance mirrors the mobile tabs
        so the control is identical in both views. */
-    .loyalties-section.rc-mode #exp-tabbar { display: flex; gap: 6px; margin-top: 0; margin-bottom: 12px; }
+    /* :not(.collapsed) so the collapse rule (which hides every non-header child)
+       still wins when the section is collapsed — this ID selector would otherwise
+       out-specify it and leave the buckets visible in Rooting Card mode. */
+    .loyalties-section.rc-mode:not(.collapsed) #exp-tabbar { display: flex; gap: 6px; margin-top: 0; margin-bottom: 12px; }
     .loyalties-section.rc-mode .exp-tab {
       flex: 1 1 0; display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 5px;
       padding: 11px 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -18949,9 +18955,13 @@ if(typeof window.cfRegisterView==='function'){
   function morphHeight(mutate){
     var el=(st.view==='rc')?host:cols;
     if(reduce){ mutate(); return; }
-    var h0=el.offsetHeight; mutate(); var h1=el.offsetHeight;
-    if(h0===h1)return;
+    /* Lock + clip the stage at the current height BEFORE mutating, so the content
+       swap never collapses the page (which yanks the scroll position). */
+    var h0=el.offsetHeight;
     stage.classList.add('hmorph'); stage.style.height=h0+'px';
+    mutate();
+    var h1=el.offsetHeight;
+    if(h0===h1){ stage.classList.remove('hmorph'); stage.style.height=''; return; }
     requestAnimationFrame(function(){ stage.style.height=h1+'px'; });
     var done=function(){ stage.classList.remove('hmorph'); stage.style.height=''; stage.removeEventListener('transitionend',done); };
     stage.addEventListener('transitionend',done);
@@ -18964,16 +18974,24 @@ if(typeof window.cfRegisterView==='function'){
     var outEl=(st.view==='rc')?host:cols;
     var inEl =(target==='rc')?host:cols;
     var h0=outEl.offsetHeight;
-    st.view=target; setToggleBtns();
-    inEl.style.display=(inEl===cols)?'grid':'block';
-    if(target==='rc')buildCard(); else applyCards();
-    highlightTabs();
-    if(reduce){ inEl.style.display=''; section.classList.toggle('rc-mode',target==='rc'); if(target==='rc')fit(); return; }
+    st.view=target; setToggleBtns(); highlightTabs();
+    if(reduce){
+      inEl.style.display=''; outEl.style.display='';
+      if(target==='rc')buildCard(); else applyCards();
+      section.classList.toggle('rc-mode',target==='rc');
+      if(target==='rc')fit();
+      return;
+    }
     busy=true;
-    outEl.style.display=(outEl===cols)?'grid':'block';
-    stage.classList.add('anim', forward?'dir-f':'dir-b');
-    var h1=inEl.offsetHeight;
+    /* Lock the stage height and go absolute in that order — locking first keeps
+       the stage from collapsing to 0 when both views become absolute (the collapse
+       is what made the page snap toward the top). */
     stage.style.height=h0+'px';
+    stage.classList.add('anim', forward?'dir-f':'dir-b');
+    inEl.style.display=(inEl===cols)?'grid':'block';
+    outEl.style.display=(outEl===cols)?'grid':'block';
+    if(target==='rc')buildCard(); else applyCards();
+    var h1=inEl.offsetHeight;
     requestAnimationFrame(function(){
       outEl.classList.add('exit'); inEl.classList.add('enter');
       stage.style.height=h1+'px';
