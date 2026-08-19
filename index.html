@@ -3146,6 +3146,14 @@
     .settings-row-title { font: 500 13px/1.3 var(--font-sans); color: var(--ink-900); }
     .settings-row-sub { font: 400 11px/1.4 var(--font-sans); color: var(--ink-500); margin-top: 3px; }
     .settings-row .btn-secondary { padding: 7px 14px; font-size: 12px; flex-shrink: 0; }
+    /* Contact view — leading channel-icon tile on each settings row (Instagram/
+       X/Email). Only the Contact rows use this; other settings rows are unchanged. */
+    .settings-row-ico {
+      width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--paper-deep); border: 1px solid var(--line);
+    }
+    .settings-row-ico svg { width: 20px; height: 20px; display: block; }
     /* Account view — read-only identity rows reuse the settings-row chrome.
        The right side shows a value (string or count) instead of a control. */
     .account-row-value {
@@ -4477,7 +4485,9 @@
          See showBlog() below. Shop/Partners/Contact remain adminOnly "Soon". */
       { key: 'blog',     label: 'Blog',     soon: false, svg: '<g transform="translate(12,12) scale(0.7500) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
       { key: 'partners', label: 'Partners', soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.9231) translate(-12,-12.5)"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/></g>' },
-      { key: 'contact',  label: 'Contact',  soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.8571) translate(-12,-12)"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></g>' },
+      /* Contact is LIVE (2026-08-19): opens the in-app Contact view (Instagram /
+         X / Email). Dropped the adminOnly + soon flags so every user sees it. */
+      { key: 'contact',  label: 'Contact',  soon: false, svg: '<g transform="translate(12,12) scale(0.8571) translate(-12,-12)"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></g>' },
       /* About moved out of this sheet into Account → Legal & help (2026-08-19).
          showAbout() still lives below (also called from the Account row and the
          landing footer), and the 'about' click handler is kept as a harmless
@@ -4533,6 +4543,7 @@
       var action = btn.getAttribute('data-more-action');
       if (window.BottomSheet) window.BottomSheet.close();
       if (action === 'about' && typeof window.showAbout === 'function') { window.showAbout(); window.scrollTo(0, 0); }
+      else if (action === 'contact' && typeof window.showContact === 'function') { window.showContact('more'); window.scrollTo(0, 0); }
       else if (action === 'blog' && typeof window.showBlog === 'function') { window.showBlog(); }
       else if (action === 'account' && typeof window.showAccount === 'function') { window.showAccount(); window.scrollTo(0, 0); }
       else if (action === 'exposure' && typeof window.showExposure === 'function') { window.showExposure(); window.scrollTo(0, 0); }
@@ -5215,6 +5226,15 @@
           </div>
           <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Contact"
+             onclick="showContact('account');window.scrollTo(0,0);"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showContact('account');window.scrollTo(0,0);}">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Contact</div>
+            <div class="settings-row-sub">Reach the Conflicted team on Instagram, X, or email.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
         <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="FAQ">
           <div class="settings-row-meta">
             <div class="settings-row-title">FAQ</div>
@@ -5311,6 +5331,15 @@
           <div class="settings-row-meta">
             <div class="settings-row-title">About</div>
             <div class="settings-row-sub">What Conflicted is and the team behind it.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Contact"
+             onclick="showContact('account');window.scrollTo(0,0);"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showContact('account');window.scrollTo(0,0);}">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Contact</div>
+            <div class="settings-row-sub">Reach the Conflicted team on Instagram, X, or email.</div>
           </div>
           <span class="settings-row-chevron" aria-hidden="true">›</span>
         </div>
@@ -5521,6 +5550,81 @@
       <span class="about-tagline">All your leagues<span class="cut"> · </span>one place.</span>
       <button class="btn-ghost" onclick="goToDashboardOrSetup()" type="button">← Back</button>
     </div>
+  </div>
+</div>
+
+<!-- ══ CONTACT VIEW (Account → Contact, and …More sheet → Contact) ══════
+     Reaches the Conflicted team. Instagram + X open the profile in a new tab
+     (↗); Email opens the device mail composer via mailto: (›). Handles are
+     hardcoded — @ConflictedApp on both socials, ConflictedApp@Gmail.com for
+     email. Update them here if they ever change. -->
+<div id="view-contact" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 90px;">
+  <div style="margin-bottom:20px;">
+    <h2 style="font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);margin:0 0 6px;">Contact</h2>
+    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">Questions, bugs, or just want to talk ball? Reach the Conflicted team.</p>
+  </div>
+
+  <div class="settings-panel" style="display:block;margin:0 0 16px;">
+    <div class="settings-body" style="display:block;">
+
+      <!-- Instagram -->
+      <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Instagram — @ConflictedApp"
+           onclick="window.open('https://instagram.com/ConflictedApp','_blank','noopener')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.open('https://instagram.com/ConflictedApp','_blank','noopener');}">
+        <span class="settings-row-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--coral-500)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/>
+            <circle cx="12" cy="12" r="4"/>
+            <circle cx="17.2" cy="6.8" r="1" fill="var(--coral-500)" stroke="none"/>
+          </svg>
+        </span>
+        <div class="settings-row-meta">
+          <div class="settings-row-title">Instagram</div>
+          <div class="settings-row-sub">@ConflictedApp</div>
+        </div>
+        <span class="settings-row-chevron" aria-hidden="true">↗</span>
+      </div>
+
+      <!-- X -->
+      <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="X — @ConflictedApp"
+           onclick="window.open('https://x.com/ConflictedApp','_blank','noopener')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.open('https://x.com/ConflictedApp','_blank','noopener');}">
+        <span class="settings-row-ico">
+          <svg viewBox="0 0 24 24" fill="var(--ink-900)" aria-hidden="true">
+            <path d="M17.53 3H20.5l-6.49 7.42L21.75 21h-5.98l-4.68-6.12L5.7 21H2.72l6.94-7.93L2.25 3h6.13l4.23 5.6L17.53 3Zm-1.05 16.2h1.65L7.6 4.71H5.83L16.48 19.2Z"/>
+          </svg>
+        </span>
+        <div class="settings-row-meta">
+          <div class="settings-row-title">X</div>
+          <div class="settings-row-sub">@ConflictedApp</div>
+        </div>
+        <span class="settings-row-chevron" aria-hidden="true">↗</span>
+      </div>
+
+      <!-- Email -->
+      <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Email — ConflictedApp@Gmail.com"
+           onclick="location.href='mailto:ConflictedApp@Gmail.com'"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='mailto:ConflictedApp@Gmail.com';}">
+        <span class="settings-row-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--coral-500)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2.5"/>
+            <path d="M4 7.5l8 5.5 8-5.5"/>
+          </svg>
+        </span>
+        <div class="settings-row-meta">
+          <div class="settings-row-title">Email</div>
+          <div class="settings-row-sub">ConflictedApp@Gmail.com</div>
+        </div>
+        <span class="settings-row-chevron" aria-hidden="true">›</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="margin-top:14px;">
+    <!-- Label + target are set by showContact(origin): 'more' → dashboard,
+         otherwise → Account. Defaults below cover a direct/unknown open. -->
+    <button class="btn-ghost" id="contact-back-btn" onclick="showAccount();window.scrollTo(0,0);" type="button">← Back to Account</button>
   </div>
 </div>
 
@@ -6623,7 +6727,7 @@ function ctxBadge(sig,isHist){
 }
 
 function hideAll(){
-  ['setup-panel','loading-panel','error-panel','cf-period-bar','board','priority-panel','view-snapshot','view-conflict','view-exposure','view-watch','view-leaders','view-settings','view-connections','view-account','view-account-delete','view-about'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['setup-panel','loading-panel','error-panel','cf-period-bar','board','priority-panel','view-snapshot','view-conflict','view-exposure','view-watch','view-leaders','view-settings','view-connections','view-account','view-account-delete','view-about','view-contact'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   window.__cfSnapshotOpen=false;
   window.__cfConflictOpen=false;
   window.__cfLeadersOpen=false;
@@ -6685,6 +6789,26 @@ function showAbout(){
   window.scrollTo(0,0);
 }
 window.showAbout=showAbout;
+/* origin: 'more' → back returns to the dashboard (top of page); anything else
+   (default 'account') → back returns to the Account view. Lets the same Contact
+   view serve both entry points with a sensible "back" for each. */
+function showContact(origin){
+  hideAll();
+  const v=document.getElementById('view-contact');
+  if(v)v.style.display='block';
+  const back=document.getElementById('contact-back-btn');
+  if(back){
+    if(origin==='more'){
+      back.textContent='← Back to dashboard';
+      back.onclick=function(){ if(typeof window.goToDashboardOrSetup==='function') window.goToDashboardOrSetup(); window.scrollTo(0,0); };
+    }else{
+      back.textContent='← Back to Account';
+      back.onclick=function(){ showAccount(); window.scrollTo(0,0); };
+    }
+  }
+  window.scrollTo(0,0);
+}
+window.showContact=showContact;
 function showSettings(){
   hideAll();
   const v=document.getElementById('view-settings');
@@ -16642,7 +16766,7 @@ loadExperimentState();
       var onAccount = visible('view-account');
       // Bar layout: Leaders has the far-left tab (2026-07-14); Exposure joined
       // Schedule (watch) + Account in the …More sheet, so their views light More.
-      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || onWatch || onAccount || onExpo;
+      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || visible('view-contact') || onWatch || onAccount || onExpo;
       set('dashboard', onBoard && !onSnap && !onExpo && !onWatch && !onConflict && !onLeaders);
       set('snapshot', onSnap);
       set('leaders', onLeaders);
@@ -16663,7 +16787,7 @@ loadExperimentState();
       // Exposure + Schedule (watch) + Account now live in the …More sheet.
       if (visible('view-exposure')) return 'more';
       if (visible('view-watch') || visible('view-account')) return 'more';
-      if (visible('view-settings') || visible('view-connections') || visible('view-about')) return 'more';
+      if (visible('view-settings') || visible('view-connections') || visible('view-about') || visible('view-contact')) return 'more';
       if (visible('board')) return 'dashboard';
       return null;
     }
@@ -16782,7 +16906,7 @@ loadExperimentState();
           onWatch = visible('view-watch'), onConflict = visible('view-conflict'),
           onLeaders = visible('view-leaders'), onAccount = visible('view-account'),
           onBoard = visible('board');
-      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about');
+      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || visible('view-contact');
       setOn('dashboard', onBoard && !onSnap && !onExpo && !onWatch && !onConflict && !onLeaders && !onAccount);
       setOn('snapshot', onSnap);
       setOn('leaders', onLeaders);
