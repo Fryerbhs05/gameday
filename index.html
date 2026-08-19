@@ -4267,10 +4267,9 @@
     </li>
     <!-- Not-yet-built site links: admin-only preview (see .admin-only above).
          Normal users never see a dead "Soon" row. -->
-    <li role="none" class="admin-only">
-      <button class="menu-drawer__item is-disabled" data-menu-action="blog" role="menuitem" type="button" aria-disabled="true" disabled>
+    <li role="none">
+      <button class="menu-drawer__item" data-menu-action="blog" role="menuitem" type="button">
         <span>Blog</span>
-        <span class="menu-drawer__badge">Soon</span>
       </button>
     </li>
     <li role="none" class="admin-only">
@@ -4473,7 +4472,10 @@
          hidden entirely from every normal user until they go live. Drop the
          adminOnly flag on each one as it ships. */
       { key: 'shop',     label: 'Shop',     soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.7273) translate(-12,-11.25)"><path d="M6 8h12l-1 11.5H7L6 8z"/><path d="M9 8.5V6a3 3 0 0 1 6 0v2.5"/></g>' },
-      { key: 'blog',     label: 'Blog',     soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.7500) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
+      /* Blog is LIVE (2026-08-19): tile opens the Waiver Warrior blog inside the
+         in-app browser overlay (#cf-blog-overlay) so PWA users stay in the app.
+         See showBlog() below. Shop/Partners/Contact remain adminOnly "Soon". */
+      { key: 'blog',     label: 'Blog',     soon: false, svg: '<g transform="translate(12,12) scale(0.7500) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
       { key: 'partners', label: 'Partners', soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.9231) translate(-12,-12.5)"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/></g>' },
       { key: 'contact',  label: 'Contact',  soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.8571) translate(-12,-12)"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></g>' },
       { key: 'about',    label: 'About',    soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-12)"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/></g>' },
@@ -4528,6 +4530,7 @@
       var action = btn.getAttribute('data-more-action');
       if (window.BottomSheet) window.BottomSheet.close();
       if (action === 'about' && typeof window.showAbout === 'function') { window.showAbout(); window.scrollTo(0, 0); }
+      else if (action === 'blog' && typeof window.showBlog === 'function') { window.showBlog(); }
       else if (action === 'account' && typeof window.showAccount === 'function') { window.showAccount(); window.scrollTo(0, 0); }
       else if (action === 'exposure' && typeof window.showExposure === 'function') { window.showExposure(); window.scrollTo(0, 0); }
       else if (action === 'schedule' && typeof window.showWatch === 'function') { window.showWatch(); window.scrollTo(0, 0); }
@@ -4537,6 +4540,159 @@
         if (window.experimentEnabled && window.experimentEnabled()) { if (typeof window.exitExperiment === 'function') window.exitExperiment(); }
         else if (typeof window.enableExperimentMode === 'function') { window.enableExperimentMode(); }
       }
+    });
+  })();
+</script>
+
+<!-- ══ IN-APP BLOG (Waiver Warrior) ════════════════════════════════════════════
+     Full-screen in-app browser overlay opened from the …More sheet + hamburger
+     drawer "Blog" option. Keeps installed-PWA users inside the app (an external
+     link would kick them out to the system browser). Loads the partner blog in
+     an <iframe>; if the blog's host refuses framing (X-Frame-Options / CSP
+     frame-ancestors), a graceful fallback + an always-present "Open in browser"
+     escape hatch guarantee the option is never a dead end. To make the embed
+     itself work, the blog must allow conflictedapp.com as a frame-ancestor. -->
+<style>
+  #cf-blog-overlay {
+    position: fixed; inset: 0; z-index: 10001; display: none;
+    flex-direction: column; background: var(--paper);
+  }
+  #cf-blog-overlay.is-open { display: flex; }
+  body.cf-blog-lock { overflow: hidden; }
+  .cfblog-bar {
+    display: flex; align-items: center; gap: 8px; flex: 0 0 auto;
+    padding: calc(env(safe-area-inset-top, 0px) + 9px) 10px 9px;
+    background: var(--paper); border-bottom: 1px solid var(--line);
+  }
+  .cfblog-btn {
+    display: flex; align-items: center; justify-content: center;
+    height: 38px; min-width: 38px; padding: 0 6px; gap: 6px;
+    background: transparent; border: 0; border-radius: 10px; cursor: pointer;
+    color: var(--ink-700); text-decoration: none;
+    transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+  }
+  .cfblog-btn:hover { background: var(--tile-bg); }
+  .cfblog-btn:active { transform: scale(0.96); }
+  .cfblog-btn svg { width: 21px; height: 21px; display: block; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .cfblog-btn--back { font: 700 13px/1 var(--font-sans); color: var(--navy-700); padding-right: 10px; }
+  .cfblog-id { flex: 1 1 auto; min-width: 0; text-align: center; line-height: 1.15; padding: 0 4px; }
+  .cfblog-id b { display: block; font: 800 14px/1.15 var(--font-sans); color: var(--ink-700); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cfblog-id span { display: block; font: 600 10px/1.2 var(--font-sans); color: var(--ink-500); letter-spacing: 0.02em; text-transform: none; }
+  .cfblog-frameWrap { position: relative; flex: 1 1 auto; min-height: 0; background: #fff; }
+  #cf-blog-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+  .cfblog-load {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px; background: var(--paper); z-index: 2;
+  }
+  .cfblog-spin {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 3px solid var(--line); border-top-color: var(--coral-500);
+    animation: cfblog-spin 0.8s linear infinite;
+  }
+  .cfblog-load p { margin: 0; font: 600 12px/1 var(--font-sans); color: var(--ink-500); letter-spacing: 0.02em; }
+  @keyframes cfblog-spin { to { transform: rotate(360deg); } }
+  .cfblog-fallback {
+    position: absolute; inset: 0; display: none; z-index: 3;
+    flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    gap: 14px; padding: 32px 26px; background: var(--paper);
+  }
+  .cfblog-fallback.is-on { display: flex; }
+  .cfblog-fallback svg { width: 40px; height: 40px; stroke: var(--navy-700); fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
+  .cfblog-fallback h3 { margin: 2px 0 0; font: 800 17px/1.25 var(--font-sans); color: var(--ink-700); letter-spacing: -0.01em; }
+  .cfblog-fallback p { margin: 0; max-width: 300px; font: 500 13px/1.5 var(--font-sans); color: var(--ink-500); }
+  .cfblog-fallback .cfblog-open-btn {
+    margin-top: 6px; display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 20px; border-radius: 12px; border: 0; cursor: pointer;
+    background: var(--coral-500); color: #fff; text-decoration: none;
+    font: 800 13px/1 var(--font-sans); letter-spacing: 0.02em;
+  }
+  .cfblog-fallback .cfblog-open-btn svg { width: 17px; height: 17px; stroke: #fff; opacity: 1; }
+  .cfblog-fallback .cfblog-open-btn:active { transform: scale(0.97); }
+</style>
+<div id="cf-blog-overlay" role="dialog" aria-modal="true" aria-label="Waiver Warrior blog">
+  <div class="cfblog-bar">
+    <button type="button" class="cfblog-btn cfblog-btn--back" id="cf-blog-back" aria-label="Close blog">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      <span>Done</span>
+    </button>
+    <div class="cfblog-id">
+      <b>Waiver Warrior</b>
+      <span>waiverwarrior.com</span>
+    </div>
+    <button type="button" class="cfblog-btn" id="cf-blog-reload" aria-label="Reload">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-.7 3.7"/><path d="M20 4v5h-5"/></svg>
+    </button>
+    <a class="cfblog-btn" id="cf-blog-external" href="https://waiverwarrior.com/blog" target="_blank" rel="noopener" aria-label="Open in browser">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>
+    </a>
+  </div>
+  <div class="cfblog-frameWrap">
+    <div class="cfblog-load" id="cf-blog-load"><div class="cfblog-spin" aria-hidden="true"></div><p>Loading Waiver Warrior…</p></div>
+    <iframe id="cf-blog-frame" title="Waiver Warrior blog" referrerpolicy="no-referrer-when-downgrade" allow="clipboard-write"></iframe>
+    <div class="cfblog-fallback" id="cf-blog-fallback">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/><path d="M8 21h8"/></svg>
+      <h3>Best viewed in your browser</h3>
+      <p>Waiver Warrior doesn’t allow embedding right now. Tap below to open the blog — you can come right back to Conflicted.</p>
+      <a class="cfblog-open-btn" id="cf-blog-fallback-open" href="https://waiverwarrior.com/blog" target="_blank" rel="noopener">
+        Open Waiver Warrior
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>
+      </a>
+    </div>
+  </div>
+</div>
+<script>
+  (function() {
+    var BLOG_URL = 'https://waiverwarrior.com/blog';
+    var ov   = document.getElementById('cf-blog-overlay');
+    var fr   = document.getElementById('cf-blog-frame');
+    var load = document.getElementById('cf-blog-load');
+    var fb   = document.getElementById('cf-blog-fallback');
+    if (!ov || !fr) return;
+    var loaded = false, loadTimer = null;
+
+    function startFrame() {
+      loaded = false;
+      if (fb) fb.classList.remove('is-on');
+      if (load) load.style.display = 'flex';
+      try { fr.src = BLOG_URL; } catch (e) {}
+      clearTimeout(loadTimer);
+      /* Cross-origin blocked frames can't be inspected, so we can't detect an
+         X-Frame-Options refusal directly. If nothing has loaded after 8s, assume
+         trouble and surface the fallback (the top-bar "open in browser" is always
+         there regardless). */
+      loadTimer = setTimeout(function() {
+        if (!loaded && fb) { fb.classList.add('is-on'); if (load) load.style.display = 'none'; }
+      }, 8000);
+    }
+    function show() {
+      startFrame();
+      ov.classList.add('is-open');
+      document.body.classList.add('cf-blog-lock');
+    }
+    function hide() {
+      ov.classList.remove('is-open');
+      document.body.classList.remove('cf-blog-lock');
+      clearTimeout(loadTimer);
+      /* Drop the src so the blog stops loading/playing in the background. */
+      try { fr.src = 'about:blank'; } catch (e) {}
+    }
+    window.showBlog = show;
+    window.hideBlog = hide;
+
+    fr.addEventListener('load', function() {
+      /* Ignore the about:blank teardown load. */
+      try { if ((fr.getAttribute('src') || '').indexOf('about:blank') === 0) return; } catch (e) {}
+      loaded = true;
+      clearTimeout(loadTimer);
+      if (load) load.style.display = 'none';
+    });
+
+    var backBtn = document.getElementById('cf-blog-back');
+    if (backBtn) backBtn.addEventListener('click', hide);
+    var reloadBtn = document.getElementById('cf-blog-reload');
+    if (reloadBtn) reloadBtn.addEventListener('click', startFrame);
+    document.addEventListener('keydown', function(e) {
+      if ((e.key === 'Escape' || e.keyCode === 27) && ov.classList.contains('is-open')) hide();
     });
   })();
 </script>
@@ -16410,6 +16566,8 @@ loadExperimentState();
           if (typeof window.showConnections === 'function') window.showConnections();
         } else if (action === 'about') {
           if (typeof window.showAbout === 'function') window.showAbout();
+        } else if (action === 'blog') {
+          if (typeof window.showBlog === 'function') window.showBlog();
         } else if (action === 'signin') {
           if (typeof window.openSignInModal === 'function') window.openSignInModal();
         } else if (action === 'home') {
@@ -16419,7 +16577,7 @@ loadExperimentState();
         // rather than inheriting the scroll position from the previous page.
         window.scrollTo(0, 0);
         // Future routes — wire these up as each view ships:
-        //   blog, contact
+        //   contact
       });
     });
   })();
