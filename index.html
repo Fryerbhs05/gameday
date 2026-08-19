@@ -4478,7 +4478,10 @@
       { key: 'blog',     label: 'Blog',     soon: false, svg: '<g transform="translate(12,12) scale(0.7500) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
       { key: 'partners', label: 'Partners', soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.9231) translate(-12,-12.5)"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/></g>' },
       { key: 'contact',  label: 'Contact',  soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.8571) translate(-12,-12)"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></g>' },
-      { key: 'about',    label: 'About',    soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-12)"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><line x1="12" y1="7.6" x2="12" y2="7.7"/></g>' },
+      /* About moved out of this sheet into Account → Legal & help (2026-08-19).
+         showAbout() still lives below (also called from the Account row and the
+         landing footer), and the 'about' click handler is kept as a harmless
+         no-op in case any cached surface still emits data-more-action="about". */
       { key: 'account',  label: 'Account',  soon: false, svg: '<g transform="translate(12,12) scale(0.7742) translate(-12,-12.25)"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></g>' },
       /* Admin-only shortcut into experiment mode — avoids the sign-out →
          type-code → sign-back-in dance. Client-side email gate is purely a
@@ -5200,9 +5203,18 @@
       </div>
     </div>
 
-    <!-- Card 3b · Legal & help (Privacy + Terms wired; FAQ still a placeholder) -->
+    <!-- Card 3b · Legal & help (About + Privacy + Terms wired; FAQ still a placeholder) -->
     <div class="settings-panel" style="display:block;margin:0 0 16px;">
       <div class="settings-body" style="display:block;">
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="About"
+             onclick="showAbout();window.scrollTo(0,0);"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showAbout();window.scrollTo(0,0);}">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">About</div>
+            <div class="settings-row-sub">What Conflicted is and the team behind it.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
         <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="FAQ">
           <div class="settings-row-meta">
             <div class="settings-row-title">FAQ</div>
@@ -5290,9 +5302,18 @@
         </div>
       </div>
     </div>
-    <!-- Legal & help (Privacy + Terms wired; FAQ still a placeholder) -->
+    <!-- Legal & help (About + Privacy + Terms wired; FAQ still a placeholder) -->
     <div class="settings-panel" style="display:block;margin:16px 0 0;">
       <div class="settings-body" style="display:block;">
+        <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="About"
+             onclick="showAbout();window.scrollTo(0,0);"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showAbout();window.scrollTo(0,0);}">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">About</div>
+            <div class="settings-row-sub">What Conflicted is and the team behind it.</div>
+          </div>
+          <span class="settings-row-chevron" aria-hidden="true">›</span>
+        </div>
         <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="FAQ">
           <div class="settings-row-meta">
             <div class="settings-row-title">FAQ</div>
