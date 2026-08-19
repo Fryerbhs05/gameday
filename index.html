@@ -2546,10 +2546,11 @@
     /* Solo-bucket hero when a bucket filter is active: "N Word" side by side in
        the hero font (e.g. "16 Cheer"). Two-class selector so it beats .rc-hero
        (grid), which is defined later in the file. */
-    .rc-hero.rc-hero-solo { display: block; margin-bottom: 15px; }
-    .rc-hero-solo-row { display: flex; align-items: baseline; justify-content: center; gap: 12px; }
-    .rc-hero-solo .rc-hero-n { font-size: 40px; }
-    .rc-hero-word { font: 900 40px/1 var(--font-sans, 'Inter'); letter-spacing: -.02em; }
+    .rc-hero.rc-hero-solo { display: block; margin-bottom: 13px; }
+    .rc-hero-solo-row { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+    /* ~LOYALTIES-header size (--section-wordmark-size = 22px), not a giant hero. */
+    .rc-hero-solo .rc-hero-n { font-size: 22px; }
+    .rc-hero-word { font: 900 22px/1 var(--font-sans, 'Inter'); letter-spacing: -.02em; }
     /* In Rooting Card view the shared bucket filter shows at ALL widths (the
        exp-tabbar is otherwise mobile-only). Appearance mirrors the mobile tabs
        so the control is identical in both views. */
