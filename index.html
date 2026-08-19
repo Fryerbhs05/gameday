@@ -2528,7 +2528,11 @@
        across both views (no "All" chip; nothing selected = all). Flip = directional
        slide, driven by __loyView. See rooting-card-spec.md.
        ══════════════════════════════════════════════════════════════════════ */
-    .loy-view-toggle { margin: 12px 0 2px; }
+    /* Controls cluster framed together in the section's light-blue chrome:
+       Cheer/Conflicted/Enemy buckets on top, Player/Rooting toggle below. */
+    .loy-controls { border: 1px solid var(--navy-300); border-radius: var(--radius-lg); padding: 12px; margin-bottom: 12px; }
+    .loy-controls .exp-tabbar { margin: 0 0 10px; }
+    .loy-controls .loy-view-toggle { margin: 0; }
     /* Stage: both views live here so the slide can cross them + morph height. */
     .loy-stage { position: relative; transition: height .32s var(--ease-out); }
     .loy-stage.anim, .loy-stage.hmorph { overflow: hidden; }
@@ -4817,10 +4821,19 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
       </button>
     </div>
+    <!-- Controls cluster, framed together in the section's light-blue chrome:
+         Cheer/Conflicted/Enemy buckets on TOP, the Player Cards ⇄ Rooting Card
+         toggle BELOW. Collapse hides the whole cluster (direct non-header child). -->
+    <div class="loy-controls">
+    <div id="exp-tabbar" class="exp-tabbar" role="tablist" aria-label="Player buckets">
+      <button class="exp-tab is-active" data-tab="cheer" role="tab" aria-selected="true"><span class="exp-tab-ct" id="exp-ct-cheer">0</span><span>Cheer for</span></button>
+      <button class="exp-tab" data-tab="conflicted" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-conflicted">0</span><span>Conflicted</span></button>
+      <button class="exp-tab" data-tab="enemy" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-enemy">0</span><span>Enemy</span></button>
+    </div>
     <!-- View toggle (Player Cards ⇄ Rooting Card) — chrome cloned from the
          Snapshot List/Grid switch (.cf-snap-toggle). Hidden until data lands;
          __loyView shows it whenever the Rooting Card share is available (same
-         gating as #loyalties-share). Collapse hides it (direct child, non-header). -->
+         gating as #loyalties-share). -->
     <div class="cf-snap-toggle loy-view-toggle" id="loy-view-toggle" role="tablist" aria-label="Loyalties view" style="display:none;">
       <button data-view="cards" class="is-on" type="button" role="tab" aria-selected="true">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2.5" width="12" height="4" rx="1"/><rect x="2" y="9.5" width="12" height="4" rx="1"/></svg>
@@ -4831,10 +4844,6 @@
         Rooting Card
       </button>
     </div>
-    <div id="exp-tabbar" class="exp-tabbar" role="tablist" aria-label="Player buckets">
-      <button class="exp-tab is-active" data-tab="cheer" role="tab" aria-selected="true"><span class="exp-tab-ct" id="exp-ct-cheer">0</span><span>Cheer for</span></button>
-      <button class="exp-tab" data-tab="conflicted" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-conflicted">0</span><span>Conflicted</span></button>
-      <button class="exp-tab" data-tab="enemy" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-enemy">0</span><span>Enemy</span></button>
     </div>
     <!-- Stage holds both views so the directional-slide flip can cross them and
          morph the panel height. #columns kept its id (all handlers/CSS key off it). -->
