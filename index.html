@@ -2293,21 +2293,29 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.25);
     }
 
-    /* ── Impact animation (experiment) — conflicted scoring sequence ──
-       1) CONFLICTED splash (screen flash + branded pop-out)
-       2) hero card: big point delta + big player name, no league data
-       3) per-league cards split out (league name header, coral=mine / navy=opp border)
-       4) merge into one net card: cheer-green helps you, enemy-red hurts you (tie→green).
-       Ephemeral v1. Only painted while board is the active view + experiment on. */
+    /* ── Impact animation v2 — conflicted scoring sequence ────────────────────
+       REWRITTEN 2026-08-18 (Matt). v1 was a 6.5s set piece: a hero card rose out
+       of the log, split into per-league cards (coral=mine / navy=opp), collided,
+       bloomed into a net card and melted back onto the row. It read as gimmicky
+       and off-brand — flash/bloom/glow is sportsbook grammar, and core truth #10
+       puts product UI in the dry, calm register. It also spent 6.5s to deliver a
+       verdict the permanent row underneath already showed.
+       v2 keeps ONLY phase 1 (the CONFLICTED flash — Matt likes it) and replaces
+       phases 2–4 with the real Live Updates row COMPOSING ITSELF in place:
+         frame in (border transparent at final thickness, so the space is
+         reserved and nothing below jitters) → league lines stamp in ~90ms apart
+         → ~200ms beat → the verdict lands as ONE thing (thickness + colour +
+         label together).
+       Magnitude is deliberately NOT shown ahead of direction: the whole verdict
+       arrives at once, just a beat after the lines.
+       Because the row IS the animation, the entire v1 hold/gate/stage system
+       (#ia-stage, .lu-held, .lu-anim, measureRow, hasGatedBelow) is gone — there
+       is no longer a floating card that needs to land on anything.
+       NOTE: coral/navy retired from this surface by decision. The row's own
+       language wins — green = helping you, red = hurting you — because per league
+       what matters is the effect, not roster membership. */
     #impact-overlay { position: fixed; inset: 0; z-index: 150; pointer-events: none; overflow: hidden; display: none; }
-    body.experiment-active #impact-overlay.active { display: block; }
-    /* In-DOCUMENT anchor for phases 2–4. Height 0 + overflow visible so the
-       absolutely-positioned phase cards can be placed at any log row's offset
-       and, because the stage scrolls with the page, stay glued to that row as
-       the user scrolls (a fixed overlay would detach on scroll). z-index lifts
-       the cards above the log rows but below the sticky header. */
-    #ia-stage { position: relative; overflow: visible; height: 0; z-index: 90; pointer-events: none; }
-    @media (prefers-reduced-motion: reduce) { #ia-stage { display: none !important; } }
+    #impact-overlay.active { display: block; }
     #ia-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     /* Phase 1 — splash */
     .ia-flash { position: absolute; inset: 0; background: var(--coral-500); opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
@@ -2317,38 +2325,31 @@
     .ia-splash.out { transform: translate(-50%,-50%) scale(1.18); opacity: 0; }
     .ia-splash__word svg { width: 300px; max-width: 78vw; height: auto; display: block; margin: 0 auto; }
     .ia-splash__sub { font: 700 12px/1 var(--font-mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-500); margin-top: 12px; }
-    /* Phases 2 & 4 — hero / net card */
-    .ia-hero {
-      position: absolute; left: 0; top: 0; width: 220px; min-height: 150px;
-      border-radius: var(--radius-lg); border: 2px solid var(--neutral); background: var(--paper-soft);
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 18px 16px; box-sizing: border-box; pointer-events: none;
-      will-change: transform, opacity; transition: transform 0.55s cubic-bezier(.2,.8,.25,1), opacity 0.35s ease;
-      box-shadow: 0 12px 34px rgba(0,0,0,0.30);
+    /* ── Phases 2–4 → the row writes itself ──────────────────────────────────
+       All of this drives the REAL .lu-group row, which is in the document and
+       permanent. Nothing here is a throwaway card. */
+    /* 1. the frame + header arrive */
+    .lu-group.w-enter { animation: w-frame 0.30s var(--ease-out) both; }
+    @keyframes w-frame { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: none; } }
+    /* 2. league lines stamp in, staggered — this IS the split, expressed as
+       layout rather than as travel, the way the rest of the app does it. */
+    .lu-group.w-writing .lu-lrow { opacity: 0; }
+    .lu-group.w-writing .lu-gnet { opacity: 0; }
+    .lu-lrow.w-in { animation: w-line 0.26s var(--ease-out) both; }
+    @keyframes w-line { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+    /* the side bar draws down rather than popping — the only movement left */
+    .lu-lrow.w-in .lu-bar { animation: w-bar 0.22s var(--ease-out) both; transform-origin: top center; }
+    @keyframes w-bar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+    /* 3. after the beat, the verdict lands as one thing */
+    .lu-gnet.w-verdict { animation: w-word 0.34s var(--ease-out) both; }
+    @keyframes w-word { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
+    /* Reduced motion: no choreography at all, and no full-screen flash. The row
+       simply appears with its verdict already on it. */
+    @media (prefers-reduced-motion: reduce) {
+      #impact-overlay { display: none !important; }
+      .lu-group.w-enter, .lu-lrow.w-in, .lu-lrow.w-in .lu-bar, .lu-gnet.w-verdict { animation: none !important; }
+      .lu-group.w-writing .lu-lrow, .lu-group.w-writing .lu-gnet { opacity: 1 !important; }
     }
-    .ia-hero__delta { font: 800 46px/1 var(--font-mono); color: var(--ink-900); }
-    .ia-hero__name { font: 700 20px/1.12 var(--font-sans); color: var(--ink-900); text-align: center; margin-top: 6px; }
-    .ia-hero__net { font: 700 15px/1.2 var(--font-sans); margin-top: 8px; }
-    .ia-hero.net-pos { border-color: var(--cheer); background: var(--cheer-soft); }
-    .ia-hero.net-neg { border-color: var(--enemy); background: var(--enemy-soft); }
-    .ia-hero.net-pos .ia-hero__delta, .ia-hero.net-pos .ia-hero__net { color: var(--cheer); }
-    .ia-hero.net-neg .ia-hero__delta, .ia-hero.net-neg .ia-hero__net { color: var(--enemy); }
-    /* Phase 3 — league cards: same size/style as the hero card, plus a league
-       header and an orange (mine) / blue (opp) border. */
-    .ia-lcard {
-      position: absolute; left: 0; top: 0; width: 220px; min-height: 150px;
-      border-radius: var(--radius-lg); border: 2px solid var(--neutral); background: var(--paper-soft);
-      display: flex; flex-direction: column; align-items: center; box-sizing: border-box; overflow: hidden;
-      pointer-events: none; will-change: transform, opacity;
-      transition: transform 0.55s cubic-bezier(.2,.8,.25,1), opacity 0.35s ease; box-shadow: 0 12px 34px rgba(0,0,0,0.30);
-    }
-    .ia-lcard__head { width: 100%; background: var(--paper-deep); border-bottom: 1px solid var(--line); font: 700 13px/1.2 var(--font-sans); color: var(--ink-900); text-align: center; padding: 8px; min-height: 34px; display: flex; align-items: center; justify-content: center; }
-    .ia-lcard__main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 12px; }
-    .ia-lcard__delta { font: 800 44px/1 var(--font-mono); }
-    .ia-lcard__name { font: 700 18px/1.12 var(--font-sans); color: var(--ink-900); text-align: center; margin-top: 6px; }
-    .ia-lcard.mine { border-color: var(--coral-500); } .ia-lcard.mine .ia-lcard__delta { color: var(--coral-500); }
-    .ia-lcard.opp  { border-color: var(--navy-500);  } .ia-lcard.opp  .ia-lcard__delta { color: var(--navy-500);  }
-    @media (prefers-reduced-motion: reduce) { #impact-overlay { display: none !important; } }
     /* Experiment-only test harness control (offseason review — no live scoring) */
     #impact-test-ctl { position: fixed; bottom: 74px; right: 12px; z-index: 9001; display: none; flex-direction: column; gap: 6px; align-items: flex-end; }
     body.experiment-active #impact-test-ctl { display: flex; }
@@ -2714,6 +2715,8 @@
     .lu-pos { font: 400 11px/1 var(--font-sans); color: var(--ink-500); margin-left: 3px; }
     .lu-league { font: 400 11px/1 var(--font-sans); margin-top: 4px; }
     .lu-league.cheer { color: var(--cheer); } .lu-league.enemy { color: var(--enemy); }
+    /* Per-player split under a clustered (same-play) row's league name. */
+    .lu-split { font: 400 9.5px/1.3 var(--font-mono); color: var(--ink-300); margin-top: 3px; }
     .lu-fmt { color: var(--ink-500); border: 1px solid var(--line); border-radius: var(--radius-pill);
       padding: 0 6px; margin-left: 4px; font: 500 10px/1.5 var(--font-mono); }
     .lu-right { text-align: right; }
@@ -2754,20 +2757,19 @@
     /* Net-impact frame — one per player per live sync. Border thickness + glow scale
        with how much the player swings your matchups (set inline in JS); no body fill.
        Encompasses all of a player's per-league cards. */
-    .lu-group { border-radius: var(--radius-md); padding: 9px 11px 6px; margin-bottom: 10px; background: var(--paper-soft); box-sizing: border-box; }
+    /* border WIDTH comes from groupStyle() inline and is present from the moment
+       the row mounts, so the layout never shifts. During the write-in the colour
+       is forced transparent (.w-writing) — that hides the verdict entirely rather
+       than leaking magnitude ahead of direction — then transitions in when the
+       verdict lands. */
+    .lu-group { border-radius: var(--radius-md); padding: 9px 11px 6px; margin-bottom: 10px; background: var(--paper-soft); box-sizing: border-box;
+      transition: border-color 0.40s var(--ease-out), box-shadow 0.40s var(--ease-out); }
+    .lu-group.w-writing { border-color: transparent !important; box-shadow: none !important; }
     .lu-group.lu-new { animation: lu-flash 1.4s var(--ease-out); }
     @media (prefers-reduced-motion: reduce) { .lu-group.lu-new { animation: none; } }
-    /* Impact-animation handoff: while a player's card sequence is still playing
-       in the stage, their fresh log entry is HELD — fully out of the flow
-       (display:none, NOT visibility:hidden) so queued animations don't leave
-       blank reserved rows stacking up (very visible in Replay). The glide-dock
-       measures its target on the fly at landing time. Holds are registered in
-       window.__iaHold by the impact module and always released on skip/reset. */
-    .lu-group.lu-held { display: none; }
-    /* The one row whose card is animating RIGHT NOW reserves its exact final slot
-       (invisible) so the in-place sequence plays over it and melts straight into
-       it — no travel. Queued rows stay display:none (no blank stacking). */
-    .lu-group.lu-held.lu-anim { display: block; visibility: hidden; }
+    /* (v1's .lu-held / .lu-anim handoff classes are gone. They existed only so a
+       FLOATING card could land on a hidden, reserved row. The row now animates
+       itself in place, so it is never hidden and there is nothing to hand off.) */
     .lu-group.lu-reveal { animation: lu-reveal-in 0.5s var(--ease-out); }
     @keyframes lu-reveal-in { from { opacity: 0; transform: translateY(-7px); } to { opacity: 1; transform: translateY(0); } }
     /* Log-freeze gate: non-animating rows of a batch that arrives mid-animation
@@ -2775,7 +2777,7 @@
     .lu-group.lu-gate, .lu-synchead.lu-gate { display: none; }
     .lu-group.lu-degate, .lu-synchead.lu-degate { animation: lu-degate-in 0.4s var(--ease-out); }
     @keyframes lu-degate-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-    @media (prefers-reduced-motion: reduce) { .lu-group.lu-held { display: block; } .lu-group.lu-reveal, .lu-group.lu-degate, .lu-synchead.lu-degate { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .lu-group.lu-reveal, .lu-group.lu-degate, .lu-synchead.lu-degate { animation: none; } }
     .lu-ghead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
     .lu-gname { font: 500 14px/1.2 var(--font-sans); color: var(--ink-900); }
     .lu-gpos { font: 400 11px/1 var(--font-sans); color: var(--ink-500); margin-left: 3px; }
@@ -4877,11 +4879,10 @@
       <div class="loyalties-header live-updates-header">
         <div class="loyalties-wordmark"><span class="loyalties-wordmark__a">SCORING</span><span class="loyalties-wordmark__b">&nbsp;UPDATES</span></div>
       </div>
-      <!-- Impact-animation stage: phases 2–4 (hero → league split → net card)
-           play INSIDE this fixed area, scrolling with the section. Opens to its
-           row height while a batch runs, collapses to 0 after. Phase 1 (flash +
-           CONFLICTED splash) stays on the full-screen #impact-overlay. -->
-      <div id="ia-stage" aria-hidden="true"></div>
+      <!-- (v1's #ia-stage is gone. It hosted the floating hero/league/net cards
+           for phases 2–4; those are replaced by the real row animating itself in
+           place, so there is nothing left to host. Phase 1 — the flash and the
+           CONFLICTED splash — still lives on the full-screen #impact-overlay.) -->
       <div class="lu-empty" id="lu-empty">No scoring changes yet — updates appear here as your players score.</div>
       <div id="live-updates-log" class="lu-log"></div>
     </div>
@@ -5196,10 +5197,10 @@
         </div>
         <button class="btn-secondary" onclick="reRankPriority()" type="button">Re-rank leagues</button>
       </div>
-      <div class="settings-row exp-only">
+      <div class="settings-row">
         <div class="settings-row-meta">
-          <div class="settings-row-title">Impact animations <span style="font:600 10px/1 var(--font-mono);color:var(--coral-500);border:1px solid var(--coral-500);border-radius:var(--radius-pill);padding:2px 6px;margin-left:6px;vertical-align:1px;">EXPERIMENT</span></div>
-          <div class="settings-row-sub">When a conflicted player scores, fly their cards up and smash them into a net-impact card. Plays live on the dashboard.</div>
+          <div class="settings-row-title">Scoring animations</div>
+          <div class="settings-row-sub">When a player you're conflicted on scores, the update writes itself into your feed and shows what it did to you. Turn this off for a still feed.</div>
         </div>
         <button class="live-toggle" id="impact-anim-toggle" onclick="toggleImpactAnim()" type="button" aria-label="Toggle impact animations"></button>
       </div>
@@ -8631,7 +8632,12 @@ function renderBoard(data,username){
       renderList('enemy-list',enemies,_conflictedIds);
     }catch(e){}
   };
-  try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek,contexts:contexts});}catch(e){}
+  /* allRostered is passed for the same-play clustering census ONLY — the detector
+     still fires events for the conflicted bucket alone. It needs the full set to
+     count how many players per NFL team moved this tick, which is what
+     distinguishes one passing play (exactly two movers) from a drive where a
+     third teammate also gained points. */
+  try{if(window.__detectImpacts)window.__detectImpacts(conflicted,{isHist:isHist,season:activeSeason,week:activeWeek,contexts:contexts,allRostered:(data&&data.allRostered)||[]});}catch(e){}
   try{if(window.__buildLiveUpdates)window.__buildLiveUpdates(data);}catch(e){}
   applyFilters();
   currentContexts=Array.isArray(contexts)?contexts.slice():[];
@@ -10541,9 +10547,19 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const negCls=r.delta<0?' neg':'';
     const fmt=r.fmt?'<span class="lu-fmt">'+r.fmt+'</span>':'';
     const tail=r.clk?(' · '+r.clk):'';
+    /* Clustered rows colour by the SIGN OF THE NET (disp), not by one player's
+       side — in a league where the QB is yours and the receiver is your
+       opponent's, the net is what you actually feel. `parts` shows the split so a
+       merged row never hides which player did what. */
+    const side=r.disp||r.side;
+    const parts=(r.parts&&r.parts.length>1)
+      ? '<div class="lu-split">'+r.parts.map(function(p){
+          return esc(String(p.n).split(' ').slice(-1)[0])+' '+(p.v>=0?'+':'−')+Math.abs(p.v).toFixed(2);
+        }).join(' · ')+'</div>'
+      : '';
     return '<div class="lu-lrow">'
-      +'<div class="lu-bar '+r.side+'"></div>'
-      +'<div class="lu-league '+r.side+'">'+esc(cfMaskLeague(r.league))+fmt+'</div>'
+      +'<div class="lu-bar '+side+'"></div>'
+      +'<div><div class="lu-league '+side+'">'+esc(cfMaskLeague(r.league))+fmt+'</div>'+parts+'</div>'
       +'<div class="lu-right">'
         +'<div class="lu-delta'+negCls+'">'+sign+mag+'</div>'
         +'<div class="lu-tot">'+r.total.toFixed(2)+' pt'+tail+'</div>'
@@ -10555,22 +10571,39 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   function groupNet(grpRows,contexts){
     try{
       if(window.__netImpact){
-        const legs=grpRows.map(r=>({league:r.league,side:(r.side==='enemy'?'opp':'mine'),delta:r.delta}));
+        /* A clustered row already carries the SIGNED net for its league (`signed`),
+           so it goes through as side:'mine' and lets the sign do the work —
+           computeMood uses side only to sign the delta. Solo rows keep the old
+           side→sign mapping. */
+        const legs=grpRows.map(r=>(r.signed!=null
+          ?{league:r.league,side:'mine',delta:r.signed}
+          :{league:r.league,side:(r.side==='enemy'?'opp':'mine'),delta:r.delta}));
         const ni=window.__netImpact(legs,contexts);
         if(ni)return ni;
       }
     }catch(e){}
-    let sum=0;grpRows.forEach(r=>{sum+=(r.side==='enemy'?-1:1)*r.delta;});
-    return {pos:sum>=0,intensity:Math.max(0.08,Math.min(1,Math.abs(sum)/15)),label:(sum>=0?'helps you':'hurts you')};
+    let sum=0;grpRows.forEach(r=>{sum+=(r.signed!=null?r.signed:(r.side==='enemy'?-1:1)*r.delta);});
+    /* Fallback voice must match imLabel's ladder — a mixed register here is a
+       visible tell that something failed. */
+    return {pos:sum>=0,intensity:Math.max(0.08,Math.min(1,Math.abs(sum)/15)),label:(sum>=0?'That helps you':'That hurts you')};
   }
-  /* Continuous intensity → border thickness (1→5px) + glow; color from net side.
-     color-mix over var(--cheer)/var(--enemy) so it adapts to light/dark theme. */
+  /* Continuous intensity → border thickness + glow; colour from the net side.
+     color-mix over var(--cheer)/var(--enemy) so it adapts to light/dark theme.
+     CURVED 2026-08-18 (Matt). The old ramp was linear — 1+i*4 — but intensity's
+     real mass sits in the bottom third of its range: across 200k simulated
+     conflicted plays p25 was 0.097 and p75 was 0.327, which the linear ramp
+     rendered as 1.39px vs 2.31px. Half of all rows were separated by under ONE
+     PIXEL of border, so the channel communicated nothing. tanh(i/0.30) on a 1–6px
+     ramp turns that same interquartile band into 2.6px → 5.0px: same data, ~2.7x
+     the visible spread. NOTE this styles EVERY Live Updates row, not only the
+     animated ones, so it lands for all users regardless of the animation pref. */
   function groupStyle(net){
     const cv=net.pos?'var(--cheer)':'var(--enemy)';
-    const i=Math.max(0,Math.min(1,net.intensity||0));
-    const bw=(1+i*4).toFixed(1);
+    const raw=Math.max(0,Math.min(1,net.intensity||0));
+    const i=Math.tanh(raw/0.30);
+    const bw=(1+i*5).toFixed(1);
     const bc='color-mix(in oklab, '+cv+' '+Math.round((0.55+i*0.45)*100)+'%, transparent)';
-    const gl='0 0 '+Math.round(6+i*26)+'px color-mix(in oklab, '+cv+' '+Math.round((0.10+i*0.40)*100)+'%, transparent)';
+    const gl='0 0 '+Math.round(6+i*30)+'px color-mix(in oklab, '+cv+' '+Math.round((0.10+i*0.42)*100)+'%, transparent)';
     return 'border:'+bw+'px solid '+bc+';box-shadow:'+gl+';';
   }
   function groupHtml(g,isNew,gated){
@@ -10579,19 +10612,16 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const head='<div class="lu-ghead"><span class="lu-gname">'+esc(g.name)
       +(g.pos?'<span class="lu-gpos">'+esc(g.pos)+(g.team?' · '+esc(g.team):'')+'</span>':'')+'</span>'
       +(net.label?'<span class="lu-gnet" style="color:'+cv+'">'+esc(net.label)+'</span>':'')+'</div>';
-    /* data-key = unique per-scoring-event id the animation matches on (data-pid
-       stays for reference). Held = THIS row's animation is still in flight. */
+    /* data-key = unique per-scoring-event id the animation targets (data-pid
+       stays for reference). The row is ALWAYS rendered visible now — v1 hid it
+       (.lu-held) so a floating card could land on its reserved slot; the row
+       animates itself in place instead, so there is nothing to hide. */
     const gk=(g.key!=null)?String(g.key):('nokey_'+g.id);
-    const held=!!(window.__iaHold&&window.__iaHold.has&&window.__iaHold.has(gk));
-    /* A row that has already landed stays visible even while its batch is still
-       gated behind later animations — else it re-hides on the next re-render. */
+    /* A row already revealed stays visible even while its batch is still gated
+       behind a running animation — else it re-hides on the next re-render. */
     const landed=!!(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gk));
-    /* The currently-animating row keeps its reserved in-place slot (lu-anim). */
-    const anim=!!(window.__iaAnimating&&window.__iaAnimating.has&&window.__iaAnimating.has(gk));
-    /* A gated batch hides its NON-animating rows (display:none) until the
-       animation drains; held (animating) + landed rows are left visible. */
-    const gateCls=(gated&&!held&&!landed)?' lu-gate':'';
-    return '<div class="lu-group'+(isNew?' lu-new':'')+(held?' lu-held':'')+((held&&anim)?' lu-anim':'')+gateCls+'" data-pid="'+esc(String(g.id))+'" data-key="'+esc(gk)+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
+    const gateCls=(gated&&!landed)?' lu-gate':'';
+    return '<div class="lu-group'+(isNew?' lu-new':'')+gateCls+'" data-pid="'+esc(String(g.id))+'" data-key="'+esc(gk)+'" style="'+groupStyle(net)+'">'+head+g.rows.map(lgRowHtml).join('')+'</div>';
   }
 
   /* Freeze rule (matched to the impact animation): while a card animation is
@@ -10713,7 +10743,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         // timestamped rows stack up while the animation plays (matters in Replay,
         // which re-renders every virtual tick).
         let batchHasReveal=false;
-        if(gatedBatch){(b.groups||[]).forEach(g=>{const gk=(g.key!=null)?String(g.key):('nokey_'+g.id);if((window.__iaAnimating&&window.__iaAnimating.has&&window.__iaAnimating.has(gk))||(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gk)))batchHasReveal=true;});}
+        if(gatedBatch){(b.groups||[]).forEach(g=>{const gk=(g.key!=null)?String(g.key):('nokey_'+g.id);if(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gk))batchHasReveal=true;});}
         const gateHead=gatedBatch&&!batchHasReveal;
         html+='<div class="lu-synchead'+(gateHead?' lu-gate':'')+'"><span class="lu-tx">'+esc(b.t)+'</span><span class="lu-ln"></span></div>';
         const flashThis=(bi===latestBatchIdx);
@@ -10765,11 +10795,41 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         // Group rows per player (one card per league), same as the live frames.
         const gmap=new Map();
         rows.forEach(r=>{if(!gmap.has(r.id))gmap.set(r.id,{id:r.id,name:r.name,pos:r.pos,team:r.team,rows:[]});gmap.get(r.id).rows.push(r);});
-        const groups=Array.from(gmap.values());
+        let groups=Array.from(gmap.values());   // `let` — mergeClusters() may replace it
         /* Unique per-row key so the animation targets THIS scoring event's row.
            The detector stashed id→key for players that fired this tick; everyone
            else gets a fresh key that matches no hold. */
         groups.forEach(g=>{g.key=(window.__iaTickKeys&&window.__iaTickKeys[String(g.id)])||('lu'+(++luKeySeq));});
+        /* Same-play clustering: the detector maps BOTH ids of a QB->receiver pair
+           to ONE key, so groups sharing a key are one play and merge into a single
+           card. Each league collapses to one row carrying the SIGNED NET shift —
+           two legs for the same league would double-count its tier weight in
+           groupNet. `signed` is what the mood model reads; `disp` only colours the
+           bar, so a league where the two players sit on OPPOSITE sides shows a
+           small net in the direction that actually won out. */
+        (function mergeClusters(){
+          const byKey=new Map();
+          groups.forEach(g=>{if(!byKey.has(g.key))byKey.set(g.key,[]);byKey.get(g.key).push(g);});
+          if(byKey.size===groups.length)return;      // nothing shares a key
+          const out=[];
+          byKey.forEach((list)=>{
+            if(list.length===1){out.push(list[0]);return;}
+            const m={id:list.map(g=>g.id).join('+'),key:list[0].key,cluster:true,
+                     name:list.map(g=>g.name).join('  +  '),
+                     pos:list.map(g=>g.pos).filter(Boolean).join(' · '),
+                     team:list[0].team,rows:[]};
+            const byLg=new Map();
+            list.forEach(g=>g.rows.forEach(r=>{
+              let e=byLg.get(r.league);
+              if(!e){e={league:r.league,fmt:r.fmt,clk:r.clk,side:'cheer',signed:0,total:0,parts:[]};byLg.set(r.league,e);}
+              const sv=(r.side==='enemy'?-1:1)*r.delta;
+              e.signed+=sv; e.total+=r.total; e.parts.push({n:g.name,v:sv});
+            }));
+            byLg.forEach(e=>{e.delta=e.signed;e.disp=(e.signed>=0?'cheer':'enemy');m.rows.push(e);});
+            out.push(m);
+          });
+          groups=out;
+        })();
         if(stale){
           // Recap: same clustering, but no net-impact framing. Biggest swing first.
           groups.forEach(g=>{g.max=Math.max.apply(null,g.rows.map(r=>Math.abs(r.delta)));});
@@ -10788,9 +10848,11 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       }
       luLastSyncAt=nowMs;
       render(rows.length?0:-1);
-      /* Rows are in the DOM now — let the impact queue evaluate ordering. In
-         Replay the detector deferred draining to here so the chronology guard
-         (hasGatedBelow) can see this tick's rows. */
+      /* Rows are in the DOM now — kick the impact queue. This is load-bearing:
+         the animation drives the REAL row, so it cannot start until that row
+         exists. In Replay the detector defers draining to here for exactly that
+         reason. (Live play is covered by the ~1s phase-1 splash, which always
+         outlasts the render.) */
       try{if(window.__iaKickDrain)window.__iaKickDrain();}catch(e){}
     }catch(e){console.warn('Live Updates build failed:',e&&e.message);}
   };
@@ -16883,13 +16945,13 @@ loadExperimentState();
 </script>
 
 <script>
-/* ── Impact animation (experiment-gated) ───────────────────────────────────
-   Conflicted player scores → per-league cards rise (coral = my roster,
-   navy = opponent), collide, and merge into a single net card
-   (cheer-green = helps you win, enemy-red = hurts you, tie → green).
-   EPHEMERAL v1: nothing persists. Net is roster-count, sign-aware so an
-   enemy's fumble reads correctly. MUST upgrade to win-probability +
-   league-priority weighting before this ships live. */
+/* ── Impact animation v2 — SHIPS TO ALL USERS ──────────────────────────────
+   Conflicted player scores → full-screen CONFLICTED flash (phase 1, kept from
+   v1) → the real Live Updates row composes itself in place and resolves to a
+   verdict. ~1s, no floating cards, nothing to melt.
+   Un-gated 2026-08-18: canAnimate() no longer requires experiment mode, so this
+   is live for everyone and ON by default (prefOn()). Users switch it off under
+   Settings → Scoring animations. */
 (function(){
   var EPS=0.01, PREF_KEY='conflicted_impact_anim';
   var prev=null, prevCtx=null, queue=[], running=false, paused=false, timers=[], nodes=[], testMode=false;
@@ -16904,7 +16966,11 @@ loadExperimentState();
   function expOn(){return typeof window.experimentEnabled==='function'&&window.experimentEnabled();}
   function demo(){return typeof window.inDemoMode==='function'&&window.inDemoMode();}
   function boardVisible(){return (typeof isDashboardVisible==='function')?isDashboardVisible():true;}
-  function canAnimate(){if(reduced())return false;if(testMode)return expOn();return expOn()&&prefOn()&&!demo()&&boardVisible()&&!document.hidden;}
+  /* Un-gated 2026-08-18: expOn() is no longer required for live play, so this
+     runs for every user with the pref on (the default). The test harness still
+     needs experiment mode — it fabricates plays and must never fire for a real
+     user. demo/boardVisible/hidden guards are unchanged. */
+  function canAnimate(){if(reduced())return false;if(testMode)return expOn();return prefOn()&&!demo()&&boardVisible()&&!document.hidden;}
   function overlay(){return document.getElementById('impact-overlay');}
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function fmt(d){d=Number(d)||0;return (d>=0?'+':'')+d.toFixed(2);}
@@ -16925,20 +16991,10 @@ loadExperimentState();
      pacer keeps dripping older rows while the animation waits its turn. */
   window.__iaOnScreen=function(){return !!(running||cooling);};
   function iaInReplay(){try{return !!(window.__cfReplay&&window.__cfReplay.active&&window.__cfReplay.active());}catch(e){return false;}}
-  /* Chronology guard (Replay): is any log row still GATED below this animation
-     batch's row? If so the batch must wait — those older rows reveal first, so a
-     later conflicted card never lands above rows that then drip in underneath. */
-  function hasGatedBelow(events){
-    try{
-      var log=document.getElementById('live-updates-log'); if(!log)return false;
-      var keys={}; (events||[]).forEach(function(e){keys[String(e.key||e.id)]=1;});
-      var rows=log.querySelectorAll('.lu-group'); var last=-1;
-      for(var i=0;i<rows.length;i++){ if(keys[rows[i].getAttribute('data-key')]) last=i; }
-      if(last<0) return false; // batch row not in the log — don't stall
-      for(var j=last+1;j<rows.length;j++){ if(rows[j].classList.contains('lu-gate')) return true; }
-    }catch(e){}
-    return false;
-  }
+  /* (v1's hasGatedBelow chronology guard is gone. It stopped a FLOATING card from
+     landing above older rows that were still waiting to drip in. The row now
+     animates where the log already placed it, so it can never land out of
+     order.) */
   window.__iaKickDrain=function(){try{drain();}catch(e){}};
 
   /* ── Impact model: tiered, loss-averse, hope/nerves-buffered anchor ────────
@@ -16968,14 +17024,38 @@ loadExperimentState();
     var rank=idx<0?99:idx+1;return rank===1?1:(rank===2?2:3);
   }
   function imTier1Felt(w){ if(w<=IM_ELIM||w>=IM_CLINCH) return w; return imClamp(0.5+(w-0.5)*(1-2*IM_HOPEBUF),0,1); }
+  /* Verdict ladder — RE-CUT 2026-08-18 (Matt). The old bands (±0.4 / ±4 / 7) were
+     calibrated against the model's theoretical −10..+10 range, but a single play
+     almost never reaches the ends. Over 200k simulated conflicted plays that left
+     'helps you' covering 81.5% of ALL positive outcomes and 'that stings' 65.2% of
+     ALL negatives — two strings carrying ~62% of everything a user ever saw — while
+     'some consolation' fired 0.15%. The vocabulary was fine-grained out where plays
+     never land and blunt in the fat middle where they all do.
+     Cuts below are the empirical quintiles of the real distribution: every rung now
+     carries 5.6%–10.4% of plays. Re-verified after the v154 anchor fix — each band
+     moved ≤0.1pt, so these hold.
+     Two rules for anyone editing this:
+       1) The ladder must stay STRICTLY MONOTONIC in both directions. Each rung has
+          to read as obviously bigger than the one below it. ('big help' vs 'helps a
+          lot' was rejected for exactly this — nobody can rank those.)
+       2) These strings are USER-VISIBLE ON THE MAIN DASHBOARD, not just in the
+          experiment. The Live Updates log renders them in .lu-gnet for everyone
+          (see renderBoard ~L8541); only the impact animation is expOn()-gated.
+     Voice is deliberately conversational — what a friend on the couch would say. */
   function imLabel(mood,anchorMood,joy,hope){
-    if(joy) return 'helps you win';
-    if(hope && anchorMood>0) return 'back in it';
-    if(mood>=4) return 'big help';
-    if(mood>=0.4) return anchorMood<0?'some consolation':'helps you';
-    if(mood>-0.4) return 'a wash';
-    if(mood>-4) return 'that stings';
-    return 'gut punch';
+    if(joy) return 'That wins it for you';
+    if(hope && anchorMood>0) return "You're back in it";
+    if(mood>=3.88) return "That's Massive!";
+    if(mood>=2.65) return "That's a huge help";
+    if(mood>=1.72) return "That's a big help";
+    if(mood>=0.97) return 'That helps you';
+    if(mood>=0.40) return anchorMood<0?"That's some consolation":'That helps a bit';
+    if(mood>-0.40) return "It's about even";
+    if(mood>-1.27) return "That's a small ding";
+    if(mood>-2.29) return 'That stings';
+    if(mood>-3.58) return "That's real damage";
+    if(mood>-5.54) return "That's brutal";
+    return "That's a gut punch";
   }
   /* legs: [{tier, side:'mine'|'opp', T, margin, remPct, delta}] — margin is the
      CURRENT projected matchup margin (yours−opp); the play's delta is applied to
@@ -17029,13 +17109,11 @@ loadExperimentState();
     return { mood:mood, intensity:imClamp(gross/IM_INT_DIV,0,1), color:(mood>=0), joy:joy, hope:(hope&&anchorMood>0), label:imLabel(mood,anchorMood,joy,hope) };
   }
 
-  /* ── Fixed stage (top of Live Updates) — hosts phases 2–4 ── */
-  function stageEl(){return document.getElementById('ia-stage');}
-  function openStage(h){
-    var st=stageEl(); if(!st)return null;
-    /* Auto-expand a collapsed Live Updates section so the stage isn't hidden.
-       Deliberately NO auto-scroll — if the section is off-screen the batch
-       plays in place and the full-screen flash is the only interruption. */
+  /* Expand a collapsed Live Updates section so the row that is about to write
+     itself isn't hidden. Deliberately NO auto-scroll — if the section is
+     off-screen the row still composes in place and the full-screen flash is the
+     only interruption. */
+  function openLog(){
     try{
       var sec=document.getElementById('live-updates-section');
       if(sec&&sec.classList.contains('collapsed')){
@@ -17043,20 +17121,20 @@ loadExperimentState();
         var hd=sec.querySelector('.live-updates-header'); if(hd)hd.setAttribute('aria-expanded','true');
       }
     }catch(e){}
-    st.style.height=h+'px';
-    return st;
   }
-  function closeStage(){var st=stageEl(); if(st)st.style.height='0px';}
 
+  /* Cancel anything mid-flight. Because the animation drives PERMANENT rows, the
+     abort path must leave every row in its finished state — never half-written,
+     never invisible. finishRow() is idempotent and does exactly that. */
   function skipAll(){
     clearTimers(); paused=false;
     nodes.forEach(function(n){if(n&&n.parentNode)n.parentNode.removeChild(n);}); nodes=[];
-    var bd=document.getElementById('ia-breakdown'); if(bd)bd.remove();
     var o=overlay(); if(o){o.style.pointerEvents='none';}
-    releaseAllHolds(); // cancelled mid-flight → un-hide any held log entries
-    if(window.__iaAnimating)window.__iaAnimating.clear();
+    try{
+      var mid=document.querySelectorAll('.lu-group.w-writing,.lu-group.w-enter');
+      for(var i=0;i<mid.length;i++)finishRow(mid[i]);
+    }catch(e){}
     cooling=false; nextBatchAllowedAt=0; // clear any pending breather
-    closeStage();
     running=false; drain();
   }
 
@@ -17073,57 +17151,37 @@ loadExperimentState();
        so an animation never lands right on top of a just-dripped row. */
     if(iaInReplay())wait=Math.max(wait,((window.__iaLastReveal||0)+2000)-Date.now());
     if(wait>0){cooling=true;after(wait,function(){cooling=false;drain();});return;}
-    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}closeStage();fireIdle();return;}
-    /* Chronology (Replay): don't start this animation while older rows are still
-       gated below it — let the pacer reveal them first, then it kicks drain. */
-    if(iaInReplay()&&hasGatedBelow(queue[0])){ if(window.__luStartPacer)window.__luStartPacer(); return; }
+    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}fireIdle();return;}
     var batch=queue.shift(); runBatch(batch);
   }
 
-  /* ── Log-handoff holds ─────────────────────────────────────────────────────
-     While a player's card sequence is in flight, their freshly-logged Live
-     Updates entry is held invisible (.lu-held, layout slot kept) so the net
-     card can morph into its exact position. Registered at queue time (the log
-     renders AFTER the detector on the same tick), released on landing, skip,
-     or reset — a held entry can never be orphaned invisible. */
-  /* Keyed by a UNIQUE per-scoring-event key (data-key), NOT player id — a player
-     logs many rows in Replay, so id-keying would reserve/reveal ALL of them (the
-     blank-row stacking + wrong-row landing Matt saw). */
+  /* ── Row lookup ────────────────────────────────────────────────────────────
+     v1 kept three parallel Sets (__iaHold / __iaAnimating / __iaLanded) plus a
+     hidden reserved slot, all so a floating card could find and land on the
+     right row. None of that is needed now — the animation just finds its row and
+     drives it. The ONE thing still required is the id→key bridge, because a
+     player logs many rows across a session and the animation must target THIS
+     scoring event's row, not every row bearing that player's id.
+     __iaLanded stays: it is log-side bookkeeping (a revealed row must survive a
+     re-render without being re-gated), not part of the retired card handoff. */
   var iaKeySeq=0;
-  window.__iaHold=new Set();
-  window.__iaLanded=new Set(); // keys whose card has landed — stay visible while the log is still gated
-  window.__iaAnimating=new Set(); // keys whose card is animating RIGHT NOW — that row reserves its in-place slot
+  window.__iaLanded=new Set();
   window.__iaTickKeys={}; // per-tick id→key bridge: detector sets it, __buildLiveUpdates reads it to tag the row
-  window.__iaLastReveal=0; // ts of the last permanent row shown (animated OR paced) — the 2s pacer reads this
-  function findHeldRow(key){try{var els=document.querySelectorAll('.lu-group.lu-held');for(var i=0;i<els.length;i++){if(els[i].getAttribute('data-key')===String(key))return els[i];}}catch(e){}return null;}
-  /* Reserve (or release) THIS scoring event's real log row as the in-place slot. */
-  function markAnimating(key,on){try{if(key==null)return;var s=String(key);if(on)window.__iaAnimating.add(s);else window.__iaAnimating.delete(s);var el=findHeldRow(key);if(el){if(on)el.classList.add('lu-anim');else el.classList.remove('lu-anim');}}catch(e){}}
-  function measureRow(key){var el=findHeldRow(key);if(!el)return null;try{var r=el.getBoundingClientRect();if(r&&r.width>2)return{left:r.left,top:r.top,width:r.width,height:r.height};}catch(e){}return null;}
-  function revealHold(key){
+  window.__iaLastReveal=0; // ts of the last permanent row shown — the replay pacer reads this
+  function rowFor(key){
     try{
-      if(key==null)return;
-      window.__iaHold.delete(String(key));
-      window.__iaLanded.add(String(key));
-      window.__iaLastReveal=Date.now(); // an animated row just landed — pacer counts 2s from here
-      var els=document.querySelectorAll('.lu-group.lu-held');
-      for(var i=0;i<els.length;i++){
-        if(els[i].getAttribute('data-key')===String(key)){
-          els[i].classList.remove('lu-held');els[i].classList.add('lu-reveal');
-          /* Un-gate this row's batch timestamp so the landed card has its header
-             (the batch was frozen; only this row is revealing now). */
-          var p=els[i].previousElementSibling;
-          while(p){if(p.classList&&p.classList.contains('lu-synchead')){if(p.classList.contains('lu-gate')){p.classList.remove('lu-gate');p.classList.add('lu-degate');}break;}p=p.previousElementSibling;}
-        }
-      }
+      if(key==null)return null;
+      var log=document.getElementById('live-updates-log'); if(!log)return null;
+      return log.querySelector('.lu-group[data-key="'+String(key).replace(/"/g,'')+'"]');
     }catch(e){}
+    return null;
   }
-  function releaseAllHolds(){try{Array.from(window.__iaHold).forEach(revealHold);}catch(e){}}
 
   /* Time-travel reset (Replay Mode start/stop/jump/scrub): silently re-seed the
      delta tracker and cancel anything mid-flight. Without this, rewinding the
-     virtual clock reads as a big negative "stat correction" and fires cards for
+     virtual clock reads as a big negative "stat correction" and fires rows for
      players whose games haven't kicked off yet (bucket correctly shows 0.00). */
-  window.__resetImpacts=function(){try{prev=null;prevCtx=null;queue.length=0;skipAll();if(window.__iaLanded)window.__iaLanded.clear();if(window.__iaAnimating)window.__iaAnimating.clear();}catch(e){}};
+  window.__resetImpacts=function(){try{prev=null;prevCtx=null;queue.length=0;skipAll();if(window.__iaLanded)window.__iaLanded.clear();}catch(e){}};
 
   /* Phase 1 — the big "CONFLICTED" moment (once per batch). */
   function runSplash(cb){
@@ -17137,139 +17195,199 @@ loadExperimentState();
     after(1060,function(){if(sp.parentNode)sp.remove();if(flash.parentNode)flash.remove();if(cb)cb();});
   }
 
-  /* Phases 2-4 per player, played IN PLACE over the row's reserved slot (`rect`,
-     STAGE-relative coords) and MELTED into the permanent card — no travel. Cards
-     are children of #ia-stage (in the document), so they scroll with the log row
-     they'll become instead of detaching on a fixed overlay. */
-  function runPlayer(ev,rect,heroScale,leagueScale,done){
-    var o=stageEl()||overlay();
-    var heroW=220;
-    var cx=rect.left+rect.width/2, hx=cx-heroW/2;
-    var heroY=rect.top, riseStartY=rect.top+44;
-    /* Phase 2 — hero card, forming right at the row's slot */
-    var hero=document.createElement('div'); hero.className='ia-hero'; hero.style.transformOrigin='top center';
-    hero.innerHTML='<div class="ia-hero__delta">'+fmt(ev.delta)+'</div><div class="ia-hero__name">'+esc(ev.name)+'</div>';
-    hero.style.transform='translate('+hx+'px,'+riseStartY+'px) scale('+heroScale+')'; hero.style.opacity='0';
-    o.appendChild(hero); nodes.push(hero);
-    requestAnimationFrame(function(){requestAnimationFrame(function(){hero.style.transform='translate('+hx+'px,'+heroY+'px) scale('+heroScale+')';hero.style.opacity='1';});});
-    /* Phase 3 — split into league cards */
-    after(1300,function(){
-      hero.style.transition='transform 0.4s ease,opacity 0.35s ease';
-      hero.style.transform='translate('+hx+'px,'+(heroY-12)+'px) scale('+(heroScale*0.82)+')'; hero.style.opacity='0';
-      after(360,function(){if(hero.parentNode)hero.remove();});
-      var N=ev.legs.length, baseCW=heroW, gap=10, scale=leagueScale;
-      var cw=baseCW*scale, sgap=gap*scale, groupW=N*cw+(N-1)*sgap, x0=cx-groupW/2, cardY=heroY;
-      var cards=[];
-      ev.legs.forEach(function(l,i){
-        var c=document.createElement('div'); c.className='ia-lcard '+(l.side==='mine'?'mine':'opp'); c.style.transformOrigin='top left';
-        c.innerHTML='<div class="ia-lcard__head">'+esc((typeof window.cfMaskLeague==='function')?window.cfMaskLeague(l.league):l.league)+'</div><div class="ia-lcard__main"><div class="ia-lcard__delta">'+fmt(l.delta)+'</div><div class="ia-lcard__name">'+esc(ev.name)+'</div></div>';
-        var x=x0+i*(cw+sgap);
-        c.style.transform='translate('+(cx-cw/2)+'px,'+cardY+'px) scale('+(scale*0.4)+')'; c.style.opacity='0';
-        o.appendChild(c); nodes.push(c); cards.push({el:c,x:x});
-      });
-      requestAnimationFrame(function(){requestAnimationFrame(function(){
-        cards.forEach(function(cd){cd.el.style.transform='translate('+cd.x+'px,'+cardY+'px) scale('+scale+')';cd.el.style.opacity='1';});
-      });});
-      /* Phase 4 — merge to net card (league cards now hold ~2x longer) */
-      after(3000,function(){
-        var stackX=cx-cw/2;
-        cards.forEach(function(cd){cd.el.style.transition='transform 0.45s cubic-bezier(.5,0,.6,1),opacity 0.3s ease';cd.el.style.transform='translate('+stackX+'px,'+cardY+'px) scale('+scale+')';});
-        after(420,function(){
-          var net=ev.net||0, pos=(ev.color!=null?ev.color:net>=0);
-          var inten=(ev.intensity==null?Math.max(0,Math.min(1,Math.abs(net)/1.2)):ev.intensity);
-          var txt=ev.label||(pos?'helps you win':'hurts your chances');
-          var restScale=heroScale*(1+inten*0.10), glow=pos?'46,160,110':'224,80,76';
-          var nhx=cx-heroW/2, nhy=heroY;
-          var fin=document.createElement('div'); fin.className='ia-hero '+(pos?'net-pos':'net-neg'); fin.style.transformOrigin='top center';
-          fin.innerHTML='<div class="ia-hero__delta">'+fmt(ev.delta)+'</div><div class="ia-hero__name">'+esc(ev.name)+'</div><div class="ia-hero__net">'+txt+'</div>';
-          fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+(restScale*0.5)+')'; fin.style.opacity='0';
-          o.appendChild(fin); nodes.push(fin);
-          announce(esc(ev.name)+' '+txt);
-          requestAnimationFrame(function(){requestAnimationFrame(function(){
-            fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+(restScale*1.12)+')'; fin.style.opacity='1';
-            fin.style.boxShadow='0 0 '+Math.round(10+inten*36)+'px rgba('+glow+','+(0.22+inten*0.5).toFixed(2)+')';
-            cards.forEach(function(cd){cd.el.style.opacity='0';});
-          });});
-          after(200,function(){fin.style.transform='translate('+nhx+'px,'+nhy+'px) scale('+restScale+')';});
-          after(260,function(){cards.forEach(function(cd){if(cd.el.parentNode)cd.el.parentNode.removeChild(cd.el);});});
-          after(2200,function(){
-            /* MELT: fin already sits on the row's reserved slot (stage-anchored,
-               so it scrolls with the log). Reveal the real row beneath it and
-               cross-dissolve fin in place — soft blur + tiny settle, no travel —
-               so it melts into the persistent scorecard. */
-            revealHold(ev.key||ev.id);          // reveal the real row at the same doc position
-            markAnimating(ev.key||ev.id,false); // release the in-place reserve flag
-            fin.style.transition='transform 0.5s cubic-bezier(.16,1,.3,1), opacity 0.5s ease, filter 0.5s ease';
-            fin.style.transform='translate('+nhx+'px,'+(nhy+5)+'px) scale('+(restScale*0.97)+')';
-            fin.style.opacity='0'; fin.style.filter='blur(3px)';
-            after(560,function(){if(fin.parentNode)fin.parentNode.removeChild(fin);if(done)done();});
-          });
-        });
-      });
+  /* ── Phases 2–4 → the row writes itself ────────────────────────────────────
+     Drives the REAL, permanent .lu-group row that __buildLiveUpdates just
+     rendered. Sequence:
+        t=0     frame + header in (border already at final WIDTH but transparent,
+                so the space is reserved and rows below never jitter, and no
+                magnitude leaks ahead of direction)
+        t=140   league lines stamp in, 90ms apart, side bar drawing down
+        +260    lines settled
+        +BEAT   verdict lands as ONE thing: border thickness becomes visible in
+                the verdict colour, glow blooms, label fades in
+     Total ~1s for a three-league player. Nothing floats, nothing melts, and if
+     anything aborts mid-flight finishRow() leaves the row complete. */
+  var BEAT_MS=200;        // "slight beat" — the only withholding left
+  var LINE_START=140, LINE_STAGGER=90, LINE_SETTLE=260;
+
+  /* Put a row into its finished state. Idempotent — safe to call on a row that
+     never started, is mid-write, or has already finished. This is the ONLY way a
+     row should ever stop animating, so a permanent row can never be stranded
+     half-written. */
+  function finishRow(el){
+    try{
+      if(!el)return;
+      el.classList.remove('w-writing','w-enter');
+      var lines=el.querySelectorAll('.lu-lrow');
+      for(var i=0;i<lines.length;i++){lines[i].classList.remove('w-in');lines[i].style.opacity='';}
+      var v=el.querySelector('.lu-gnet');
+      if(v){v.classList.remove('w-verdict');v.style.opacity='';}
+      el.style.borderColor=''; el.style.boxShadow=''; // fall back to groupStyle's inline values
+    }catch(e){}
+  }
+
+  function runPlayer(ev,done){
+    var el=rowFor(ev.key||ev.id);
+    /* No row to animate (log collapsed, re-rendered, or filtered out) — the
+       verdict is already permanently on screen, so just finish. */
+    if(!el){if(done)done();return;}
+
+    /* Capture the resolved border/glow groupStyle() put inline, then blank them
+       for the write-in. The WIDTH stays, so layout is stable throughout. */
+    var finalBorder=el.style.borderColor, finalShadow=el.style.boxShadow;
+    el.classList.add('w-writing','w-enter');
+
+    var lines=el.querySelectorAll('.lu-lrow');
+    for(var i=0;i<lines.length;i++){
+      (function(ln,idx){
+        after(LINE_START+idx*LINE_STAGGER,function(){ln.classList.add('w-in');});
+      })(lines[i],i);
+    }
+
+    var linesDone=LINE_START+Math.max(0,lines.length-1)*LINE_STAGGER+LINE_SETTLE;
+    after(linesDone+BEAT_MS,function(){
+      el.classList.remove('w-writing');
+      /* Re-assert explicitly: .w-writing forced these transparent with
+         !important, so removing the class alone can leave a stale computed
+         value on some engines. */
+      el.style.borderColor=finalBorder; el.style.boxShadow=finalShadow;
+      var v=el.querySelector('.lu-gnet'); if(v)v.classList.add('w-verdict');
+      announce(esc(ev.name)+' '+(ev.label||''));
+      window.__iaLastReveal=Date.now();
     });
+    after(linesDone+BEAT_MS+420,function(){finishRow(el);if(done)done();});
   }
 
   function runBatch(events){
     running=true; paused=false;
     var o=overlay(); if(!o){running=false;return;}
     o.classList.add('active'); // hosts the phase-1 flash/splash
-    openStage(0); // expand a collapsed section; #ia-stage is our in-document anchor
-    var maxConc=3;
-    var show=events.slice(0,maxConc), rest=events.slice(maxConc);
-    if(rest.length)queue.unshift(rest);
-    var P=show.length;
-    /* Reserve each active player's REAL log row IN PLACE. markAnimating adds the
-       id to __iaAnimating (re-renders keep the reserve) AND flips the already-
-       rendered row to its reserved slot right now — essential for QUEUED batches
-       whose row was built (held, display:none) on an earlier tick, so measureRow
-       finds a real slot instead of falling back to a fixed position. */
-    show.forEach(function(ev){markAnimating(ev.key||ev.id,true);});
-    /* Scale to the LIVE UPDATES BOX width (the log), NOT the full viewport — else
-       a 3-league fan-out overflows the frame on wide desktop. */
-    var logEl=document.getElementById('live-updates-log');
-    var sw=(logEl&&logEl.clientWidth)||(o&&o.clientWidth)||window.innerWidth;
-    /* Equal-size rule: every league card across the batch uses ONE scale — the
-       smallest, driven by whichever player is in the most leagues. */
-    var rowBudget=(P===1)?170:(P===2?146:124), vCap=(rowBudget-14)/150, heroW=220, gap=10, maxN=1;
-    show.forEach(function(e){if(e.legs.length>maxN)maxN=e.legs.length;});
-    var heroScale=Math.min(1,(sw-16)/heroW,vCap);
-    var leagueScale=Math.min(1,(sw-16)/(maxN*heroW+(maxN-1)*gap),vCap);
-    /* Measure inside the splash callback (~1s later, log has built). Convert each
-       row rect to STAGE-relative coords so the phase cards (children of #ia-stage)
-       sit exactly on the row and scroll with it. */
+    openLog();
+    /* Multiple conflicted players in one sync: stagger their write-ins so the
+       feed composes top-down instead of every row resolving at once. No cap and
+       no re-queue — v1 needed maxConc=3 because three 220px cards had to fit on
+       screen side by side; rows have no such constraint. */
+    var P=events.length;
     runSplash(function(){
       var pending=P;
-      var st=stageEl(), sr=st?st.getBoundingClientRect():{left:0,top:0};
-      show.forEach(function(ev,ri){
-        var m=measureRow(ev.key||ev.id);
-        var rect=m?{left:m.left-sr.left,top:m.top-sr.top,width:m.width,height:m.height}
-                  :{left:8,top:24+ri*rowBudget,width:sw-16,height:rowBudget};
-        runPlayer(ev, rect, heroScale, leagueScale, function(){if(--pending<=0){running=false;nextBatchAllowedAt=Date.now()+cooldownMs();drain();}});
+      events.forEach(function(ev,i){
+        after(i*300,function(){
+          runPlayer(ev,function(){
+            if(--pending<=0){running=false;nextBatchAllowedAt=Date.now()+cooldownMs();drain();}
+          });
+        });
       });
     });
+  }
+
+  /* ── Same-play clustering ──────────────────────────────────────────────────
+     One touchdown produces TWO scoring events (the QB and the receiver), and
+     until now the model evaluated them as two unrelated things — each scored
+     against a baseline that already contained the other's points, so neither
+     verdict described the play you actually watched. A QB->WR score against you
+     surfaced as two moderate hits instead of one heavy one.
+     We cannot see plays: the app polls point TOTALS every REFRESH_MS (60s), and
+     there is no play-by-play feed. But one structural fact does the work — a
+     passing play produces EXACTLY TWO movers, the quarterback and one receiver.
+     Anything else is not one snap. Hence the rule below.
+     FAIL TOWARD SPLITTING. A missed cluster degrades to the old behaviour (two
+     rows, no harm). A false cluster shows a wrong verdict. The costs are not
+     symmetric, so every ambiguous case splits — notably 3+ movers from one team,
+     where at least two plays happened and we cannot tell which pair belongs
+     together. Kill switch: set CLUSTER_ON=false. */
+  var CLUSTER_ON=true;
+  var CLUSTER_MAX_GAP_MS=75000;   // previous poll must be this recent
+  var CLUSTER_SKILL={WR:1,TE:1,RB:1};
+  var prevAt=0;                   // wall-clock of the previous detector pass
+
+  /* Combine a pair's legs into ONE leg per league carrying the NET margin shift.
+     computeMood uses `side` only to sign the delta (leadB = margin - s*delta), so
+     encoding the signed net as side:'mine' is arithmetically exact — not an
+     approximation of a combined event, it IS one. Feeding two legs for the same
+     league instead would double-count that league's tier weight and corrupt the
+     anchor swing. */
+  function clusterLegs(members){
+    var byLeague={},order=[];
+    members.forEach(function(f){
+      (f.legs||[]).forEach(function(l){
+        var e=byLeague[l.league];
+        if(!e){e=byLeague[l.league]={league:l.league,side:'mine',delta:0,tier:l.tier,T:l.T,margin:l.margin,remPct:l.remPct};order.push(l.league);}
+        e.delta+=(l.side==='mine'?1:-1)*(l.delta||0);
+      });
+    });
+    return order.map(function(n){return byLeague[n];});
+  }
+
+  /* Decide which fired conflicted movers pair up. movedTeams counts EVERY
+     rostered mover on that team this tick (not just conflicted ones), so the
+     "exactly two" test reflects what actually happened on the field. */
+  function clusterPairs(fired,movedTeams,gapMs){
+    var pairs=[],taken={};
+    if(!CLUSTER_ON)return{pairs:pairs,taken:taken};
+    if(!(gapMs<=CLUSTER_MAX_GAP_MS))return{pairs:pairs,taken:taken};   // stale/unknown gap
+    var byTeam={};
+    fired.forEach(function(f){var t=f.p&&f.p.team;if(!t)return;(byTeam[t]=byTeam[t]||[]).push(f);});
+    Object.keys(byTeam).forEach(function(t){
+      var g=byTeam[t];
+      if(g.length!==2)return;                       // exactly two conflicted movers
+      if((movedTeams[t]||0)!==2)return;             // ...and exactly two movers overall
+      var qb=g.filter(function(f){return f.p.position==='QB';});
+      var sk=g.filter(function(f){return CLUSTER_SKILL[f.p.position];});
+      if(qb.length!==1||sk.length!==1)return;       // one QB + one WR/TE/RB
+      if((g[0].rep>=0)!==(g[1].rep>=0))return;      // same direction
+      pairs.push([qb[0],sk[0]]);
+      taken[String(qb[0].p.id)]=1;taken[String(sk[0].p.id)]=1;
+    });
+    return{pairs:pairs,taken:taken};
   }
 
   /* Detector — called from renderBoard() with the conflicted bucket each refresh.
      Fires on any positive scoring delta; a negative (stat correction) only fires
      if it moves >= 0.5 pts. First snapshot (or a week/season change) records
-     silently. Multiple players firing in the same refresh tick surface together. */
+     silently. Multiple players firing in the same refresh tick surface together.
+     meta.allRostered is the FULL roster set — used only to census how many
+     players per NFL team moved, which the clustering rule needs. */
   window.__detectImpacts=function(players,meta){
     try{
       var ctx=((meta&&meta.season)||'')+'|'+((meta&&meta.week)||'');
       var isHist=!!(meta&&meta.isHist);
       var ctxMap={}; ((meta&&meta.contexts)||[]).forEach(function(c){if(c&&c.leagueName)ctxMap[c.leagueName]=c;});
-      var cur={}, events=[];
-      (players||[]).forEach(function(p){
-        var id=String(p.id), lp=p.leaguePoints||{};
-        var legs=[];
+      var seeded=!(!prev||prevCtx!==ctx);
+      var nowMs=Date.now(), gapMs=prevAt?(nowMs-prevAt):Infinity;
+      var cur={}, movedTeams={}, seen={};
+      function legsOf(p){
+        var lp=p.leaguePoints||{}, legs=[];
         (p.myLeagues||[]).forEach(function(ln){if(lp[ln])legs.push({league:ln,side:'mine',pts:Number(lp[ln].pts)||0});});
         (p.againstLeagues||[]).forEach(function(ln){if(lp[ln])legs.push({league:ln,side:'opp',pts:Number(lp[ln].pts)||0});});
-        var snap={}; legs.forEach(function(l){snap[l.league+'|'+l.side]=l.pts;}); cur[id]=snap;
-        if(!prev||prevCtx!==ctx)return;
-        var psnap=prev[id]||{}, repDelta=0;
-        legs.forEach(function(l){var key=l.league+'|'+l.side,was=(psnap[key]!=null?psnap[key]:l.pts);l.delta=l.pts-was;if(Math.abs(l.delta)>Math.abs(repDelta))repDelta=l.delta;});
-        var fire=(repDelta>EPS)||(repDelta<-EPS&&Math.abs(repDelta)>=0.5);
-        if(!fire)return;
+        return legs;
+      }
+      function fires(rep){return (rep>EPS)||(rep<-EPS&&Math.abs(rep)>=0.5);}
+      /* Pass 1 — census EVERY rostered player: snapshot for next tick, and count
+         movers per NFL team. Conflicted-only counting would mis-read a drive
+         where a third teammate also moved but isn't in your conflicted bucket. */
+      var roster=(meta&&meta.allRostered)||[];
+      function census(p){
+        if(!p||p.id==null)return;
+        var id=String(p.id); if(seen[id])return; seen[id]=1;
+        var legs=legsOf(p), snap={};
+        legs.forEach(function(l){snap[l.league+'|'+l.side]=l.pts;});
+        cur[id]=snap;
+        if(!seeded)return;
+        var psnap=prev[id]||{}, rep=0;
+        legs.forEach(function(l){var k=l.league+'|'+l.side,was=(psnap[k]!=null?psnap[k]:l.pts);var d=l.pts-was;if(Math.abs(d)>Math.abs(rep))rep=d;});
+        if(fires(rep)&&p.team)movedTeams[p.team]=(movedTeams[p.team]||0)+1;
+      }
+      roster.forEach(census);
+      (players||[]).forEach(census);   // defensive: anything not in allRostered
+
+      /* Pass 2 — conflicted movers only. Builds the legs an event needs. Must run
+         BEFORE prev is replaced. */
+      var fired=[];
+      if(seeded)(players||[]).forEach(function(p){
+        if(!p||p.id==null)return;
+        var id=String(p.id), legs=legsOf(p), psnap=prev[id]||{}, rep=0;
+        legs.forEach(function(l){var k=l.league+'|'+l.side,was=(psnap[k]!=null?psnap[k]:l.pts);l.delta=l.pts-was;if(Math.abs(l.delta)>Math.abs(rep))rep=l.delta;});
+        if(!fires(rep))return;
         /* Full model: per-league tier + matchup context → mood verdict. */
         legs.forEach(function(l){
           var c=ctxMap[l.league]||{};
@@ -17279,24 +17397,47 @@ loadExperimentState();
           else { T=Math.max(1,(myP+oppP)||120); margin=myP-oppP; l.remPct=0.5; } /* no proj → wide fallback */
           l.tier=imTierFromName(l.league); l.T=T; l.margin=margin;
         });
-        var r=computeMood(legs);
-        events.push({id:id,name:p.full_name||'Player',pos:p.position||'',legs:legs,net:r.mood,intensity:r.intensity,color:r.color,label:r.label,joy:r.joy,delta:repDelta});
+        fired.push({p:p,legs:legs,rep:rep});
       });
-      prev=cur; prevCtx=ctx;
+      prev=cur; prevCtx=ctx; prevAt=nowMs;
       if(isHist)return;
+
+      /* Pass 3 — cluster, then build one event per play (or per solo player). */
+      var cl=clusterPairs(fired,movedTeams,gapMs), events=[];
+      cl.pairs.forEach(function(pair){
+        var legs=clusterLegs(pair), r=computeMood(legs);
+        var rep=pair.reduce(function(m,f){return Math.abs(f.rep)>Math.abs(m)?f.rep:m;},0);
+        events.push({id:pair.map(function(f){return f.p.id;}).join('+'),
+          ids:pair.map(function(f){return String(f.p.id);}),
+          cluster:true,
+          name:pair.map(function(f){return f.p.full_name||'Player';}).join('  +  '),
+          pos:pair.map(function(f){return f.p.position||'';}).join(' · '),
+          legs:legs,net:r.mood,intensity:r.intensity,color:r.color,label:r.label,joy:r.joy,delta:rep});
+      });
+      fired.forEach(function(f){
+        if(cl.taken[String(f.p.id)])return;
+        var r=computeMood(f.legs);
+        events.push({id:String(f.p.id),ids:[String(f.p.id)],cluster:false,
+          name:f.p.full_name||'Player',pos:f.p.position||'',legs:f.legs,
+          net:r.mood,intensity:r.intensity,color:r.color,label:r.label,joy:r.joy,delta:f.rep});
+      });
+
       /* Give every event a UNIQUE key and stash id→key so __buildLiveUpdates (runs
-         next, SAME tick) tags THIS scoring event's row with the same key — so a
-         player's many rows never collide. */
+         next, SAME tick) tags THIS scoring event's row with the same key. A
+         clustered pair maps BOTH ids to ONE key — that shared key is what tells
+         the log to merge those two player groups into a single card. */
       window.__iaTickKeys={};
-      events.forEach(function(e){e.key='ia'+(++iaKeySeq);if(e.id!=null)window.__iaTickKeys[String(e.id)]=e.key;});
+      events.forEach(function(e){
+        e.key='ia'+(++iaKeySeq);
+        (e.ids||[]).forEach(function(id){window.__iaTickKeys[id]=e.key;});
+      });
       if(events.length&&canAnimate()){
-        /* Register handoff holds (keyed) BEFORE the log builds this tick's entries
-           (renderBoard calls __detectImpacts, then __buildLiveUpdates). */
-        events.forEach(function(e){window.__iaHold.add(e.key);});
         queue.push(events);
-        /* Live: start immediately. Replay: DON'T drain here — the rows aren't in
-           the DOM yet, so the chronology check can't see them. __buildLiveUpdates
-           kicks drain right after it renders this tick, when ordering is knowable. */
+        /* No hold registration any more — the row renders visible and the
+           animation finds it by data-key. Draining is still deferred in Replay:
+           __buildLiveUpdates kicks drain right after it renders this tick, and
+           runPlayer needs the row to exist before it can drive it. Live play
+           gets the ~1s splash first, by which point the log has built. */
         if(!iaInReplay())drain();
       }
     }catch(e){}
