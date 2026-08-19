@@ -2314,17 +2314,30 @@
        NOTE: coral/navy retired from this surface by decision. The row's own
        language wins — green = helping you, red = hurting you — because per league
        what matters is the effect, not roster membership. */
-    #impact-overlay { position: fixed; inset: 0; z-index: 150; pointer-events: none; overflow: hidden; display: none; }
+    /* Phase 1 is CONTAINED in the Scoring Updates box (2026-08-19). It was
+       position:fixed over the whole viewport, which was the loudest thing in the
+       product and read as a cutscene. Scoped here it clips to the section and the
+       rest of the board is untouched. Positioning/overflow go on
+       .live-updates-section ONLY — .loyalties-section is shared with the buckets
+       section and must never start clipping.
+       TRADEOFF: a full-screen flash was unmissable while scrolled elsewhere; a
+       contained one is only seen if the section is on screen. */
+    .live-updates-section { position: relative; overflow: hidden; transition: min-height 0.3s var(--ease-out); }
+    /* The section is only as tall as its contents, so an empty or one-row feed
+       would clip the wordmark. Hold a floor while the flash plays. */
+    .live-updates-section.ia-flashing { min-height: 190px; }
+    #impact-overlay { position: absolute; inset: 0; z-index: 20; pointer-events: none; overflow: hidden; display: none; border-radius: var(--radius-lg); }
     #impact-overlay.active { display: block; }
     #ia-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     /* Phase 1 — splash */
     .ia-flash { position: absolute; inset: 0; background: var(--coral-500); opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
     .ia-flash.on { opacity: 0.16; }
-    .ia-splash { position: absolute; left: 50%; top: 38%; transform: translate(-50%,-50%) scale(0.6); opacity: 0; text-align: center; pointer-events: none; transition: transform 0.4s cubic-bezier(.2,.9,.25,1.2), opacity 0.3s ease; }
+    .ia-splash { position: absolute; left: 50%; top: 50%; width: 100%; transform: translate(-50%,-50%) scale(0.6); opacity: 0; text-align: center; pointer-events: none; transition: transform 0.4s cubic-bezier(.2,.9,.25,1.2), opacity 0.3s ease; }
     .ia-splash.in { transform: translate(-50%,-50%) scale(1); opacity: 1; }
-    .ia-splash.out { transform: translate(-50%,-50%) scale(1.18); opacity: 0; }
-    .ia-splash__word svg { width: 300px; max-width: 78vw; height: auto; display: block; margin: 0 auto; }
-    .ia-splash__sub { font: 700 12px/1 var(--font-mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-500); margin-top: 12px; }
+    .ia-splash.out { transform: translate(-50%,-50%) scale(1.14); opacity: 0; }
+    /* Sized for the section, not the viewport. */
+    .ia-splash__word svg { width: 200px; max-width: 82%; height: auto; display: block; margin: 0 auto; }
+    .ia-splash__sub { font: 700 9px/1 var(--font-mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-500); margin-top: 9px; }
     /* ── Phases 2–4 → the row writes itself ──────────────────────────────────
        All of this drives the REAL .lu-group row, which is in the document and
        permanent. Nothing here is a throwaway card. */
@@ -2765,7 +2778,12 @@
     .lu-group { border-radius: var(--radius-md); padding: 9px 11px 6px; margin-bottom: 10px; background: var(--paper-soft); box-sizing: border-box;
       transition: border-color 0.40s var(--ease-out), box-shadow 0.40s var(--ease-out); }
     .lu-group.w-writing { border-color: transparent !important; box-shadow: none !important; }
-    .lu-group.lu-new { animation: lu-flash 1.4s var(--ease-out); }
+    /* lu-flash is the "this row is new" tell for rows that are NOT being written
+       in (animations off, reduced motion). It must not fight the write-in: both
+       rules target .lu-group with equal specificity and set `animation`, and this
+       one is later in the sheet, so without the :not() guard it silently killed
+       w-frame on every animated row. */
+    .lu-group.lu-new:not(.w-enter):not(.w-writing) { animation: lu-flash 1.4s var(--ease-out); }
     @media (prefers-reduced-motion: reduce) { .lu-group.lu-new { animation: none; } }
     /* (v1's .lu-held / .lu-anim handoff classes are gone. They existed only so a
        FLOATING card could land on a hidden, reserved row. The row now animates
@@ -4885,6 +4903,9 @@
            CONFLICTED splash — still lives on the full-screen #impact-overlay.) -->
       <div class="lu-empty" id="lu-empty">No scoring changes yet — updates appear here as your players score.</div>
       <div id="live-updates-log" class="lu-log"></div>
+      <!-- Phase 1 lives INSIDE the section now, so the flash clips to the
+           Scoring Updates box instead of taking the whole viewport. -->
+      <div id="impact-overlay" aria-hidden="true"><div id="ia-live" role="status" aria-live="polite"></div></div>
     </div>
     <div id="board-skeleton" aria-hidden="true" style="display:none;"></div>
     <div class="board-foot"><span class="t-stat-sm" id="board-refresh-time"></span></div>
@@ -4930,7 +4951,8 @@
 </style>
 
 <!-- ══ IMPACT ANIMATION OVERLAY (experiment) ══════════════════ -->
-<div id="impact-overlay" aria-hidden="true"><div id="ia-live" role="status" aria-live="polite"></div></div>
+<!-- (#impact-overlay moved INTO #live-updates-section — the flash is contained
+     in the Scoring Updates box rather than covering the viewport.) -->
 <!-- Impact-animation test buttons removed: Replay Mode (🎬 chip) is the test
      harness now — real scoring events flow through the live pipeline, so the
      animation triggers naturally (or on demand via "+ TD now"). The
@@ -10854,6 +10876,12 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
          reason. (Live play is covered by the ~1s phase-1 splash, which always
          outlasts the render.) */
       try{if(window.__iaKickDrain)window.__iaKickDrain();}catch(e){}
+      /* Ticks with NO conflicted player never reach the animation queue, so no
+         batch would ever drive their rows. Every mover writes itself in now
+         regardless of bucket, so ask the module to animate them directly — it
+         no-ops if a real batch is already running, or if the pref/reduced-motion
+         says no. Only the CONFLICTED flash stays bucket-gated. */
+      try{if(window.__iaWriteNow)window.__iaWriteNow();}catch(e){}
     }catch(e){console.warn('Live Updates build failed:',e&&e.message);}
   };
 
@@ -17134,6 +17162,7 @@ loadExperimentState();
       var mid=document.querySelectorAll('.lu-group.w-writing,.lu-group.w-enter');
       for(var i=0;i<mid.length;i++)finishRow(mid[i]);
     }catch(e){}
+    try{var sec=document.getElementById('live-updates-section');if(sec)sec.classList.remove('ia-flashing');}catch(e){}
     cooling=false; nextBatchAllowedAt=0; // clear any pending breather
     running=false; drain();
   }
@@ -17168,14 +17197,10 @@ loadExperimentState();
   window.__iaLanded=new Set();
   window.__iaTickKeys={}; // per-tick id→key bridge: detector sets it, __buildLiveUpdates reads it to tag the row
   window.__iaLastReveal=0; // ts of the last permanent row shown — the replay pacer reads this
-  function rowFor(key){
-    try{
-      if(key==null)return null;
-      var log=document.getElementById('live-updates-log'); if(!log)return null;
-      return log.querySelector('.lu-group[data-key="'+String(key).replace(/"/g,'')+'"]');
-    }catch(e){}
-    return null;
-  }
+  /* (rowFor removed — the animation no longer targets ONE row by key. Every row
+     of the newest batch writes itself in, selected via .lu-new. __iaTickKeys is
+     still required: it is what tells the log to MERGE a clustered pair's two
+     player groups into a single card.) */
 
   /* Time-travel reset (Replay Mode start/stop/jump/scrub): silently re-seed the
      delta tracker and cancel anything mid-flight. Without this, rewinding the
@@ -17186,13 +17211,21 @@ loadExperimentState();
   /* Phase 1 — the big "CONFLICTED" moment (once per batch). */
   function runSplash(cb){
     var o=overlay(); if(!o){cb&&cb();return;}
+    /* The section is only as tall as its contents; hold a floor so an empty or
+       one-row feed can't clip the contained wordmark. */
+    var sec=document.getElementById('live-updates-section');
+    if(sec)sec.classList.add('ia-flashing');
     var flash=document.createElement('div'); flash.className='ia-flash'; o.appendChild(flash); nodes.push(flash);
     var sp=document.createElement('div'); sp.className='ia-splash';
     sp.innerHTML='<div class="ia-splash__word"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 90" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Conflicted"><defs><clipPath id="iaLeftHalf"><rect x="0" y="0" width="240" height="90"/></clipPath><clipPath id="iaRightHalf"><rect x="240" y="0" width="240" height="90"/></clipPath></defs><text x="240" y="64" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:72px;letter-spacing:-0.04em;fill:var(--navy-700,#1A3A52);" clip-path="url(#iaLeftHalf)">CONFLICTED</text><text x="240" y="64" text-anchor="middle" style="font-family:\'Inter\',system-ui,-apple-system,sans-serif;font-weight:900;font-size:72px;letter-spacing:-0.04em;fill:var(--coral-500,#D85A30);" clip-path="url(#iaRightHalf)">CONFLICTED</text><line x1="240" y1="3.5" x2="240" y2="81.3" style="stroke:var(--ink-900,#15181C);stroke-width:1.73;"/></svg></div><div class="ia-splash__sub">conflicted player scored</div>';
     o.appendChild(sp); nodes.push(sp);
     requestAnimationFrame(function(){requestAnimationFrame(function(){flash.classList.add('on');sp.classList.add('in');});});
     after(780,function(){sp.classList.add('out');flash.classList.remove('on');});
-    after(1060,function(){if(sp.parentNode)sp.remove();if(flash.parentNode)flash.remove();if(cb)cb();});
+    after(1060,function(){
+      if(sp.parentNode)sp.remove();if(flash.parentNode)flash.remove();
+      if(sec)sec.classList.remove('ia-flashing');
+      if(cb)cb();
+    });
   }
 
   /* ── Phases 2–4 → the row writes itself ────────────────────────────────────
@@ -17222,63 +17255,91 @@ loadExperimentState();
       for(var i=0;i<lines.length;i++){lines[i].classList.remove('w-in');lines[i].style.opacity='';}
       var v=el.querySelector('.lu-gnet');
       if(v){v.classList.remove('w-verdict');v.style.opacity='';}
-      el.style.borderColor=''; el.style.boxShadow=''; // fall back to groupStyle's inline values
+      /* Deliberately does NOT touch border-color / box-shadow. Those carry the
+         verdict from groupStyle() and live in the row's inline style; clearing
+         them here stripped the glow the moment a row settled. Dropping
+         .w-writing is enough — the inline shorthand applies again on its own. */
     }catch(e){}
   }
 
-  function runPlayer(ev,done){
-    var el=rowFor(ev.key||ev.id);
-    /* No row to animate (log collapsed, re-rendered, or filtered out) — the
-       verdict is already permanently on screen, so just finish. */
-    if(!el){if(done)done();return;}
-
-    /* Capture the resolved border/glow groupStyle() put inline, then blank them
-       for the write-in. The WIDTH stays, so layout is stable throughout. */
+  /* Write one row in. Returns how long it takes, so a batch can settle on the
+     longest one. */
+  function writeInRow(el){
     var finalBorder=el.style.borderColor, finalShadow=el.style.boxShadow;
     el.classList.add('w-writing','w-enter');
-
     var lines=el.querySelectorAll('.lu-lrow');
     for(var i=0;i<lines.length;i++){
-      (function(ln,idx){
-        after(LINE_START+idx*LINE_STAGGER,function(){ln.classList.add('w-in');});
-      })(lines[i],i);
+      (function(ln,idx){after(LINE_START+idx*LINE_STAGGER,function(){ln.classList.add('w-in');});})(lines[i],i);
     }
-
     var linesDone=LINE_START+Math.max(0,lines.length-1)*LINE_STAGGER+LINE_SETTLE;
     after(linesDone+BEAT_MS,function(){
       el.classList.remove('w-writing');
       /* Re-assert explicitly: .w-writing forced these transparent with
-         !important, so removing the class alone can leave a stale computed
-         value on some engines. */
+         !important, so dropping the class alone can leave a stale computed value
+         on some engines. */
       el.style.borderColor=finalBorder; el.style.boxShadow=finalShadow;
       var v=el.querySelector('.lu-gnet'); if(v)v.classList.add('w-verdict');
-      announce(esc(ev.name)+' '+(ev.label||''));
-      window.__iaLastReveal=Date.now();
     });
-    after(linesDone+BEAT_MS+420,function(){finishRow(el);if(done)done();});
+    return linesDone+BEAT_MS+420;
+  }
+
+  /* SYNC, not staggered (2026-08-19). A 300ms per-player stagger meant a second
+     row was inserted ABOVE the first and shoved it down WHILE it was still
+     animating — that displacement, not the timing, was what read as clunky.
+     render() lays the whole log down in one innerHTML pass, so every row is
+     already in place before anything animates: they now all write in together
+     and nothing can displace anything. Total time is also flat regardless of how
+     many rows a tick produced, which matters because the detector fires on ANY
+     delta above EPS — on a busy afternoon most conflicted players move on most
+     polls, and a sequential build would turn that into a 10s cutscene a minute.
+     EVERY row animates, whatever its bucket — .lu-new is the class
+     __buildLiveUpdates puts on the newest batch's groups. Only the FLASH stays
+     conflicted-only, since that is the moment the brand is named after. */
+  function writeNewRows(events,done){
+    var log=document.getElementById('live-updates-log');
+    /* Skip GATED rows. A batch that arrives mid-animation is held out of the
+       flow (.lu-gate, display:none) and revealed later by revealGated(), which
+       uses .lu-reveal — a rule that also sets `animation` on .lu-group and sits
+       later in the sheet than .w-enter. Animating a hidden row would burn its
+       write-in where nobody can see it and then collide with lu-reveal when it
+       finally appears. */
+    var rows=log?log.querySelectorAll('.lu-group.lu-new:not(.lu-gate)'):null;
+    if(!rows||!rows.length){if(done)done();return;}
+    var longest=0;
+    for(var i=0;i<rows.length;i++){var d=writeInRow(rows[i]);if(d>longest)longest=d;}
+    try{
+      var say=(events||[]).map(function(e){return esc(e.name)+' '+(e.label||'');}).join('. ');
+      if(say)announce(say);
+    }catch(e){}
+    after(longest,function(){
+      for(var j=0;j<rows.length;j++)finishRow(rows[j]);
+      window.__iaLastReveal=Date.now();
+      if(done)done();
+    });
   }
 
   function runBatch(events){
     running=true; paused=false;
     var o=overlay(); if(!o){running=false;return;}
-    o.classList.add('active'); // hosts the phase-1 flash/splash
+    o.classList.add('active');   // hosts the phase-1 flash/splash
     openLog();
-    /* Multiple conflicted players in one sync: stagger their write-ins so the
-       feed composes top-down instead of every row resolving at once. No cap and
-       no re-queue — v1 needed maxConc=3 because three 220px cards had to fit on
-       screen side by side; rows have no such constraint. */
-    var P=events.length;
     runSplash(function(){
-      var pending=P;
-      events.forEach(function(ev,i){
-        after(i*300,function(){
-          runPlayer(ev,function(){
-            if(--pending<=0){running=false;nextBatchAllowedAt=Date.now()+cooldownMs();drain();}
-          });
-        });
+      writeNewRows(events,function(){
+        running=false; nextBatchAllowedAt=Date.now()+cooldownMs(); drain();
       });
     });
   }
+
+  /* No conflicted player in this tick, so no flash — but the rows should still
+     write themselves in. __buildLiveUpdates calls this right after it renders,
+     and only when the module isn't already driving a batch. */
+  window.__iaWriteNow=function(){
+    try{
+      if(running||queue.length||cooling)return;  // a real batch owns the rows
+      if(!canAnimate())return;                   // pref off / reduced motion / hidden
+      writeNewRows(null,null);
+    }catch(e){}
+  };
 
   /* ── Same-play clustering ──────────────────────────────────────────────────
      One touchdown produces TWO scoring events (the QB and the receiver), and
@@ -17436,7 +17497,7 @@ loadExperimentState();
         /* No hold registration any more — the row renders visible and the
            animation finds it by data-key. Draining is still deferred in Replay:
            __buildLiveUpdates kicks drain right after it renders this tick, and
-           runPlayer needs the row to exist before it can drive it. Live play
+           writeNewRows needs the rows to exist before it can drive them. Live play
            gets the ~1s splash first, by which point the log has built. */
         if(!iaInReplay())drain();
       }
