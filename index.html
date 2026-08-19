@@ -5992,8 +5992,9 @@ function mergeLiveLeaguesSeen(seen){
     liveLeaguesSeen=out;
   }catch(e){ if(Array.isArray(seen)&&seen.length) liveLeaguesSeen=seen; }
 }
-/* True when the NFL is between seasons: Sleeper's state returns week:0 /
-   season_type:"off", which forces liveWeek to a synthetic 1. There is no real
+/* True when there is no live REGULAR/POST week: the offseason (Sleeper's
+   state returns week:0 / season_type:"off") OR the preseason (season_type:
+   "pre" with an incrementing week). Both force liveWeek to a synthetic 1. There is no real
    "current" matchup in that window. ESPN (unlike Sleeper/Yahoo) still serves a
    carried-over schedule for an un-renewed league, so without this flag
    parseEspnLeague matches matchupPeriodId===1 and renders a phantom
@@ -9039,11 +9040,16 @@ async function loadData(){
     }
   }
   const state=await getNFLState();
-  const _hasLiveWeek=(state.week>=1&&state.week<=MAX_WEEK);
+  /* Only the REGULAR and POST season have a real "current week" to land on.
+     The PRESEASON reports an incrementing week (pre wk 1,2,3…) with
+     season_type:"pre"; treating that as a live regular-season week made the
+     app default to "Week 2" before the real season had started. */
+  const _regularOrPost=(state.season_type==='regular'||state.season_type==='post');
+  const _hasLiveWeek=_regularOrPost&&(state.week>=1&&state.week<=MAX_WEEK);
   liveWeek=_hasLiveWeek?state.week:1;liveSeason=state.season;
   /* No live week (week:0) or NFL is in its off-period → offseason. Used to stop
      ESPN from rendering a phantom Week 1 from a stale/un-renewed-league schedule. */
-  liveOffseason=!_hasLiveWeek||state.season_type==='off';
+  liveOffseason=!_hasLiveWeek;
   if(!isAnyProviderLoaded){activeWeek=liveWeek;activeSeason=liveSeason;}
   isAnyProviderLoaded=true;
   buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);
@@ -16990,7 +16996,7 @@ loadExperimentState();
          has both ends pinned at the extremes, so the league the play just decided
          scored 0.06 and was ruled "not live" — the anchor then handed off to a
          lesser league, loss aversion never fired, and a main-league collapse came
-         out as a near-neutral verdict (Matt, 2026-08-04). Fold |statusD| in: a big
+         out as a near-neutral verdict (Matt, 2026-08-18). Fold |statusD| in: a big
          swing keeps its league eligible regardless of where the ends sit. A league
          that is dead BOTH before and after still has statusD ~ 0, so the intended
          hand-off ("already decided, garbage time") is untouched. Verified over 400k
