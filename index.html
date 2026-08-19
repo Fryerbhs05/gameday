@@ -5569,8 +5569,8 @@
 
       <!-- Instagram -->
       <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Instagram — @ConflictedApp"
-           onclick="window.open('https://instagram.com/ConflictedApp','_blank','noopener')"
-           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.open('https://instagram.com/ConflictedApp','_blank','noopener');}">
+           onclick="cfOpenExternal('https://instagram.com/ConflictedApp','instagram://user?username=ConflictedApp')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cfOpenExternal('https://instagram.com/ConflictedApp','instagram://user?username=ConflictedApp');}">
         <span class="settings-row-ico">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--coral-500)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/>
@@ -5587,8 +5587,8 @@
 
       <!-- X -->
       <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="X — @ConflictedApp"
-           onclick="window.open('https://x.com/ConflictedApp','_blank','noopener')"
-           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.open('https://x.com/ConflictedApp','_blank','noopener');}">
+           onclick="cfOpenExternal('https://x.com/ConflictedApp','twitter://user?screen_name=ConflictedApp')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cfOpenExternal('https://x.com/ConflictedApp','twitter://user?screen_name=ConflictedApp');}">
         <span class="settings-row-ico">
           <svg viewBox="0 0 24 24" fill="var(--ink-900)" aria-hidden="true">
             <path d="M17.53 3H20.5l-6.49 7.42L21.75 21h-5.98l-4.68-6.12L5.7 21H2.72l6.94-7.93L2.25 3h6.13l4.23 5.6L17.53 3Zm-1.05 16.2h1.65L7.6 4.71H5.83L16.48 19.2Z"/>
@@ -6809,6 +6809,33 @@ function showContact(origin){
   window.scrollTo(0,0);
 }
 window.showContact=showContact;
+/* Open an external destination WITHOUT leaving a blank in-app browser behind.
+   In an installed (standalone) PWA on iOS, window.open(url,'_blank') spawns an
+   in-app browser (SFSafariViewController); when the target is a universal link
+   that hands off to a native app (Instagram / X), that browser view is left
+   lingering as a blank page the user has to dismiss. To avoid it, when running
+   standalone we navigate the top window straight to the app's URL scheme — that
+   opens the native app with no browser view at all — and fall back to the web
+   URL if the app isn't installed. In a normal browser tab we keep the friendly
+   open-in-new-tab behavior. */
+function cfOpenExternal(webUrl, appScheme){
+  var standalone = (window.navigator.standalone === true)
+    || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  if(!standalone){ window.open(webUrl,'_blank','noopener'); return; }
+  if(!appScheme){ window.location.href = webUrl; return; }
+  var done=false;
+  var fallback=setTimeout(function(){
+    if(done) return;
+    document.removeEventListener('visibilitychange', onHide);
+    window.location.href = webUrl;            // app not installed → web profile
+  }, 700);
+  function onHide(){
+    if(document.hidden){ done=true; clearTimeout(fallback); document.removeEventListener('visibilitychange', onHide); }
+  }
+  document.addEventListener('visibilitychange', onHide);
+  window.location.href = appScheme;           // try the native app first
+}
+window.cfOpenExternal=cfOpenExternal;
 function showSettings(){
   hideAll();
   const v=document.getElementById('view-settings');
