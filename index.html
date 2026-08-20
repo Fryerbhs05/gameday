@@ -19889,7 +19889,7 @@ if(typeof window.cfRegisterView==='function'){
       </svg>
     </div>
     <div class="ldr-kick" id="ldr-kick">LEADERS</div>
-    <div class="ldr-hero" id="ldr-hero">Who <span class="hi-f">CARRIED</span> Me</div>
+    <div class="ldr-hero" id="ldr-hero">My Top Scorers</div>
     <div class="ldr-sum">
       <div class="ldr-sum-num f" id="ldr-sum-num">0.0</div>
       <div class="ldr-sum-label" id="ldr-sum-label">TOP 10 &middot; POINTS SCORED</div>
@@ -20148,7 +20148,7 @@ if(typeof window.cfRegisterView==='function'){
     rows.sort(function(x,y){ return y.pts-x.pts; });
     var shown=rows; /* desktop preview always shows ALL rows */
     var sum=0; shown.forEach(function(r){sum+=r.pts;});
-    var heroHTML=(side==='F')?'Who <span class="hi-f">CARRIED</span> Me':'Who <span class="hi-a">CRUSHED</span> Me';
+    var heroHTML=(side==='F')?'My Top Scorers':'Top Scorers Against';
     var lblText=(shown.length+' PLAYERS')+' · POINTS '+(side==='F'?'SCORED':'AGAINST');
     var rowsHTML;
     if(!shown.length){
@@ -20231,7 +20231,7 @@ if(typeof window.cfRegisterView==='function'){
 
     /* hero + kicker */
     var hero=document.getElementById('ldr-hero');
-    if(hero)hero.innerHTML=(st.side==='F')?'Who <span class="hi-f">CARRIED</span> Me':'Who <span class="hi-a">CRUSHED</span> Me';
+    if(hero)hero.innerHTML=(st.side==='F')?'My Top Scorers':'Top Scorers Against';
     var kick=document.getElementById('ldr-kick');
     var kickText=(st.period==='season')?('SEASON TO DATE · '+st.season):('WEEK '+st.week+' · '+st.season);
     if(kick)kick.textContent=kickText;
