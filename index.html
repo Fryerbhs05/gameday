@@ -10896,7 +10896,9 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     const mag=Math.abs(r.delta).toFixed(2);
     const negCls=r.delta<0?' neg':'';
     const fmt=r.fmt?'<span class="lu-fmt">'+r.fmt+'</span>':'';
-    const tail=r.clk?(' · '+r.clk):'';
+    /* Game clock (r.clk, "Q3 4:12") intentionally NOT rendered — no provider hands
+       back a reliable per-play game time, so the tail was removed (Matt, 2026-08-20).
+       r.clk is still carried on the row object; nothing displays it. */
     /* Clustered rows colour by the SIGN OF THE NET (disp), not by one player's
        side — in a league where the QB is yours and the receiver is your
        opponent's, the net is what you actually feel. `parts` shows the split so a
@@ -10912,7 +10914,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       +'<div><div class="lu-league '+side+'">'+esc(cfMaskLeague(r.league))+fmt+'</div>'+parts+'</div>'
       +'<div class="lu-right">'
         +'<div class="lu-delta'+negCls+'">'+sign+mag+'</div>'
-        +'<div class="lu-tot">'+r.total.toFixed(2)+' pt'+tail+'</div>'
+        +'<div class="lu-tot">'+r.total.toFixed(2)+' pt</div>'
       +'</div></div>';
   }
   /* Net-impact verdict for a player's grouped rows. Faithful path uses the impact
@@ -10936,6 +10938,30 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     /* Fallback voice must match imLabel's ladder — a mixed register here is a
        visible tell that something failed. */
     return {pos:sum>=0,intensity:Math.max(0.08,Math.min(1,Math.abs(sum)/15)),label:(sum>=0?'That helps you':'That hurts you')};
+  }
+  /* Does this group's rows straddle BOTH sides? A cluster of two non-conflicted
+     players on opposite sides (your QB → their WR) is net-ambiguous even though
+     neither player is individually conflicted, so it still earns a real mood. */
+  function luMixedSides(grpRows){
+    let sawCheer=false,sawEnemy=false;
+    for(const r of grpRows){const es=r.disp||r.side;if(es==='enemy')sawEnemy=true;else sawCheer=true;}
+    return sawCheer&&sawEnemy;
+  }
+  /* Simple, KNOWN mood for a non-conflicted mover — no calculation. The player
+     sits on one side of every league they're in, so the direction is given by
+     that side: your player scoring is good, an opponent's player scoring is bad.
+     No verdict label (the bucket already says it) and a fixed low intensity so
+     these calm cards read quieter than the calculated conflicted ones. */
+  function luSimpleNet(grpRows){
+    const es=(grpRows[0]&&(grpRows[0].disp||grpRows[0].side))||'cheer';
+    return {pos:es!=='enemy',intensity:0.1,label:'',simple:true};
+  }
+  /* Mood is CALCULATED only for events that actually involve divided loyalty:
+     a conflicted-bucket player (on both sides across leagues) OR a merged play
+     whose legs straddle both sides. Everything else is simple and known
+     (Matt, 2026-08-20). */
+  function luNetFor(g,contexts){
+    return (g.conf||luMixedSides(g.rows)) ? groupNet(g.rows,contexts) : luSimpleNet(g.rows);
   }
   /* Continuous intensity → border thickness + glow; colour from the net side.
      color-mix over var(--cheer)/var(--enemy) so it adapts to light/dark theme.
@@ -11126,7 +11152,10 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         const k=p.id+'|'+lgName;snap[k]=pts;
         const prev=luPrev[k];
         if(prev===undefined||Math.abs(pts-prev)<0.05)return;
-        rows.push({id:p.id,name:p.full_name,pos:p.position,team:p.team,league:lgName,fmt:lp.fmt||'',side:side,delta:pts-prev,total:pts,clk:nflClockFor(p.team)});
+        // conf = the app's "conflicted" bucket test (on BOTH sides of some matchup).
+        // Carried on the row so the mood calc can be gated to divided-loyalty players.
+        const conf=!!(p.myLeagues&&p.myLeagues.length&&p.againstLeagues&&p.againstLeagues.length);
+        rows.push({id:p.id,name:p.full_name,pos:p.position,team:p.team,league:lgName,fmt:lp.fmt||'',side:side,delta:pts-prev,total:pts,clk:nflClockFor(p.team),conf:conf});
       };
       players.forEach(p=>{
         if(!p||!p.full_name)return;
@@ -11144,7 +11173,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         let batch;
         // Group rows per player (one card per league), same as the live frames.
         const gmap=new Map();
-        rows.forEach(r=>{if(!gmap.has(r.id))gmap.set(r.id,{id:r.id,name:r.name,pos:r.pos,team:r.team,rows:[]});gmap.get(r.id).rows.push(r);});
+        rows.forEach(r=>{if(!gmap.has(r.id))gmap.set(r.id,{id:r.id,name:r.name,pos:r.pos,team:r.team,conf:!!r.conf,rows:[]});gmap.get(r.id).rows.push(r);});
         let groups=Array.from(gmap.values());   // `let` — mergeClusters() may replace it
         /* Unique per-row key so the animation targets THIS scoring event's row.
            The detector stashed id→key for players that fired this tick; everyone
@@ -11167,6 +11196,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
             const m={id:list.map(g=>g.id).join('+'),key:list[0].key,cluster:true,
                      name:list.map(g=>g.name).join('  +  '),
                      pos:list.map(g=>g.pos).filter(Boolean).join(' · '),
+                     conf:list.some(g=>g.conf),
                      team:list[0].team,rows:[]};
             const byLg=new Map();
             list.forEach(g=>g.rows.forEach(r=>{
@@ -11188,7 +11218,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         }else{
           // Live: compute each group's net impact once (now — never re-derived on
           // re-render, so old frames don't drift as matchups move).
-          groups.forEach(g=>{g.net=groupNet(g.rows,data.contexts);});
+          groups.forEach(g=>{g.net=luNetFor(g,data.contexts);});
           groups.sort((a,b)=>(b.net.intensity||0)-(a.net.intensity||0)); // biggest swing first
           batch={t:t,stale:false,groups:groups};
         }
