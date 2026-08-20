@@ -4320,7 +4320,7 @@
       display: flex; flex-direction: column; align-items: stretch;
       position: fixed; left: 0; top: 76px; bottom: 0; width: var(--cf-rail-w);
       background: var(--paper); border-right: 1px solid var(--line);
-      padding: 14px 0 12px; z-index: 90;
+      padding: 14px 0 12px; z-index: 90; overflow-y: auto;
     }
     /* When the Yahoo outage banner is up, body.cf-outage-on pushes the sticky
        header DOWN by --cf-outage-h (its top becomes the banner height), so the
@@ -4356,7 +4356,15 @@
        redundant tiles from the …More sheet on desktop (mobile keeps them). */
     body:not(.nav-landing) .cbmore-tile[data-more-action="exposure"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="schedule"],
+    body:not(.nav-landing) .cbmore-tile[data-more-action="blog"],
+    body:not(.nav-landing) .cbmore-tile[data-more-action="contact"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="account"] { display: none; }
+    /* Blog + Contact are pinned rail tabs now (2026-08-20); the …More sheet is
+       empty for a normal user (About lives in Account; Exposure/Schedule/Account
+       are first-class tabs). Hide the rail's More button unless admin — Shop/
+       Partners/Experiment still populate the sheet for the owner. */
+    body:not(.nav-landing) #cf-side-rail [data-rail-tab="more"] { display: none; }
+    body:not(.nav-landing).is-admin #cf-side-rail [data-rail-tab="more"] { display: flex; }
   }
   .cfrail-mark { display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
   .cfrail-mark img { width: 36px; height: 36px; display: block; border-radius: 10px; }
@@ -4375,7 +4383,15 @@
     background: var(--coral-500); border-radius: 0 3px 3px 0;
   }
   .cfrail-tab:active { transform: scale(0.97); }
-  .cfrail-foot { margin-top: auto; border-top: 1px solid var(--line); padding-top: 6px; }
+  /* Short-window safety net (2026-08-20): with Blog + Contact pinned the rail
+     runs 9-10 rows. Tighten spacing under short viewports so every row stays
+     visible; the rail's overflow-y:auto is the last-resort scroll below this. */
+  @media (min-width: 900px) and (max-height: 760px) {
+    #cf-side-rail .cfrail-tab { padding: 6px 4px; gap: 2px; }
+    #cf-side-rail .cfrail-tab svg { width: 20px; height: 20px; }
+    .cfrail-mark { margin-bottom: 8px; }
+    .cfrail-mark img { width: 30px; height: 30px; }
+  }
 </style>
 <nav id="cf-side-rail" aria-label="Primary (desktop)">
   <a class="cfrail-mark" href="/" aria-label="Conflicted — home">
@@ -4405,7 +4421,15 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg>
     <span>Conflict</span>
   </button>
-  <button class="cfrail-tab cfrail-foot" type="button" data-rail-tab="account" aria-label="Account">
+  <button class="cfrail-tab" type="button" data-rail-tab="blog" aria-label="Blog">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+    <span>Blog</span>
+  </button>
+  <button class="cfrail-tab" type="button" data-rail-tab="contact" aria-label="Contact">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></svg>
+    <span>Contact</span>
+  </button>
+  <button class="cfrail-tab" type="button" data-rail-tab="account" aria-label="Account">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg>
     <span>Account</span>
   </button>
@@ -16948,6 +16972,10 @@ loadExperimentState();
     rail.querySelectorAll('[data-rail-tab]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var tab = btn.getAttribute('data-rail-tab');
+        // Blog + Contact are pinned rail tabs (2026-08-20) with no bottom-nav
+        // twin - call their handlers directly instead of forwarding a click.
+        if (tab === 'blog') { if (typeof window.showBlog === 'function') window.showBlog(); return; }
+        if (tab === 'contact') { if (typeof window.showContact === 'function') { window.showContact('more'); window.scrollTo(0, 0); } return; }
         var target = bottom.querySelector('[data-exp-tab="' + tab + '"]');
         if (target) target.click();   // reuse the bottom-nav handler verbatim
       });
@@ -16963,7 +16991,8 @@ loadExperimentState();
           onWatch = visible('view-watch'), onConflict = visible('view-conflict'),
           onLeaders = visible('view-leaders'), onAccount = visible('view-account'),
           onBoard = visible('board');
-      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || visible('view-contact');
+      var onContact = visible('view-contact');
+      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about');
       setOn('dashboard', onBoard && !onSnap && !onExpo && !onWatch && !onConflict && !onLeaders && !onAccount);
       setOn('snapshot', onSnap);
       setOn('leaders', onLeaders);
@@ -16971,6 +17000,7 @@ loadExperimentState();
       setOn('exposure', onExpo);
       setOn('schedule', onWatch);
       setOn('account', onAccount);
+      setOn('contact', onContact);
       setOn('more', onMore);
     }
     syncRail();
