@@ -11415,7 +11415,37 @@ function espnPlayerStat(entry,week,sourceId){
   return s?Number(s.appliedTotal||0):null;
 }
 
-function parseEspnLeague(data,season,week,isHist){
+/* ══ ESPN REAL-vs-PHANTOM SEASON DETECTOR (ships detection staged 2026-07-20) ══
+   During the live offseason/preseason ESPN serves a `schedule` array two ways
+   that look identical: a CARRIED-OVER one for an un-renewed league (phantom
+   "Week 1") and a REAL generated one for a league that has actually drafted.
+   The global `liveOffseason` flag can't separate them, so it used to suppress
+   BOTH — which hid a genuinely-drafted league's real Week 1 preview all through
+   preseason. The per-league renewal probe (espnRenewalProbe → window.__espnProbe)
+   CAN separate them, so we consult it here.
+   Returns true ONLY on positive evidence the league is real for `season`:
+   ESPN is serving THIS season's data AND it has drafted (or is active with a
+   populated schedule + a current matchup period, for keeper/dynasty leagues
+   whose draft flag lags). Unknown / probe-not-back / carryover → false, so the
+   phantom-week suppression stays the safe default whenever we can't be sure. */
+function espnLeagueIsRealForSeason(lid,season){
+  try{
+    const p=(window.__espnProbe||{})[String(lid)+'|'+String(season)];
+    if(!p||p.http!==200)return false;
+    // ESPN must be serving the season we asked for. An un-renewed/carryover
+    // league echoes a different seasonId (or falls back a year) — the phantom case.
+    if(p.season_echo!=null&&Number(p.season_echo)!==Number(season))return false;
+    // Positive: the league has drafted for this season — a real schedule only
+    // exists post-draft; an un-renewed carryover reports drafted:false.
+    if(p.drafted===true)return true;
+    // Fallback positive for keeper/dynasty edge cases where `drafted` lags but
+    // the league is genuinely live: active + real schedule + a current period.
+    if(p.is_active===true&&Number(p.schedule_len)>0&&Number(p.cur_mp)>=1)return true;
+    return false;
+  }catch(e){return false;}
+}
+
+function parseEspnLeague(data,season,week,isHist,lid){
   if(!data||!Array.isArray(data.teams))return null;
   const fmt=espnScoringFmt(data.settings);
   /* Real league name comes from settings.name (now requested via mSettings).
@@ -11450,14 +11480,18 @@ function parseEspnLeague(data,season,week,isHist){
   /* Pull this week's matchup from the schedule array. Each schedule entry has
      `home` + `away` blocks, both of which carry the per-week roster snapshot
      in `rosterForCurrentScoringPeriod`. */
-  /* Offseason guard: when we're viewing the live (non-historical) week during
-     the NFL off-period, there is no real current matchup. ESPN still returns a
-     carried-over schedule for un-renewed leagues, so trusting matchupPeriodId
-     here would surface a phantom "<season> Week 1". Skip the lookup and let the
-     no-matchup branch below show the roster instead — this also lets
-     offseasonMode (every league !hasMatchup) resolve correctly. Historical
-     views (isHist) are unaffected and still render real past matchups. */
-  const matchup=(liveOffseason&&!isHist)?null:(data.schedule||[]).find(s=>
+  /* Offseason guard (now per-league, 2026-08-24): during the live off-period we
+     must still block an un-renewed league's carried-over schedule (phantom
+     "<season> Week 1"), but NOT a league that has actually drafted — its real
+     Week 1 matchup should preview all through preseason. So suppress the lookup
+     only when it's the live offseason AND the per-league probe can't confirm the
+     league is real for this season. A confirmed-real league falls through to the
+     schedule and renders its upcoming matchup (0–0 pre-kickoff, which
+     ctxDisplayState already labels "Upcoming", not "Live"). Historical views
+     (isHist) are unaffected. When the probe can't confirm real, we keep the old
+     safe behavior — skip the schedule, show roster-only, offseasonMode resolves. */
+  const _suppressStale=(liveOffseason&&!isHist)&&!espnLeagueIsRealForSeason(lid,season);
+  const matchup=_suppressStale?null:(data.schedule||[]).find(s=>
     s.matchupPeriodId===week&&(s.home?.teamId===myTeam.id||s.away?.teamId===myTeam.id)
   );
 
@@ -11922,6 +11956,17 @@ const PROVIDERS={
         ? connectionState.espn.league_ids
         : (connectionState.espn.league_id?[connectionState.espn.league_id]:[]);
       if(!ids.length)return{results:[],contexts:[],debugLeagues:[]};
+      /* Ship-the-detection wiring (2026-08-24): the per-league real-vs-phantom
+         gate in parseEspnLeague reads window.__espnProbe, which otherwise isn't
+         populated until a fire-and-forget probe 4s AFTER render. On the live
+         offseason/preseason path only, populate it FIRST so a genuinely-drafted
+         league's Week 1 preview shows through the liveOffseason suppression while
+         un-renewed carryovers stay blocked. Deduped per league+season per session
+         (so the later telemetry probe is a no-op for these). Bounded to the
+         offseason path — in-season the gate is bypassed and this is skipped. */
+      if(liveOffseason&&!isHist&&!isDemoMode){
+        try{await espnRenewalProbe(ids,season);}catch(e){}
+      }
       let auth401Count=0;
       const perLeague=await Promise.all(ids.map(async(lid)=>{
         try{
@@ -11941,7 +11986,7 @@ const PROVIDERS={
           if(r?.status===404||r?.status===403)return null;
           if(!r?.ok){console.warn(`ESPN data fetch failed (league ${lid}):`,r?.status);return null;}
           const data=await r.json();
-          const parsed=parseEspnLeague(data,season,week,isHist);
+          const parsed=parseEspnLeague(data,season,week,isHist,lid);
           if(!parsed)return null;
           /* Cache the resolved league name for the connect card */
           if(parsed.lg.leagueName){connectionState.espn.league_names=connectionState.espn.league_names||{};connectionState.espn.league_names[lid]=parsed.lg.leagueName;}
