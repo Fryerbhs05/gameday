@@ -19054,15 +19054,15 @@ if(typeof window.cfRegisterView==='function'){
     -webkit-font-smoothing:antialiased;text-align:left;}
   .rc-wm{display:flex;justify-content:center;margin-bottom:7px;}
   .rc-wm svg{width:178px;height:auto;display:block;}
-  .rc-kick{text-align:center;font:700 9px/1 var(--font-sans,'Inter');letter-spacing:.32em;color:#9E988A;margin-bottom:14px;white-space:nowrap;}
+  .rc-kick{text-align:center;font:700 11px/1.1 var(--font-sans,'Inter');letter-spacing:.26em;color:#9E988A;margin-bottom:6px;white-space:nowrap;}
   /* hero — full-week 3-up counts */
-  .rc-hero{display:grid;grid-template-columns:1fr 1fr 1fr;margin-bottom:4px;}
+  .rc-hero{display:grid;grid-template-columns:1fr 1fr 1fr;margin-bottom:14px;}
   .rc-hero-cell{text-align:center;position:relative;}
   .rc-hero-cell.mid::before,.rc-hero-cell.mid::after{content:"";position:absolute;top:6px;bottom:6px;width:1px;background:#27425F;}
   .rc-hero-cell.mid::before{left:0;} .rc-hero-cell.mid::after{right:0;}
   .rc-hero-n{font:900 32px/1 var(--font-sans,'Inter');letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
   .rc-hero-l{font:800 9px/1 var(--font-sans,'Inter');color:#9E988A;letter-spacing:.14em;margin-top:6px;}
-  .rc-sub{text-align:center;font:700 11px/1.4 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.03em;margin-bottom:15px;}
+  .rc-sub{text-align:center;font:700 9px/1.6 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.18em;text-transform:uppercase;margin-bottom:13px;}
   /* slot banner + compact inline counts */
   .rc-banner{text-align:center;margin-bottom:4px;}
   .rc-banner-t{font:900 26px/1 var(--font-sans,'Inter');color:#F5EFE4;letter-spacing:-.02em;white-space:nowrap;}
@@ -19100,8 +19100,8 @@ if(typeof window.cfRegisterView==='function'){
      justified names made col 1 hug the card edge while col 2 hugged the middle).
      3-col keeps its original left-aligned rhythm — spacing there already reads
      right (Matt, 2026-07-16). */
-  .rc-names{display:grid;grid-template-columns:1fr 1fr;row-gap:7px;column-gap:12px;}
-  .rc-names.cols3{grid-template-columns:1fr 1fr 1fr;column-gap:10px;}
+  .rc-names{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;row-gap:7px;column-gap:12px;}
+  .rc-names.cols3{column-gap:10px;}
   .rc-names div{font:700 12px/1.2 var(--font-sans,'Inter');color:#F5EFE4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;text-align:center;}
   .rc-names.cols3 div{font-size:11px;text-align:left;}
   .rc-names .xn{font:800 10px/1 var(--font-sans,'Inter');}
@@ -19355,11 +19355,13 @@ if(typeof window.cfRegisterView==='function'){
   function namesBandHtml(list,label,colorCls,countOf,namesOf){
     var sorted=list.slice().sort(bySort(countOf,namesOf));
     var shown=sorted; /* uncapped — every name shows */
-    var cols3=shown.length>=COLS3_AT?' cols3':'';
+    var cols=shown.length>=COLS3_AT?3:2;
+    var cols3=cols===3?' cols3':'';
+    var rows=Math.max(1,Math.ceil(shown.length/cols)); /* column-major: left column fills first (Matt 2026-08-26) */
     return '<div class="rc-band '+colorCls+'">'+
       '<div class="rc-bandhead"><span class="t rc-'+colorCls+'">'+label+'</span>'+
       '<span class="c">'+sorted.length+' PLAYER'+(sorted.length===1?'':'S')+'</span></div>'+
-      '<div class="rc-names'+cols3+'">'+nameCells(shown,countOf,'rc-'+colorCls).join('')+'</div>'+
+      '<div class="rc-names'+cols3+'" style="grid-template-rows:repeat('+rows+',auto)">'+nameCells(shown,countOf,'rc-'+colorCls).join('')+'</div>'+
       '</div>';
   }
   function confBandHtml(list){
@@ -19416,11 +19418,14 @@ if(typeof window.cfRegisterView==='function'){
       var starters=s.cheer.length+s.conf.length+s.enemy.length;
       var sub=[starters+' starters',leagues+' league'+(leagues===1?'':'s')].concat(kick?[kick]:[]).join(' &middot; ');
       head+='<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+(yr?(' &middot; '+yr):'')+'</div>';
-      mid='<div class="rc-hero">'+
+      /* sub-line (starters / leagues / first kickoff) moved ABOVE the hero
+         numbers, directly under the kicker (Matt, 2026-08-26). */
+      mid='<div class="rc-sub">'+sub+'</div>'+
+        '<div class="rc-hero">'+
         '<div class="rc-hero-cell"><div class="rc-hero-n rc-green">'+s.cheer.length+'</div><div class="rc-hero-l">CHEER</div></div>'+
         '<div class="rc-hero-cell mid"><div class="rc-hero-n rc-red">'+s.enemy.length+'</div><div class="rc-hero-l">ENEMY</div></div>'+
         '<div class="rc-hero-cell"><div class="rc-hero-n rc-gold">'+s.conf.length+'</div><div class="rc-hero-l">CONFLICTED</div></div>'+
-        '</div><div class="rc-sub">'+sub+'</div>';
+        '</div>';
     }else{
       var lb=RC_LABELS[slotKey]||{banner:slotKey.toUpperCase()};
       var mt=metas[slotKey]||{};
