@@ -19151,7 +19151,7 @@ if(typeof window.cfRegisterView==='function'){
 <script>
 (function(){
   'use strict';
-  var RC_W=390, NAME_CAP=30, CONF_CAP=12, COLS3_AT=17;
+  var RC_W=390, COLS3_AT=17; /* row caps REMOVED (Matt, 2026-08-26): the card shows EVERY player — a complete team picture beats a social-media-tidy crop. NAME_CAP(30)/CONF_CAP(12) retired; COLS3_AT stays (2→3 col at 17+). */
   /* slot  : time window ('all' | thu | early | ...) — smart-defaulted each open.
      bucket: null (All Starters, 3-band card) | 'cheer' | 'conflicted' | 'enemy'
              — carried in from the Loyalties section's active bucket on open.
@@ -19354,20 +19354,19 @@ if(typeof window.cfRegisterView==='function'){
   }
   function namesBandHtml(list,label,colorCls,countOf,namesOf){
     var sorted=list.slice().sort(bySort(countOf,namesOf));
-    var shown=sorted.slice(0,NAME_CAP), extra=sorted.length-shown.length;
+    var shown=sorted; /* uncapped — every name shows */
     var cols3=shown.length>=COLS3_AT?' cols3':'';
     return '<div class="rc-band '+colorCls+'">'+
       '<div class="rc-bandhead"><span class="t rc-'+colorCls+'">'+label+'</span>'+
       '<span class="c">'+sorted.length+' PLAYER'+(sorted.length===1?'':'S')+'</span></div>'+
       '<div class="rc-names'+cols3+'">'+nameCells(shown,countOf,'rc-'+colorCls).join('')+'</div>'+
-      (extra>0?'<div class="rc-more">+ '+extra+' MORE</div>':'')+
       '</div>';
   }
   function confBandHtml(list){
     var countAll=function(p){return (p.myLeagues||[]).length+(p.againstLeagues||[]).length;};
     var namesAll=function(p){return (p.myLeagues||[]).concat(p.againstLeagues||[]);};
     var sorted=list.slice().sort(bySort(countAll,namesAll));
-    var shown=sorted.slice(0,CONF_CAP), extra=sorted.length-shown.length;
+    var shown=sorted; /* uncapped — every conflicted row shows */
     var rows;
     if(!shown.length){
       rows='<div class="rc-clean">ZERO DIVIDED LOYALTIES</div>';
@@ -19383,7 +19382,6 @@ if(typeof window.cfRegisterView==='function'){
     return '<div class="rc-band gold">'+
       '<div class="rc-chead"><span class="l">CHEER</span><span class="m">CONFLICTED</span><span class="r">ENEMY</span></div>'+
       rows+
-      (extra>0?'<div class="rc-more">+ '+extra+' MORE</div>':'')+
       '</div>';
   }
   /* Kickoff times in the VIEWER'S timezone (no timeZone option = user local),
