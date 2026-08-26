@@ -707,6 +707,10 @@
     .lp-foot__links { display: flex; gap: 18px; }
     .lp-foot a { color: var(--ink-500); text-decoration: none; }
     .lp-foot a:hover { color: var(--ink-700); }
+    .lp-foot__social { display: inline-flex; align-items: center; gap: 14px; margin-left: 4px; padding-left: 16px; border-left: 1px solid var(--line-soft); }
+    .lp-foot__social a { display: inline-flex; align-items: center; color: var(--ink-500); line-height: 0; }
+    .lp-foot__social a:hover { color: var(--ink-700); }
+    .lp-foot__social svg { width: 18px; height: 18px; display: block; }
     .signin-card h3 {
       font: 700 22px/1.2 var(--font-sans); letter-spacing: -0.01em;
       color: var(--ink-900); margin-bottom: 4px;
@@ -4900,7 +4904,7 @@
        …More menu — showAbout() works signed-out; the drawer's Home item leads back). -->
   <div class="lp-foot">
     <span>&copy; 2026 Conflicted Sports</span>
-    <span class="lp-foot__links"><a href="#" onclick="if(window.showAbout)showAbout();return false;">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a></span>
+    <span class="lp-foot__links"><a href="#" onclick="if(window.showAbout)showAbout();return false;">About</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><span class="lp-foot__social"><a href="https://instagram.com/ConflictedApp" aria-label="Conflicted on Instagram" onclick="if(window.cfOpenExternal){cfOpenExternal('https://instagram.com/ConflictedApp','instagram://user?username=ConflictedApp');return false;}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none"/></svg></a><a href="https://x.com/ConflictedApp" aria-label="Conflicted on X" onclick="if(window.cfOpenExternal){cfOpenExternal('https://x.com/ConflictedApp','twitter://user?screen_name=ConflictedApp');return false;}"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.53 3H20.5l-6.49 7.42L21.75 21h-5.98l-4.68-6.12L5.7 21H2.72l6.94-7.93L2.25 3h6.13l4.23 5.6L17.53 3Zm-1.05 16.2h1.65L7.6 4.71H5.83L16.48 19.2Z"/></svg></a><a href="mailto:ConflictedApp@Gmail.com" aria-label="Email Conflicted"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M4 7.5l8 5.5 8-5.5"/></svg></a></span></span>
   </div>
 
   <div style="height:40px"></div>
@@ -19103,13 +19107,37 @@ if(typeof window.cfRegisterView==='function'){
   .rc-names .xn{font:800 10px/1 var(--font-sans,'Inter');}
   .rc-names .tm{font:600 10px/1 var(--font-sans,'Inter');color:#7C8694;}
   .rc-more{text-align:center;font:700 10px/1 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.06em;margin-top:9px;padding-top:8px;border-top:1px solid #27425F;}
-  /* ── share sheet (BottomSheet body) — no title row, chips straight in ── */
+  /* ── share sheet (BottomSheet body) — no title row, filter pills straight in ── */
   .rc-sheet{padding:6px 2px 10px;}
+  /* .rc-chips / .rc-chip: retained — the LEADERS share sheet reuses them for its
+     Top-N pills (#ldrs-chips). The Rooting Card no longer uses them (its slot
+     strip became the .rc-sel dropdowns below), but do NOT delete these rules. */
   .rc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
   .rc-chip{font:800 10px/1 var(--font-sans);letter-spacing:.06em;color:var(--ink-500);
     background:transparent;border:1px solid var(--line);padding:8px 12px;border-radius:999px;cursor:pointer;
     -webkit-tap-highlight-color:transparent;}
   .rc-chip.on{color:#0F2235;background:var(--navy-700,#7AA8D1);border-color:var(--navy-700,#7AA8D1);}
+  /* filter bar: pill-shaped dropdowns (week + bucket) + Include Bench toggle,
+     side by side. Replaces the old always-visible slot chip strip (2026-08-26). */
+  .rc-fbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:12px;}
+  /* Native <select> styled as an outline pill; the value IS the label ("All
+     Week ▾"). appearance:none + a data-URI caret keeps it a pill in Safari/PWA
+     while the OS supplies the familiar wheel picker on tap. .on = a non-default
+     filter is active → filled navy, dark caret (mirrors the old .rc-chip.on). */
+  .rc-sel{appearance:none;-webkit-appearance:none;font:800 10px/1 var(--font-sans);letter-spacing:.06em;
+    color:var(--ink-500);background-color:transparent;border:1px solid var(--line);
+    padding:8px 26px 8px 12px;border-radius:999px;cursor:pointer;-webkit-tap-highlight-color:transparent;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%237C8694' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat;background-position:right 10px center;background-size:9px 6px;}
+  .rc-sel.on{color:#0F2235;background-color:var(--navy-700,#7AA8D1);border-color:var(--navy-700,#7AA8D1);
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'><path d='M1 1l4 4 4-4' fill='none' stroke='%230F2235' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");}
+  .rc-sel option{color:#0F2235;}
+  /* Include Bench: a plain on/off pill (not a dropdown). */
+  .rc-toggle{font:800 10px/1 var(--font-sans);letter-spacing:.06em;color:var(--ink-500);
+    background:transparent;border:1px solid var(--line);padding:8px 12px;border-radius:999px;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;}
+  .rc-toggle.on{color:#0F2235;background:var(--navy-700,#7AA8D1);border-color:var(--navy-700,#7AA8D1);}
+  .rc-toggle[hidden]{display:none;}
   .rc-prevwrap{background:#0b1722;border:1px solid #1b2c3c;border-radius:18px;padding:12px;overflow:hidden;}
   .rc-prevscale{transform-origin:top left;}
   /* Standardized CTA style (site pattern = Snapshot's "Share my weekend");
@@ -19124,7 +19152,12 @@ if(typeof window.cfRegisterView==='function'){
 (function(){
   'use strict';
   var RC_W=390, NAME_CAP=30, CONF_CAP=12, COLS3_AT=17;
-  var st={slot:'all'};
+  /* slot  : time window ('all' | thu | early | ...) — smart-defaulted each open.
+     bucket: null (All Starters, 3-band card) | 'cheer' | 'conflicted' | 'enemy'
+             — carried in from the Loyalties section's active bucket on open.
+     bench : only meaningful when bucket==='cheer'; adds MY benched players to
+             the cheer card (no visual distinction). Forced false otherwise. */
+  var st={slot:'all',bucket:null,bench:false};
 
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
   function data(){return window.__conflictedLastData||null;}
@@ -19222,6 +19255,39 @@ if(typeof window.cfRegisterView==='function'){
       conf:scopePlayers(d.conflicted,slotKey),
       enemy:scopePlayers(d.enemies,slotKey)
     };
+  }
+  /* ── Include Bench (cheer only, 2026-08-26) ───────────────────────────────
+     Adds MY benched players to the cheer view. A player qualifies as bench-
+     cheer if I roster them on MY side (start OR bench) in ≥1 VISIBLE league and
+     they never start AGAINST me (againstLeagues empty) — the same "purely
+     rooting for" test classifyPlayer uses for cheer, widened to bench. Built
+     from allRostered (which, unlike d.cheerFor, also holds bench-only players),
+     with its own hidden-league pass because rcApplyLeagueFilter keys on
+     myLeagues/againstLeagues and would drop a bench-only player. Slot scoping is
+     applied here too (teamSlotKey), matching scopePlayers. */
+  function rcCheerBench(slotKey){
+    var d=data()||{},all=d.allRostered||[],out=[];
+    all.forEach(function(p){
+      if((p.againstLeagues||[]).length)return;              // starts against me → not cheer
+      var my=rcVisNames(p.myLeagues),myb=rcVisNames(p.myBenchLeagues);
+      if(!my.length&&!myb.length)return;                    // nothing visible on my side
+      if(slotKey!=='all'&&teamSlotKey(p.team)!==slotKey)return;
+      out.push(p);
+    });
+    return out;
+  }
+  /* Cheer ×N with bench on = total VISIBLE leagues I roster them (start+bench),
+     so a benched player reads no differently from a starter (Matt: "no
+     distinction"). Off, it's just the visible starter count. */
+  function cheerCountOf(bench){
+    return bench
+      ? function(p){return rcVisNames(p.myLeagues).length+rcVisNames(p.myBenchLeagues).length;}
+      : function(p){return rcVisNames(p.myLeagues).length;};
+  }
+  function cheerNamesOf(bench){
+    return bench
+      ? function(p){return (p.myLeagues||[]).concat(p.myBenchLeagues||[]);}
+      : function(p){return p.myLeagues||[];};
   }
   /* Chips: ALL WEEK + every window that holds ≥1 of my starters, kickoff order. */
   function chipSlots(metas){
@@ -19384,15 +19450,35 @@ if(typeof window.cfRegisterView==='function'){
   }
 
   /* ── share sheet ──────────────────────────────────────────────────────── */
+  /* Filter bar (2026-08-26): three pills side by side —
+       1. WEEK   : dropdown, ALL WEEK default + every window with starters.
+       2. BUCKET : dropdown, ALL STARTERS default + Cheer/Conflicted/Enemy.
+       3. BENCH  : on/off toggle, shown ONLY when BUCKET=Cheer (Matt) — adds my
+                   benched players to the cheer card.
+     A pill goes filled (.on) when its filter is off-default, so an active filter
+     is obvious at a glance. Selects are native (OS wheel picker on tap) styled
+     as pills; the whole bar re-renders with the sheet body. */
   function sheetHtml(chips,metas){
-    /* Single option (historic weeks = ALL WEEK only) → no chip strip at all. */
-    var chipHtml=chips.length>1?chips.map(function(k){
-      var lbl=k==='all'?'ALL WEEK':RC_LABELS[k].chip;
-      return '<button type="button" class="rc-chip'+(st.slot===k?' on':'')+'" data-rc-slot="'+k+'">'+lbl+'</button>';
-    }).join(''):'';
+    /* Historic weeks collapse to ALL WEEK only → drop the week pill entirely. */
+    var slotSel='';
+    if(chips.length>1){
+      var slotOpts=chips.map(function(k){
+        var lbl=k==='all'?'ALL WEEK':RC_LABELS[k].chip;
+        return '<option value="'+k+'"'+(st.slot===k?' selected':'')+'>'+lbl+'</option>';
+      }).join('');
+      slotSel='<select id="rc-slot-sel" class="rc-sel'+(st.slot!=='all'?' on':'')+'" aria-label="Time window">'+slotOpts+'</select>';
+    }
+    var BUCKETS=[['','ALL STARTERS'],['cheer','CHEER'],['conflicted','CONFLICTED'],['enemy','ENEMY']];
+    var bVal=st.bucket||'';
+    var bucketOpts=BUCKETS.map(function(o){
+      return '<option value="'+o[0]+'"'+(bVal===o[0]?' selected':'')+'>'+o[1]+'</option>';
+    }).join('');
+    var bucketSel='<select id="rc-bucket-sel" class="rc-sel'+(st.bucket?' on':'')+'" aria-label="Bucket">'+bucketOpts+'</select>';
+    var benchPill='<button type="button" id="rc-bench" class="rc-toggle'+(st.bench?' on':'')+'"'+
+      (st.bucket==='cheer'?'':' hidden')+'>Include Bench</button>';
     /* No title row — the preview says what this is; backdrop tap / Esc close. */
     return '<div class="rc-sheet">'+
-      (chipHtml?'<div class="rc-chips" id="rc-chips">'+chipHtml+'</div>':'')+
+      '<div class="rc-fbar" id="rc-fbar">'+slotSel+bucketSel+benchPill+'</div>'+
       '<div class="rc-prevwrap"><div class="rc-prevscale" id="rc-prevscale"></div></div>'+
       '<button type="button" class="rc-sharego" id="rc-sharego">&#x2197;&nbsp; Share</button>'+
       '</div>';
@@ -19410,14 +19496,36 @@ if(typeof window.cfRegisterView==='function'){
   function renderPreview(){
     var scale=document.getElementById('rc-prevscale');if(!scale)return;
     scale.innerHTML='';
-    scale.appendChild(buildFrame(st.slot));
+    var frame;
+    if(st.bucket){
+      /* Solo-bucket card (same builder the Loyalties section uses inline), scoped
+         by the chosen window; bench folds in only for cheer. Needs the export id. */
+      frame=buildInApp(st.bucket,st.slot,st.bucket==='cheer'&&st.bench);
+      frame.id='rc-frame';
+    }else{
+      frame=buildFrame(st.slot); /* All Starters → 3-band card (already id=rc-frame) */
+    }
+    scale.appendChild(frame);
     fitPreview();
   }
-  function refreshChips(){
-    var host=document.getElementById('rc-chips');if(!host)return;
-    Array.prototype.forEach.call(host.querySelectorAll('[data-rc-slot]'),function(b){
-      b.classList.toggle('on',b.getAttribute('data-rc-slot')===st.slot);
-    });
+  /* Sync the pill states to st after any change: filled when off-default, and the
+     bench pill appears/hides with the cheer bucket. */
+  function updateFilterUI(){
+    var ss=document.getElementById('rc-slot-sel');
+    if(ss){ ss.value=st.slot; ss.classList.toggle('on',st.slot!=='all'); }
+    var bs=document.getElementById('rc-bucket-sel');
+    if(bs){ bs.value=st.bucket||''; bs.classList.toggle('on',!!st.bucket); }
+    var bp=document.getElementById('rc-bench');
+    if(bp){ bp.hidden=(st.bucket!=='cheer'); bp.classList.toggle('on',st.bench); }
+  }
+  /* The bucket in play on the Loyalties section, carried into the sheet on open
+     (#1). null (All Starters) when the section is showing all bands. */
+  function rcCarryBucket(){
+    try{
+      var b=window.__loyView&&window.__loyView.getBucket&&window.__loyView.getBucket();
+      if(b==='cheer'||b==='conflicted'||b==='enemy')return b;
+    }catch(e){}
+    return null;
   }
   function openSheet(){
     if(!window.BottomSheet)return;
@@ -19427,9 +19535,11 @@ if(typeof window.cfRegisterView==='function'){
     var isHist=!!(data()&&data().isHist);
     var metas=slotMetas(),chips=isHist?['all']:chipSlots(metas);
     st.slot=isHist?'all':defaultSlot(metas,chips); /* never persisted — recomputed every open */
+    st.bucket=rcCarryBucket();     /* mirror the Loyalties section's active bucket (#1) */
+    st.bench=false;                /* bench never persists; off on every open */
     window.BottomSheet.open(sheetHtml(chips,metas),{owner:'rooting-share'});
     renderPreview();
-    try{cfTrack('rooting_share_open',{slot:st.slot,slots:chips.join(','),hist:isHist});}catch(e){}
+    try{cfTrack('rooting_share_open',{slot:st.slot,slots:chips.join(','),bucket:st.bucket||'all',hist:isHist});}catch(e){}
     /* Slot map may be stale/missing (first open of the session) — refresh and
        re-render the sheet in place when it lands (conflict-card pattern). */
     if(!isHist&&typeof window.__cfEnsureSlots==='function'&&(!window.__cfTeamSlotMap||(Date.now()-(window.__cfSlotsAt||0)>55000))){
@@ -19452,7 +19562,7 @@ if(typeof window.cfRegisterView==='function'){
     var btn=document.getElementById('rc-sharego');
     var orig='&#x2197;&nbsp; Share';
     if(btn){btn.disabled=true;btn.innerHTML='Building image&hellip;';}
-    try{cfTrack('share_tapped',{surface:'rooting',slot:st.slot});}catch(e){}
+    try{cfTrack('share_tapped',{surface:'rooting',slot:st.slot,bucket:st.bucket||'all',bench:st.bench?1:0});}catch(e){}
     try{
       var frame=document.getElementById('rc-frame');
       if(!frame)throw new Error('No card to share.');
@@ -19462,7 +19572,7 @@ if(typeof window.cfRegisterView==='function'){
       if(navigator.canShare&&navigator.canShare({files:[file]})){
         try{
           await navigator.share({files:[file],text:window.cfShareCardUrl?cfShareCardUrl():undefined});
-          try{cfTrack('share_completed',{surface:'rooting',slot:st.slot});}catch(_e){}
+          try{cfTrack('share_completed',{surface:'rooting',slot:st.slot,bucket:st.bucket||'all',bench:st.bench?1:0});}catch(_e){}
         }catch(e){if(!(e&&e.name==='AbortError'))saveFile(file);}
       }else saveFile(file);
     }catch(err){
@@ -19498,15 +19608,35 @@ if(typeof window.cfRegisterView==='function'){
     if(window.BottomSheet&&window.BottomSheet.isOpen()&&window.BottomSheet.getOwner()==='rooting-share')fitPreview();
   });
   /* Sheet body lives outside this block — delegate, guarded by owner. */
-  document.addEventListener('click',function(e){
-    if(!window.BottomSheet||!window.BottomSheet.isOpen()||window.BottomSheet.getOwner()!=='rooting-share')return;
-    var t;
-    if((t=e.target.closest('[data-rc-slot]'))){
-      var k=t.getAttribute('data-rc-slot');
+  function rcOwned(){return window.BottomSheet&&window.BottomSheet.isOpen()&&window.BottomSheet.getOwner()==='rooting-share';}
+  /* Dropdowns fire 'change' (OS picker commit). */
+  document.addEventListener('change',function(e){
+    if(!rcOwned())return;
+    if(e.target.id==='rc-slot-sel'){
+      var k=e.target.value;
       if(k!==st.slot){
         try{cfTrack('rooting_share_scope',{from:st.slot,to:k});}catch(e2){}
-        st.slot=k;refreshChips();renderPreview();
+        st.slot=k;updateFilterUI();renderPreview();
       }
+      return;
+    }
+    if(e.target.id==='rc-bucket-sel'){
+      var b=e.target.value||null;
+      if(b!==st.bucket){
+        try{cfTrack('rooting_share_bucket',{from:st.bucket||'all',to:b||'all'});}catch(e2){}
+        st.bucket=b;
+        if(b!=='cheer')st.bench=false; /* Include Bench lives only in the cheer context */
+        updateFilterUI();renderPreview();
+      }
+      return;
+    }
+  });
+  document.addEventListener('click',function(e){
+    if(!rcOwned())return;
+    if(e.target.closest('#rc-bench')){
+      st.bench=!st.bench;
+      try{cfTrack('rooting_share_bench',{on:st.bench?1:0});}catch(e2){}
+      updateFilterUI();renderPreview();
       return;
     }
     if(e.target.closest('#rc-sharego')){doShare();return;}
@@ -19519,22 +19649,37 @@ if(typeof window.cfRegisterView==='function'){
      kicker is the plain ROOTING CARD line — no "X ONLY" tag. Reuses buildFrame /
      scoped / band builders, so the in-app view and the export can never drift.
      Always full-week scope — the time-slot windows stay in the share sheet. */
-  function buildInApp(bucket){
-    if(!bucket){ var f=buildFrame('all'); f.removeAttribute('id'); return f; }
-    var s=scoped('all');
+  function buildInApp(bucket,slotKey,bench){
+    slotKey=slotKey||'all'; bench=!!bench;
+    if(!bucket){ var f=buildFrame(slotKey); f.removeAttribute('id'); return f; }
+    var s=scoped(slotKey),metas=slotMetas();
     var wk=1;try{wk=(window.getActiveWeek?window.getActiveWeek():1)||1;}catch(e){}
     var yr='';try{yr=(window.getActiveSeason?window.getActiveSeason():'')||'';}catch(e){}
-    var myCount=function(p){return (p.myLeagues||[]).length;};
     var vsCount=function(p){return (p.againstLeagues||[]).length;};
-    var myNames=function(p){return p.myLeagues||[];};
     var vsNames=function(p){return p.againstLeagues||[];};
     var pick;
-    if(bucket==='cheer')      pick={n:s.cheer.length,word:'Cheer',color:'rc-green',band:namesBandHtml(s.cheer,'CHEER','green',myCount,myNames)};
+    if(bucket==='cheer'){
+      /* bench on → MY benched players fold into the cheer list (no distinction). */
+      var cList=bench?rcCheerBench(slotKey):s.cheer;
+      pick={n:cList.length,word:'Cheer',color:'rc-green',
+        band:namesBandHtml(cList,'CHEER','green',cheerCountOf(bench),cheerNamesOf(bench))};
+    }
     else if(bucket==='enemy') pick={n:s.enemy.length,word:'Enemy',color:'rc-red', band:namesBandHtml(s.enemy,'ENEMY','red', vsCount,vsNames)};
     else                      pick={n:s.conf.length, word:'Conflicted',color:'rc-gold',band:confBandHtml(s.conf)};
     var head='<div class="rc-wm">'+RC_WM+'</div>'+
       '<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+(yr?(' &middot; '+yr):'')+'</div>';
-    var mid='<div class="rc-hero rc-hero-solo"><div class="rc-hero-solo-row">'+
+    /* Slot-scoped solo card: name the window so the counts aren't ambiguous
+       (mirrors buildFrame's slot banner). Full-week solo card = hero only. */
+    var banner='';
+    if(slotKey!=='all'){
+      var lb=RC_LABELS[slotKey]||{banner:slotKey.toUpperCase()};
+      var mt=metas[slotKey]||{},parts=[];
+      if(mt.firstKick)parts.push(fmtKick(mt.firstKick));
+      if(mt.games)parts.push(mt.games+' game'+(mt.games===1?'':'s'));
+      banner='<div class="rc-banner"><div class="rc-banner-t">'+lb.banner+'</div>'+
+        (parts.length?'<div class="rc-banner-s">'+parts.join(' &middot; ')+'</div>':'')+'</div>';
+    }
+    var mid=banner+'<div class="rc-hero rc-hero-solo"><div class="rc-hero-solo-row">'+
       '<span class="rc-hero-n '+pick.color+'">'+pick.n+'</span>'+
       '<span class="rc-hero-word '+pick.color+'">'+pick.word+'</span>'+
       '</div></div>';
@@ -19681,7 +19826,11 @@ if(typeof window.cfRegisterView==='function'){
   toggle.addEventListener('click',function(e){ var b=e.target.closest('button[data-view]'); if(b)flip(b.dataset.view); });
   window.addEventListener('resize',function(){ if(section.classList.contains('rc-mode'))fit(); });
 
-  window.__loyView={ onData:onData, onBucketTap:onBucketTap };
+  /* getBucket: the committed bucket (null|cheer|conflicted|enemy). The share
+     sheet reads this on open so its preview mirrors what the section is showing
+     (#1). Note the Player-Cards "display cheer without committing" fallback keeps
+     st.bucket null, so All Starters carries over there — matching the RC view. */
+  window.__loyView={ onData:onData, onBucketTap:onBucketTap, getBucket:function(){return st.bucket;} };
 
   /* Initial paint (toggle stays hidden until data arrives via onData). */
   setToggleBtns(); applyCards(); highlightTabs();
