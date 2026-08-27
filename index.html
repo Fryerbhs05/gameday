@@ -20195,6 +20195,52 @@ if(typeof window.cfRegisterView==='function'){
     if(mode==='ok')floatTimer=setTimeout(function(){f.className='ldr-float';},1600);
   }
 
+  /* ── pull-pill reconciliation ─────────────────────────────────────────────
+     The "PULLING WEEK…" pill is only a hint that a header-driven week pull is in
+     flight — it must never outlive the pull. It used to be cleared by exactly
+     ONE thing: the next renderBoard→registry-render tick, gated on debugInfo
+     matching the awaited week. If that tick was missed (a load that resolved
+     before the pill was shown, an errored/coalesced fetch, a stray active-view),
+     the pill stuck on-screen with data actually already in hand — until the user
+     tapped it. These helpers make the pill reconcile against real state instead:
+     the moment the awaited week's data is present, clear it; if the pull is
+     genuinely gone, re-kick it once automatically (the same recovery a tap gave). */
+  function pillSatisfied(){
+    if(!(st.loadingWeek&&st.period==='week'))return false;
+    var d=lastData(),di=(d&&d.debugInfo)||{};
+    return !!(d&&(di.week==null||+di.week===+st.week)&&(di.season==null||String(di.season)===String(st.season)));
+  }
+  function reconcileFloatPill(){
+    if(pillSatisfied()){ st.loadingWeek=false; floatPill(null); return true; }
+    return false;
+  }
+  var pillWatch=null,pillWatchT0=0,pillReheal=false;
+  function stopPillWatch(){ if(pillWatch){clearInterval(pillWatch);pillWatch=null;} }
+  function startPillWatch(){
+    stopPillWatch(); pillWatchT0=Date.now(); pillReheal=false;
+    pillWatch=setInterval(function(){
+      /* Stand down if we left Leaders or are no longer in a week-mode pull. */
+      if(!window.__cfLeadersOpen||st.period!=='week'||!st.loadingWeek){ stopPillWatch(); return; }
+      /* Data landed (even if we missed the clearing render) → clear + paint. */
+      if(reconcileFloatPill()){ render(); stopPillWatch(); return; }
+      var elapsed=Date.now()-pillWatchT0;
+      var inflight=!!window.__conflictedInflight;
+      /* Nothing in hand AND nothing fetching after a short grace → the pull
+         died; re-kick it ONCE, exactly as tapping the pill does. */
+      if(!inflight&&!pillReheal&&elapsed>4500){
+        pillReheal=true;
+        try{ if(typeof changeWeekTo==='function')changeWeekTo(st.week); }catch(e){}
+      }
+      /* Hard cap: stop polling after ~14s. If a provider is no longer connected
+         the pull can't resolve, so drop the pill rather than leave it lying;
+         otherwise leave it as tap-to-retry and let the 60s refresh clear it. */
+      if(elapsed>14000){
+        if(!connected()){ st.loadingWeek=false; floatPill(null); render(); }
+        stopPillWatch();
+      }
+    },1200);
+  }
+
   function lastData(){return window.__conflictedLastData||null;}
   function limitedMode(){ /* demo + replay have synthetic single-week data only */
     var demo=(typeof window.inDemoMode==='function')&&window.inDemoMode();
@@ -20716,7 +20762,7 @@ if(typeof window.cfRegisterView==='function'){
     if(v)v.style.display='block';
     window.__cfLeadersOpen=true;
     if(typeof window.cfShowPeriodBar==='function')window.cfShowPeriodBar();
-    floatPill(null); st.loadingWeek=false;
+    floatPill(null); st.loadingWeek=false; stopPillWatch();
     if(lastData()){ st.pendingDefaults=false; computeDefaults(); }
     else { computeDefaults(); st.pendingDefaults=true; } /* re-derive once data lands */
     syncControls(); render(); ensurePeriodData();
@@ -20733,12 +20779,7 @@ if(typeof window.cfRegisterView==='function'){
       }
       /* A header-driven week pull just landed? Clear the pill once the loader
          confirms it served the period we're waiting on. */
-      if(st.loadingWeek&&st.period==='week'){
-        var d=lastData(),di=(d&&d.debugInfo)||{};
-        if(d&&(di.week==null||+di.week===+st.week)&&(di.season==null||String(di.season)===String(st.season))){
-          st.loadingWeek=false; floatPill(null);
-        }
-      }
+      if(reconcileFloatPill())stopPillWatch();
       render();
     }
   });
@@ -20821,6 +20862,11 @@ if(typeof window.cfRegisterView==='function'){
         if(connected()){
           st.loadingWeek=true;
           floatPill('load','PULLING WEEK '+st.week+' · '+st.season+'…');
+          /* The awaited week may already be in hand (toggled back to a loaded
+             week, or the loader resolved before this tick) — clear at once
+             rather than waiting on a render that may never come. Otherwise arm
+             the watchdog so the pill can't outlive the pull. */
+          if(!reconcileFloatPill())startPillWatch();
         }
         render();
       },0);
