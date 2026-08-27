@@ -19062,7 +19062,7 @@ if(typeof window.cfRegisterView==='function'){
   .rc-hero-cell.mid::before{left:0;} .rc-hero-cell.mid::after{right:0;}
   .rc-hero-n{font:900 32px/1 var(--font-sans,'Inter');letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
   .rc-hero-l{font:800 9px/1 var(--font-sans,'Inter');color:#9E988A;letter-spacing:.14em;margin-top:6px;}
-  .rc-sub{text-align:center;font:700 9px/1.6 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.18em;text-transform:uppercase;margin-bottom:13px;}
+  .rc-sub{text-align:center;font:700 9px/1.1 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.18em;text-transform:uppercase;margin-bottom:13px;white-space:nowrap;}
   /* slot banner + compact inline counts */
   .rc-banner{text-align:center;margin-bottom:4px;}
   .rc-banner-t{font:900 26px/1 var(--font-sans,'Inter');color:#F5EFE4;letter-spacing:-.02em;white-space:nowrap;}
@@ -19496,6 +19496,23 @@ if(typeof window.cfRegisterView==='function'){
     scale.style.marginLeft=Math.max(0,(w-RC_W*f)/2)+'px';
     scale.style.height=(frame.offsetHeight*f)+'px';
   }
+  /* The sub-line must NEVER wrap and NEVER truncate (Matt, 2026-08-26): with
+     white-space:nowrap it can only overflow, so shrink its font-size until the
+     single line fits the fixed 390px card width. Runs after the frame is in the
+     DOM (needs layout); the fitted inline size clones into the export untouched.
+     Base 9px holds for normal weeks — only a long time+timezone nudges smaller,
+     floored at 6px (any realistic string fits well above that). No-ops off-DOM
+     (scrollWidth 0) and on solo-bucket cards (no .rc-sub). */
+  function rcFitSub(frame){
+    if(!frame||!frame.querySelector)return;
+    var el=frame.querySelector('.rc-sub');if(!el)return;
+    el.style.fontSize=''; /* reset to CSS base before measuring */
+    var size=parseFloat(getComputedStyle(el).fontSize)||9,guard=0;
+    while(el.scrollWidth>el.clientWidth+0.5&&size>6&&guard<40){
+      size-=0.25;el.style.fontSize=size+'px';guard++;
+    }
+  }
+  window.__rcFitSub=rcFitSub;
   function renderPreview(){
     var scale=document.getElementById('rc-prevscale');if(!scale)return;
     scale.innerHTML='';
@@ -19509,6 +19526,7 @@ if(typeof window.cfRegisterView==='function'){
       frame=buildFrame(st.slot); /* All Starters → 3-band card (already id=rc-frame) */
     }
     scale.appendChild(frame);
+    rcFitSub(frame);
     fitPreview();
   }
   /* Sync the pill states to st after any change: filled when off-default, and the
@@ -19752,6 +19770,7 @@ if(typeof window.cfRegisterView==='function'){
   function buildCard(){
     scale.innerHTML='';
     if(window.__rcInApp){ try{ scale.appendChild(window.__rcInApp(st.bucket)); }catch(e){} }
+    try{window.__rcFitSub&&window.__rcFitSub(scale.firstChild);}catch(e){}
     fit();
   }
 
