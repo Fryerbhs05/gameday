@@ -18499,10 +18499,9 @@ loadExperimentState();
     --c-navy900:#0F2235;--c-navy800:#15293E;--c-navy700:#1A3A52;--c-card:#16304A;--c-line:#27425F;
     --c-coral:#E88761;--c-cream:#F5EFE4;--c-ink500:#9E988A;--c-ink400:#7C8694;
     --c-green:#6BBF8C;--c-yellow:#D9A445;--c-red:#D86A5C;--c-blue:#7AA8D1;color:var(--c-cream);}
-  #view-conflict .cfc-frame{background:var(--c-navy900);border:1px solid var(--navy-300);border-radius:18px;padding:18px 15px 14px;}
-  #view-conflict .cfc-kick{text-align:center;font-size:9px;letter-spacing:.28em;font-weight:800;color:var(--c-ink500);margin-bottom:14px;white-space:nowrap;}
-  /* Standardized CTA style (site pattern = Snapshot's "Share my weekend"). */
-  #view-conflict .cfc-share{width:100%;border:none;background:var(--c-coral,#E88761);color:#0F2235;font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:12.5px;letter-spacing:.02em;padding:8px 13px;border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;}
+  #view-conflict .cfc-frame{background:var(--c-navy900);border:1px solid var(--navy-300);border-radius:18px;padding:16px 14px 14px;}
+  #view-conflict .cfc-kick{text-align:center;font-size:9px;letter-spacing:.28em;font-weight:800;color:var(--c-ink500);margin-bottom:12px;white-space:nowrap;}
+  #view-conflict .cfc-share{width:100%;border:none;background:var(--c-coral,#E88761);color:#0F2235;font-family:var(--font-sans),'Inter',sans-serif;font-weight:900;font-size:12.5px;letter-spacing:.02em;padding:9px 13px;border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;}
   #view-conflict .cfc-share:active{transform:scale(.99);}
   #view-conflict .cfc-share:disabled{opacity:.55;cursor:default;}
   #view-conflict .cfc-toggle{display:flex;gap:5px;background:#0b1722;border:1px solid var(--c-line);border-radius:11px;padding:4px;margin-bottom:14px;}
@@ -18510,41 +18509,58 @@ loadExperimentState();
   #view-conflict .cfc-toggle button.on{color:var(--c-cream);background:var(--c-navy700);}
   #view-conflict .cfc-prov{display:flex;gap:7px;background:rgba(122,168,209,.10);border:1px solid rgba(122,168,209,.30);border-radius:10px;padding:8px 11px;margin-bottom:13px;font-size:10px;line-height:1.4;font-weight:700;color:var(--c-blue);}
   #view-conflict .cfc-prov b{color:var(--c-cream);}
-  #view-conflict .cfc-cl{background:var(--c-navy800);border:1px solid var(--c-line);border-radius:13px;padding:13px 12px;margin-bottom:12px;}
-  #view-conflict .cfc-cl.feat{border-color:#33526f;}
-  #view-conflict .cfc-sent{font-size:13px;font-weight:700;font-style:italic;line-height:1.45;color:var(--c-cream);margin-bottom:11px;}
-  #view-conflict .cfc-sent b{font-style:normal;font-weight:900;color:var(--c-green);}
-  #view-conflict .cfc-chip{display:flex;justify-content:center;gap:8px;margin-bottom:12px;font-size:11px;font-weight:900;letter-spacing:.04em;}
-  #view-conflict .cfc-chip .pts{color:var(--c-cream);font-variant-numeric:tabular-nums;}
-  #view-conflict .cfc-chip .tag{padding:3px 11px;border-radius:999px;border:1px solid currentColor;}
-  #view-conflict .cfc-chip.s-in .tag{color:var(--c-green);}#view-conflict .cfc-chip.s-build .tag{color:var(--c-yellow);}#view-conflict .cfc-chip.s-hot .tag{color:var(--c-red);}
-  #view-conflict .cfc-players{display:flex;gap:7px;margin-bottom:14px;}
-  #view-conflict .cfc-p{flex:1;background:var(--c-card);border:1px solid var(--c-line);border-radius:10px;padding:8px;text-align:center;min-width:0;}
-  #view-conflict .cfc-p .nm{font-size:12px;font-weight:900;color:var(--c-cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  #view-conflict .cfc-p .mt{font-size:8.5px;font-weight:700;color:var(--c-ink400);letter-spacing:.04em;margin-top:2px;white-space:nowrap;}
-  #view-conflict .cfc-bar{height:18px;border-radius:9px;overflow:hidden;position:relative;background:var(--c-navy800);}
-  #view-conflict .cfc-barwrap{position:relative;margin:0 2px;}
-  #view-conflict .cfc-live{position:absolute;top:-9px;height:36px;width:3px;background:var(--c-cream);transform:translateX(-50%);border-radius:2px;}
-  #view-conflict .cfc-live .lab{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:900;color:var(--c-cream);white-space:nowrap;}
-  #view-conflict .cfc-ghost{position:absolute;top:-2px;height:22px;border-left:2px dashed var(--c-ink400);transform:translateX(-50%);opacity:.6;}
-  #view-conflict .cfc-ticks{position:relative;margin-top:8px;height:24px;}
-  #view-conflict .cfc-ticks span{position:absolute;transform:translateX(-50%);font-size:11px;font-weight:900;color:var(--c-cream);font-variant-numeric:tabular-nums;white-space:nowrap;}
-  #view-conflict .cfc-ticks span small{color:var(--c-ink500);font-size:8px;display:block;text-align:center;margin-top:1px;letter-spacing:.04em;}
-  #view-conflict .cfc-why{margin-top:16px;display:flex;flex-direction:column;gap:6px;}
-  #view-conflict .cfc-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--c-card);border:1px solid var(--c-line);border-radius:9px;padding:7px 11px;white-space:nowrap;}
-  #view-conflict .cfc-row.mine{border-left:3px solid var(--c-green);}#view-conflict .cfc-row.opp{border-left:3px solid var(--c-red);}
-  #view-conflict .cfc-row .nm{font-size:11.5px;font-weight:800;color:var(--c-cream);overflow:hidden;text-overflow:ellipsis;min-width:0;}
-  #view-conflict .cfc-row .side{font-size:8.5px;font-weight:700;color:var(--c-ink500);margin-left:6px;}
-  #view-conflict .cfc-row .req{font-size:11px;font-weight:900;flex:none;padding:2px 8px;border-radius:6px;font-variant-numeric:tabular-nums;}
-  #view-conflict .cfc-row.mine .req{color:var(--c-green);background:rgba(107,191,140,.13);}#view-conflict .cfc-row.opp .req{color:var(--c-red);background:rgba(216,106,92,.13);}
-  #view-conflict .cfc-stack-h{text-align:center;font-size:9px;font-weight:900;letter-spacing:.16em;color:var(--c-ink500);margin:6px 0 10px;}
-  #view-conflict .cfc-nowin{margin-top:11px;background:rgba(217,164,69,.09);border:1px solid rgba(217,164,69,.30);border-radius:9px;padding:9px 11px;font-size:10.5px;line-height:1.45;font-weight:700;color:var(--c-yellow);}
+  /* ── v4 hero (whole-night read) ── */
+  #view-conflict .cfv-hero{background:var(--c-navy800);border:1px solid var(--c-line);border-radius:14px;padding:14px 13px;margin-bottom:14px;}
+  #view-conflict .cfv-hero.win{border-color:rgba(107,191,140,.5);}
+  #view-conflict .cfv-hero.hope{border-color:rgba(217,164,69,.5);}
+  #view-conflict .cfv-hero.true{border-color:rgba(216,106,92,.45);}
+  #view-conflict .cfv-badge{display:inline-block;font-size:9px;font-weight:900;letter-spacing:.16em;color:var(--c-red);border:1px solid var(--c-red);border-radius:999px;padding:3px 9px;margin-bottom:9px;}
+  #view-conflict .cfv-stat{font-size:16px;font-weight:900;line-height:1.28;color:var(--c-cream);letter-spacing:-.01em;}
+  #view-conflict .cfv-hero.win .cfv-stat b{color:var(--c-green);}
+  #view-conflict .cfv-sub{font-size:11.5px;line-height:1.5;color:var(--c-ink500);margin-top:7px;font-weight:600;}
+  #view-conflict .cfv-sub b{color:var(--c-cream);font-weight:800;}
+  #view-conflict .cfv-count{margin-top:11px;padding-top:10px;border-top:1px solid var(--c-line);font-size:10px;font-weight:800;letter-spacing:.05em;color:var(--c-ink400);text-transform:uppercase;}
+  #view-conflict .cfv-count b{color:var(--c-cream);}
+  /* ── one navy frame around all conflicts; borderless cluster blocks inside ── */
+  #view-conflict .cfv-group{border:1px solid var(--c-line);border-radius:14px;padding:13px;margin-bottom:14px;background:var(--c-navy800);}
+  #view-conflict .cfv-cl{margin-bottom:16px;}
+  #view-conflict .cfv-cl:last-child{margin-bottom:0;}
+  /* centered, framed player header: badge (left) · name+team (center) · live points (right) */
+  #view-conflict .cfv-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;background:var(--c-navy700);border:1px solid var(--c-line);border-radius:9px;padding:7px 9px;margin-bottom:11px;}
+  #view-conflict .cfv-cb{grid-column:1;justify-self:start;font-size:7px;font-weight:900;letter-spacing:.09em;color:var(--c-red);border:1px solid var(--c-red);border-radius:999px;padding:3px 6px;white-space:nowrap;line-height:1;}
+  #view-conflict .cfv-id{grid-column:2;text-align:center;min-width:0;}
+  #view-conflict .cfv-nm{display:block;font-size:13px;font-weight:900;color:var(--c-cream);letter-spacing:.01em;}
+  #view-conflict .cfv-pt{display:block;font-size:9px;font-weight:700;color:var(--c-ink400);letter-spacing:.05em;white-space:nowrap;margin-top:2px;}
+  #view-conflict .cfv-lives{grid-column:3;justify-self:end;display:flex;flex-direction:column;gap:1px;align-items:flex-end;}
+  #view-conflict .cfv-lv{display:flex;gap:5px;align-items:baseline;}
+  #view-conflict .cfv-lvf{font-size:7px;font-weight:800;color:var(--c-ink500);letter-spacing:.06em;text-align:right;}
+  #view-conflict .cfv-lvn{font-size:11px;font-weight:900;color:var(--c-cream);font-variant-numeric:tabular-nums;min-width:30px;text-align:right;}
+  #view-conflict .cfv-sum{font-size:11.5px;font-weight:700;color:var(--c-cream);line-height:1.45;margin-bottom:9px;text-align:center;}
+  #view-conflict .cfv-sum b{color:var(--c-green);}
+  #view-conflict .cfv-sum.true b{color:var(--c-cream);}
+  #view-conflict .cfv-best{font-size:11px;font-weight:800;color:var(--c-coral);line-height:1.4;margin:-3px 0 11px;text-align:center;}
+  #view-conflict .cfv-best b{color:var(--c-cream);}
+  #view-conflict .cfv-leg{padding:8px 0 0;border-top:1px solid rgba(39,66,95,.6);}
+  #view-conflict .cfv-leg:first-of-type{border-top:none;padding-top:2px;}
+  #view-conflict .cfv-legtop{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+  #view-conflict .cfv-lg{font-size:12px;font-weight:800;color:var(--c-cream);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;}
+  #view-conflict .cfv-dot{flex:none;width:3px;height:14px;border-radius:2px;margin-right:9px;}
+  #view-conflict .cfv-dot.mine{background:var(--c-green);}
+  #view-conflict .cfv-dot.opp{background:var(--c-red);}
+  #view-conflict .cfv-tgt{flex:none;font-size:12px;font-weight:900;letter-spacing:.02em;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  #view-conflict .cfv-tgt.good{color:var(--c-green);}
+  #view-conflict .cfv-tgt.need{color:var(--c-yellow);}
+  #view-conflict .cfv-bar{position:relative;height:5px;border-radius:3px;margin:7px 0 0;overflow:visible;background:var(--c-navy900);}
+  #view-conflict .cfv-bar .cfv-fill{position:absolute;top:0;left:0;right:0;bottom:0;border-radius:3px;opacity:.8;}
+  #view-conflict .cfv-bar .cfv-mk{position:absolute;top:-3px;height:11px;width:2px;background:var(--c-cream);transform:translateX(-50%);border-radius:2px;}
+  #view-conflict .cfv-miracle{margin-top:6px;text-align:center;font-size:10px;line-height:1.5;font-weight:700;color:var(--c-ink500);padding:9px 12px;border-top:1px dashed var(--c-line);}
+  #view-conflict .cfv-miracle b{color:var(--c-ink400);}
+  /* ── terminal + pre-lock teaser states ── */
   #view-conflict .cfc-term{text-align:center;padding:26px 10px;}
   #view-conflict .cfc-term .ico{font-size:30px;margin-bottom:10px;}
   #view-conflict .cfc-term h4{font-size:17px;font-weight:900;color:var(--c-cream);margin-bottom:8px;}
   #view-conflict .cfc-term p{font-size:12px;line-height:1.55;color:var(--c-ink500);max-width:300px;margin:0 auto 16px;}
   #view-conflict .cfc-term a{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:900;color:#0F2235;background:var(--c-coral);border-radius:10px;padding:9px 16px;text-decoration:none;cursor:pointer;}
-  /* Pre-lock teaser states (Gate 1 games-underway, Gate 2 pre-kickoff, Offseason) */
   #view-conflict .cfc-teaser{text-align:center;padding:18px 12px 4px;}
   #view-conflict .cfc-teaser .ico{font-size:28px;margin-bottom:10px;}
   #view-conflict .cfc-teaser h4{font-size:16px;font-weight:900;color:var(--c-cream);margin-bottom:9px;line-height:1.32;}
@@ -18553,23 +18569,18 @@ loadExperimentState();
   #view-conflict .cfc-names{font-size:12.5px;line-height:1.5;color:var(--c-ink500);max-width:320px;margin:0 auto 10px;}
   #view-conflict .cfc-names b{color:var(--c-cream);font-weight:900;font-style:normal;}
   #view-conflict .cfc-teaser a{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:900;color:#0F2235;background:var(--c-coral);border-radius:10px;padding:9px 16px;text-decoration:none;cursor:pointer;margin-top:4px;}
-  /* Dimmed, shape-only preview bar (no floor/ceiling digits until the slate locks) */
-  #view-conflict .cfc-preview{position:relative;margin:2px 4px 4px;opacity:.6;filter:saturate(.85);}
-  #view-conflict .cfc-preview .cfc-bar{height:16px;filter:blur(1.1px);}
-  #view-conflict .cfc-preview-lab{text-align:center;font-size:8.5px;letter-spacing:.14em;font-weight:900;color:var(--c-ink500);margin-top:10px;}
-  /* Offseason static sample */
-  #view-conflict .cfc-demo{position:relative;margin-top:4px;}
-  #view-conflict .cfc-sample-badge{position:absolute;top:10px;right:10px;font-size:8px;font-weight:900;letter-spacing:.16em;color:var(--c-ink500);border:1px solid var(--c-line);border-radius:999px;padding:2px 8px;background:var(--c-card);z-index:2;}
 </style>
 <div id="view-conflict"></div>
 <script>
-/* ── inlined Conflict Engine (mirror of repo conflict-engine.js) ── */
+/* ── inlined Conflict Engine (extended: each league entry carries format/live/tier
+   for the v4 cluster/target layout; floor/ceiling math unchanged) ── */
 (function (root) {
   var DECIDED = ['LOCKED_WIN','LOCKED_LOSS','FINAL_WIN','FINAL_LOSS','FINAL_TIE'];
   var TIER_W = { 1:1.0, 2:0.5, 3:0.25 };
   function isDecided(s){ return DECIDED.indexOf(s)!==-1; }
   function isLiveLeague(s){ return s && s!=='NO_MATCHUP' && !isDecided(s); }
   function tierWeight(tierOf,n){ return TIER_W[tierOf?tierOf(n):3] || 0.25; }
+  function tierOfSafe(tierOf,n){ try{ return (tierOf&&tierOf(n))||3; }catch(e){ return 3; } }
   function nightSlot(teamSlot,team){ var s=teamSlot?teamSlot(team):null; if(!s||s.state==='post')return null; return (s.slot==='snf'||s.slot==='mnf')?s.slot:null; }
   function signatureOf(p,ctxByName){ var sig={};
     (p.myLeagues||[]).forEach(function(n){ if(ctxByName[n]&&isLiveLeague(ctxByName[n].leagueState))sig[n]='mine'; });
@@ -18584,7 +18595,8 @@ loadExperimentState();
     Object.keys(sig).forEach(function(name){
       var ctx=ctxByName[name],side=sig[name],P=cProjIn(players,name),margin=(ctx.myProjPts||0)-(ctx.oppProjPts||0);
       projParts.push(P); var live=cLiveIn(players,name); if(live!=null)liveParts.push(live);
-      var e={name:name,side:side,weight:tierWeight(tierOf,name),proj:P};
+      var e={name:name,side:side,weight:tierWeight(tierOf,name),proj:P,
+             format:(ctx.fmt||''),tier:tierOfSafe(tierOf,name),live:(live==null?null:round1(live))};
       if(side==='mine'){ e.floor=P-margin; e.req='NEED '+Math.max(0,Math.round(e.floor))+'+'; floors.push(e.floor); }
       else { e.ceiling=P+margin; e.req='UNDER '+Math.round(e.ceiling); ceils.push(e.ceiling); }
       leagues.push(e);
@@ -18596,10 +18608,6 @@ loadExperimentState();
       signature:sig, leagues:leagues.sort(function(a,b){return (a.side==='mine'?0:1)-(b.side==='mine'?0:1);}),
       window:{floor:floor,ceiling:ceiling,hasGreen:floor<ceiling}, projCombined:round1(projC), liveCombined:liveC==null?null:round1(liveC) };
   }
-  function phi(z){ return 1/(1+Math.exp(-1.702*z)); }
-  function staircaseLoss(cluster,x,edgeSigma){ var sg=edgeSigma||1.6,loss=0;
-    cluster.leagues.forEach(function(lg){ var bk=(lg.side==='mine')?lg.floor:lg.ceiling;
-      var pL=(lg.side==='mine')?(1-phi((x-bk)/sg)):phi((x-bk)/sg); loss+=lg.weight*pL; }); return loss; }
   function computeConflictCards(input){
     var conflicted=input.conflictedPlayers||[],contexts=input.contexts||[],teamSlot=input.teamSlot,tierOf=input.tierOf;
     var ctxByName={}; contexts.forEach(function(c){ ctxByName[c.leagueName]=c; });
@@ -18611,28 +18619,13 @@ loadExperimentState();
       .sort(function(a,b){ return (b.leagues.length-a.leagues.length)||(b.leagues.reduce(function(s,l){return s+l.weight;},0)-a.leagues.reduce(function(s,l){return s+l.weight;},0)); }); }
     var snf=clustersFor('snf'),mnf=clustersFor('mnf'),terminal=!snf.length&&!mnf.length;
     var anyLive=contexts.some(function(c){return isLiveLeague(c.leagueState);});
-    return { snf:snf, mnf:mnf, terminal:terminal, terminalReason:terminal?(anyLive?'no-conflict-left':'all-settled'):null, staircaseLoss:staircaseLoss };
+    return { snf:snf, mnf:mnf, terminal:terminal, terminalReason:terminal?(anyLive?'no-conflict-left':'all-settled'):null };
   }
-  root.ConflictEngine = { computeConflictCards:computeConflictCards, staircaseLoss:staircaseLoss, signatureOf:signatureOf, isLiveLeague:isLiveLeague };
+  root.ConflictEngine = { computeConflictCards:computeConflictCards, signatureOf:signatureOf, isLiveLeague:isLiveLeague };
 })(window);
-
-/* ── gradient bar painter (solid green window, ramp outside) ── */
-(function(){
-  var GREEN=[107,191,140],YELLOW=[217,164,69],RED=[216,106,92];
-  function lerp(a,b,t){return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];}
-  function rgb(c){return 'rgb('+Math.round(c[0])+','+Math.round(c[1])+','+Math.round(c[2])+')';}
-  function maxW(c){return c.leagues.reduce(function(s,l){return s+l.weight;},0)||1;}
-  function colorAt(c,x){ var w=c.window;
-    if(w.hasGreen && x>=w.floor && x<=w.ceiling) return GREEN;
-    var t=Math.min(1, window.ConflictEngine.staircaseLoss(c,x)/maxW(c));
-    return (t<=0.45)?lerp(GREEN,YELLOW,t/0.45):lerp(YELLOW,RED,(t-0.45)/0.55); }
-  window.__cfBarGradient=function(c,min,max){ var s=[],N=46; for(var i=0;i<=N;i++){ var x=min+(max-min)*i/N; s.push(rgb(colorAt(c,x))+' '+(100*i/N).toFixed(1)+'%'); } return 'linear-gradient(90deg,'+s.join(',')+')'; };
-})();
 
 /* ── data + slot accessors ── */
 function cfTeamSlot(team){
-  /* Manual override (testing) wins; otherwise read the live team→slot map the
-     Watch Priority schedule module builds via window.__cfEnsureSlots(). */
   try{ if(window.__cfSlotOverride && window.__cfSlotOverride[team]) return window.__cfSlotOverride[team]; }catch(e){}
   try{ var m=window.__cfTeamSlotMap; if(m){ var s=m[(''+team).toUpperCase().trim()]; if(s)return s; } }catch(e){}
   return null;
@@ -18645,67 +18638,119 @@ function cfData(){ var d=window.__conflictedLastData||{};
     offseason:!!d.offseasonMode, gamesBegun:begun,
     debugWeek:(d.debugInfo&&d.debugInfo.week)||null }; }
 
-/* ── HTML builders ── */
+/* ── helpers ── */
+var CF_MIRACLE = 4; /* pts a fumble/INT can give back — a leg within this over the line stays a longshot */
 function cfEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function cfClamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
-function cfBarRange(c){
-  var pts=[c.window.floor,c.window.ceiling,c.projCombined]; if(c.liveCombined!=null)pts.push(c.liveCombined);
-  pts=pts.filter(function(x){return isFinite(x);});
-  var lo=Math.min.apply(null,pts),hi=Math.max.apply(null,pts);
-  var pad=Math.max(8,(c.window.hasGreen?(c.window.ceiling-c.window.floor):6));
-  return { min:Math.max(0,lo-pad), max:hi+pad };
+function cfLg(name){ try{ return (typeof window.cfMaskLeague==='function')?window.cfMaskLeague(name):name; }catch(e){ return name; } }
+var CF_FMT_LAB={PPR:'PPR',HALF:'&frac12;','1/2':'&frac12;','1/2PPR':'&frac12;',STD:'STD',STANDARD:'STD'};
+function cfFmtLab(f){ var k=(''+(f||'')).toUpperCase().replace(/[\s\-]/g,''); return CF_FMT_LAB[k]||(f?cfEsc(f):'PTS'); }
+
+/* classify one league leg by live standing (monotonic + miracle band) */
+function cfClassify(lg){
+  var bound = lg.side==='mine' ? lg.floor : lg.ceiling;
+  var live = lg.live==null?0:lg.live;
+  lg._bound=bound; lg._live=live; lg._kind=(lg.side==='mine')?'floor':'ceiling';
+  if(lg._kind==='floor'){ lg._state = live>=bound+CF_MIRACLE?'secured':(live>=bound?'holding':'needs'); }
+  else { lg._state = live<=bound?'winning':(live<=bound+CF_MIRACLE?'slipping':'gone'); }
 }
-function cfPct(r,v){ return cfClamp((v-r.min)/(r.max-r.min)*100,0,100); }
-function cfClusterHTML(c,idx,featured){
-  var names=c.players.map(function(p){return cfEsc(p.name);}).join(' &amp; ');
-  var win = c.window.hasGreen ? (Math.round(c.window.floor)+'&ndash;'+Math.round(c.window.ceiling)) : 'your best available split';
-  var sent = '"I need '+names+' '+(c.window.hasGreen?('<b>'+win+'</b>'):('<b>'+win+'</b>'))+' tonight to win my weekend."';
-  var live = c.liveCombined==null?0:c.liveCombined;
-  var tag,cls;
-  if(!c.window.hasGreen){ tag='NO CLEAN WINDOW'; cls='s-build'; }
-  else if(live < c.window.floor){ tag='NEED AT LEAST '+Math.round(c.window.floor)+' POINTS'; cls='s-build'; }
-  else if(live <= c.window.ceiling){ tag='IN THE WINDOW'; cls='s-in'; }
-  else { tag='COLLATERAL DAMAGE'; cls='s-hot'; }
-  var players = c.players.map(function(p){ return '<div class="cfc-p"><div class="nm">'+cfEsc(p.name)+'</div><div class="mt">'+cfEsc(p.pos)+' &middot; '+cfEsc(p.team)+'</div></div>'; }).join('');
-  var rows = c.leagues.map(function(lg){ return '<div class="cfc-row '+(lg.side==='mine'?'mine':'opp')+'"><div class="nm">'+cfEsc((typeof window.cfMaskLeague==='function')?window.cfMaskLeague(lg.name):lg.name)+'<span class="side">'+(lg.side==='mine'?'yours':'theirs')+'</span></div><div class="req">'+lg.req+'</div></div>'; }).join('');
-  var nowin = c.window.hasGreen ? '' : '<div class="cfc-nowin">No single score wins all of them tonight &mdash; here\'s your best available window.</div>';
-  return '<div class="cfc-cl'+(featured?' feat':'')+'">'+
-    '<div class="cfc-sent">'+sent+'</div>'+
-    '<div class="cfc-chip '+cls+'"><span class="pts">LIVE '+live.toFixed(2)+'</span><span class="tag">'+tag+'</span></div>'+
-    (featured?('<div class="cfc-players">'+players+'</div>'):'')+
-    '<div class="cfc-barwrap"><div class="cfc-bar" id="cfc-bar-'+idx+'"></div>'+
-      '<div class="cfc-ghost" id="cfc-ghost-'+idx+'"></div>'+
-      '<div class="cfc-live" id="cfc-live-'+idx+'"><span class="lab">'+live.toFixed(2)+'</span></div></div>'+
-    '<div class="cfc-ticks" id="cfc-ticks-'+idx+'"></div>'+
-    nowin + (featured?('<div class="cfc-why">'+rows+'</div>'):'') +
+/* per-cluster analysis: live legs, per-format true-conflict, per-format live points */
+function cfAnalyze(c){
+  c._live=c.leagues.filter(function(lg){return lg._state!=='secured'&&lg._state!=='gone';});
+  c._gone=c.leagues.filter(function(lg){return lg._state==='gone';});
+  var byFmt={}; c._live.forEach(function(lg){ var f=lg.format||''; (byFmt[f]=byFmt[f]||[]).push(lg); });
+  c._true=false; c._forks=[]; c._ranges=[];
+  Object.keys(byFmt).forEach(function(f){
+    var g=byFmt[f], fl=g.filter(function(x){return x._kind==='floor';}), ce=g.filter(function(x){return x._kind==='ceiling';});
+    if(fl.length&&ce.length){
+      var mf=Math.max.apply(null,fl.map(function(x){return x._bound;})), mc=Math.min.apply(null,ce.map(function(x){return x._bound;}));
+      var flLeg=fl.slice().sort(function(a,b){return b._bound-a._bound;})[0], ceLeg=ce.slice().sort(function(a,b){return a._bound-b._bound;})[0];
+      if(mf<=mc) c._ranges.push({floor:mf,ceil:mc}); else { c._true=true; c._forks.push({floor:mf,ceil:mc,floorLeg:flLeg,ceilLeg:ceLeg}); }
+    }
+  });
+  c._fmtLive={}; c._order=[]; c._live.forEach(function(lg){ var f=lg.format||''; if(c._fmtLive[f]==null){c._fmtLive[f]=lg._live;c._order.push(f);} else if(lg._live>c._fmtLive[f]){c._fmtLive[f]=lg._live;} });
+}
+/* dynamic delta — what still needs to happen (no absolute floor/ceiling shown) */
+function cfDelta(lg){
+  if(lg._kind==='floor'){ var gap=lg._live-lg._bound;
+    if(gap<0) return {txt:'NEED +'+Math.ceil(-gap),cls:'need'};
+    if(Math.round(gap)===0) return {txt:'ON THE LINE',cls:'good'};
+    return {txt:'+'+Math.round(gap)+' CLEAR',cls:'good'};
+  } else { var g=lg._bound-lg._live;
+    if(g<0) return {txt:'NEED &minus;'+Math.ceil(-g),cls:'need'};
+    if(Math.round(g)===0) return {txt:'ON THE LINE',cls:'good'};
+    return {txt:'+'+Math.round(g)+' ROOM',cls:'good'};
+  }
+}
+function cfBestCase(fork){
+  var leg = (fork.floorLeg.tier<=fork.ceilLeg.tier) ? fork.floorLeg : fork.ceilLeg;
+  var lg = cfEsc(cfLg(leg.name));
+  if(leg._kind==='floor'){ var need=Math.ceil(leg._bound-leg._live);
+    return need>0 ? ('Best case: <b>+'+need+' more</b> takes '+lg+'.') : ('Best case: '+lg+' is in hand — protect it.');
+  } else { var room=Math.round(leg._bound-leg._live);
+    return room>=0 ? ('Best case: keep him quiet — <b>'+room+' to give</b> holds '+lg+'.') : ('Best case: <b>a '+Math.ceil(-room)+'-pt drop</b> steals '+lg+' back.');
+  }
+}
+function cfLegHTML(lg, id){
+  var d=cfDelta(lg);
+  return '<div class="cfv-leg"><div class="cfv-legtop"><span class="cfv-lg"><span class="cfv-dot '+(lg.side==='mine'?'mine':'opp')+'"></span>'+cfEsc(cfLg(lg.name))+'</span>'+
+    '<span class="cfv-tgt '+d.cls+'">'+d.txt+'</span></div>'+
+    '<div class="cfv-bar" id="cfleg-'+id+'"><div class="cfv-fill"></div><div class="cfv-mk"></div></div></div>';
+}
+function cfPaintLeg(lg, id){
+  var el=document.getElementById('cfleg-'+id); if(!el)return;
+  var fill=el.querySelector('.cfv-fill'), mk=el.querySelector('.cfv-mk'); if(!fill||!mk)return;
+  var W=Math.max(CF_MIRACLE+3, Math.abs(lg._live-lg._bound)+3), min=lg._bound-W, max=lg._bound+W;
+  var pct=cfClamp((lg._live-min)/(max-min)*100,0,100), G='rgba(107,191,140,', R='rgba(216,106,92,';
+  if(lg._kind==='floor') fill.style.background='linear-gradient(90deg,'+R+'.5) 0%,'+R+'.28) 46%,'+G+'.28) 54%,'+G+'.6) 100%)';
+  else fill.style.background='linear-gradient(90deg,'+G+'.6) 0%,'+G+'.28) 46%,'+R+'.28) 54%,'+R+'.5) 100%)';
+  mk.style.left=pct+'%';
+}
+function cfClusterV4HTML(c, base){
+  var who=c.players.map(function(p){return cfEsc(p.name);}).join(' + ');
+  var posteam = (c.players.length===1) ? (cfEsc(c.players[0].pos)+' &middot; '+cfEsc(c.players[0].team)) : '';
+  var lives = c._order.map(function(f){ return '<div class="cfv-lv"><span class="cfv-lvf">'+cfFmtLab(f)+'</span><span class="cfv-lvn">'+c._fmtLive[f].toFixed(2)+'</span></div>'; }).join('');
+  var badge = c._true ? '<span class="cfv-cb">TRUE CONFLICT</span>' : '';
+  var sum='', sumCls='', best='';
+  if(c._forks.length){ var f=c._forks[0];
+    sum='Can’t win both — it’s <b>'+cfEsc(cfLg(f.floorLeg.name))+'</b> or <b>'+cfEsc(cfLg(f.ceilLeg.name))+'</b>.'; sumCls=' true';
+    best='<div class="cfv-best">'+cfBestCase(f)+'</div>';
+  } else if(c._ranges.length===1 && c._live.length===2){ var r=c._ranges[0];
+    sum='Win both — he needs <b>'+Math.round(r.floor)+'&ndash;'+Math.round(r.ceil)+'</b>.';
+  } else if(c._live.length>1){ sum='Every one still winnable — hold the targets below.'; }
+  var legs=c._live.slice().sort(function(a,b){ var rank={needs:0,slipping:1,holding:2,winning:2}; return rank[a._state]-rank[b._state]; })
+    .map(function(lg,i){ lg.__id=base+i; return cfLegHTML(lg, base+i); }).join('');
+  return '<div class="cfv-cl'+(c._true?' true':'')+'">'+
+    '<div class="cfv-head">'+badge+
+      '<span class="cfv-id"><span class="cfv-nm">'+who+'</span>'+(posteam?('<span class="cfv-pt">'+posteam+'</span>'):'')+'</span>'+
+      '<span class="cfv-lives">'+lives+'</span></div>'+
+    (sum?('<div class="cfv-sum'+sumCls+'">'+sum+'</div>'):'')+ best + legs +
   '</div>';
 }
-function cfPaintBar(c,idx){
-  var r=cfBarRange(c), bar=document.getElementById('cfc-bar-'+idx); if(!bar)return;
-  bar.style.background=window.__cfBarGradient(c,r.min,r.max);
-  var live=c.liveCombined==null?0:c.liveCombined;
-  var lm=document.getElementById('cfc-live-'+idx); if(lm)lm.style.left=cfPct(r,live)+'%';
-  var gh=document.getElementById('cfc-ghost-'+idx); if(gh)gh.style.left=cfPct(r,c.projCombined)+'%';
-  var tk=document.getElementById('cfc-ticks-'+idx);
-  if(tk && c.window.hasGreen){ tk.innerHTML=
-    '<span style="left:'+cfPct(r,c.window.floor)+'%">'+Math.round(c.window.floor)+'<small>FLOOR</small></span>'+
-    '<span style="left:'+cfPct(r,c.window.ceiling)+'%">'+Math.round(c.window.ceiling)+'<small>CEILING</small></span>'; }
-  else if(tk){ tk.innerHTML=''; }
+function cfHero(liveClusters){
+  var allLegs=[]; liveClusters.forEach(function(c){ c._live.forEach(function(lg){ allLegs.push(lg); }); });
+  var anyTrue=liveClusters.some(function(c){return c._true;});
+  var anyNeeds=allLegs.some(function(lg){return lg._state==='needs';});
+  var anyPrayer=allLegs.some(function(lg){return lg._state==='slipping';});
+  var allPrayer=allLegs.length>0 && allLegs.every(function(lg){return lg._state==='slipping';});
+  var n=liveClusters.length;
+  if(anyTrue) return {cls:'true',badge:'TRUE CONFLICT',stat:'You can’t run the table tonight.',sub:'A player below can win one league or the other — not both. Your call how it falls.',n:n};
+  if(allPrayer) return {cls:'hope',stat:(n===1?'It’s down to a long shot.':'It’s down to long shots.'),sub:'Only a negative play swings it now — but it’s not over till the whistle.',n:n};
+  return {cls:'win',stat:(n===1?'You can win it tonight.':'You can win all of it tonight.'),sub:((anyNeeds||anyPrayer)?'Still winnable — hold what you’ve got and get the rest home.':'Clean path — hold each target below.'),n:n};
+}
+function cfHeroHTML(h){
+  return '<div class="cfv-hero '+h.cls+'">'+(h.badge?('<div class="cfv-badge">'+h.badge+'</div>'):'')+
+    '<div class="cfv-stat">'+h.stat+'</div><div class="cfv-sub">'+h.sub+'</div>'+
+    '<div class="cfv-count"><b>'+h.n+'</b> conflict'+(h.n>1?'s':'')+' still live</div></div>';
 }
 function cfTerminalHTML(reason){
   var p = (reason==='all-settled')
     ? 'Every league is decided &mdash; nothing left to root for or against. Enjoy the games.'
     : 'None of your remaining players are split across your leagues tonight, so there\'s no score to root for or against here. Any matchups you\'ve still got riding are clean, one-way cheers &mdash; track them on your Weekend Snapshot.';
-  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD</div><div class="cfc-term"><div class="ico">&#127944;</div><h4>No conflicts left to sweat</h4><p>'+p+'</p><a id="cfc-snaplink">&#128202;&nbsp; See your Weekend Snapshot</a></div></div>';
+  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD</div><div class="cfc-term"><div class="ico">&#127944;</div><h4>Nothing left to sweat</h4><p>'+p+'</p><a id="cfc-snaplink">&#128202;&nbsp; See your Weekend Snapshot</a></div></div>';
 }
-/* Afternoon-suppression: the End-of-Week card only draws precise night windows
-   once the Sunday afternoon slate is final (then floors/ceilings are computed
-   against real margins, not projections). Returns:
-     'none'        — no schedule loaded (offseason / not fetched) → let the engine
-                     fall through to its terminal state.
-     'pre-evening' — there's a Sunday afternoon slate still unfinished → hold the
-                     card behind the placeholder below.
-     'ready'       — afternoon final (or no afternoon slate this week) → show windows. */
+
+/* Afternoon-suppression gate — see original. */
 function cfScheduleState(){
   var m=window.__cfTeamSlotMap;
   if(!m||!Object.keys(m).length) return 'none';
@@ -18715,7 +18760,6 @@ function cfScheduleState(){
 }
 function cfSnap(){ if(window.showSnapshot)window.showSnapshot(); }
 function cfWireTeaser(){ var s=document.getElementById('cfc-snaplink'); if(s)s.onclick=cfSnap; }
-/* Which night(s) actually hold the conflicts — drives the kicker + "come back" copy. */
 function cfNights(res){
   var s=res.snf&&res.snf.length>0, m=res.mnf&&res.mnf.length>0;
   if(s&&m) return { kick:'SUNDAY + MONDAY NIGHT', when:'Sunday and Monday night' };
@@ -18723,7 +18767,6 @@ function cfNights(res){
   if(s) return { kick:'SUNDAY NIGHT', when:'Sunday night' };
   return { kick:'TONIGHT', when:'the night games' };
 }
-/* De-duped list of conflicted players still to play in a night slot. */
 function cfNightPlayers(res){
   var names=[], seen={};
   (res.snf||[]).concat(res.mnf||[]).forEach(function(c){
@@ -18731,27 +18774,13 @@ function cfNightPlayers(res){
   });
   return names;
 }
-/* Dimmed, shape-only preview of the featured night cluster (no digits). */
-function cfPreviewHTML(res){
-  var clusters=(res.snf&&res.snf.length)?res.snf:res.mnf;
-  if(!clusters||!clusters.length) return '';
-  return '<div class="cfc-preview"><div class="cfc-bar" id="cfc-pv-bar"></div>'+
-    '<div class="cfc-preview-lab">PREVIEW &middot; SHARPENS WHEN THE AFTERNOON GAMES GO FINAL</div></div>';
-}
-function cfPaintPreview(res){
-  var clusters=(res.snf&&res.snf.length)?res.snf:res.mnf;
-  if(!clusters||!clusters.length) return;
-  var c=clusters[0], bar=document.getElementById('cfc-pv-bar'); if(!bar)return;
-  var r=cfBarRange(c); bar.style.background=window.__cfBarGradient(c,r.min,r.max);
-}
-/* Gate 1 — the fantasy week is underway; windows lock once the afternoon is final. */
+/* Gate 1 — fantasy week underway; targets sharpen once the afternoon is final. */
 function cfGate1HTML(res){
   var n=cfNights(res);
   return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; '+n.kick+'</div>'+
     '<div class="cfc-teaser"><div class="ico">&#127769;</div>'+
-    '<h4>Your windows sharpen when the afternoon games go final</h4>'+
-    '<p>This card turns each of your split players into one exact target window &mdash; the <b>floor</b> you need and the <b>ceiling</b> before it flips. It locks the moment the afternoon slate goes final. Come back '+n.when+' for your live target.</p></div>'+
-    cfPreviewHTML(res)+
+    '<h4>Your targets sharpen when the afternoon games go final</h4>'+
+    '<p>This card turns each split player into an exact live target &mdash; how many more you need, or how much room is left before it flips. It locks the moment the afternoon slate goes final. Come back '+n.when+' for your live targets.</p></div>'+
     '<div class="cfc-teaser"><a id="cfc-snaplink">&#128202;&nbsp; Meanwhile, see your Weekend Snapshot</a></div></div>';
 }
 /* Gate 2 — in-season, pre-kickoff; name the conflicted night players. */
@@ -18768,84 +18797,93 @@ function cfGate2HTML(res){
   }
   return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; '+n.kick+'</div>'+
     '<div class="cfc-teaser"><div class="ico">&#127769;</div><h4>'+head+'</h4>'+lead+
-    '<p>Once games kick off, this card locks the exact score you need from them &mdash; <b>floor</b> and <b>ceiling</b> &mdash; so you know when to cheer and when to stop. Check back '+n.when+'.</p></div>'+
-    cfPreviewHTML(res)+
+    '<p>Once games kick off, this card locks each live target &mdash; when to cheer and when to root him quiet. Check back '+n.when+'.</p></div>'+
     '<div class="cfc-teaser"><a id="cfc-snaplink">&#128202;&nbsp; Meanwhile, see your Weekend Snapshot</a></div></div>';
 }
-/* Offseason — no live slate; explain the feature + show a static sample card. */
+/* Offseason — explain the feature + a static v4 sample. */
 function cfDemoCardHTML(){
-  return '<div class="cfc-cl feat cfc-demo"><div class="cfc-sample-badge">SAMPLE</div>'+
-    '<div class="cfc-sent">"I need <b>J. Hurts &amp; A.J. Brown 41&ndash;52</b> tonight to win my weekend."</div>'+
-    '<div class="cfc-chip s-in"><span class="pts">LIVE 44.6</span><span class="tag">IN THE WINDOW</span></div>'+
-    '<div class="cfc-barwrap"><div class="cfc-bar" style="background:linear-gradient(90deg,rgb(216,106,92) 0%,rgb(217,164,69) 20%,rgb(107,191,140) 38%,rgb(107,191,140) 70%,rgb(217,164,69) 85%,rgb(216,106,92) 100%)"></div>'+
-    '<div class="cfc-live" style="left:52%"><span class="lab">44.6</span></div></div>'+
-    '<div class="cfc-ticks" style="height:24px"><span style="left:34%">41<small>FLOOR</small></span><span style="left:70%">52<small>CEILING</small></span></div>'+
-    '</div>';
+  return '<div class="cfv-group"><div class="cfv-cl">'+
+    '<div class="cfv-head"><span class="cfv-id"><span class="cfv-nm">J. Hurts</span><span class="cfv-pt">QB &middot; PHI</span></span>'+
+    '<span class="cfv-lives"><div class="cfv-lv"><span class="cfv-lvf">&frac12;</span><span class="cfv-lvn">18.40</span></div></span></div>'+
+    '<div class="cfv-sum">Win both — he needs <b>16&ndash;24</b>.</div>'+
+    '<div class="cfv-leg"><div class="cfv-legtop"><span class="cfv-lg"><span class="cfv-dot mine"></span>Dynasty Kings</span><span class="cfv-tgt good">+2 CLEAR</span></div><div class="cfv-bar"><div class="cfv-fill" style="background:linear-gradient(90deg,rgba(216,106,92,.5) 0%,rgba(216,106,92,.28) 46%,rgba(107,191,140,.28) 54%,rgba(107,191,140,.6) 100%)"></div><div class="cfv-mk" style="left:60%"></div></div></div>'+
+    '<div class="cfv-leg"><div class="cfv-legtop"><span class="cfv-lg"><span class="cfv-dot opp"></span>The Money League</span><span class="cfv-tgt good">+6 ROOM</span></div><div class="cfv-bar"><div class="cfv-fill" style="background:linear-gradient(90deg,rgba(107,191,140,.6) 0%,rgba(107,191,140,.28) 46%,rgba(216,106,92,.28) 54%,rgba(216,106,92,.5) 100%)"></div><div class="cfv-mk" style="left:40%"></div></div></div>'+
+    '</div></div>';
 }
 function cfOffseasonHTML(){
   return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; PREVIEW</div>'+
     '<div class="cfc-teaser"><div class="ico">&#127944;&#65039;</div>'+
-    '<h4>This is where your Sunday-night windows will live</h4>'+
-    '<p>In season, the Conflict Card turns every player you’re rooting for <b>and</b> against into one exact target window &mdash; the <b>floor</b> you need, the <b>ceiling</b> before it flips. Here’s a sample of a live Sunday night. Lights up again Week&nbsp;1.</p></div>'+
+    '<h4>This is where your Sunday-night targets will live</h4>'+
+    '<p>In season, the Conflict Card lines up every player you’re rooting for <b>and</b> against and gives you one live target per league &mdash; when to cheer, when to root him quiet. Here’s a sample. Lights up again Week&nbsp;1.</p></div>'+
     cfDemoCardHTML()+
     '<div class="cfc-teaser"><a id="cfc-snaplink">&#128202;&nbsp; See your Weekend Snapshot</a></div></div>';
 }
+
 function cfRenderConflictCard(){
   var host=document.getElementById('view-conflict'); if(!host||!window.ConflictEngine)return;
-  /* Ensure the live-week SNF/MNF slot map is loaded; refresh at most ~once a
-     minute and re-render when a fresh fetch resolves (guarded against loops). */
   if(typeof window.__cfEnsureSlots==='function' && !window.__cfSlotsLoading && (!window.__cfTeamSlotMap || (Date.now()-(window.__cfSlotsAt||0)>55000))){
     window.__cfSlotsLoading=true;
     window.__cfEnsureSlots().then(function(){ window.__cfSlotsAt=Date.now(); window.__cfSlotsLoading=false; if(window.__cfConflictOpen)cfRenderConflictCard(); }).catch(function(){ window.__cfSlotsLoading=false; });
   }
   var d=cfData();
   var res=window.ConflictEngine.computeConflictCards({ conflictedPlayers:d.players, contexts:d.contexts, teamSlot:window.cfTeamSlot, tierOf:window.__cfTier });
-  /* Pre-lock states. Only 'ready' (afternoon final, or no afternoon slate this
-     week) falls through to the real windows / terminal card below. */
+  /* Pre-lock states. Only 'ready' falls through to the live target list below. */
   if(cfScheduleState()!=='ready'){
-    var slp2;
-    /* 1) True offseason (or no league context yet) → message + static sample. */
-    if(d.offseason || !d.contexts.length){
-      host.innerHTML=cfOffseasonHTML(); cfWireTeaser(); return;
-    }
-    /* 2) In-season, games underway (any points on the board) → windows lock tonight. */
-    if(d.gamesBegun){
-      host.innerHTML=cfGate1HTML(res); cfPaintPreview(res); cfWireTeaser(); return;
-    }
-    /* 3) In-season, pre-kickoff, slot map loaded → name the night players + preview. */
+    if(d.offseason || !d.contexts.length){ host.innerHTML=cfOffseasonHTML(); cfWireTeaser(); return; }
+    if(d.gamesBegun){ host.innerHTML=cfGate1HTML(res); cfWireTeaser(); return; }
     var slotLoaded=!!(window.__cfTeamSlotMap && Object.keys(window.__cfTeamSlotMap).length);
-    if(slotLoaded){
-      host.innerHTML=cfGate2HTML(res); cfPaintPreview(res); cfWireTeaser(); return;
-    }
-    /* 4) In-season week with NO slot map — should never happen (schedule always
-       fetchable during the season). Alert admin via analytics, show safe copy. */
+    if(slotLoaded){ host.innerHTML=cfGate2HTML(res); cfWireTeaser(); return; }
     try{ if(window.cfTrack)cfTrack('conflict_card_error',{reason:'slotmap_missing_ingame',week:d.debugWeek}); }catch(e){}
-    try{ console.error('[ConflictCard] slot map missing on in-season week — schedule fetch failed'); }catch(e){}
-    host.innerHTML=cfGate1HTML(res); cfPaintPreview(res); cfWireTeaser(); return;
+    host.innerHTML=cfGate1HTML(res); cfWireTeaser(); return;
   }
-  if(res.terminal){ host.innerHTML=cfTerminalHTML(res.terminalReason); var sl=document.getElementById('cfc-snaplink'); if(sl)sl.onclick=function(){ if(window.showSnapshot)window.showSnapshot(); }; return; }
+  if(res.terminal){ host.innerHTML=cfTerminalHTML(res.terminalReason); var sl0=document.getElementById('cfc-snaplink'); if(sl0)sl0.onclick=cfSnap; return; }
+
   var haveSnf=res.snf.length>0, haveMnf=res.mnf.length>0;
   if(!window.__cfConflictSlot)window.__cfConflictSlot='snf';
   if(window.__cfConflictSlot==='snf'&&!haveSnf&&haveMnf)window.__cfConflictSlot='mnf';
   if(window.__cfConflictSlot==='mnf'&&!haveMnf&&haveSnf)window.__cfConflictSlot='snf';
-  var slot=window.__cfConflictSlot, clusters=(slot==='mnf')?res.mnf:res.snf;
-  var kick='CONFLICT CARD &middot; '+(slot==='mnf'?'MONDAY NIGHT':'SUNDAY NIGHT')+(clusters.length>1?(' &middot; '+clusters.length+' CONFLICTS'):'');
+  var slot=window.__cfConflictSlot, slotClusters=(slot==='mnf')?res.mnf:res.snf;
+
+  /* classify every leg (game slots that are 'post' are already excluded, so a shown
+     leg is always live → never close a manager's hope before the whistle). */
+  slotClusters.forEach(function(c){ c.leagues.forEach(function(lg){ cfClassify(lg); }); });
+  var anyLive = slotClusters.some(function(c){ return c.leagues.some(function(lg){ return lg._state!=='secured'&&lg._state!=='gone'; }); });
+  if(!anyLive){ var best=null; slotClusters.forEach(function(c){ c.leagues.forEach(function(lg){ if(lg._state==='gone'){ var over=lg._live-lg._bound; if(!best||over<best.over)best={lg:lg,over:over}; } }); }); if(best)best.lg._state='slipping'; }
+  slotClusters.forEach(function(c){ cfAnalyze(c); });
+  var liveClusters=slotClusters.filter(function(c){ return c._live.length>0; });
+  if(!liveClusters.length){ host.innerHTML=cfTerminalHTML('no-conflict-left'); var sl1=document.getElementById('cfc-snaplink'); if(sl1)sl1.onclick=cfSnap; return; }
+  liveClusters.forEach(function(c){ c._urg=c._true?100:(c._live.some(function(lg){return lg._state==='needs'||lg._state==='slipping';})?60:20); });
+  liveClusters.sort(function(a,b){ return b._urg-a._urg; });
+
+  var miracleLegs=[]; slotClusters.forEach(function(c){ (c._gone||[]).forEach(function(lg){ if(lg.side==='opp')miracleLegs.push(lg); }); });
+
+  var h=cfHero(liveClusters);
+  var kick='CONFLICT CARD &middot; '+(slot==='mnf'?'MONDAY NIGHT':'SUNDAY NIGHT');
   var toggle = (haveSnf&&haveMnf) ? ('<div class="cfc-toggle"><button data-cfslot="snf" class="'+(slot==='snf'?'on':'')+'">SUNDAY NIGHT</button><button data-cfslot="mnf" class="'+(slot==='mnf'?'on':'')+'">MONDAY NIGHT</button></div>') : '';
   var prov = (slot==='mnf') ? '<div class="cfc-prov"><span>&#9432;</span><span><b>Provisional.</b> Sunday-night results still feed these leagues, so this can shift before kickoff.</span></div>' : '';
+
+  var base=0, clHtml='';
+  liveClusters.forEach(function(c){ clHtml+=cfClusterV4HTML(c, base); base+=c._live.length; });
+  var miracleHtml='';
+  if(miracleLegs.length){
+    var nm=miracleLegs.map(function(lg){return '<b>'+cfEsc(cfLg(lg.name))+'</b>';});
+    var joined=nm.length===1?nm[0]:(nm.slice(0,-1).join(', ')+' and '+nm[nm.length-1]);
+    miracleHtml='<div class="cfv-miracle">'+joined+' '+(nm.length>1?'are':'is')+' out of reach now — only a fumble or pick brings '+(nm.length>1?'them':'it')+' back.</div>';
+  }
+
   host.innerHTML='<div class="cfc-frame" id="cfc-frame"><div class="cfc-kick">'+kick+'</div>'+toggle+prov+
-    cfClusterHTML(clusters[0],0,true)+
-    (clusters.length>1?('<div class="cfc-stack-h">'+(clusters.length-1)+' MORE CONFLICT'+(clusters.length-1>1?'S':'')+' TONIGHT</div>'+clusters.slice(1).map(function(c,i){return cfClusterHTML(c,i+1,false);}).join('')):'')+
+    cfHeroHTML(h)+'<div class="cfv-group">'+clHtml+'</div>'+miracleHtml+
     '</div>'+
     '<button class="cfc-share" id="cfc-share" type="button">&#x2197;&nbsp; Share This Card</button>';
-  clusters.forEach(function(c,i){ cfPaintBar(c,i); });
+
+  liveClusters.forEach(function(c){ c._live.forEach(function(lg){ if(lg.__id!=null)cfPaintLeg(lg, lg.__id); }); });
   host.querySelectorAll('[data-cfslot]').forEach(function(btn){ btn.onclick=function(){ window.__cfConflictSlot=btn.getAttribute('data-cfslot'); cfRenderConflictCard(); }; });
   var csBtn=document.getElementById('cfc-share'); if(csBtn)csBtn.onclick=cfShareConflictCard;
   if(window.cfShare&&window.cfShare.warm)window.cfShare.warm();
 }
 window.__cfRenderConflictCard=cfRenderConflictCard;
 
-/* Export the conflict card as a branded PNG via the unified cfShare footer. The
-   button lives OUTSIDE #cfc-frame so it isn't captured. */
+/* Export as a branded PNG via the unified cfShare footer (button lives OUTSIDE #cfc-frame). */
 var cfcSharing=false;
 function cfShareConflictCard(){
   if(cfcSharing)return; cfcSharing=true;
