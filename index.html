@@ -9593,23 +9593,29 @@ async function loadData(){
     return e;
   }
   const ptsKey=p=>typeof p==='string'?p:p.player_key;
-  const projForPlayer=(p,fmt)=>(typeof p==='string'&&!isHist&&hasProj)?projPtsFmt(p,fmt):null;
+  /* League-scored per-player projection: apply the league's real scoring_settings
+     to the projected stat line (mirrors how Sleeper derives its own projection),
+     not the generic pts_std/pts_ppr/pts_half_ppr fields whose canonical template
+     over-credits QBs under custom scoring. */
+  const projScoreP=(id,scoring)=>{const p0=sleeperProjections[id];if(!p0||!scoring)return null;const p=(p0.stats&&typeof p0.stats==='object')?p0.stats:p0;let t=0;for(const k in scoring){const v=p[k];if(typeof v==='number')t+=v*scoring[k];}return +t.toFixed(2);};
+  const projForPlayer=(p,scoring)=>(typeof p==='string'&&!isHist&&hasProj)?projScoreP(p,scoring):null;
   valid.forEach(lg=>{
     const ctx=leagueContexts.find(c=>c.leagueName===lg.leagueName);
+    const projScoring=normalizeScoringForContext(ctx);
     lg.myPlayers.forEach(p=>{
       const e=ensure(p);
       if(!e.myLeagues.includes(lg.leagueName))e.myLeagues.push(lg.leagueName);
       const k=ptsKey(p);const pts=ctx?.myPP[k]??null;
-      let proj=(ctx&&ctx.myProjPP&&ctx.myProjPP[k]!=null)?ctx.myProjPP[k]:projForPlayer(p,lg.fmt);
-      if(proj==null&&!isHist&&e.sleeperId)proj=projPtsFmt(e.sleeperId,lg.fmt); // Yahoo/ESPN fill-in via Sleeper
+      let proj=(ctx&&ctx.myProjPP&&ctx.myProjPP[k]!=null)?ctx.myProjPP[k]:projForPlayer(p,projScoring);
+      if(proj==null&&!isHist&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring); // Yahoo/ESPN fill-in via Sleeper
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
     });
     lg.oppPlayers.forEach(p=>{
       const e=ensure(p);
       if(!e.againstLeagues.includes(lg.leagueName))e.againstLeagues.push(lg.leagueName);
       const k=ptsKey(p);const pts=ctx?.oppPP[k]??null;
-      let proj=(ctx&&ctx.oppProjPP&&ctx.oppProjPP[k]!=null)?ctx.oppProjPP[k]:projForPlayer(p,lg.fmt);
-      if(proj==null&&!isHist&&e.sleeperId)proj=projPtsFmt(e.sleeperId,lg.fmt); // Yahoo/ESPN fill-in via Sleeper
+      let proj=(ctx&&ctx.oppProjPP&&ctx.oppProjPP[k]!=null)?ctx.oppProjPP[k]:projForPlayer(p,projScoring);
+      if(proj==null&&!isHist&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring); // Yahoo/ESPN fill-in via Sleeper
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
     });
     (lg.myBench||[]).forEach(p=>{
@@ -11733,12 +11739,13 @@ const PROVIDERS={
       const leagues=await getLeagues(user.user_id,season);
       if(!leagues?.length)return{results:[],contexts:[],debugLeagues:[]};
       const projections=await getProjections(season,week);const hasProj=Object.keys(projections).length>0;
-      /* Format-aware: pick PPR / Half-PPR / Std by the league's scoring fmt so the
-         scoreboard projected-final total matches Sleeper's own header. Prior code
-         hardcoded pts_ppr, inflating non-PPR leagues by the reception bonus. */
-      const projFmtField=fmt=>{const f=(''+(fmt||'')).toLowerCase();if(f.indexOf('half')>=0)return'pts_half_ppr';if(f.indexOf('std')>=0||f.indexOf('standard')>=0)return'pts_std';return'pts_ppr';};
-      const projPts=(id,fmt)=>{const p=projections[id];if(!p)return null;const fld=projFmtField(fmt);return p[fld]??p.pts_ppr??p.pts_half_ppr??p.pts_std??null;};
-      const projSum=(ids,fmt)=>ids.reduce((s,id)=>s+(projPts(id,fmt)??0),0);
+      /* League-scored projection total: apply the league's actual scoring_settings to
+         each player's projected stat line — the way Sleeper itself derives projections —
+         instead of the generic precomputed pts_std/pts_ppr/pts_half_ppr fields, whose
+         canonical template (e.g. 6pt pass TD / -1 INT) diverges from custom league
+         scoring and over-credited QBs by ~3 pts per matchup. */
+      const projScore=(id,scoring)=>{const p0=projections[id];if(!p0||!scoring)return null;const p=(p0.stats&&typeof p0.stats==='object')?p0.stats:p0;let t=0;for(const k in scoring){const v=p[k];if(typeof v==='number')t+=v*scoring[k];}return +t.toFixed(2);};
+      const projSum=(ids,scoring)=>ids.reduce((s,id)=>s+(projScore(id,scoring)??0),0);
       const debugLeagues=[],contexts=[];
       const results=await Promise.all(leagues.map(async lg=>{
         const [rosters,leagueUsers]=await Promise.all([getRosters(lg.league_id),getLeagueUsers(lg.league_id).catch(()=>[])]);
@@ -11773,7 +11780,8 @@ const PROVIDERS={
           const oppStartSet=new Set(oppStarters);
           oppBench=oppStarters.length?oppAll.filter(id=>!oppStartSet.has(id)):[];
           oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
-          myProjPts=hasProj?projSum(myPlayers,fmt):0;oppProjPts=hasProj?projSum(oppPlayers,fmt):0;
+          const projScoring=lg.scoring_settings||synthesizeScoringFromFmt(fmt);
+          myProjPts=hasProj?projSum(myPlayers,projScoring):0;oppProjPts=hasProj?projSum(oppPlayers,projScoring):0;
           leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,myProjPts,oppProjPts);
         }else{myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');}
         myPlayers=myPlayers.filter(id=>id&&id!=='0');
