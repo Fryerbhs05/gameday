@@ -6268,7 +6268,7 @@
 
 <!-- ══ SCRIPT ══════════════════════════════════════════════════ -->
 <script>
-const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=15*60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#7AA8D1','#5790C0','#2B6FA8','#3F5E78','#9E988A','#6E8BA8','#B0BEC9','#4A5A6A'];
+const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#7AA8D1','#5790C0','#2B6FA8','#3F5E78','#9E988A','#6E8BA8','#B0BEC9','#4A5A6A'];
 const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 let liveOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map();
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},hiddenLeagues=new Set(),isAnyProviderLoaded=false,liveToggleAvailable=false,leagueNamesCache=[];
@@ -6537,6 +6537,36 @@ function computeSeasonPointsForLeague(playerStats, scoringSettings){
     total += stat * setting;
   }
   return total;
+}
+
+/* Faithful mirror of how Sleeper turns a PROJECTION into league-scored points.
+   Identical to iterate-scoring for every stat EXCEPT field-goal yardage: Sleeper
+   derives FG yardage from the per-distance-band expected makes at each band's
+   representative distance (validated 25/35/45 for 20-29/30-39/40-49 against live
+   Sleeper values), NOT from the aggregate fgm_yds stat (which folds in phantom
+   sub-20 yardage and reads ~0.6 high). Band point-scoring, flat fgm, XP and every
+   other category still score through the normal per-key multiply. */
+const FG_BAND_DIST={fgm_0_19:10,fgm_20_29:25,fgm_30_39:35,fgm_40_49:45,fgm_50_59:55,fgm_50p:53,fgm_60p:63};
+function scoreProjectionStats(statObj, scoring){
+  if(!statObj||!scoring) return 0;
+  const s=(statObj.stats&&typeof statObj.stats==='object')?statObj.stats:statObj;
+  let t=0;
+  for(const k in scoring){
+    if(k==='fgm_yds'||k==='fgm_yds_over_30') continue; // FG yardage handled via distance bands below
+    const v=s[k];
+    if(typeof v==='number') t+=v*scoring[k];
+  }
+  const rY=scoring.fgm_yds||0, rO=scoring.fgm_yds_over_30||0;
+  if(rY||rO){
+    for(const b in FG_BAND_DIST){
+      const makes=s[b];
+      if(typeof makes!=='number'||!makes) continue;
+      const d=FG_BAND_DIST[b];
+      if(rY) t+=makes*d*rY;
+      if(rO) t+=makes*Math.max(0,d-30)*rO;
+    }
+  }
+  return t;
 }
 
 /* Yahoo/ESPN fallback: synthesize a Sleeper-shaped scoring object from a
@@ -9597,7 +9627,7 @@ async function loadData(){
      to the projected stat line (mirrors how Sleeper derives its own projection),
      not the generic pts_std/pts_ppr/pts_half_ppr fields whose canonical template
      over-credits QBs under custom scoring. */
-  const projScoreP=(id,scoring)=>{const p0=sleeperProjections[id];if(!p0||!scoring)return null;const p=(p0.stats&&typeof p0.stats==='object')?p0.stats:p0;let t=0;for(const k in scoring){const v=p[k];if(typeof v==='number')t+=v*scoring[k];}return +t.toFixed(2);};
+  const projScoreP=(id,scoring)=>{const p0=sleeperProjections[id];if(!p0||!scoring)return null;return +scoreProjectionStats(p0,scoring).toFixed(2);};
   const projForPlayer=(p,scoring)=>(typeof p==='string'&&!isHist&&hasProj)?projScoreP(p,scoring):null;
   valid.forEach(lg=>{
     const ctx=leagueContexts.find(c=>c.leagueName===lg.leagueName);
@@ -11744,7 +11774,7 @@ const PROVIDERS={
          instead of the generic precomputed pts_std/pts_ppr/pts_half_ppr fields, whose
          canonical template (e.g. 6pt pass TD / -1 INT) diverges from custom league
          scoring and over-credited QBs by ~3 pts per matchup. */
-      const projScore=(id,scoring)=>{const p0=projections[id];if(!p0||!scoring)return null;const p=(p0.stats&&typeof p0.stats==='object')?p0.stats:p0;let t=0;for(const k in scoring){const v=p[k];if(typeof v==='number')t+=v*scoring[k];}return +t.toFixed(2);};
+      const projScore=(id,scoring)=>{const p0=projections[id];if(!p0||!scoring)return null;return +scoreProjectionStats(p0,scoring).toFixed(2);};
       const projSum=(ids,scoring)=>ids.reduce((s,id)=>s+(projScore(id,scoring)??0),0);
       const debugLeagues=[],contexts=[];
       const results=await Promise.all(leagues.map(async lg=>{
