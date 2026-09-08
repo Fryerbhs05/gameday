@@ -6398,7 +6398,17 @@ async function fetchNflGameStates(season,week){
       let clock='';
       if(state==='in'){const per=comp.status?.period,dc=comp.status?.displayClock;if(per)clock=(per>4?'OT':'Q'+per)+(dc?' '+dc:'');}
       else if(state==='post')clock='Final';
-      (comp.competitors||[]).forEach(c=>{const abbr=c.team?.abbreviation;if(abbr){m.set(abbr,state);if(clock)clk.set(abbr,clock);}});
+      /* File each team under BOTH the raw ESPN abbreviation and the normalized
+         alias (2026-09-08). ESPN says WSH/JAX/LA where Sleeper and Yahoo say
+         WAS/JAC/LAR, and this map was keyed on ESPN's spelling only -- so every
+         lookup for an aliased team missed and returned null, silently degrading
+         `remaining`, `toGo` and the variance model in the Weekend Snapshot.
+         cfNormTeam is a hoisted top-level declaration in this same script. */
+      (comp.competitors||[]).forEach(c=>{const abbr=c.team?.abbreviation;if(abbr){
+        m.set(abbr,state);if(clock)clk.set(abbr,clock);
+        let alias;try{alias=cfNormTeam(abbr);}catch(e){alias=null;}
+        if(alias&&alias!==abbr){m.set(alias,state);if(clock)clk.set(alias,clock);}
+      }});
     });
     nflGameStates=m;nflGameClocks=clk;nflGameStatesKey=key;nflGameStatesAt=Date.now();
   }catch(e){console.warn('NFL game state fetch failed:',e.message);}
@@ -6406,8 +6416,8 @@ async function fetchNflGameStates(season,week){
 function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.team)==='in';}
 /* Accessors so the Weekend Snapshot script (separate IIFE) can read the
    module-scoped NFL game maps. 'pre' | 'in' | 'post' | null. */
-window.__cfGameState=function(team){try{return (team&&nflGameStates.get(team))||null;}catch(e){return null;}};
-window.__cfGameClock=function(team){try{return (team&&nflGameClocks.get(team))||'';}catch(e){return'';}};
+window.__cfGameState=function(team){try{if(!team)return null;return nflGameStates.get(team)||nflGameStates.get(cfNormTeam(team))||null;}catch(e){return null;}};
+window.__cfGameClock=function(team){try{if(!team)return'';return nflGameClocks.get(team)||nflGameClocks.get(cfNormTeam(team))||'';}catch(e){return'';}};
 function loadLiveOnlyState(){try{liveOnly=localStorage.getItem(LIVE_ONLY_KEY)==='1';}catch(e){liveOnly=false;}}
 function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1':'0');}catch(e){}}
 function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();applyFilters();}
@@ -10769,12 +10779,40 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         // Past-tense hero once nothing is still in progress (historic weeks) —
         // "Won N of X" instead of the live "Winning N of X".
         const allFinal=live===0;
+        /* PRE-KICKOFF hero (2026-09-08, Matt) - parity with the Weekend Snapshot.
+           A not-yet-started matchup still reports leagueState 'LIVE', so before
+           kickoff every league lands in `live`, allFinal stays false, and the hero
+           claimed "Winning N of X" off nothing but projections. When EVERY visible
+           matchup is undecided AND still 0-0, say "N Pending Kickoff" instead.
+           Mirrors buildRows()'s pending rule (!decided && curMy<=0 && curOpp<=0);
+           the scoreboard has no rows, so it is recomputed from the contexts here. */
+        const isDecided=st=>!!st&&(st.indexOf('FINAL')===0||st.indexOf('LOCKED')===0);
+        /* Same proof-of-life rule as the Snapshot's buildRows: points on the board
+           settle it first (this also catches a NEGATIVE score, which the old <=0
+           test read as "not started"), then the NFL game clock. The scoreboard has
+           no per-league roster split here, so the clock check runs across every
+           rostered player -- deliberately conservative: ANY game of yours in
+           progress means the slate is not "pending kickoff". */
+        let anyGameStarted=false;
+        try{
+          const d=window.__conflictedLastData||{};
+          const pool=Array.isArray(d.allRostered)?d.allRostered
+            :[].concat(d.cheerFor||[],d.conflicted||[],d.enemies||[]);
+          anyGameStarted=pool.some(p=>{const g=window.__cfGameState&&window.__cfGameState(p&&p.team);return g==='in'||g==='post';});
+        }catch(e){}
+        const allPending=!anyGameStarted&&cs.every(c=>!isDecided(c.leagueState)&&(+c.myPoints||0)===0&&(+c.oppPoints||0)===0);
+        if(allPending){
+          /* No sub-line: the only tally would be "N live now", which is the very
+             claim this branch exists to stop making. */
+          hero='<div class="cf-sb-xhero"><span class="cf-sb-xhero__n">'+cs.length+'</span> Pending Kickoff</div>';
+        }else{
         const verb=allFinal?'Won':'Winning';
         const parts=[];
         if(fin)parts.push(fin+' final');
         if(live)parts.push(live+' live now');
         hero='<div class="cf-sb-xhero">'+verb+' <span class="cf-sb-xhero__n"'+(winning===0?' style="color:var(--ink-900)"':'')+'>'+winning+'</span> of '+cs.length+'</div>'+
              (parts.length>1?'<div class="cf-sb-xhero-sub">'+parts.join(' · ')+'</div>':'');
+        }
       }
     }catch(e){}
     const head=document.createElement('div');head.className='cf-sb-xhead';
@@ -18178,8 +18216,25 @@ loadExperimentState();
       var isFinal=ls.indexOf('FINAL')===0, isLocked=ls.indexOf('LOCKED')===0;
       var isWin=ls.indexOf('WIN')!==-1, isLoss=ls.indexOf('LOSS')!==-1, isTie=ls.indexOf('TIE')!==-1;
       var decided=isFinal||isLocked;
-      var pending=!decided && curMy<=0 && curOpp<=0;   // live state but nothing scored → pre-kickoff
-      var live=!decided && !pending;
+      /* TWO FLAGS, not one (2026-09-08, Matt). These answer different questions and
+         the old single `pending` was doing both jobs badly:
+           noScores - DISPLAY: nothing on the board, so show projections not zeros.
+           pending  - TRUTH:   this matchup genuinely has not kicked off.
+         The old rule (curMy<=0 && curOpp<=0) got both wrong in two ways: a player
+         who is playing but sitting on 0.0 read as "not started" for as long as he
+         stayed blanked, and a NEGATIVE score (D/ST giving up a return TD) is <=0,
+         so a matchup with real points on the board read as not started.
+         `started` takes points as proof of life FIRST, then falls back to the NFL
+         game clock, so it degrades safely: if the ESPN state map hasn't loaded or a
+         team abbreviation misses, we land on the old 0-0 behavior rather than
+         claiming a week is underway on no evidence. */
+      var noScores=(curMy===0 && curOpp===0);
+      var anyStarted=mine.concat(opp).some(function(p){
+        var gs=gameState(p.team); return gs==='in'||gs==='post';
+      });
+      var started=!decided && (!noScores || anyStarted);
+      var pending=!decided && !started;
+      var live=!decided && started;
       // per-side remaining fraction — the variance fallback for players whose NFL
       // game state is unknown (demo mode, or a team not in the scoreboard map yet)
       var myRemFrac=Math.max(0,Math.min(1,(projMy-curMy)/Math.max(1,projMy)));
@@ -18188,7 +18243,7 @@ loadExperimentState();
 
       if(decided&&isWin){ state='cwin'; prob=1; }
       else if(decided&&(isLoss||isTie)){ state='closs'; prob=0; }
-      else if(pending&&!hasProj){ state='flip'; prob=0.5; }   // no projections + no scores → true unknown, not 0%
+      else if(noScores&&!hasProj){ state='flip'; prob=0.5; }   // no projections + no scores → true unknown, not 0%
       else {
         var myRem=Math.max(0,projMy-curMy), oppRem=Math.max(0,projOpp-curOpp);
         var mu=(curMy-curOpp)+(myRem-oppRem), v=0;
@@ -18218,10 +18273,12 @@ loadExperimentState();
         name:name, tier:tierOf(name), state:state, prob:prob,
         curMy:curMy, curOpp:curOpp, projMy:projMy, projOpp:projOpp,
         hasProj:hasProj,
-        pending:pending, live:live, remaining:remaining,
+        pending:pending, live:live, noScores:noScores, remaining:remaining,
         /* fully complete = platform says FINAL, or every player on both sides is post.
-           Drives the "no commentary once it's over" rule in cardDetail(). */
-        done:(isFinal || (!pending && remaining===0)),
+           Drives the "no commentary once it's over" rule in cardDetail(). Keyed on
+           `started` so a never-kicked-off matchup can't be called done just because
+           no player has snaps left (e.g. an empty/unresolved roster). */
+        done:(isFinal || (started && remaining===0)),
         isFinal:isFinal, myToGo:toGo(mine), oppToGo:toGo(opp)
       });
     });
@@ -18253,15 +18310,22 @@ loadExperimentState();
   }
   function cardScore(r){
     var clinched=(r.state==='cwin'||r.state==='closs');
-    var noProj=r.pending&&!r.hasProj;
-    var you=clinched?r.curMy:(r.pending?r.projMy:r.curMy), opp=clinched?r.curOpp:(r.pending?r.projOpp:r.curOpp);
+    /* WHICH NUMBERS to show is a display question, so it keys off noScores, NOT
+       pending: a matchup that has kicked off but is still 0-0 keeps its projections
+       rather than showing a useless pair of zeros. Only `tag` makes a truth claim,
+       so it is the one place the two states are distinguished. */
+    var blank=!clinched&&r.noScores;
+    var noProj=blank&&!r.hasProj;
+    var you=clinched?r.curMy:(blank?r.projMy:r.curMy), opp=clinched?r.curOpp:(blank?r.projOpp:r.curOpp);
     var youTxt=noProj?'&mdash;':nf(you), oppTxt=noProj?'&mdash;':nf(opp);
-    var yl=r.pending?(noProj?'':'PROJ'):(clinched?'FINAL':'YOU'), ol=r.pending?(noProj?'':'PROJ'):(clinched?'':'OPP');
-    var tag=clinched?'LOCKED':(r.pending?'NOT STARTED':'');
+    var yl=blank?(noProj?'':'PROJ'):(clinched?'FINAL':'YOU'), ol=blank?(noProj?'':'PROJ'):(clinched?'':'OPP');
+    var tag=clinched?'LOCKED':(r.pending?'NOT STARTED':(blank?'NO SCORING YET':''));
     /* Live rows: actuals stay the big numbers; add the projected finals as a
        muted secondary line ("where is this heading?"). Pending stays PROJ-only,
-       decided stays FINAL-only — a stale pregame proj next to a final is noise. */
-    var projLine=(r.live&&r.hasProj)?'<div class="cf-c-proj">proj '+nf(r.projMy)+' &ndash; '+nf(r.projOpp)+'</div>':'';
+       decided stays FINAL-only — a stale pregame proj next to a final is noise.
+       A live-but-blank row is already showing the projections as its big numbers,
+       so it suppresses the duplicate line. */
+    var projLine=(r.live&&!blank&&r.hasProj)?'<div class="cf-c-proj">proj '+nf(r.projMy)+' &ndash; '+nf(r.projOpp)+'</div>':'';
     return '<div class="cf-c-score"><div class="cf-c-sc you"><span class="who">'+yl+'</span><span class="pts">'+youTxt+'</span></div>'
       +'<span class="cf-c-vs">vs</span><div class="cf-c-sc opp"><span class="who">'+ol+'</span><span class="pts">'+oppTxt+'</span></div>'
       +(tag?'<span class="cf-c-tag">'+tag+'</span>':'')+'</div>'+projLine;
@@ -18270,7 +18334,7 @@ loadExperimentState();
     var pct=Math.round(r.prob*100), fill=(r.state==='closs')?'#E07A6E':COL[r.state], w=(r.state==='cwin'||r.state==='closs')?100:pct, Lf,Rf;
     if(r.state==='cwin'){Lf='<span style="color:#5DCAA5">'+(r.isFinal?'Win secured':'Clinched')+'</span>';Rf='<span class="muted">+'+nf(margin(r))+' &mdash; can\'t be caught</span>';}
     else if(r.state==='closs'){Lf='<span style="color:#E88A7F">'+(r.isFinal?'Final':'Out of reach')+'</span>';Rf='<span class="muted">&minus;'+nf(margin(r))+'</span>';}
-    else{Lf='<span style="color:'+COL[r.state]+'">'+pct+'% win</span>';Rf='<span class="muted">'+(r.pending?(r.hasProj?'pre-kickoff projection':'not started yet'):'projected')+'</span>';}
+    else{Lf='<span style="color:'+COL[r.state]+'">'+pct+'% win</span>';Rf='<span class="muted">'+(r.pending?(r.hasProj?'pre-kickoff projection':'not started yet'):(r.noScores?'underway &mdash; no scoring yet':'projected'))+'</span>';}
     return '<div class="cf-c-barwrap"><div class="cf-c-bar"><i style="width:'+w+'%;background:'+fill+(r.state==='closs'?';opacity:.6':'')+'"></i></div></div>';
   }
   function cardDetail(r){
@@ -18288,9 +18352,12 @@ loadExperimentState();
         else { txt='Underdog &mdash; projected '+mg+'.'; }
       }
     }
+    /* Kicked off, still 0-0. Without this the gap branch below reads
+       "Up 0.00 and pulling away." off an empty scoreboard. */
+    else if(r.noScores){ic='&#128337;';txt='Underway &mdash; no points on the board yet.';}
     else if(gap>=0){ic='&#9650;';txt='Up <b>'+nf(gap)+'</b>'+(r.oppToGo.length?' &mdash; '+names(r.oppToGo)+' left for them.':' and pulling away.');}
     else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myToGo.length?' &mdash; '+names(r.myToGo)+' to go.':'.');}
-    return '<div class="cf-c-detail'+(r.pending?' is-1line':'')+'"><span>'+txt+'</span></div>';
+    return '<div class="cf-c-detail'+((r.pending||r.noScores)?' is-1line':'')+'"><span>'+txt+'</span></div>';
   }
   /* Screenshot-privacy mask (shared, session-only) — see cfMaskLeague. Applied
      at render so the share PNG, which is cloned off this DOM, inherits it. */
@@ -18305,8 +18372,11 @@ loadExperimentState();
     if(r.pending&&!r.hasProj)return '<div class="cf-t-score"><span class="lbl">NOT STARTED</span></div>';
     var clinched=(r.state==='cwin'||r.state==='closs');
     /* Live tiles show ACTUALS (the static pregame PROJ never moved all day —
-       exactly when you want the real score); pregame keeps PROJ, decided FINAL. */
-    var you=clinched?r.curMy:(r.live?r.curMy:r.projMy), opp=clinched?r.curOpp:(r.live?r.curOpp:r.projOpp), lbl=clinched?'FINAL':(r.live?'LIVE':'PROJ');
+       exactly when you want the real score); pregame keeps PROJ, decided FINAL.
+       `!r.noScores` (not `r.live`) gates the actuals so a kicked-off-but-scoreless
+       tile shows PROJ instead of 0.00 vs 0.00 — same rule as cardScore. */
+    var showLive=r.live&&!r.noScores;
+    var you=clinched?r.curMy:(showLive?r.curMy:r.projMy), opp=clinched?r.curOpp:(showLive?r.curOpp:r.projOpp), lbl=clinched?'FINAL':(showLive?'LIVE':'PROJ');
     return '<div class="cf-t-score"><span class="lbl">'+lbl+'</span><span class="you">'+nf(you)+'</span><span class="dash">vs</span><span class="opp">'+nf(opp)+'</span></div>';
   }
   function gridStatus(r){
@@ -18430,7 +18500,18 @@ loadExperimentState();
     var wins=rows.filter(function(r){return r.state==='cwin'||r.prob>0.5;}).length;
     // Past-tense hero once every matchup is final (historic weeks) — "Won N of X".
     var allFinal=rows.every(function(r){return r.isFinal;});
-    var heroHTML=(allFinal?'Won':'Winning')+' <span'+(wins===0?' style="color:var(--cs-cream)"':'')+'>'+wins+'</span> of '+rows.length;
+    /* PRE-KICKOFF hero (2026-09-08, Matt): before the week starts every matchup is
+       still 0-0, so "Winning N of X" is a claim about projections, not results --
+       nobody is winning anything yet. When EVERY visible row is pre-kickoff, say
+       "N Pending Kickoff" instead. `r.pending` is the TRUTH flag from buildRows
+       (!decided && !started, where started takes points as proof of life first and
+       then the NFL game clock) -- NOT the 0-0 display flag `r.noScores`, which stays
+       true for a matchup that has kicked off but has yet to score. A mixed week
+       (some live, some not yet started) keeps the live "Winning N of X" read. */
+    var allPending=rows.every(function(r){return r.pending;});
+    var heroHTML=allPending
+      ? '<span>'+rows.length+'</span> Pending Kickoff'
+      : (allFinal?'Won':'Winning')+' <span'+(wins===0?' style="color:var(--cs-cream)"':'')+'>'+wins+'</span> of '+rows.length;
     if(hero)hero.innerHTML=heroHTML;
     var parts=[],nC=rows.filter(function(r){return r.state==='cwin';}).length,
         nLive=rows.filter(function(r){return r.live;}).length,
