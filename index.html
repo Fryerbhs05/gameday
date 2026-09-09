@@ -5714,6 +5714,16 @@
   .cf-snap-note p{font-size:12.5px;font-weight:600;color:var(--cs-ink-500);line-height:1.45;max-width:260px;margin:0 auto;}
   /* LIST cards */
   .cf-card{background:var(--cs-navy-card);border:1px solid var(--cs-navy-line);border-radius:15px;padding:12px 14px 13px;margin-bottom:10px;}
+  /* Tap target for the shared matchup drawer (sw v174). DELIBERATELY NON-VISUAL:
+     Matt's call is that NOTHING may hint a row is tappable, because #cf-snap-frame
+     is exactly what cfShare clones for the share PNG. A cursor never rasterises
+     and the iOS tap flash is suppressed, so the exported image is unchanged.
+     DO NOT add a :hover, :active, border or chevron rule here — a visible
+     affordance inside the frame ships in every shared screenshot, and a
+     right-edge one repeats the v168 overflow. Scoped to #cf-snap-content so the
+     desktop preview's identical cards (#cf-snap-deskcols, inside a fake phone)
+     stay inert. */
+  #cf-snap-content [data-cf-lg]{cursor:pointer;-webkit-tap-highlight-color:transparent;}
   .cf-card.win{border-left:3px solid var(--cs-green);}
   .cf-card.loss{border-left:3px solid var(--cs-red);}
   .cf-card.flip{border-left:3px solid var(--cs-blue);}
@@ -8314,6 +8324,40 @@ window.renderMatchupDrawer = renderMatchupDrawer;
   });
 })();
 
+/* Opens — or toggles shut — the matchup drawer for ONE league. Lifted out of the
+   scoreboard's click handler (sw v174) so the Weekend Snapshot's list cards and
+   grid tiles open the identical drawer through the identical path: same context
+   lookup, same owner key, same toggle-off, same in-place swap. Two callers, one
+   implementation, so the two surfaces can never drift.
+   The CALLER decides whether its own row is tappable (the strip tests
+   .is-tappable; the snapshot's buildRows has already dropped NO_MATCHUP and
+   hidden leagues). This only refuses when there is genuinely nothing to render,
+   so a stale name can never open an empty sheet. */
+function cfOpenMatchupDrawer(leagueName){
+  if (!leagueName) return;
+  /* Look up the current context + league data for this matchup. */
+  const ctx = (window.currentContexts || []).find(c => c.leagueName === leagueName);
+  const lg  = (window.currentLeagues  || []).find(l => l.leagueName === leagueName);
+  if (!ctx || typeof window.renderMatchupDrawer !== 'function' || !window.BottomSheet) return;
+  const targetOwner = 'matchup:' + leagueName;
+  /* Toggle off if this matchup's drawer is already open. */
+  if (window.BottomSheet.isOpen() && window.BottomSheet.getOwner() === targetOwner){
+    window.BottomSheet.close();
+    return;
+  }
+  const html = window.renderMatchupDrawer(ctx, lg);
+  if (window.BottomSheet.isOpen()){
+    /* Swap content + owner in place — no re-animation, no race. setOwner fires
+       the previous owner's onClose (e.g. exposure's onSheetClosed) so its
+       caller-level state resets cleanly. */
+    window.BottomSheet.setBody(html);
+    window.BottomSheet.setOwner(targetOwner);
+  } else {
+    window.BottomSheet.open(html, { owner: targetOwner });
+  }
+}
+window.cfOpenMatchupDrawer = cfOpenMatchupDrawer;
+
 /* Delegated click + keyboard handler on the scores strip. Bound once. */
 (function wireScoresStripDelegation(){
   const strip = document.getElementById('scores-strip');
@@ -8321,28 +8365,7 @@ window.renderMatchupDrawer = renderMatchupDrawer;
   strip._delegationBound = true;
   function activate(cell){
     if (!cell || !cell.classList.contains('is-tappable')) return;
-    const leagueName = cell.dataset.league;
-    if (!leagueName) return;
-    /* Look up the current context + league data for this matchup. */
-    const ctx = (window.currentContexts || []).find(c => c.leagueName === leagueName);
-    const lg  = (window.currentLeagues  || []).find(l => l.leagueName === leagueName);
-    if (!ctx || typeof window.renderMatchupDrawer !== 'function' || !window.BottomSheet) return;
-    const targetOwner = 'matchup:' + leagueName;
-    /* Toggle off if this matchup's drawer is already open. */
-    if (window.BottomSheet.isOpen() && window.BottomSheet.getOwner() === targetOwner){
-      window.BottomSheet.close();
-      return;
-    }
-    const html = window.renderMatchupDrawer(ctx, lg);
-    if (window.BottomSheet.isOpen()){
-      /* Swap content + owner in place — no re-animation, no race. setOwner fires
-         the previous owner's onClose (e.g. exposure's onSheetClosed) so its
-         caller-level state resets cleanly. */
-      window.BottomSheet.setBody(html);
-      window.BottomSheet.setOwner(targetOwner);
-    } else {
-      window.BottomSheet.open(html, { owner: targetOwner });
-    }
+    cfOpenMatchupDrawer(cell.dataset.league);
   }
   strip.addEventListener('click', e => activate(e.target.closest('.score-cell.is-tappable')));
   strip.addEventListener('keydown', e => {
@@ -18362,8 +18385,14 @@ loadExperimentState();
   /* Screenshot-privacy mask (shared, session-only) — see cfMaskLeague. Applied
      at render so the share PNG, which is cloned off this DOM, inherits it. */
   function snapMaskLg(n){ try{ return (typeof window.cfMaskLeague==='function')?window.cfMaskLeague(n):n; }catch(e){ return n; } }
+  /* RAW (unmasked) league name, attribute-escaped, stamped on every card + tile so
+     a tap can find its context — the same key the scoreboard's .score-cell uses
+     (cell.dataset.league), which is why one lookup serves both surfaces. Safe
+     under screenshot privacy: an attribute paints no pixels and the share
+     artifact is a rasterised PNG, so the on-screen mask still holds. */
+  function lgAttr(n){ return String(n==null?'':n).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function cardHTML(r){
-    return '<div class="cf-card '+r.state+(r.done?' no-detail':'')+'"><div class="cf-c-row1"><span class="cf-c-name">'+snapMaskLg(r.name)+'</span>'+cardStatus(r)+'</div>'
+    return '<div class="cf-card '+r.state+(r.done?' no-detail':'')+'" data-cf-lg="'+lgAttr(r.name)+'"><div class="cf-c-row1"><span class="cf-c-name">'+snapMaskLg(r.name)+'</span>'+cardStatus(r)+'</div>'
       +cardScore(r)+cardBar(r)+cardDetail(r)+'</div>';
   }
 
@@ -18393,7 +18422,54 @@ loadExperimentState();
     }else{
       inner='<div class="cf-t-row"><div class="cf-t-stat" style="color:'+COL[r.state]+'">'+Math.round(r.prob*100)+'<small>%</small></div>'+gridStatus(r)+'</div>'+gridScore(r);
     }
-    return '<div class="cf-tile '+r.state+'"><div class="cf-t-name">'+snapMaskLg(r.name)+'</div>'+inner+'</div>';
+    return '<div class="cf-tile '+r.state+'" data-cf-lg="'+lgAttr(r.name)+'"><div class="cf-t-name">'+snapMaskLg(r.name)+'</div>'+inner+'</div>';
+  }
+
+  /* ---- tap-to-open the shared matchup drawer (sw v174) ----
+     ATTRIBUTES ONLY, no affordance anywhere — see the #cf-snap-content CSS note.
+     role/tabindex/aria-label carry no pixels, and :hover/:focus can never bake
+     into the PNG regardless: cfShare rasterises a DETACHED CLONE inside a
+     pointer-events:none stage, so no clone is ever hovered and focus (a
+     document-level state) is not copied by cloneNode.
+     RESTAMPED ON EVERY RENDER, because render() replaces content.innerHTML
+     wholesale rather than diffing keyed nodes the way the scoreboard strip does
+     — the same cached-DOM lesson as the v144/v145 mask restamps.
+     Button semantics are applied ONLY inside the live mobile frame. The desktop
+     preview builds the identical cardHTML/tileHTML strings into #cf-snap-deskcols
+     inside a fake phone: those keep the inert data attribute but must never
+     become focusable controls that open a mobile sheet on a desktop. */
+  function stampTaps(root){
+    if(!root)return;
+    var els=root.querySelectorAll('[data-cf-lg]');
+    for(var i=0;i<els.length;i++){
+      var el=els[i];
+      el.setAttribute('role','button');
+      el.setAttribute('tabindex','0');
+      el.setAttribute('aria-label','Open matchup detail for '+snapMaskLg(el.getAttribute('data-cf-lg')));
+    }
+  }
+  /* Delegated so it survives every innerHTML replacement; bound once, idempotent,
+     and called from render() because #cf-snap-content is guaranteed to exist by
+     then. buildRows has already dropped NO_MATCHUP rows and hidden leagues, so
+     every rendered row has a live context; cfOpenMatchupDrawer no-ops otherwise. */
+  function wireTaps(){
+    var c=document.getElementById('cf-snap-content');
+    if(!c||c._cfTapBound)return;
+    c._cfTapBound=true;
+    function fire(t){
+      var el=(t&&t.closest)?t.closest('[data-cf-lg]'):null;
+      if(!el)return false;
+      if(typeof window.cfOpenMatchupDrawer==='function')window.cfOpenMatchupDrawer(el.getAttribute('data-cf-lg'));
+      return true;
+    }
+    c.addEventListener('click',function(e){ fire(e.target); });
+    c.addEventListener('keydown',function(e){
+      if(e.key!=='Enter'&&e.key!==' ')return;
+      var el=(e.target&&e.target.closest)?e.target.closest('[data-cf-lg]'):null;
+      if(!el)return;
+      e.preventDefault();
+      fire(e.target);
+    });
   }
 
   /* ---- render ---- */
@@ -18530,6 +18606,7 @@ loadExperimentState();
     document.getElementById('cf-snap-btn-grid').classList.toggle('is-on',view==='grid');
     if(view==='grid')content.innerHTML='<div class="cf-grid">'+rows.map(tileHTML).join('')+'</div>';
     else content.innerHTML=rows.map(cardHTML).join('');
+    stampTaps(content); wireTaps();
     paintSnapDesktop(false,rows,kickerText,heroHTML,subText,footText);
     startPulse();
   }
