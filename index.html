@@ -19291,7 +19291,21 @@ if(typeof window.cfRegisterView==='function'){
      don't answer to text-align, and the 2-col band would otherwise jump left. */
   .rc-names div{display:flex;align-items:baseline;gap:4px;justify-content:center;}
   .rc-names.cols3 div{justify-content:flex-start;}
-  .rc-names div>.nm{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* .nm FILLS the leftover room (flex:1 1 auto) — it must NOT be shrink-to-fit,
+     and that is an EXPORT constraint, not a look. html-to-image serialises the
+     card by copying every COMPUTED property inline, so whatever width an element
+     resolves to on screen is FROZEN into the PNG. A shrink-to-fit .nm freezes at
+     the exact pixel width of its own text, and the SVG foreignObject then renders
+     that text a few percent wider than the live DOM did (the webfont is embedded
+     and rasterised separately) — so every name overflowed its own frozen box and
+     ellipsised, defences and other SHORT names worst of all, because the "…"
+     costs a fixed ~8px out of a much smaller box ("Lions D/ST" → "Lio…").
+     Filling the row freezes .nm at the FULL available width instead, which is the
+     same slack the plain text node had before the flex change, so a few percent
+     of metric drift is absorbed instead of clipping. Consequence, accepted: the
+     ×N sits at the cell's right edge rather than hugging the name. Hugging
+     REQUIRES shrink-to-fit, and shrink-to-fit cannot survive this export. */
+  .rc-names div>.nm{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .rc-names div>.tm,.rc-names div>.xn{flex:0 0 auto;}
   .rc-more{text-align:center;font:700 10px/1 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.06em;margin-top:9px;padding-top:8px;border-top:1px solid #27425F;}
   /* ── share sheet (BottomSheet body) — no title row, filter pills straight in ── */
@@ -19515,12 +19529,24 @@ if(typeof window.cfRegisterView==='function'){
       if(lp)s+=(lp.proj!=null?+lp.proj:(+lp.pts||0));
     });return s;
   }
-  /* Position-first ordering (site pattern: QB · RB · WR · TE · K · DEF),
-     then league-occurrence count, then projected impact, then name. */
+  /* TWO BUCKETS, then position-first ordering inside each (Matt, 2026-09-09).
+     Bucket 0 = players you hold in MORE THAN ONE league (the ones carrying a ×N
+     badge), bucket 1 = everyone else. Within a bucket the existing rules are
+     unchanged: position (site pattern QB · RB · WR · TE · K · DEF), then
+     league-occurrence count, then projected impact, then name.
+     The bucket test is countOf(p)>1 — deliberately the SAME number that decides
+     whether an ×N badge renders, so the split you see always matches the badges
+     you see. countOf is supplied per band (myLeagues for cheer, againstLeagues
+     for enemy, my+against for conflicted), which also makes this a NO-OP on the
+     CONFLICTED gold band: a conflicted player is on both sides by definition, so
+     its count is always ≥2 and every row lands in bucket 0.
+     NOTE the bands fill COLUMN-MAJOR (v163), so "first" means the top of the
+     LEFT column, not the top row. */
   var POS_RANK={QB:0,RB:1,WR:2,TE:3,K:4,DEF:5,DST:5};
   function posRank(p){var r=POS_RANK[String(p.position||'').toUpperCase()];return r==null?6:r;}
   function bySort(countOf,namesOf){
     return function(a,b){
+      var md=(countOf(a)>1?0:1)-(countOf(b)>1?0:1); if(md)return md;
       var pd=posRank(a)-posRank(b); if(pd)return pd;
       var c=countOf(b)-countOf(a); if(c)return c;
       var pr=projSum(b,namesOf(b))-projSum(a,namesOf(a)); if(pr)return pr;
