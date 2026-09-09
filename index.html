@@ -3369,6 +3369,103 @@
     .exp-list__row:hover { background: var(--paper-deep); padding-left: 6px; padding-right: 6px; }
     .exp-list__row.is-active { background: var(--paper-deep); padding-left: 6px; padding-right: 6px; }
 
+    /* ── Player box-score drawer (opens from a .player-card tap) ──────────
+       Sleeper weekly stat line, all platforms. Deliberately carries NO fantasy
+       points, NO league context and NO semantic color: a TD is not green, an
+       INT is not red. The box score reports, it doesn't editorialize. Only a
+       zero dims (--ink-300). Reuses the shared .sheet shell for chrome. */
+    .pd__head { display: flex; align-items: center; gap: 11px; margin-bottom: 14px; }
+    .pd__avatar {
+      width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+      position: relative; overflow: hidden; background: var(--navy-300);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pd__avatar .avatar-initials { font: 500 14px/1 var(--font-sans); color: var(--paper); }
+    .pd__avatar .player-headshot {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; object-position: top center;
+    }
+    .pd__avatar .dst-logo { object-fit: contain; padding: 6px; }
+    .pd__id { min-width: 0; flex: 1 1 auto; }
+    .pd__name {
+      font: 600 16px/1.15 var(--font-sans); margin: 0; color: var(--ink-900);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .pd__meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+    .pd__logo { width: 14px; height: 14px; object-fit: contain; flex-shrink: 0; }
+    .pd__team { font: 400 11px/1 var(--font-sans); color: var(--ink-500); }
+    .pd__pos {
+      font: 500 9px/1 var(--font-mono); letter-spacing: .1em; color: var(--ink-500);
+      border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px 5px;
+    }
+    .pd__close {
+      margin-left: auto; background: transparent; border: 0; cursor: pointer;
+      color: var(--ink-500); font: 500 11px/1 var(--font-mono);
+      padding: 6px 8px; border-radius: var(--radius-sm); flex-shrink: 0; align-self: flex-start;
+    }
+    .pd__close:hover { background: var(--paper-deep); color: var(--ink-900); }
+    .pd__status {
+      display: flex; align-items: center; gap: 7px; padding: 9px 12px; margin-bottom: 16px;
+      background: var(--paper-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-md);
+    }
+    .pd__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-300); flex-shrink: 0; }
+    .pd__stag {
+      font: 500 10px/1 var(--font-mono); letter-spacing: .1em;
+      text-transform: uppercase; color: var(--ink-500);
+    }
+    .pd__wk { margin-left: auto; font: 500 10px/1 var(--font-mono); letter-spacing: .08em; color: var(--ink-300); }
+    .pd__status[data-state="in"] .pd__dot { background: var(--coral-500); animation: pdPulse 1.6s ease-in-out infinite; }
+    .pd__status[data-state="in"] .pd__stag { color: var(--coral-500); }
+    .pd__status[data-state="post"] .pd__dot { background: var(--ink-500); }
+    .pd__status[data-state="pre"] .pd__dot { background: var(--navy-300); }
+    .pd__status[data-state="none"] .pd__dot { background: var(--split); }
+    .pd__status[data-state="none"] .pd__stag { color: var(--split); }
+    @keyframes pdPulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+    @media (prefers-reduced-motion: reduce) {
+      .pd__status[data-state="in"] .pd__dot { animation: none; }
+    }
+    .pd__grp { margin-bottom: 18px; }
+    .pd__grp:last-of-type { margin-bottom: 0; }
+    .pd__grph { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+    .pd__grph h4 {
+      font: 500 9px/1 var(--font-mono); letter-spacing: .16em; text-transform: uppercase;
+      color: var(--ink-500); margin: 0; flex-shrink: 0;
+    }
+    .pd__grph::after { content: ""; flex: 1 1 auto; height: 1px; background: var(--line-soft); }
+    .pd__tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .pd__tile {
+      background: var(--tile-bg); border: 1px solid var(--tile-line); border-radius: var(--radius-md);
+      padding: 9px 6px 8px; text-align: center; min-width: 0;
+    }
+    .pd__tv {
+      font: 500 19px/1 var(--font-mono); color: var(--ink-900); display: block;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .pd__tl {
+      font: 500 8px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
+      color: var(--ink-500); display: block; margin-top: 6px;
+    }
+    .pd__tile.is-zero .pd__tv { color: var(--ink-300); }
+    .pd__foot {
+      margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line-soft);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .pd__fl { font: 500 9px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500); }
+    .pd__fv { font: 500 12px/1 var(--font-mono); color: var(--ink-700); }
+    .pd__empty { padding: 30px 16px 34px; text-align: center; }
+    .pd__empty h5 { font: 500 13px/1.3 var(--font-sans); color: var(--ink-700); margin: 0 0 6px; }
+    .pd__empty p {
+      font: 400 11px/1.5 var(--font-sans); color: var(--ink-500);
+      margin: 0 auto; max-width: 250px;
+    }
+    .pd__skel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .pd__skel div { height: 52px; border-radius: var(--radius-md); }
+    /* Tap target on Loyalties cards. NO visible affordance by design (same call
+       as the Snapshot rows) — cursor + tap-highlight + a11y attributes only.
+       The card hover lift already lives at .player-card:hover and is unchanged. */
+    .player-card[data-cf-tap="1"] { cursor: pointer; -webkit-tap-highlight-color: rgba(232,135,97,.14); }
+    .player-card[data-cf-tap="1"]:focus-visible { outline: 2px solid var(--coral-500); outline-offset: 2px; }
+
     /* Bottom-sheet overlay shell — shared between Exposure (player/team/settings)
        and Dashboard (matchup detail). Canonical class names are .sheet / .sheet-backdrop;
        .exp-sheet* are kept as aliases so existing exposure markup keeps working. */
@@ -6280,7 +6377,7 @@
 <script>
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#7AA8D1','#5790C0','#2B6FA8','#3F5E78','#9E988A','#6E8BA8','#B0BEC9','#4A5A6A'];
 const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
-let liveOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map();
+let liveOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map(),nflKickoffs=new Map();
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},hiddenLeagues=new Set(),isAnyProviderLoaded=false,liveToggleAvailable=false,leagueNamesCache=[];
 /* Account-level "global exclude": leagues the user switched OFF in the Account
    view. Keyed by `platform|leagueName` (platform-prefixed so identically-named
@@ -6353,6 +6450,7 @@ let espnDiscoverAttempted=false;
    schedule fetch to week 1 (the "games repeat every week" bug). */
 window.getActiveWeek=function(){return activeWeek;};
 window.getActiveSeason=function(){return activeSeason;};
+window.getActiveSeason=function(){return activeSeason;};
 
 const SLEEPER_LS_KEY='gd_sleeper_username';
 const connectionState={
@@ -6399,10 +6497,16 @@ async function fetchNflGameStates(season,week){
     const url=`${ESPN_SCOREBOARD}?dates=${season}&seasontype=2&week=${week}`;
     const r=await fetch(url);if(!r.ok)throw new Error(`ESPN HTTP ${r.status}`);
     const j=await r.json();
-    const m=new Map(),clk=new Map();
+    const m=new Map(),clk=new Map(),kck=new Map();
     (j.events||[]).forEach(ev=>{
       const comp=ev.competitions?.[0];if(!comp)return;
       const state=comp.status?.type?.state||'pre';
+      /* Kickoff ISO for the player box-score drawer's pre-game state. Same
+         response, same loop, no extra request — and it rides this function's
+         60s TTL, which is exactly the drawer's refresh floor. Previously
+         discarded; the only other kickoff source (__cfTeamSlotMap) is lazy and
+         cold until the Conflict Card or Rooting Card sheet is opened. */
+      const kiso=ev.date||comp.date||'';
       // Best-effort game clock for the Live Updates log: "Q3 4:12" while a game
       // is in progress, otherwise omitted (pregame) or "Final".
       let clock='';
@@ -6415,12 +6519,12 @@ async function fetchNflGameStates(season,week){
          `remaining`, `toGo` and the variance model in the Weekend Snapshot.
          cfNormTeam is a hoisted top-level declaration in this same script. */
       (comp.competitors||[]).forEach(c=>{const abbr=c.team?.abbreviation;if(abbr){
-        m.set(abbr,state);if(clock)clk.set(abbr,clock);
+        m.set(abbr,state);if(clock)clk.set(abbr,clock);if(kiso)kck.set(abbr,kiso);
         let alias;try{alias=cfNormTeam(abbr);}catch(e){alias=null;}
-        if(alias&&alias!==abbr){m.set(alias,state);if(clock)clk.set(alias,clock);}
+        if(alias&&alias!==abbr){m.set(alias,state);if(clock)clk.set(alias,clock);if(kiso)kck.set(alias,kiso);}
       }});
     });
-    nflGameStates=m;nflGameClocks=clk;nflGameStatesKey=key;nflGameStatesAt=Date.now();
+    nflGameStates=m;nflGameClocks=clk;nflKickoffs=kck;nflGameStatesKey=key;nflGameStatesAt=Date.now();
   }catch(e){console.warn('NFL game state fetch failed:',e.message);}
 }
 function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.team)==='in';}
@@ -6428,6 +6532,9 @@ function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.
    module-scoped NFL game maps. 'pre' | 'in' | 'post' | null. */
 window.__cfGameState=function(team){try{if(!team)return null;return nflGameStates.get(team)||nflGameStates.get(cfNormTeam(team))||null;}catch(e){return null;}};
 window.__cfGameClock=function(team){try{if(!team)return'';return nflGameClocks.get(team)||nflGameClocks.get(cfNormTeam(team))||'';}catch(e){return'';}};
+/* Kickoff for a team's game this period, as an ISO string (or an epoch ms in
+   replay). '' when the slate hasn't been fetched or the team isn't playing. */
+window.__cfKickoff=function(team){try{if(!team)return'';return nflKickoffs.get(team)||nflKickoffs.get(cfNormTeam(team))||'';}catch(e){return'';}};
 function loadLiveOnlyState(){try{liveOnly=localStorage.getItem(LIVE_ONLY_KEY)==='1';}catch(e){liveOnly=false;}}
 function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1':'0');}catch(e){}}
 function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();applyFilters();}
@@ -6497,6 +6604,43 @@ async function fetchSeasonStats(season){
     return {};
   }
 }
+
+/* ══ WEEKLY BOX SCORE (player drawer) ═══════════════════════════════════════
+   Sleeper's per-week aggregate, same column vocabulary as the season endpoint
+   above (SCORING_RULES enumerates it). This is the SOLE stat source for the
+   player drawer on ALL THREE platforms: ESPN and Yahoo both carry raw stats in
+   payloads we already fetch, but the same human appears in leagues across
+   platforms on one Loyalties card, and per-platform feeds disagree on stat
+   corrections and DST/return conventions — two numbers for one player reads as
+   a bug. Canonical identity is already Sleeper-ID, so one pull serves everyone.
+
+   Cache is IN-MEMORY with a 60s floor and deliberately never localStorage:
+   this is live in-game data, and the season file's 24h treatment would freeze
+   it. In-flight calls coalesce so a burst of taps is one request. Stat
+   corrections keep flowing after a platform finalizes its points — by design,
+   the line is never frozen before the official lock. */
+const WEEK_STATS_TTL = 60*1000;
+let __wkStats={}, __wkStatsKey='', __wkStatsAt=0, __wkStatsInflight=null;
+function fetchWeekStats(season,week){
+  const key=`${season}-${week}`;
+  if(key===__wkStatsKey && __wkStatsAt && Date.now()-__wkStatsAt<WEEK_STATS_TTL){
+    return Promise.resolve(__wkStats);
+  }
+  if(__wkStatsInflight && __wkStatsInflight.key===key) return __wkStatsInflight.p;
+  const p=apiFetch(`${BASE}/stats/nfl/regular/${season}/${week}`).then(function(data){
+    __wkStats=data||{}; __wkStatsKey=key; __wkStatsAt=Date.now(); __wkStatsInflight=null;
+    return __wkStats;
+  }).catch(function(e){
+    console.warn('Week stats fetch failed:',e.message);
+    __wkStatsInflight=null;
+    /* Keep whatever we last had for this period; a transient failure should not
+       blank a box score the user is looking at. */
+    return (key===__wkStatsKey)?__wkStats:{};
+  });
+  __wkStatsInflight={key:key,p:p};
+  return p;
+}
+window.__cfWeekStats=fetchWeekStats;
 
 /* Canonical Sleeper scoring keys we know how to handle. Each entry is either:
      [statKey]                              - 1:1 multiply (pts = stat * setting)
@@ -8835,12 +8979,27 @@ function buildCardInner(player,isHist){
     `</div>`;
 }
 
+/* Stamp a Loyalties card as a box-score tap target. The player object rides on
+   the NODE (_cfPlayer), never in the markup, so the rendered HTML is untouched
+   and no export can pick it up. No visible affordance by design — the CSS adds
+   cursor + tap-highlight only. Suppressed in demo/sample mode, where the
+   players are synthetic and every drawer would come back empty. */
+function cfStampTap(node,player){
+  try{ if(typeof window.inDemoMode==='function' && window.inDemoMode()) return; }catch(e){}
+  node._cfPlayer=player;
+  node.dataset.cfTap='1';
+  node.setAttribute('role','button');
+  node.setAttribute('tabindex','0');
+  node.setAttribute('aria-label','Box score for '+(player.full_name||'this player'));
+}
+
 function buildCard(player,isHist){
   const div=document.createElement('div');
   div.className=`player-card${player.clinched?' clinched':''}`;
   div.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
   div.dataset.team=player.team||'';
   div.dataset.live=isPlayerLive(player)?'1':'0';
+  cfStampTap(div,player);
   const inner=buildCardInner(player,isHist);
   div.innerHTML=inner;
   div._cardHash=inner;
@@ -8858,6 +9017,9 @@ function updateCard(node,player,isHist){
   node.dataset.team=player.team||'';
   node.dataset.live=isPlayerLive(player)?'1':'0';
   node.classList.toggle('clinched',!!player.clinched);
+  /* Cards are reused across the 60s diff-render but the player OBJECT is rebuilt
+     every load — restamp or the drawer opens on a stale snapshot. */
+  cfStampTap(node,player);
   const inner=buildCardInner(player,isHist);
   if(node._cardHash!==inner){
     node.innerHTML=inner;
@@ -10201,12 +10363,13 @@ const cfReplay=(function(){
     /* Drive the module NFL maps directly so isPlayerLive / __cfGameState /
        __cfGameClock (live badges, live-only toggle, Snapshot, Watch) all see
        the virtual slate. Real fetch is bypassed while replay is active. */
-    const m=new Map(),clk=new Map();
+    const m=new Map(),clk=new Map(),kck=new Map();
     Object.keys(teamKick).forEach(t=>{
       m.set(t,__cfReplayCore.teamState(vt,teamKick[t]));
       const c=__cfReplayCore.teamClock(vt,teamKick[t]);if(c)clk.set(t,c);
+      if(teamKick[t])kck.set(t,teamKick[t]);
     });
-    nflGameStates=m;nflGameClocks=clk;nflGameStatesKey='replay';nflGameStatesAt=Date.now();
+    nflGameStates=m;nflGameClocks=clk;nflKickoffs=kck;nflGameStatesKey='replay';nflGameStatesAt=Date.now();
     const liveLeagues=new Set();
     map.forEach(p=>{
       if(!isPlayerLive(p))return;
@@ -14248,6 +14411,256 @@ loadExperimentState();
     getOwner: getOwner,
     getSheetEl: getSheetEl
   };
+})();
+</script>
+
+<!-- ============ Player box-score drawer ============ -->
+<script>
+/* ══ PLAYER BOX SCORE DRAWER ════════════════════════════════════════════════
+   Tapping a Loyalties player card opens this sheet with that player's in-week
+   NFL box score. Sleeper is the sole stat source for every platform (see
+   fetchWeekStats). Locked design: no fantasy points, no league context, no tap
+   affordance, no semantic color, group-level zero-suppression.
+   Module-scoped `let`s in the main script are NOT on window, so everything here
+   goes through the sanctioned accessors: __cfWeekStats, __cfGameState,
+   __cfKickoff, getActiveWeek, getActiveSeason. */
+(function(){
+  'use strict';
+  var OWNER='player-box';
+  var timer=null, current=null;
+
+  function n(v){ return (typeof v==='number' && isFinite(v)) ? v : 0; }
+  function esc(t){ return String(t==null?'':t).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  /* Sleeper keys D/ST rows by team abbreviation, skill players by numeric id. */
+  function statKey(player){
+    var pos=String((player&&player.position)||'').toUpperCase();
+    if(pos==='DEF'||pos==='DST'){
+      try{ return cfNormTeam(player.team||'')||''; }catch(e){ return String(player.team||'').toUpperCase(); }
+    }
+    try{ return resolveSleeperId(player)||''; }catch(e){ return ''; }
+  }
+
+  /* A group renders when it is CORE to the position, or when its volume stat is
+     non-zero. That single rule is the whole zero-suppression spec: a WR's rush
+     line shows, a RB's passing TD shows, and a WR never gets an empty passing
+     block. Adding a position = adding an entry here. */
+  var GROUPS=[
+    { label:'Passing', core:['QB'], vol:function(s){return n(s.pass_att);},
+      tiles:function(s){return [
+        {l:'Cmp/Att',v:n(s.pass_cmp)+'/'+n(s.pass_att)},
+        {l:'Yds',v:n(s.pass_yd)},
+        {l:'TD',v:n(s.pass_td)},
+        {l:'Int',v:n(s.pass_int)}];}},
+    { label:'Rushing', core:['QB','RB'], vol:function(s){return n(s.rush_att);},
+      tiles:function(s){return [
+        {l:'Att',v:n(s.rush_att)},
+        {l:'Yds',v:n(s.rush_yd)},
+        {l:'TD',v:n(s.rush_td)},
+        {l:'Y/A',v:n(s.rush_att)?(n(s.rush_yd)/n(s.rush_att)).toFixed(1):'—'}];}},
+    { label:'Receiving', core:['RB','WR','TE'], vol:function(s){return n(s.rec_tgt)||n(s.rec);},
+      tiles:function(s){return [
+        {l:'Tgt',v:n(s.rec_tgt)},
+        {l:'Rec',v:n(s.rec)},
+        {l:'Yds',v:n(s.rec_yd)},
+        {l:'TD',v:n(s.rec_td)}];}},
+    { label:'Kicking', core:['K'], vol:function(s){return n(s.fgm)+n(s.fgmiss)+n(s.xpm)+n(s.xpmiss);},
+      tiles:function(s){return [
+        {l:'FG',v:n(s.fgm)+'/'+(n(s.fgm)+n(s.fgmiss))},
+        {l:'Long',v:n(s.fgm_50p)||n(s.fgm_50_59)||n(s.fgm_60p)?'50+':(n(s.fgm_40_49)?'40s':(n(s.fgm)?'<40':'—'))},
+        {l:'XP',v:n(s.xpm)+'/'+(n(s.xpm)+n(s.xpmiss))},
+        {l:'Miss',v:n(s.fgmiss)+n(s.xpmiss)}];}},
+    { label:'Defense', core:['DEF','DST'], vol:function(s){return n(s.def_sack)+n(s.def_int)+n(s.def_fum_rec)+n(s.def_td);},
+      tiles:function(s){return [
+        {l:'Sack',v:n(s.def_sack)},
+        {l:'Int',v:n(s.def_int)},
+        {l:'FR',v:n(s.def_fum_rec)},
+        {l:'TD',v:n(s.def_td)+n(s.def_st_td)}];}}
+  ];
+
+  /* Footer strip: one cross-group number that doesn't belong inside a group. */
+  function footer(pos,s){
+    if(pos==='K') return '';
+    if(pos==='DEF'||pos==='DST'){
+      if(typeof s.pts_allow!=='number') return '';
+      return {l:'Points allowed',v:s.pts_allow};
+    }
+    return {l:'Fumbles lost',v:n(s.fum_lost)};
+  }
+
+  function kickoffLabel(team){
+    var raw='';
+    try{ raw=window.__cfKickoff?window.__cfKickoff(team):''; }catch(e){}
+    if(!raw) return '';
+    var d=new Date(raw); if(isNaN(d.getTime())) return '';
+    var today=new Date(), sameDay=d.toDateString()===today.toDateString();
+    try{
+      var opts=sameDay?{hour:'numeric',minute:'2-digit'}
+                      :{weekday:'short',hour:'numeric',minute:'2-digit'};
+      return new Intl.DateTimeFormat(undefined,opts).format(d);
+    }catch(e){ return ''; }
+  }
+
+  function tileHTML(t){
+    var zero=(t.v===0||t.v==='0'||t.v==='0/0');
+    return '<div class="pd__tile'+(zero?' is-zero':'')+'">'
+      +'<span class="pd__tv">'+esc(t.v)+'</span>'
+      +'<span class="pd__tl">'+esc(t.l)+'</span></div>';
+  }
+
+  function headHTML(player){
+    var pos=String(player.position||'').toUpperCase();
+    var initials=(player.full_name||'?').split(/\s+/).map(function(x){return x[0]||'';}).join('').slice(0,2).toUpperCase();
+    var avatar='';
+    try{ avatar=avatarInnerHtml(player,initials); }catch(e){ avatar='<span class="avatar-initials">'+esc(initials)+'</span>'; }
+    var logo='';
+    try{ var lu=dstLogoUrl(player.team||''); if(lu) logo='<img class="pd__logo" src="'+lu+'" alt="" onerror="this.remove();">'; }catch(e){}
+    var teamTxt=player.team?('<span class="pd__team">'+esc(player.team)+'</span>'):'';
+    return '<div class="pd__head">'
+      +'<div class="pd__avatar">'+avatar+'</div>'
+      +'<div class="pd__id"><p class="pd__name">'+esc(player.full_name||'Player')+'</p>'
+      +'<div class="pd__meta">'+logo+teamTxt
+      +'<span class="pd__pos">'+esc(pos||'—')+'</span></div></div>'
+      +'<button class="pd__close" type="button" data-pd-close>Close</button></div>';
+  }
+
+  function statusHTML(state,week){
+    var tag = state==='in'?'Live' : state==='post'?'Final'
+            : state==='pre'?'Pre-kickoff' : 'Unavailable';
+    return '<div class="pd__status" data-state="'+state+'">'
+      +'<span class="pd__dot"></span><span class="pd__stag">'+tag+'</span>'
+      +'<span class="pd__wk">Week '+esc(week)+'</span></div>';
+  }
+
+  /* 'pre' | 'in' | 'post' | 'none'. gs is warm on every non-historic load
+     (loadData awaits fetchNflGameStates); historic weeks never fetch the slate,
+     so there a present stat row is the proof the game happened. */
+  function resolveState(player,hasRow){
+    if(!statKey(player)) return 'none';
+    var gs=null; try{ gs=window.__cfGameState?window.__cfGameState(player.team||''):null; }catch(e){}
+    if(gs==='pre'||gs==='in'||gs==='post') return gs;
+    return hasRow?'post':'none';
+  }
+
+  function loadingHTML(player,week){
+    /* Status is known synchronously — only the numbers are pending — so the
+       chip must not flash "Final" over a live game. */
+    var st=resolveState(player,true);
+    return headHTML(player)+statusHTML(st==='none'?'post':st,week)
+      +'<div class="pd__grp"><div class="pd__grph"><h4>&nbsp;</h4></div>'
+      +'<div class="pd__skel"><div class="skel"></div><div class="skel"></div>'
+      +'<div class="skel"></div><div class="skel"></div></div></div>';
+  }
+
+  function bodyHTML(player,row){
+    var pos=String(player.position||'').toUpperCase();
+    var week=1; try{ week=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
+    var hasRow=!!(row&&typeof row==='object');
+    var state=resolveState(player,hasRow);
+
+    var out=headHTML(player)+statusHTML(state,week);
+
+    if(state==='pre'){
+      var k=kickoffLabel(player.team||'');
+      return out+'<div class="pd__empty"><h5>'
+        +(k?('Game starts at '+esc(k)):'Game hasn’t started')+'</h5>'
+        +'<p>The box score fills in once he takes the field.</p></div>';
+    }
+    /* Two different empties, and the difference matters: 'none' means we never
+       resolved him to a stat line (a name-resolution miss — accepted, not a bug
+       to chase); a live/final game with no row means he simply hasn't done
+       anything yet. */
+    if(state==='none'){
+      return out+'<div class="pd__empty"><h5>No box score available</h5>'
+        +'<p>We couldn’t match this player to a stat line this week.</p></div>';
+    }
+    if(!hasRow){
+      return out+'<div class="pd__empty"><h5>No recorded stats</h5>'
+        +'<p>He hasn’t registered in any tracked category.</p></div>';
+    }
+
+    var any=false;
+    GROUPS.forEach(function(g){
+      var isCore=g.core.indexOf(pos)>-1;
+      if(!isCore && !g.vol(row)) return;          /* ← zero-suppression */
+      any=true;
+      out+='<div class="pd__grp"><div class="pd__grph"><h4>'+esc(g.label)+'</h4></div>'
+        +'<div class="pd__tiles">'+g.tiles(row).map(tileHTML).join('')+'</div></div>';
+    });
+    if(!any){
+      out+='<div class="pd__empty"><h5>No recorded stats</h5>'
+        +'<p>He hasn’t registered in any tracked category.</p></div>';
+    }
+    var f=footer(pos,row);
+    if(f) out+='<div class="pd__foot"><span class="pd__fl">'+esc(f.l)+'</span>'
+      +'<span class="pd__fv">'+esc(f.v)+'</span></div>';
+    return out;
+  }
+
+  function mine(){
+    return !!(window.BottomSheet && window.BottomSheet.isOpen()
+      && window.BottomSheet.getOwner()===OWNER);
+  }
+
+  function fill(player){
+    var season,week;
+    try{ season=window.getActiveSeason?window.getActiveSeason():null; }catch(e){}
+    try{ week=window.getActiveWeek?window.getActiveWeek():null; }catch(e){}
+    if(!season||!week||typeof window.__cfWeekStats!=='function'){
+      if(mine()) window.BottomSheet.setBody(bodyHTML(player,null));
+      return;
+    }
+    window.__cfWeekStats(season,week).then(function(all){
+      if(!mine()||current!==player) return;
+      var sid=statKey(player);
+      window.BottomSheet.setBody(bodyHTML(player, sid?(all&&all[sid]):null));
+    }).catch(function(){
+      if(mine()&&current===player) window.BottomSheet.setBody(bodyHTML(player,null));
+    });
+  }
+
+  function stop(){ if(timer){ clearInterval(timer); timer=null; } current=null; }
+
+  window.cfOpenPlayerDrawer=function(player){
+    if(!player||!window.BottomSheet) return;
+    /* Tapping the open player's card again dismisses — same toggle the matchup
+       drawer uses, so the two sheets behave identically. */
+    if(mine()&&current===player){ window.BottomSheet.close(); return; }
+    current=player;
+    var week=1; try{ week=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
+    window.BottomSheet.open(loadingHTML(player,week),{owner:OWNER,onClose:stop});
+    fill(player);
+    /* Live refresh while the sheet is open — matches the 60s stat-cache floor
+       and the NFL-state TTL, so a tick costs at most one request. */
+    if(timer) clearInterval(timer);
+    timer=setInterval(function(){
+      if(!mine()){ stop(); return; }
+      fill(current);
+    },60*1000);
+    try{ cfTrack('player_box_open',{pos:String(player.position||''),team:String(player.team||'')}); }catch(e){}
+  };
+
+  /* Delegated tap. The player object rides on the node (_cfPlayer) rather than
+     in an attribute, so nothing is added to the rendered markup. The Loyalties
+     share PNG is built by the Rooting Card from raw data into #rc-inapp and
+     never clones .player-card, so this cannot reach any export. */
+  document.addEventListener('click',function(e){
+    var card=e.target&&e.target.closest?e.target.closest('.player-card[data-cf-tap="1"]'):null;
+    if(!card||!card._cfPlayer) return;
+    if(e.target.closest('a,button')) return;
+    window.cfOpenPlayerDrawer(card._cfPlayer);
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key!=='Enter'&&e.key!==' ') return;
+    var card=document.activeElement;
+    if(!card||!card.classList||!card.classList.contains('player-card')||!card._cfPlayer) return;
+    e.preventDefault();
+    window.cfOpenPlayerDrawer(card._cfPlayer);
+  });
+  document.addEventListener('click',function(e){
+    if(e.target&&e.target.closest&&e.target.closest('[data-pd-close]')&&mine()) window.BottomSheet.close();
+  });
 })();
 </script>
 
