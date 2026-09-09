@@ -18698,6 +18698,11 @@ loadExperimentState();
   #view-conflict .cfc-teaser p b{color:var(--c-cream);font-weight:900;}
   #view-conflict .cfc-names{font-size:12.5px;line-height:1.5;color:var(--c-ink500);max-width:320px;margin:0 auto 10px;}
   #view-conflict .cfc-names b{color:var(--c-cream);font-weight:900;font-style:normal;}
+  #view-conflict .cfc-nlist{max-width:280px;margin:0 auto 12px;text-align:left;background:var(--c-navy800);border:1px solid var(--c-line);border-radius:10px;padding:3px 0;}
+  #view-conflict .cfc-nrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:6px 12px;}
+  #view-conflict .cfc-nrow + .cfc-nrow{border-top:1px solid rgba(39,66,95,.6);}
+  #view-conflict .cfc-nnm{font-size:12.5px;font-weight:800;color:var(--c-cream);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #view-conflict .cfc-nwhen{flex:0 0 auto;font-size:8.5px;font-weight:900;letter-spacing:.09em;color:var(--c-ink400);white-space:nowrap;}
   #view-conflict .cfc-teaser a{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:900;color:#0F2235;background:var(--c-coral);border-radius:10px;padding:9px 16px;text-decoration:none;cursor:pointer;margin-top:4px;}
 </style>
 <div id="view-conflict"></div>
@@ -18888,21 +18893,30 @@ function cfScheduleState(){
   if(!afternoon.length) return 'ready';
   return afternoon.every(function(t){ return m[t].state==='post'; }) ? 'ready' : 'pre-evening';
 }
+/* Has the Sunday AFTERNOON slate actually started? This — not "any game has
+   points" — is what retires the pre-kickoff card, so TNF/Saturday specials no
+   longer demote Gate 2 to the generic Gate 1 explainer for the rest of the week. */
+function cfAfternoonBegun(){
+  var m=window.__cfTeamSlotMap; if(!m) return false;
+  return Object.keys(m).some(function(t){ var s=m[t]; return s && (s.slot==='early'||s.slot==='late') && s.state!=='pre'; });
+}
 function cfSnap(){ if(window.showSnapshot)window.showSnapshot(); }
 function cfWireTeaser(){ var s=document.getElementById('cfc-snaplink'); if(s)s.onclick=cfSnap; }
 function cfNights(res){
   var s=res.snf&&res.snf.length>0, m=res.mnf&&res.mnf.length>0;
-  if(s&&m) return { kick:'SUNDAY + MONDAY NIGHT', when:'Sunday and Monday night' };
-  if(m&&!s) return { kick:'MONDAY NIGHT', when:'Monday night' };
-  if(s) return { kick:'SUNDAY NIGHT', when:'Sunday night' };
-  return { kick:'TONIGHT', when:'the night games' };
+  /* `when` reads as a noun ("... riding both sides <when>"); `back` reads after
+     "come back" / "check back", where the no-conflict fallback needs a real adverb. */
+  if(s&&m) return { kick:'SUNDAY + MONDAY NIGHT', when:'Sunday and Monday night', back:'Sunday and Monday night' };
+  if(m&&!s) return { kick:'MONDAY NIGHT', when:'Monday night', back:'Monday night' };
+  if(s) return { kick:'SUNDAY NIGHT', when:'Sunday night', back:'Sunday night' };
+  return { kick:'TONIGHT', when:'the night games', back:'tonight' };
 }
 function cfNightPlayers(res){
-  var names=[], seen={};
-  (res.snf||[]).concat(res.mnf||[]).forEach(function(c){
-    (c.players||[]).forEach(function(p){ if(p&&p.name&&!seen[p.name]){ seen[p.name]=1; names.push(p.name); } });
-  });
-  return names;
+  function pull(list){ var out=[], seen={};
+    (list||[]).forEach(function(c){ (c.players||[]).forEach(function(p){ if(p&&p.name&&!seen[p.name]){ seen[p.name]=1; out.push(p.name); } }); });
+    return out; }
+  var snf=pull(res.snf), mnf=pull(res.mnf);
+  return { snf:snf, mnf:mnf, all:snf.concat(mnf.filter(function(n){ return snf.indexOf(n)===-1; })) };
 }
 /* Gate 1 — fantasy week underway; targets sharpen once the afternoon is final. */
 function cfGate1HTML(res){
@@ -18910,24 +18924,32 @@ function cfGate1HTML(res){
   return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; '+n.kick+'</div>'+
     '<div class="cfc-teaser"><div class="ico">&#127769;</div>'+
     '<h4>Your targets sharpen when the afternoon games go final</h4>'+
-    '<p>This card turns each split player into an exact live target &mdash; how many more you need, or how much room is left before it flips. It locks the moment the afternoon slate goes final. Come back '+n.when+' for your live targets.</p></div>'+
+    '<p>This card turns each split player into an exact live target &mdash; how many more you need, or how much room is left before it flips. It locks the moment the afternoon slate goes final. Come back '+n.back+' for your live targets.</p></div>'+
     '<div class="cfc-teaser"><a id="cfc-snaplink">&#128202;&nbsp; Meanwhile, see your Weekend Snapshot</a></div></div>';
 }
-/* Gate 2 — in-season, pre-kickoff; name the conflicted night players. */
+/* Gate 2 — in-season, pre-afternoon-kickoff. EVERY conflicted night player is
+   listed, one per row (Matt: a complete list beats a cropped sentence — same call
+   as the v162 Rooting Card cap removal). Rows carry a SUN/MON tag only when both
+   nights are in play; otherwise the headline already names the night. */
 function cfGate2HTML(res){
-  var n=cfNights(res), names=cfNightPlayers(res), head, lead='';
-  if(names.length){
-    var disp = names.length===1 ? ('<b>'+cfEsc(names[0])+'</b>')
-      : names.length===2 ? ('<b>'+cfEsc(names[0])+'</b> &amp; <b>'+cfEsc(names[1])+'</b>')
-      : ('<b>'+cfEsc(names[0])+'</b>, <b>'+cfEsc(names[1])+'</b> &amp; '+(names.length-2)+' more');
-    head = 'You’ve got '+(names.length===1?'a player':(names.length+' players'))+' riding both sides '+n.when;
-    lead = '<div class="cfc-names">'+disp+' '+(names.length===1?'is':'are')+' split across your leagues '+n.when+'.</div>';
-  } else {
+  var n=cfNights(res), np=cfNightPlayers(res), total=np.all.length;
+  var both=(np.snf.length>0 && np.mnf.length>0), head, lead='';
+  if(!total){
     head = 'Conflicts are stacking up for '+n.when;
+  } else {
+    head = 'You’ve got '+(total===1?'a player':total+' players')+' riding both sides '+n.when;
+    function row(name, tag){
+      return '<div class="cfc-nrow"><span class="cfc-nnm">'+cfEsc(name)+'</span>'+
+        (tag?('<span class="cfc-nwhen">'+tag+'</span>'):'')+'</div>';
+    }
+    lead = '<div class="cfc-nlist">'+
+      np.snf.map(function(x){ return row(x, both?'SUN':''); }).join('')+
+      np.mnf.map(function(x){ return row(x, both?'MON':''); }).join('')+
+    '</div>';
   }
   return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; '+n.kick+'</div>'+
     '<div class="cfc-teaser"><div class="ico">&#127769;</div><h4>'+head+'</h4>'+lead+
-    '<p>Once games kick off, this card locks each live target &mdash; when to cheer and when to root him quiet. Check back '+n.when+'.</p></div>'+
+    '<p>Your targets lock the moment the afternoon slate goes final &mdash; then this card shows exactly when to cheer and when to root him quiet. Check back '+n.back+'.</p></div>'+
     '<div class="cfc-teaser"><a id="cfc-snaplink">&#128202;&nbsp; Meanwhile, see your Weekend Snapshot</a></div></div>';
 }
 /* Offseason — explain the feature + a static v4 sample. */
@@ -18960,10 +18982,9 @@ function cfRenderConflictCard(){
   /* Pre-lock states. Only 'ready' falls through to the live target list below. */
   if(cfScheduleState()!=='ready'){
     if(d.offseason || !d.contexts.length){ host.innerHTML=cfOffseasonHTML(); cfWireTeaser(); return; }
-    if(d.gamesBegun){ host.innerHTML=cfGate1HTML(res); cfWireTeaser(); return; }
     var slotLoaded=!!(window.__cfTeamSlotMap && Object.keys(window.__cfTeamSlotMap).length);
-    if(slotLoaded){ host.innerHTML=cfGate2HTML(res); cfWireTeaser(); return; }
-    try{ if(window.cfTrack)cfTrack('conflict_card_error',{reason:'slotmap_missing_ingame',week:d.debugWeek}); }catch(e){}
+    if(slotLoaded){ host.innerHTML=(cfAfternoonBegun()?cfGate1HTML(res):cfGate2HTML(res)); cfWireTeaser(); return; }
+    if(d.gamesBegun){ try{ if(window.cfTrack)cfTrack('conflict_card_error',{reason:'slotmap_missing_ingame',week:d.debugWeek}); }catch(e){} }
     host.innerHTML=cfGate1HTML(res); cfWireTeaser(); return;
   }
   if(res.terminal){ host.innerHTML=cfTerminalHTML(res.terminalReason); var sl0=document.getElementById('cfc-snaplink'); if(sl0)sl0.onclick=cfSnap; return; }
