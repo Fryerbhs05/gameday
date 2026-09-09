@@ -14514,9 +14514,16 @@ loadExperimentState();
     var initials=(player.full_name||'?').split(/\s+/).map(function(x){return x[0]||'';}).join('').slice(0,2).toUpperCase();
     var avatar='';
     try{ avatar=avatarInnerHtml(player,initials); }catch(e){ avatar='<span class="avatar-initials">'+esc(initials)+'</span>'; }
+    /* On a prior season the team chip would report the player's CURRENT team,
+       not who he played for that week — buildCardInner suppresses metaTeam for
+       exactly this reason, so the drawer matches rather than contradicting the
+       card that opened it. */
+    var priorSeason=false;
+    try{ priorSeason=(typeof window.isPriorSeason==='function') && window.isPriorSeason(); }catch(e){}
+    var showTeam=!!player.team && !priorSeason;
     var logo='';
-    try{ var lu=dstLogoUrl(player.team||''); if(lu) logo='<img class="pd__logo" src="'+lu+'" alt="" onerror="this.remove();">'; }catch(e){}
-    var teamTxt=player.team?('<span class="pd__team">'+esc(player.team)+'</span>'):'';
+    try{ var lu=showTeam?dstLogoUrl(player.team||''):''; if(lu) logo='<img class="pd__logo" src="'+lu+'" alt="" onerror="this.remove();">'; }catch(e){}
+    var teamTxt=showTeam?('<span class="pd__team">'+esc(player.team)+'</span>'):'';
     return '<div class="pd__head">'
       +'<div class="pd__avatar">'+avatar+'</div>'
       +'<div class="pd__id"><p class="pd__name">'+esc(player.full_name||'Player')+'</p>'
@@ -14533,11 +14540,24 @@ loadExperimentState();
       +'<span class="pd__wk">Week '+esc(week)+'</span></div>';
   }
 
-  /* 'pre' | 'in' | 'post' | 'none'. gs is warm on every non-historic load
-     (loadData awaits fetchNflGameStates); historic weeks never fetch the slate,
-     so there a present stat row is the proof the game happened. */
+  /* Is the board showing a past week/season? loadData sets isHist on the data
+     object; renderBoard parks it on __conflictedLastData (the same read the
+     Rooting Card share sheet uses). */
+  function isHistoric(){
+    try{ return !!(window.__conflictedLastData && window.__conflictedLastData.isHist); }catch(e){ return false; }
+  }
+
+  /* 'pre' | 'in' | 'post' | 'none'.
+     HISTORIC WEEKS MUST NOT READ THE GAME-STATE MAP. loadData only calls
+     fetchNflGameStates when !isHist, and nothing CLEARS nflGameStates/nflKickoffs
+     on the way into a past week — they keep whatever the last live load wrote.
+     Reading them here would resolve a 2025 Week 1 player to today's slate: on a
+     Wednesday every team is 'pre', so a game played a year ago would render
+     "Game starts at Sun 12:00 PM" with an empty body while a complete stat line
+     sat in the payload. On a past week the stat row IS the state. */
   function resolveState(player,hasRow){
     if(!statKey(player)) return 'none';
+    if(isHistoric()) return hasRow?'post':'none';
     var gs=null; try{ gs=window.__cfGameState?window.__cfGameState(player.team||''):null; }catch(e){}
     if(gs==='pre'||gs==='in'||gs==='post') return gs;
     return hasRow?'post':'none';
@@ -14632,12 +14652,15 @@ loadExperimentState();
     window.BottomSheet.open(loadingHTML(player,week),{owner:OWNER,onClose:stop});
     fill(player);
     /* Live refresh while the sheet is open — matches the 60s stat-cache floor
-       and the NFL-state TTL, so a tick costs at most one request. */
+       and the NFL-state TTL, so a tick costs at most one request. Skipped on
+       historic weeks: those numbers are settled, polling them is pure waste. */
     if(timer) clearInterval(timer);
-    timer=setInterval(function(){
-      if(!mine()){ stop(); return; }
-      fill(current);
-    },60*1000);
+    if(!isHistoric()){
+      timer=setInterval(function(){
+        if(!mine()){ stop(); return; }
+        fill(current);
+      },60*1000);
+    }
     try{ cfTrack('player_box_open',{pos:String(player.position||''),team:String(player.team||'')}); }catch(e){}
   };
 
