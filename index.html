@@ -19280,6 +19280,19 @@ if(typeof window.cfRegisterView==='function'){
   .rc-names.cols3 div{font-size:11px;text-align:left;}
   .rc-names .xn{font:800 10px/1 var(--font-sans,'Inter');}
   .rc-names .tm{font:600 10px/1 var(--font-sans,'Inter');color:#7C8694;}
+  /* ── option G (2026-09-09): the name cell is a FLEX ROW, not one text run ──
+     BEFORE: the cell was "Name <span class=tm>TEAM</span> <span class=xn>×2</span>"
+     under a single text-overflow:ellipsis, so on a long name the ×N — last in
+     the flow — was silently eaten. A user read "Jaxon Smith-Nji…" as a 1-league
+     player: the name at least keeps a "…" to say it was cut, the multiplier
+     just vanishes. NOW only .nm may shrink; the team badge and the ×N are
+     flex:0 0 auto and can never be dropped. justify-content restores the
+     alignment the old text-align gave (2-col centred, 3-col left) — flex items
+     don't answer to text-align, and the 2-col band would otherwise jump left. */
+  .rc-names div{display:flex;align-items:baseline;gap:4px;justify-content:center;}
+  .rc-names.cols3 div{justify-content:flex-start;}
+  .rc-names div>.nm{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .rc-names div>.tm,.rc-names div>.xn{flex:0 0 auto;}
   .rc-more{text-align:center;font:700 10px/1 var(--font-sans,'Inter');color:#7C8694;letter-spacing:.06em;margin-top:9px;padding-top:8px;border-top:1px solid #27425F;}
   /* ── share sheet (BottomSheet body) — no title row, filter pills straight in ── */
   .rc-sheet{padding:6px 2px 10px;}
@@ -19514,16 +19527,88 @@ if(typeof window.cfRegisterView==='function'){
       return String(a.full_name||'').localeCompare(String(b.full_name||''));
     };
   }
+  /* esc() above deliberately leaves quotes alone (it only ever wrote text
+     nodes). data-full is an ATTRIBUTE and carries apostrophes and the odd
+     quote — Ja'Marr, Wan'Dale, De'Zhaun, Ka'imi — so it needs its own escape. */
+  function escA(s){return esc(s).replace(/"/g,'&quot;');}
+
+  /* ── name fitting (option G, 2026-09-09) ────────────────────────────────
+     Every name renders IN FULL unless it would overflow its column; only then
+     does it fall back to "F. Lastname". Inverts the cost of abbreviating
+     everything: ~74 of 80 names keep their full form, and the abbreviation is
+     spent only where letters were being lost anyway.
+
+     The decision is made with canvas measureText against the card's CONSTANT
+     geometry — never scrollWidth off a live node. That matters because the
+     share export (cfShare.buildFile) re-parents a CLONE under <body> on its own
+     stage: a decision measured from whatever the on-screen node happened to be
+     would be re-derived there against a different width, which is exactly how
+     the Snapshot PNG lost its status tag (sw v168). Constant geometry gives
+     screen and export the same answer by construction.
+
+     Geometry (box-sizing:border-box is global, line 259):
+       .rc-frame  390 − 32 padding − 2 border                    = 356
+       .rc-band   356 − 28 padding − 2 border                    = 326
+       cols3      (326 − 2×10 gap) / 3 = 102     cols2 (326 − 12) / 2 = 157   */
+  var RC_FF='"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+  var RC_CELL_W={2:157,3:102}, RC_GAP=4;
+  var _mctx=null;
+  function textW(str,font){
+    try{
+      if(_mctx===null)_mctx=(document.createElement('canvas').getContext('2d')||false);
+      if(!_mctx)return 0;
+      _mctx.font=font;
+      return _mctx.measureText(String(str==null?'':str)).width;
+    }catch(e){return 0;}
+  }
+  /* "Jaxon Smith-Njigba" → "J. Smith-Njigba". LEFT ALONE: D/ST entries and
+     single-token team names (Chiefs, Bears), and names already stored as
+     initials — A.J. Brown must never become A. Brown. Suffixes ride with the
+     surname: K. Walker III, T. Tracy Jr., K. Pitts Sr. */
+  function abbrevName(n){
+    n=String(n==null?'':n).trim();
+    if(!n||/D\/ST$/i.test(n))return n;
+    var parts=n.split(/\s+/);
+    if(parts.length<2)return n;
+    if(/^(?:[A-Za-z]\.){2,}$/.test(parts[0]))return n;
+    var i=parts[0].charAt(0);
+    if(!/[A-Za-z]/.test(i))return n;
+    return i.toUpperCase()+'. '+parts.slice(1).join(' ');
+  }
+  /* Full name if it fits once the badges have taken their room, else the
+     abbreviated form — which may STILL ellipsize, and that's the intended last
+     resort, not a bug: the ×N and the team badge are safe either way. */
+  function fitName(full,cols,tmTxt,xnTxt){
+    var room=RC_CELL_W[cols]||RC_CELL_W[3];
+    if(tmTxt)room-=textW(tmTxt,'600 10px '+RC_FF)+RC_GAP;
+    if(xnTxt)room-=textW(xnTxt,'800 10px '+RC_FF)+RC_GAP;
+    var nameFont=(cols===3?'700 11px ':'700 12px ')+RC_FF;
+    if(textW(full,nameFont)<=room)return full;
+    return abbrevName(full);
+  }
+
   /* Names-only cell: "First Last ×2" — team abbr appended ONLY when two
      different players in the same list share a display name. */
-  function nameCells(list,countOf,colorCls){
-    var seen={};list.forEach(function(p){var n=p.full_name||'';seen[n]=(seen[n]||0)+1;});
-    return list.map(function(p){
-      var n=esc(p.full_name||'');
-      var tm=(seen[p.full_name]>1&&p.team)?' <span class="tm">'+esc(p.team)+'</span>':'';
-      var ct=countOf(p);
-      var xn=ct>1?' <span class="xn '+colorCls+'">&times;'+ct+'</span>':'';
-      return '<div>'+n+tm+xn+'</div>';
+  function nameCells(list,countOf,colorCls,cols){
+    cols=(cols===2?2:3);
+    var xn=list.map(function(p){var c=countOf(p);return c>1?('×'+c):'';});
+    /* Pass 1 — provisional display name; the badge isn't known yet. */
+    var disp=list.map(function(p,i){return fitName(String(p.full_name||''),cols,'',xn[i]);});
+    /* Pass 2 — the badge disambiguates on the DISPLAYED string, not on
+       full_name. Abbreviating widens the collision surface, and a full
+       "Kyren Williams" sitting beside a shortened "J. Williams" is precisely
+       the case the team badge exists for; keyed on full_name it would never
+       fire. */
+    var seen={};disp.forEach(function(n){seen[n]=(seen[n]||0)+1;});
+    return list.map(function(p,i){
+      var tmTxt=(seen[disp[i]]>1&&p.team)?String(p.team):'';
+      /* Pass 3 — the badge takes room, so re-fit with it accounted for. */
+      var nm=fitName(String(p.full_name||''),cols,tmTxt,xn[i]);
+      return '<div>'+
+        '<span class="nm" data-full="'+escA(p.full_name||'')+'">'+esc(nm)+'</span>'+
+        (tmTxt?'<span class="tm">'+esc(tmTxt)+'</span>':'')+
+        (xn[i]?'<span class="xn '+colorCls+'">&times;'+countOf(p)+'</span>':'')+
+        '</div>';
     });
   }
   function namesBandHtml(list,label,colorCls,countOf,namesOf){
@@ -19535,7 +19620,7 @@ if(typeof window.cfRegisterView==='function'){
     return '<div class="rc-band '+colorCls+'">'+
       '<div class="rc-bandhead"><span class="t rc-'+colorCls+'">'+label+'</span>'+
       '<span class="c">'+sorted.length+' PLAYER'+(sorted.length===1?'':'S')+'</span></div>'+
-      '<div class="rc-names'+cols3+'" style="grid-template-rows:repeat('+rows+',auto)">'+nameCells(shown,countOf,'rc-'+colorCls).join('')+'</div>'+
+      '<div class="rc-names'+cols3+'" style="grid-template-rows:repeat('+rows+',auto)">'+nameCells(shown,countOf,'rc-'+colorCls,cols).join('')+'</div>'+
       '</div>';
   }
   function confBandHtml(list){
@@ -19687,6 +19772,34 @@ if(typeof window.cfRegisterView==='function'){
     }
   }
   window.__rcFitSub=rcFitSub;
+  /* Companion to rcFitSub for the NAME cells. The fit is already applied at
+     build time (nameCells), so this is a re-decide, needed for exactly one
+     reason: Inter is a webfont, and a card built before it lands is measured
+     against the wider fallback face — which would abbreviate names that
+     actually fit. data-full carries the original so the decision is always
+     reversible. Cheap (a canvas measure per cell, no layout), idempotent, and
+     safe off-DOM since it reads no geometry. */
+  function rcFitNames(frame){
+    if(!frame||!frame.querySelectorAll)return;
+    Array.prototype.forEach.call(frame.querySelectorAll('.rc-names'),function(grid){
+      var cols=grid.classList.contains('cols3')?3:2;
+      Array.prototype.forEach.call(grid.children,function(cell){
+        var nm=cell.querySelector('.nm');if(!nm)return;
+        var full=nm.getAttribute('data-full');if(full==null)return;
+        var tm=cell.querySelector('.tm'),x=cell.querySelector('.xn');
+        nm.textContent=fitName(full,cols,tm?tm.textContent:'',x?x.textContent:'');
+      });
+    });
+  }
+  window.__rcFitNames=rcFitNames;
+  /* One sweep when the webfont lands, for any card already on screen. */
+  try{
+    if(document.fonts&&document.fonts.ready&&document.fonts.ready.then){
+      document.fonts.ready.then(function(){
+        Array.prototype.forEach.call(document.querySelectorAll('.rc-frame'),rcFitNames);
+      }).catch(function(){});
+    }
+  }catch(e){}
   function renderPreview(){
     var scale=document.getElementById('rc-prevscale');if(!scale)return;
     scale.innerHTML='';
@@ -19701,6 +19814,7 @@ if(typeof window.cfRegisterView==='function'){
     }
     scale.appendChild(frame);
     rcFitSub(frame);
+    rcFitNames(frame);
     fitPreview();
   }
   /* Sync the pill states to st after any change: filled when off-default, and the
@@ -19945,6 +20059,7 @@ if(typeof window.cfRegisterView==='function'){
     scale.innerHTML='';
     if(window.__rcInApp){ try{ scale.appendChild(window.__rcInApp(st.bucket)); }catch(e){} }
     try{window.__rcFitSub&&window.__rcFitSub(scale.firstChild);}catch(e){}
+    try{window.__rcFitNames&&window.__rcFitNames(scale.firstChild);}catch(e){}
     fit();
   }
 
