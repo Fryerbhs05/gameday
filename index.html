@@ -18573,6 +18573,13 @@ loadExperimentState();
     var fc=document.getElementById('cf-snap-footcount');
     var note=fc?(fc.textContent||'').trim():'';
     return window.cfShare.buildFile(frame,{bg:'#0F2235',note:note,filename:'conflicted-weekend-snapshot',
+      /* .cf-c-tag (NOT STARTED / LOCKED / NO SCORING YET) is the last item in the
+         score row and is white-space:nowrap with margin-left:auto -- on screen it
+         has room, in the export stage the row is narrower and the tag ran off the
+         right edge. Dropped from the PNG for EVERY value, not just the long one:
+         the card's status pill (PENDING/LIVE/CLINCHED) and its caption already
+         say the same thing, so the tag was the redundant one of the three. */
+      strip:['.cf-c-tag'],
       /* #cf-snap-frame's card fills + coloured left status bars are driven by these
          #view-snapshot-scoped vars; lift them so the PNG matches the on-screen list/grid. */
       scopeVars:['--cs-navy-900','--cs-navy-800','--cs-navy-700','--cs-navy-card','--cs-navy-line',
@@ -19149,6 +19156,12 @@ if(typeof window.cfRegisterView==='function'){
     /* Remove capture-hostile / duplicate bits: live buttons, old brand footers. */
     ['.scoreboard-share','.share-head','.share-foot','.cf-snap-foot','.cf-snap-share','.cfc-share']
       .forEach(function(sel){ Array.prototype.forEach.call(clone.querySelectorAll(sel),function(el){el.parentNode&&el.parentNode.removeChild(el);}); });
+    /* Opt-in per-surface strip: an element that fits on screen but not in the
+       export's narrower stage. Purely additive -- callers that don't pass
+       opts.strip are unaffected. */
+    if(Array.isArray(opts.strip)&&opts.strip.length){
+      opts.strip.forEach(function(sel){ try{ Array.prototype.forEach.call(clone.querySelectorAll(sel),function(el){el.parentNode&&el.parentNode.removeChild(el);}); }catch(e){} });
+    }
     /* Opt-in header swap: replace a live section header with an export-only header
        node (used by the scoreboard so the shared image gets a branded header
        instead of its plain on-page wordmark). Purely additive — callers that don't
