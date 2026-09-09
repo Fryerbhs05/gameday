@@ -3446,9 +3446,14 @@
       color: var(--ink-500); display: block; margin-top: 6px;
     }
     .pd__tile.is-zero .pd__tv { color: var(--ink-300); }
+    /* Label and value sit TOGETHER at the left, not spanned edge-to-edge:
+       the sheet's last row lands on the phone's rounded bottom corners, and a
+       right-anchored value gets clipped there. Side padding keeps the text off
+       both curves; the hairline still spans the full width so it lines up with
+       the stat tiles above. */
     .pd__foot {
-      margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line-soft);
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin-top: 16px; padding: 12px 14px 0; border-top: 1px solid var(--line-soft);
+      display: flex; align-items: baseline; justify-content: flex-start; gap: 8px;
     }
     .pd__fl { font: 500 9px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500); }
     .pd__fv { font: 500 12px/1 var(--font-mono); color: var(--ink-700); }
