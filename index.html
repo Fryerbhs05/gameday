@@ -18698,11 +18698,11 @@ loadExperimentState();
   #view-conflict .cfc-teaser p b{color:var(--c-cream);font-weight:900;}
   #view-conflict .cfc-names{font-size:12.5px;line-height:1.5;color:var(--c-ink500);max-width:320px;margin:0 auto 10px;}
   #view-conflict .cfc-names b{color:var(--c-cream);font-weight:900;font-style:normal;}
-  #view-conflict .cfc-nlist{max-width:280px;margin:0 auto 12px;text-align:left;background:var(--c-navy800);border:1px solid var(--c-line);border-radius:10px;padding:3px 0;}
-  #view-conflict .cfc-nrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:6px 12px;}
-  #view-conflict .cfc-nrow + .cfc-nrow{border-top:1px solid rgba(39,66,95,.6);}
-  #view-conflict .cfc-nnm{font-size:12.5px;font-weight:800;color:var(--c-cream);flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #view-conflict .cfc-nlist{max-width:300px;margin:0 auto 14px;}
+  #view-conflict .cfc-nrow{display:flex;align-items:baseline;justify-content:center;gap:9px;padding:3px 0;}
+  #view-conflict .cfc-nnm{font-size:13px;font-weight:800;color:var(--c-cream);flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   #view-conflict .cfc-nwhen{flex:0 0 auto;font-size:8.5px;font-weight:900;letter-spacing:.09em;color:var(--c-ink400);white-space:nowrap;}
+  #view-conflict .cfc-gold{color:var(--c-yellow);font-weight:900;}
   #view-conflict .cfc-teaser a{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:900;color:#0F2235;background:var(--c-coral);border-radius:10px;padding:9px 16px;text-decoration:none;cursor:pointer;margin-top:4px;}
 </style>
 <div id="view-conflict"></div>
@@ -18882,7 +18882,7 @@ function cfTerminalHTML(reason){
   var p = (reason==='all-settled')
     ? 'Every league is decided &mdash; nothing left to root for or against. Enjoy the games.'
     : 'None of your remaining players are split across your leagues tonight, so there\'s no score to root for or against here. Any matchups you\'ve still got riding are clean, one-way cheers &mdash; track them on your Weekend Snapshot.';
-  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD</div><div class="cfc-term"><div class="ico">&#127944;</div><h4>Nothing left to sweat</h4><p>'+p+'</p><a id="cfc-snaplink">&#128202;&nbsp; See your Weekend Snapshot</a></div></div>';
+  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD</div><div class="cfc-term"><h4>Nothing left to sweat</h4><p>'+p+'</p><a id="cfc-snaplink">See your Weekend Snapshot</a></div></div>';
 }
 
 /* Afternoon-suppression gate — see original. */
@@ -18922,35 +18922,38 @@ function cfNightPlayers(res){
 function cfGate1HTML(res){
   var n=cfNights(res);
   return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; '+n.kick+'</div>'+
-    '<div class="cfc-teaser"><div class="ico">&#127769;</div>'+
+    '<div class="cfc-teaser">'+
     '<h4>Your targets sharpen when the afternoon games go final</h4>'+
     '<p>This card turns each split player into an exact live target &mdash; how many more you need, or how much room is left before it flips. It locks the moment the afternoon slate goes final. Come back '+n.back+' for your live targets.</p></div>'+
-    '<div class="cfc-teaser"><a id="cfc-snaplink">&#128202;&nbsp; Meanwhile, see your Weekend Snapshot</a></div></div>';
+    '<div class="cfc-teaser"><a id="cfc-snaplink">Meanwhile, see your Weekend Snapshot</a></div></div>';
 }
 /* Gate 2 — in-season, pre-afternoon-kickoff. EVERY conflicted night player is
    listed, one per row (Matt: a complete list beats a cropped sentence — same call
-   as the v162 Rooting Card cap removal). Rows carry a SUN/MON tag only when both
-   nights are in play; otherwise the headline already names the night. */
+   as the v162 Rooting Card cap removal). Every row carries its SUN/MON tag, even on
+   a single-night week. No box, no dividers, no emoji — the list blends into the card. */
 function cfGate2HTML(res){
   var n=cfNights(res), np=cfNightPlayers(res), total=np.all.length;
-  var both=(np.snf.length>0 && np.mnf.length>0), head, lead='';
+  var head, lead='';
   if(!total){
     head = 'Conflicts are stacking up for '+n.when;
   } else {
     head = 'You’ve got '+(total===1?'a player':total+' players')+' riding both sides '+n.when;
     function row(name, tag){
       return '<div class="cfc-nrow"><span class="cfc-nnm">'+cfEsc(name)+'</span>'+
-        (tag?('<span class="cfc-nwhen">'+tag+'</span>'):'')+'</div>';
+        '<span class="cfc-nwhen">'+tag+'</span></div>';
     }
     lead = '<div class="cfc-nlist">'+
-      np.snf.map(function(x){ return row(x, both?'SUN':''); }).join('')+
-      np.mnf.map(function(x){ return row(x, both?'MON':''); }).join('')+
+      np.snf.map(function(x){ return row(x,'SUN'); }).join('')+
+      np.mnf.map(function(x){ return row(x,'MON'); }).join('')+
     '</div>';
   }
+  /* Name the first player on the list (earliest night, most-entangled cluster). */
+  var who = total ? ('<b>'+cfEsc(np.all[0])+'</b>') : 'One of your players';
   return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; '+n.kick+'</div>'+
-    '<div class="cfc-teaser"><div class="ico">&#127769;</div><h4>'+head+'</h4>'+lead+
-    '<p>Your targets lock the moment the afternoon slate goes final &mdash; then this card shows exactly when to cheer and when to root him quiet. Check back '+n.back+'.</p></div>'+
-    '<div class="cfc-teaser"><a id="cfc-snaplink">&#128202;&nbsp; Meanwhile, see your Weekend Snapshot</a></div></div>';
+    '<div class="cfc-teaser"><h4>'+head+'</h4>'+lead+
+    '<p>'+who+' could win you a matchup and lose you another this week. Do you cheer for or cheer against? Emotions are <span class="cfc-gold">Conflicted</span>.</p>'+
+    '<p>Check back here '+n.back+' to see what to cheer for. Can you thread the needle and win multiple matchups? Or do you sacrifice one league in hopes of winning another? We&rsquo;ll show you which way to lean and if a sweet spot exists.</p></div>'+
+    '<div class="cfc-teaser"><a id="cfc-snaplink">Meanwhile, see your Weekend Snapshot</a></div></div>';
 }
 /* Offseason — explain the feature + a static v4 sample. */
 function cfDemoCardHTML(){
@@ -18964,11 +18967,11 @@ function cfDemoCardHTML(){
 }
 function cfOffseasonHTML(){
   return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; PREVIEW</div>'+
-    '<div class="cfc-teaser"><div class="ico">&#127944;&#65039;</div>'+
+    '<div class="cfc-teaser">'+
     '<h4>This is where your Sunday-night targets will live</h4>'+
     '<p>In season, the Conflict Card lines up every player you’re rooting for <b>and</b> against and gives you one live target per league &mdash; when to cheer, when to root him quiet. Here’s a sample. Lights up again Week&nbsp;1.</p></div>'+
     cfDemoCardHTML()+
-    '<div class="cfc-teaser"><a id="cfc-snaplink">&#128202;&nbsp; See your Weekend Snapshot</a></div></div>';
+    '<div class="cfc-teaser"><a id="cfc-snaplink">See your Weekend Snapshot</a></div></div>';
 }
 
 function cfRenderConflictCard(){
