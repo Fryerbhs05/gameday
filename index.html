@@ -18698,12 +18698,14 @@ loadExperimentState();
   #view-conflict .cfc-teaser p b{color:var(--c-cream);font-weight:900;}
   #view-conflict .cfc-names{font-size:12.5px;line-height:1.5;color:var(--c-ink500);max-width:320px;margin:0 auto 10px;}
   #view-conflict .cfc-names b{color:var(--c-cream);font-weight:900;font-style:normal;}
-  #view-conflict .cfc-nlist{max-width:300px;margin:0 auto 14px;}
+  #view-conflict .cfc-nlist{max-width:300px;margin:14px auto 0;}
   #view-conflict .cfc-nrow{display:flex;align-items:baseline;justify-content:center;gap:9px;padding:3px 0;}
   #view-conflict .cfc-nnm{font-size:13px;font-weight:800;color:var(--c-cream);flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   #view-conflict .cfc-nwhen{flex:0 0 auto;font-size:8.5px;font-weight:900;letter-spacing:.09em;color:var(--c-ink400);white-space:nowrap;}
   #view-conflict .cfc-gold{color:var(--c-yellow);font-weight:900;}
-  #view-conflict .cfc-nmeta{font-size:9.5px;font-weight:800;letter-spacing:.05em;color:var(--c-ink400);text-transform:uppercase;text-align:center;margin:-6px auto 13px;}
+  #view-conflict .cfc-nmeta{font-size:9.5px;font-weight:800;letter-spacing:.05em;color:var(--c-ink400);text-transform:uppercase;text-align:center;margin:9px auto 0;}
+  /* breathing room under the name list (or its count line) before the body copy */
+  #view-conflict .cfc-nlist + p, #view-conflict .cfc-nmeta + p{margin-top:20px;}
   #view-conflict .cfc-nmeta b{color:var(--c-ink500);}
   #view-conflict .cfc-teaser a{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:900;color:#0F2235;background:var(--c-coral);border-radius:10px;padding:9px 16px;text-decoration:none;cursor:pointer;margin-top:4px;}
 </style>
