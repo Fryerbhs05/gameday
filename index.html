@@ -2326,6 +2326,23 @@
        section and must never start clipping.
        TRADEOFF: a full-screen flash was unmissable while scrolled elsewhere; a
        contained one is only seen if the section is on screen. */
+    /* ── SCORING UPDATES HIDDEN FROM USERS (Matt, 2026-09-10) ──────────────
+       TEMPORARY. Not a redesign, not a delete -- the section, its engine, its
+       markup and every animation hook stay exactly where they are; this rule is
+       the only thing standing between it and the user, so unhiding is deleting
+       these three lines.
+       WHY: the feed derives a "scoring change" by diffing per-player totals
+       between 60s syncs, and those totals come from Sleeper's players_points,
+       which trails its own /stats feed by a measured 60-90s. So every row is
+       timestamped with when WE noticed, not when it happened, and the section is
+       the most visibly-late surface in the app. Revisit alongside local scoring
+       (see project_live_score_lag_budget) -- if that lands, this feed becomes
+       accurate and comes straight back.
+       !important because renderBoard sets an INLINE display on this node
+       (:9246, hidden on historic weeks), and an inline style beats a plain
+       class rule. */
+    #live-updates-section { display: none !important; }
+
     .live-updates-section { position: relative; overflow: hidden; transition: min-height 0.3s var(--ease-out); }
     /* The section is only as tall as its contents, so an empty or one-row feed
        would clip the wordmark. Hold a floor while the flash plays. */
@@ -18897,16 +18914,24 @@ loadExperimentState();
     if(w.length<=1) return w.join('');
     return w.slice(0,-1).join(', ')+' &amp; '+w[w.length-1];
   }
-  /* Above this many players still to play, the detail line counts rather than names
-     (see myLeft/oppLeft). Three is Matt's call: two names is the most a card line
-     fits, so any list that would be truncated becomes a count. */
-  var NAME_TO_GO_MAX=3;
+  /* Three buckets for the detail line's tail, Matt's call (2026-09-10). All three
+     read off the WHOLE matchup, not just the side being talked about, because the
+     question the line answers is "how much game is left?":
+       both sides still hold >LOTS_PER_SIDE  -> "lots of game left."  (early Sunday:
+           naming two of fifteen was a truncated list posing as the full field)
+       TOTAL remaining <=NAME_TO_GO_MAX      -> name them
+       anything between                      -> "N players to go." (N = the total)
+     Names stay one-sided (theirs when you're up, yours when you're chasing) — that
+     is the side you can still root about; only the thresholds are matchup-wide. */
+  var LOTS_PER_SIDE=4, NAME_TO_GO_MAX=3;
   /* Name the players only when the short list is COMPLETE (shortName can drop a
      player, which would silently shrink a 3-man list to 2 and misstate the field). */
-  function toGoTxt(list,count,tail){
-    if(!count) return '';
-    if(count<=NAME_TO_GO_MAX && list.length===count) return ' &mdash; '+names(list)+' '+tail;
-    return ' &mdash; '+count+' player'+(count===1?'':'s')+' '+tail;
+  function toGoTxt(list,sideLeft,myLeft,oppLeft,tail){
+    if(!sideLeft) return '';
+    if(myLeft>LOTS_PER_SIDE && oppLeft>LOTS_PER_SIDE) return ' &mdash; lots of game left.';
+    var total=myLeft+oppLeft;
+    if(total<=NAME_TO_GO_MAX && list.length===sideLeft) return ' &mdash; '+names(list)+' '+tail;
+    return ' &mdash; '+total+' player'+(total===1?'':'s')+' to go.';
   }
   function margin(r){ return Math.abs(r.curMy-r.curOpp); }
 
@@ -18964,8 +18989,8 @@ loadExperimentState();
     /* Kicked off, still 0-0. Without this the gap branch below reads
        "Up 0.00 and pulling away." off an empty scoreboard. */
     else if(r.noScores){ic='&#128337;';txt='Underway &mdash; no points on the board yet.';}
-    else if(gap>=0){ic='&#9650;';txt='Up <b>'+nf(gap)+'</b>'+(r.oppLeft?toGoTxt(r.oppToGo,r.oppLeft,'left for them.'):' and pulling away.');}
-    else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myLeft?toGoTxt(r.myToGo,r.myLeft,'to go.'):'.');}
+    else if(gap>=0){ic='&#9650;';txt='Up <b>'+nf(gap)+'</b>'+(r.oppLeft?toGoTxt(r.oppToGo,r.oppLeft,r.myLeft,r.oppLeft,'left for them.'):' and pulling away.');}
+    else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myLeft?toGoTxt(r.myToGo,r.myLeft,r.myLeft,r.oppLeft,'to go.'):'.');}
     return '<div class="cf-c-detail'+((r.pending||r.noScores)?' is-1line':'')+'"><span>'+txt+'</span></div>';
   }
   /* Screenshot-privacy mask (shared, session-only) — see cfMaskLeague. Applied
