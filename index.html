@@ -1595,6 +1595,14 @@
     .score-cell__state.tossup { color: var(--navy-700); }
     .score-cell__state.final  { color: var(--neutral); }
     .score-cell__state.none   { color: var(--ink-500); }
+    /* ── One-sided week (NO_OPPONENT: guillotine/chop formats, byes) ──────────
+       There is no opponent, so the opponent number is REMOVED rather than shown as
+       0.00 -- a real score sitting next to a 0.00 reads as a blowout win, which is
+       exactly the lie hasRealOpponent() exists to stop. .score-cell__scores is
+       flex/space-between, so dropping the second child just left-aligns the one
+       real score: no track maths, nothing to keep in sync. The state line below
+       already carries the muted "No opponent". */
+    .score-cell--solo .score-cell__points--opp { display: none; }
 
     /* ── Projected-final bar (Option 3) — your share vs. their share in the
        site's team colors: coral (you) on the left, navy/blue (them) on the
@@ -1711,6 +1719,21 @@
       gap: 14px; padding: 14px 16px; background: var(--paper); border-radius: 8px;
       margin-bottom: 16px;
     }
+    /* ── --solo: the one-sided drawer (NO_OPPONENT) ───────────────────────────
+       Two columns instead of three, opponent side gone entirely. minmax(0,1fr) is
+       kept on the name column -- a long team name must still be allowed to shrink
+       below its min-content, per the overflow rule this file keeps re-learning.
+       The "No opponent" chip lands hard right, where the verdict used to sit. */
+    .matchup-drawer--solo .matchup-drawer__score { grid-template-columns: minmax(0, 1fr) auto; }
+    .matchup-drawer--solo .matchup-drawer__score-side--opp { display: none; }
+    /* Starter/bench rows: 5 columns -> 3. Children 4 and 5 are the opponent's
+       points cell and name cell (halfCells emits pts+name for the 'opp' side),
+       so they go rather than render a column of em-dashes. */
+    .matchup-drawer--solo .matchup-drawer__paired-row {
+      grid-template-columns: minmax(0, 1fr) 56px auto;
+    }
+    .matchup-drawer--solo .matchup-drawer__paired-row > *:nth-child(4),
+    .matchup-drawer--solo .matchup-drawer__paired-row > *:nth-child(5) { display: none; }
     .matchup-drawer__score-side {
       text-align: center; min-width: 0;
       display: flex; flex-direction: column; justify-content: flex-end;
@@ -1850,6 +1873,11 @@
       .matchup-drawer__score-value { font-size: 24px; }
       .matchup-drawer__paired-head,
       .matchup-drawer__paired-row { grid-template-columns: minmax(0,1fr) 44px auto 44px minmax(0,1fr); gap: 6px; }
+      /* Specificity, not source order: `.matchup-drawer--solo .matchup-drawer__paired-row`
+         is (0,2,0) and outranks the (0,1,0) rule above wherever it sits, so the
+         phone-width solo template MUST be restated inside this media block or
+         phones keep the 56px desktop points column. */
+      .matchup-drawer--solo .matchup-drawer__paired-row { grid-template-columns: minmax(0,1fr) 44px auto; }
       .matchup-drawer__player-name { font-size: 11px; }
       .matchup-drawer__player-pts { font-size: 11px; min-width: 28px; }
       .matchup-drawer__player-skel { width: 68px; height: 9px; }
@@ -7068,6 +7096,48 @@ function calcLiveState(myPts,oppPts,myProj,oppProj){
 }
 function calcHistoricalState(m,o){return m>o?'FINAL_WIN':m<o?'FINAL_LOSS':'FINAL_TIE';}
 
+/* A matchup needs TWO sides, and several real situations give us only one:
+   guillotine/chop formats (Sleeper "Chopped", Yahoo "Death", ESPN "Knockout")
+   have no head-to-head opponent AT ALL, and an ordinary bye in an odd-sized
+   league produces the same shape -- our side loads, theirs is empty.
+
+   Left ungated, calcLiveState() reads that empty side as oppPts=0 AND oppProj=0,
+   so oppRem=0, so `lead > oppRem` is true the instant we score a single point --
+   and the app confidently declared a WIN over nobody. Matt's user saw exactly
+   that: "WON, 26.20 - 0.00" against an opponent named "Opp" with an empty roster
+   and every player row showing an em-dash.
+
+   So: no opponent => its own state, 'NO_OPPONENT'. It is deliberately NOT
+   NO_MATCHUP. NO_MATCHUP means "you are not playing this week" and is hidden
+   everywhere; NO_OPPONENT means "you ARE playing, we just cannot name a winner",
+   so the league keeps its scoreboard tile and its drawer, shows the real score,
+   and simply renders no verdict (Matt's call, 2026-09-10 -- the first cut hid the
+   league outright and he preferred the score stay visible).
+
+   Where NO_OPPONENT goes and does not go:
+     SHOWS   scoreboard tile (score, no W/L, opponent column collapsed), the
+             matchup drawer in --solo layout, Loyalties, and calcSignal (your
+             players still read as cheer with real impact, and nobody can ever be
+             bucketed an enemy because againstLeagues stays empty).
+     HIDDEN  Weekend Snapshot + the scoreboard export hero (both are win-PROBABILITY
+             surfaces -- "Winning N of X" cannot count a league with no opponent;
+             left in, the m>o test would silently re-invent the very false win this
+             guard exists to kill) and the Conflict Card's isLiveLeague (a target
+             window needs someone to out-score).
+
+   This is a CORRECTNESS GUARD, not guillotine support. It stops the lie; it does
+   not yet tell a chopped-league manager what they actually need to know (their
+   rank and their margin above the cut). That's the Safe/Chopped work.
+
+   oppSide: the opponent's starters array, or any truthy opponent identity.
+   Points/projections are the fallback so a genuinely-loaded opponent whose
+   roster array we failed to build still counts as present. */
+function hasRealOpponent(oppSide,oppPoints,oppProjPts){
+  const n=Array.isArray(oppSide)?oppSide.length:(oppSide?1:0);
+  if(n>0)return true;
+  return (+oppPoints||0)>0||(+oppProjPts||0)>0;
+}
+
 function calcSignal(player,contexts){
   if(!contexts?.length)return null;
   const rel=contexts.filter(c=>c.leagueState!=='NO_MATCHUP');if(!rel.length)return null;
@@ -8172,9 +8242,9 @@ function ctxDisplayState(ctx){
     };
   }
   return {
-    dataStatus:{LIVE:'live',LOCKED_WIN:'winning',LOCKED_LOSS:'losing',FINAL_WIN:'winning',FINAL_LOSS:'losing',FINAL_TIE:'final',NO_MATCHUP:''}[st]||'',
-    stTxt:{LIVE:'● Live',LOCKED_WIN:'Won',LOCKED_LOSS:'Lost',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie',NO_MATCHUP:'No matchup'}[st]||'No matchup',
-    stCls:{LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final',NO_MATCHUP:'none'}[st]||'none'
+    dataStatus:{LIVE:'live',LOCKED_WIN:'winning',LOCKED_LOSS:'losing',FINAL_WIN:'winning',FINAL_LOSS:'losing',FINAL_TIE:'final',NO_MATCHUP:'',NO_OPPONENT:''}[st]||'',
+    stTxt:{LIVE:'● Live',LOCKED_WIN:'Won',LOCKED_LOSS:'Lost',FINAL_WIN:'Final · W',FINAL_LOSS:'Final · L',FINAL_TIE:'Final · Tie',NO_MATCHUP:'No matchup',NO_OPPONENT:'No opponent'}[st]||'No matchup',
+    stCls:{LIVE:'live',LOCKED_WIN:'win',LOCKED_LOSS:'loss',FINAL_WIN:'win',FINAL_LOSS:'loss',FINAL_TIE:'final',NO_MATCHUP:'none',NO_OPPONENT:'none'}[st]||'none'
   };
 }
 /* Split a ctxDisplayState `stTxt` into the header's two stacked parts:
@@ -8207,9 +8277,12 @@ function renderScoresStrip(contexts){
   /* Only leagues with a real matchup appear on the scoreboard. This keeps the
      rendered tile set — and therefore the shared image — consistent with the
      export "Winning N of X" hero, which already counts matchup leagues only.
-     NO_MATCHUP leagues (bye / no opponent this week) are surfaced in Loyalties,
-     not here, mirroring the Weekend Snapshot's filter. Filtering up front also
-     means stale NO_MATCHUP cells get pruned by the newNames diff below. */
+     NO_MATCHUP leagues (you are not playing at all this week) are surfaced in
+     Loyalties, not here, mirroring the Weekend Snapshot's filter. Filtering up
+     front also means stale NO_MATCHUP cells get pruned by the newNames diff below.
+     NO_OPPONENT deliberately SURVIVES this filter: a guillotine/chop league (or a
+     bye) is a week you ARE playing, so it keeps its tile and its real score and
+     just renders no verdict. The export hero does NOT count it -- see its filter. */
   contexts=contexts.filter(c=>c.leagueState!=='NO_MATCHUP');
   /* Global league visibility (2026-07-19): a league hidden in the Filters drawer
      drops off the scoreboard too, not just Loyalties. The newNames diff below
@@ -8229,8 +8302,12 @@ function renderScoresStrip(contexts){
   contexts.forEach(ctx=>{
     const color=lc(ctx.leagueName),st=ctx.leagueState;
     const {dataStatus,stTxt,stCls}=ctxDisplayState(ctx);
-    /* Tappable only when there's a real matchup. NO_MATCHUP tiles stay inert. */
+    /* Tappable only when there's a real matchup. NO_MATCHUP tiles stay inert;
+       NO_OPPONENT tiles DO open, into the drawer's --solo layout. */
     const tappable = st !== 'NO_MATCHUP';
+    /* One-sided week: collapse the opponent number rather than parking a 0.00
+       beside a real score, which reads as "beating them 26.20 - 0.00". */
+    const solo = st === 'NO_OPPONENT';
     let cell=idx.get(ctx.leagueName);
     if(!cell){
       cell=document.createElement('div');cell.className='score-cell';
@@ -8264,6 +8341,7 @@ function renderScoresStrip(contexts){
       if(oppEl)oppEl.textContent=ctx.oppPoints.toFixed(2);
       if(stateEl){stateEl.className=`score-cell__state ${stCls}`;stateEl.textContent=stTxt;}
     }
+    cell.classList.toggle('score-cell--solo', solo);
     applyScoreCellProj(cell, ctx, st);
     cell.dataset.status=dataStatus;
     /* Tappable affordances: pointer/hover, keyboard activation, ARIA. */
@@ -8579,7 +8657,7 @@ function renderMatchupDrawer(ctx, lg){
     +   pairedRowsHtml(myBench, oppBench, null, false, false)
     + '</div>'
   ) : '';
-  return '<div class="matchup-drawer" data-status="' + dataStatus + '" data-matchup-league="' + escHtml(ctx.leagueName) + '">'
+  return '<div class="matchup-drawer' + (st === 'NO_OPPONENT' ? ' matchup-drawer--solo' : '') + '" data-status="' + dataStatus + '" data-matchup-league="' + escHtml(ctx.leagueName) + '">'
     + '<div class="matchup-drawer__head">'
     +   '<span class="matchup-drawer__dot" style="background:' + color + '"></span>'
     +   '<h3 class="matchup-drawer__name">' + escHtml(cfMaskLeague(ctx.leagueName)) + '</h3>'
@@ -8595,7 +8673,7 @@ function renderMatchupDrawer(ctx, lg){
     +     '<span class="matchup-drawer__hdr-chip ' + stCls + '" data-mp-state="1">' + escHtml(hdr.chip) + '</span>'
     +     '<span class="matchup-drawer__hdr-margin ' + stCls + ' ' + (hdr.subNum ? 'is-num' : 'is-tag') + '" data-mp-margin="1"' + (hdr.sub ? '' : ' hidden') + '>' + escHtml(hdr.sub) + '</span>'
     +   '</div>'
-    +   '<div class="matchup-drawer__score-side">'
+    +   '<div class="matchup-drawer__score-side matchup-drawer__score-side--opp">'
     +     '<p class="matchup-drawer__score-label"' + (oppNm ? ' title="' + oppNm + '"' : '') + '>' + oppLabel + '</p>'
     +     '<p class="matchup-drawer__score-value matchup-drawer__score-value--opp" data-mp-score="opp">' + fmtPts(ctx.oppPoints) + '</p>'
     +   '</div>'
@@ -9644,7 +9722,8 @@ async function loadYahooLeague(yLeague, week, isHist) {
       oppPoints = opp?.points || 0; oppProjPts = opp?.projPoints || 0;
       opponentTeamKey = opp?.team_key || null;
       myTeamName = me?.name || null; oppTeamName = opp?.name || null;
-      if (myMatchup.status === 'postevent' || isHist) leagueState = calcHistoricalState(myPoints, oppPoints);
+      if (!hasRealOpponent(opp && opp.team_key, oppPoints, oppProjPts)) leagueState = 'NO_OPPONENT';
+      else if (myMatchup.status === 'postevent' || isHist) leagueState = calcHistoricalState(myPoints, oppPoints);
       else leagueState = calcLiveState(myPoints, oppPoints, myProjPts, oppProjPts);
     }
   } catch (e) { console.warn('Yahoo scoreboard failed for', yLeague.name, e.message); }
@@ -11134,7 +11213,10 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     try{
       /* Same filtered set the strip renders — including global league
          visibility — so N and X on the shared card match the tiles above it. */
-      const cs=(window.currentContexts||[]).filter(c=>c&&c.leagueState&&c.leagueState!=='NO_MATCHUP'
+      /* NO_OPPONENT is excluded alongside NO_MATCHUP even though it DOES get a
+         tile above: the winning-count below falls through to `m>o`, and with no
+         opponent o is 0, so a chopped league would be silently counted a win. */
+      const cs=(window.currentContexts||[]).filter(c=>c&&c.leagueState&&c.leagueState!=='NO_MATCHUP'&&c.leagueState!=='NO_OPPONENT'
         &&!(typeof hiddenLeagues!=='undefined'&&hiddenLeagues&&hiddenLeagues.has(c.leagueName)));
       if(cs.length){
         const isFin=s=>s==='FINAL_WIN'||s==='FINAL_LOSS'||s==='FINAL_TIE';
@@ -12024,7 +12106,9 @@ function parseEspnLeague(data,season,week,isHist,lid){
     myStarters.forEach(e=>{const obj=espnPlayerObj(e);if(!obj)return;const pr=espnPlayerStat(e,week,1);if(pr!==null){myProjPP[obj.player_key]=pr;myProj+=pr;}});
     oppStarters.forEach(e=>{const obj=espnPlayerObj(e);if(!obj)return;const pr=espnPlayerStat(e,week,1);if(pr!==null){oppProjPP[obj.player_key]=pr;oppProj+=pr;}});
     myProjPts=myProj;oppProjPts=oppProj;
-    leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,myProj,oppProj);
+    leagueState=hasRealOpponent(oppStarters,oppPoints,oppProj)
+      ?(isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,myProj,oppProj))
+      :'NO_OPPONENT';
   }else{
     /* No matchup for this week — common in off-season or pre-week-1.
        Fall back to the team's roster snapshot so the user still sees their
@@ -12252,7 +12336,9 @@ const PROVIDERS={
           oppPoints=oppMatchup?.points||0;oppPP=oppMatchup?.players_points||{};
           const projScoring=lg.scoring_settings||synthesizeScoringFromFmt(fmt);
           myProjPts=hasProj?projSum(myPlayers,projScoring):0;oppProjPts=hasProj?projSum(oppPlayers,projScoring):0;
-          leagueState=isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,myProjPts,oppProjPts);
+          leagueState=hasRealOpponent(oppPlayers,oppPoints,oppProjPts)
+            ?(isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,myProjPts,oppProjPts))
+            :'NO_OPPONENT';
         }else{myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');}
         myPlayers=myPlayers.filter(id=>id&&id!=='0');
         oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
@@ -14149,7 +14235,7 @@ function priorityRowDetail(ctx){
   const provider=ctx.source||ctx.provider;
   if(provider)bits.push(provider);
   if(ctx.fmt)bits.push(ctx.fmt);
-  const stMap={LIVE:'live',LOCKED_WIN:'won',LOCKED_LOSS:'eliminated',FINAL_WIN:'final · W',FINAL_LOSS:'final · L',FINAL_TIE:'final · tie',NO_MATCHUP:'no matchup'};
+  const stMap={LIVE:'live',LOCKED_WIN:'won',LOCKED_LOSS:'eliminated',FINAL_WIN:'final · W',FINAL_LOSS:'final · L',FINAL_TIE:'final · tie',NO_MATCHUP:'no matchup',NO_OPPONENT:'no opponent'};
   if(ctx.leagueState&&stMap[ctx.leagueState])bits.push(stMap[ctx.leagueState]);
   return{color,text:bits.join(' · ')||'league'};
 }
@@ -18874,7 +18960,9 @@ loadExperimentState();
     var pool=Array.isArray(data.allRostered)?data.allRostered:[].concat(data.cheerFor||[],data.conflicted||[],data.enemies||[]);
     var rows=[];
     contexts.forEach(function(ctx){
-      if(!ctx||ctx.leagueState==='NO_MATCHUP')return;
+      /* NO_OPPONENT sits out too: every row here is a win-probability row and
+         there is no opponent to compute one against. It keeps its scoreboard tile. */
+      if(!ctx||ctx.leagueState==='NO_MATCHUP'||ctx.leagueState==='NO_OPPONENT')return;
       var name=ctx.leagueName, ls=ctx.leagueState||'';
       /* Respect the shared header's league-visibility Filters drawer (same
          hiddenLeagues set the dashboard uses; session-only by design). */
@@ -19477,7 +19565,7 @@ loadExperimentState();
   var DECIDED = ['LOCKED_WIN','LOCKED_LOSS','FINAL_WIN','FINAL_LOSS','FINAL_TIE'];
   var TIER_W = { 1:1.0, 2:0.5, 3:0.25 };
   function isDecided(s){ return DECIDED.indexOf(s)!==-1; }
-  function isLiveLeague(s){ return s && s!=='NO_MATCHUP' && !isDecided(s); }
+  function isLiveLeague(s){ return s && s!=='NO_MATCHUP' && s!=='NO_OPPONENT' && !isDecided(s); }
   function tierWeight(tierOf,n){ return TIER_W[tierOf?tierOf(n):3] || 0.25; }
   function tierOfSafe(tierOf,n){ try{ return (tierOf&&tierOf(n))||3; }catch(e){ return 3; } }
   function nightSlot(teamSlot,team){ var s=teamSlot?teamSlot(team):null; if(!s||s.state==='post')return null; return (s.slot==='snf'||s.slot==='mnf')?s.slot:null; }
