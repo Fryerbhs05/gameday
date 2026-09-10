@@ -11946,6 +11946,34 @@ function parseEspnLeague(data,season,week,isHist,lid){
       if(pts!==null)oppPP[obj.player_key]=pts;
     });
 
+    /* ── LIVE TOTALS COME FROM THE STARTERS, NOT schedule[].totalPoints ──────
+       (Matt, 2026-09-10.) ESPN exposes a matchup total and per-player actuals in
+       two completely different places, and only one of them is live:
+
+         schedule[].home/away.totalPoints  -> a ROLLED-UP value. Sits at 0 through
+                                              live play and settles later.
+         rosterForCurrentScoringPeriod     -> per-player appliedTotal, live. This
+                                              is what the matchup drawer renders,
+                                              and what ESPN's own UI sums.
+
+       Trusting totalPoints put a tile reading 0.00 - 0.00 directly above a drawer
+       showing Drake Maye 11.24 and A.J. Brown 4.10 in the same league. Summing the
+       starters makes the tile and the drawer agree BY CONSTRUCTION rather than by
+       coincidence -- the same reasoning that drove rebuilding the projection
+       totals from their per-player parts in loadData.
+
+       GUARDS. Historic weeks keep totalPoints: the roster field is literally
+       "ForCurrentScoringPeriod" and does not describe a past week, so summing it
+       there would report today's players against last season's matchup. And a side
+       with an EMPTY map keeps totalPoints too -- no per-player data is a reason to
+       fall back, not a reason to render zero. Sides are handled independently
+       because ESPN can populate one and not the other. */
+    if(!isHist){
+      const sumPP=o=>Object.keys(o).reduce((t,k)=>t+(+o[k]||0),0);
+      if(Object.keys(myPP).length) myPoints=+sumPP(myPP).toFixed(2);
+      if(Object.keys(oppPP).length) oppPoints=+sumPP(oppPP).toFixed(2);
+    }
+
     /* Project totals derived per-player from ESPN's projection rows, then
        fed into the same calcLiveState/calcHistoricalState helpers Sleeper
        uses — keeps state-decision logic identical across providers. We also
