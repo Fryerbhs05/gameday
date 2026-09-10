@@ -1691,16 +1691,35 @@
       padding: 6px 10px; border-radius: 4px; flex-shrink: 0;
     }
     .matchup-drawer__close:hover { background: var(--paper-deep); color: var(--ink-900); }
+    /* NARROW-PHONE FIT (2026-09-10). This band used `1fr auto 1fr`, and a grid
+       item's default min-width:auto floors each side at its MIN-CONTENT width.
+       The team-name label is white-space:nowrap, and overflow:hidden does NOT
+       reduce an element's intrinsic contribution, so a side's min-content was the
+       FULL untruncated name — "Assistant to the Commish" vs "Hercules Mulligan…"
+       measured 457px of demand inside a 358px sheet. The tracks refused to shrink,
+       the opponent side ran off the right edge and its 0.00 was cut in half. Same
+       root cause as the Snapshot grid blow-out fixed the same day.
+       minmax(0,1fr) + min-width:0 lets the tracks shrink; the label then clamps to
+       TWO lines instead of one ellipsised line, because at ~107px per side (390px
+       phone) a single line renders "Assistant t…" while two lines fit the whole
+       name — the team names are the entire point of this band. Sides are
+       bottom-aligned (align-items:end + justify-content:flex-end) so a 1-line name
+       opposite a 2-line one still lands both scores on the same baseline; the
+       centre chip opts back out with align-self. Verified 320-430: zero overflow. */
     .matchup-drawer__score {
-      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+      display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end;
       gap: 14px; padding: 14px 16px; background: var(--paper); border-radius: 8px;
       margin-bottom: 16px;
     }
-    .matchup-drawer__score-side { text-align: center; }
+    .matchup-drawer__score-side {
+      text-align: center; min-width: 0;
+      display: flex; flex-direction: column; justify-content: flex-end;
+    }
     .matchup-drawer__score-label {
       font: 500 13px/1.2 var(--font-sans); color: var(--ink-900);
       margin: 0 0 6px;
-      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      max-width: 100%; overflow: hidden; overflow-wrap: anywhere; white-space: normal;
+      display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
     }
     .matchup-drawer__score-value {
       font: 500 28px/1 var(--font-mono); color: var(--ink-900); margin: 0;
@@ -1709,6 +1728,7 @@
        old dead "—" separator and the standalone state line below the score band. */
     .matchup-drawer__hdr-mid {
       display: flex; flex-direction: column; align-items: center; gap: 6px;
+      align-self: center; /* the score band is align-items:end for the two name/score sides */
     }
     .matchup-drawer__hdr-chip {
       font: 500 11px/1 var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
@@ -5852,7 +5872,12 @@
   .cf-c-name{font-size:14px;font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;flex:1 1 auto;min-width:0;line-height:1.25;overflow-wrap:break-word;}
   .cf-c-status{margin-top:1px;}
   .cf-c-status{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:800;letter-spacing:.07em;flex:none;white-space:nowrap;}
-  .cf-c-score{display:flex;align-items:baseline;gap:9px;margin-bottom:8px;white-space:nowrap;}
+  /* 2026-09-10 narrow-phone pass: the LIST row (YOU/vs/OPP) had ~0.6px of slack at
+     375px and overflowed by ~56px at 320px, scrolling the whole page sideways. The
+     overflowing element was the trailing status tag, killed outright in v184, so
+     the row now clears 320px on its own. flex-wrap stays as a pure safety valve for
+     long score pairs — nothing wraps at any real phone width. */
+  .cf-c-score{display:flex;align-items:baseline;gap:9px;row-gap:4px;flex-wrap:wrap;margin-bottom:8px;white-space:nowrap;}
   /* Muted projected-final line under a LIVE row's actual scores (mirrors the
      dashboard scoreboard's actual + PROJECTED FINAL pairing). */
   .cf-c-proj{font-size:11px;font-weight:700;color:var(--cs-ink-500);font-variant-numeric:tabular-nums;margin:-4px 0 8px;}
@@ -5862,7 +5887,6 @@
   .cf-c-sc.you .pts{color:var(--cs-cream);}
   .cf-c-sc.opp .pts{color:var(--cs-ink-400);}
   .cf-c-vs{font-size:10px;color:var(--cs-ink-500);font-weight:700;}
-  .cf-c-tag{font-size:9px;color:var(--cs-ink-500);font-weight:700;letter-spacing:.03em;margin-left:auto;align-self:center;text-transform:uppercase;white-space:nowrap;}
   .cf-c-barwrap{margin-bottom:8px;}
   /* completed matchup drops the commentary row — the bar's trailing gap goes with it */
   .cf-card.no-detail .cf-c-barwrap{margin-bottom:0;}
@@ -5877,24 +5901,41 @@
   .cf-c-detail b{color:var(--cs-cream);font-weight:800;}
   .cf-c-detail .nm{color:var(--cs-cream);font-weight:800;}
   /* GRID tiles */
-  .cf-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
-  .cf-tile{border-radius:13px;padding:10px 12px;min-height:84px;display:flex;flex-direction:column;justify-content:space-between;border:1px solid var(--cs-navy-line);background:var(--cs-navy-card);}
+  /* NARROW-PHONE FIT (2026-09-10). The tiles used to blow the frame apart on
+     anything under ~430px: `1fr 1fr` tracks floor at each tile's MIN-CONTENT
+     width, and every line inside a tile is white-space:nowrap (the league name,
+     the "PROJ 138.32 vs 137.16" row), so a 175px min-content tile forced a 358px
+     grid into a 320px frame — the right column ran off the card and the page
+     scrolled sideways. Two halves to the fix, and BOTH are needed:
+       1. minmax(0,1fr) + min-width:0 lets the tracks actually shrink;
+       2. container-type on the tile + cqw type sizing lets the CONTENT shrink
+          with it, so nothing overflows once the track gets small.
+     cqw (not vw, not a media query) because the same tiles render at three
+     different widths for one viewport: the live frame, the desktop preview's
+     fixed 390px fake phone, and the export stage, which html-to-image reflows
+     ~36px narrower than the screen. Every clamp() max is the pre-2026-09-10 px
+     value, so tiles >=~167px wide (iPhone Pro Max, the desktop preview, the
+     620px+ frame) render EXACTLY as before; smaller phones scale down instead
+     of overflowing. Verified 320/360/375/390/393/402/430 + the real
+     html-to-image export: zero overflow, no horizontal page scroll. */
+  .cf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+  .cf-tile{border-radius:13px;padding:10px 12px;min-height:84px;display:flex;flex-direction:column;justify-content:space-between;border:1px solid var(--cs-navy-line);background:var(--cs-navy-card);min-width:0;container-type:inline-size;}
   .cf-tile.win{background:rgba(93,202,165,.12);border-color:rgba(93,202,165,.5);}
   .cf-tile.loss{background:rgba(224,122,110,.11);border-color:rgba(224,122,110,.5);}
   .cf-tile.flip{background:rgba(122,168,209,.12);border-color:rgba(122,168,209,.5);}
   .cf-tile.cwin{background:rgba(93,202,165,.22);border:1.5px solid var(--cs-green);}
   .cf-tile.closs{background:rgba(224,122,110,.13);border:1px solid rgba(224,122,110,.45);}
-  .cf-t-name{font-size:11.5px;font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;text-align:center;}
-  .cf-t-row{display:flex;align-items:center;gap:6px;}
-  .cf-t-stat{flex:1;text-align:center;font-size:25px;font-weight:900;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;}
-  .cf-t-stat small{font-size:12px;font-weight:800;}
-  .cf-t-status{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;font-size:9px;font-weight:800;letter-spacing:.06em;white-space:nowrap;}
-  .cf-t-result{text-align:center;font-size:16px;font-weight:900;letter-spacing:-.02em;line-height:1.05;white-space:nowrap;}
-  .cf-t-score{display:flex;align-items:baseline;justify-content:center;gap:5px;margin-top:6px;white-space:nowrap;}
-  .cf-t-score .lbl{font-size:8px;font-weight:800;letter-spacing:.08em;color:var(--cs-ink-500);}
-  .cf-t-score .you{font-size:13px;font-weight:900;color:var(--cs-cream);font-variant-numeric:tabular-nums;}
-  .cf-t-score .dash{font-size:11px;font-weight:700;color:var(--cs-ink-500);}
-  .cf-t-score .opp{font-size:13px;font-weight:800;color:var(--cs-ink-400);font-variant-numeric:tabular-nums;}
+  .cf-t-name{font-size:clamp(8.5px,8.22cqw,11.5px);font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;text-align:center;}
+  .cf-t-row{display:flex;align-items:center;gap:clamp(4px,4.3cqw,6px);}
+  .cf-t-stat{flex:1;min-width:0;text-align:center;font-size:clamp(18px,17.9cqw,25px);font-weight:900;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;}
+  .cf-t-stat small{font-size:clamp(9px,8.58cqw,12px);font-weight:800;}
+  .cf-t-status{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:clamp(3px,3.57cqw,5px);font-size:clamp(7px,6.44cqw,9px);font-weight:800;letter-spacing:.06em;white-space:nowrap;}
+  .cf-t-result{text-align:center;font-size:clamp(12px,11.5cqw,16px);font-weight:900;letter-spacing:-.02em;line-height:1.05;white-space:nowrap;}
+  .cf-t-score{display:flex;align-items:baseline;justify-content:center;gap:clamp(3px,3.57cqw,5px);margin-top:6px;white-space:nowrap;}
+  .cf-t-score .lbl{font-size:clamp(5.5px,5.72cqw,8px);font-weight:800;letter-spacing:.08em;color:var(--cs-ink-500);}
+  .cf-t-score .you{font-size:clamp(9px,9.3cqw,13px);font-weight:900;color:var(--cs-cream);font-variant-numeric:tabular-nums;}
+  .cf-t-score .dash{font-size:clamp(7.5px,7.87cqw,11px);font-weight:700;color:var(--cs-ink-500);}
+  .cf-t-score .opp{font-size:clamp(9px,9.3cqw,13px);font-weight:800;color:var(--cs-ink-400);font-variant-numeric:tabular-nums;}
   .cf-snap-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--cs-navy-line);}
   .cf-snap-foot .cf-snap-brand svg{width:120px;height:auto;display:block;}
   .cf-snap-foot-txt{font-size:9px;color:var(--cs-ink-500);font-weight:800;letter-spacing:.06em;white-space:nowrap;}
@@ -18974,14 +19015,20 @@ loadExperimentState();
     var clinched=(r.state==='cwin'||r.state==='closs');
     /* WHICH NUMBERS to show is a display question, so it keys off noScores, NOT
        pending: a matchup that has kicked off but is still 0-0 keeps its projections
-       rather than showing a useless pair of zeros. Only `tag` makes a truth claim,
-       so it is the one place the two states are distinguished. */
+       rather than showing a useless pair of zeros. Nothing in this row distinguishes
+       pending from kicked-off-but-scoreless any more -- the v184 tag kill (below)
+       hands that job entirely to the status pill + the caption, which already said it. */
     var blank=!clinched&&r.noScores;
     var noProj=blank&&!r.hasProj;
     var you=clinched?r.curMy:(blank?r.projMy:r.curMy), opp=clinched?r.curOpp:(blank?r.projOpp:r.curOpp);
     var youTxt=noProj?'&mdash;':nf(you), oppTxt=noProj?'&mdash;':nf(opp);
     var yl=blank?(noProj?'':'PROJ'):(clinched?'FINAL':'YOU'), ol=blank?(noProj?'':'PROJ'):(clinched?'':'OPP');
-    var tag=clinched?'LOCKED':(r.pending?'NOT STARTED':(blank?'NO SCORING YET':''));
+    /* v184 (Matt, 2026-09-10): the trailing .cf-c-tag (LOCKED / NOT STARTED /
+       NO SCORING YET) is GONE from the list card. It was already stripped from the
+       share PNG since v168 for overflow reasons; on screen it was pure redundancy --
+       cardStatus() renders CLINCHED/PENDING/LIVE two lines up and cardDetail()
+       spells the same state out in words. Do not re-add: it is the element that
+       forced .cf-c-score to wrap on <=360px phones. */
     /* Live rows: actuals stay the big numbers; add the projected finals as a
        muted secondary line ("where is this heading?"). Pending stays PROJ-only,
        decided stays FINAL-only — a stale pregame proj next to a final is noise.
@@ -18990,7 +19037,7 @@ loadExperimentState();
     var projLine=(r.live&&!blank&&r.hasProj)?'<div class="cf-c-proj">proj '+nf(r.projMy)+' &ndash; '+nf(r.projOpp)+'</div>':'';
     return '<div class="cf-c-score"><div class="cf-c-sc you"><span class="who">'+yl+'</span><span class="pts">'+youTxt+'</span></div>'
       +'<span class="cf-c-vs">vs</span><div class="cf-c-sc opp"><span class="who">'+ol+'</span><span class="pts">'+oppTxt+'</span></div>'
-      +(tag?'<span class="cf-c-tag">'+tag+'</span>':'')+'</div>'+projLine;
+      +'</div>'+projLine;
   }
   function cardBar(r){
     var pct=Math.round(r.prob*100), fill=(r.state==='closs')?'#E07A6E':COL[r.state], w=(r.state==='cwin'||r.state==='closs')?100:pct, Lf,Rf;
@@ -19289,13 +19336,10 @@ loadExperimentState();
     var fc=document.getElementById('cf-snap-footcount');
     var note=fc?(fc.textContent||'').trim():'';
     return window.cfShare.buildFile(frame,{bg:'#0F2235',note:note,filename:'conflicted-weekend-snapshot',
-      /* .cf-c-tag (NOT STARTED / LOCKED / NO SCORING YET) is the last item in the
-         score row and is white-space:nowrap with margin-left:auto -- on screen it
-         has room, in the export stage the row is narrower and the tag ran off the
-         right edge. Dropped from the PNG for EVERY value, not just the long one:
-         the card's status pill (PENDING/LIVE/CLINCHED) and its caption already
-         say the same thing, so the tag was the redundant one of the three. */
-      strip:['.cf-c-tag'],
+      /* No strip list: .cf-c-tag (NOT STARTED / LOCKED / NO SCORING YET) was the only
+         entry and v184 removed the element itself from cardScore, on screen and in
+         the export alike. cfShare treats strip as optional, so the frame now clones
+         verbatim. */
       /* #cf-snap-frame's card fills + coloured left status bars are driven by these
          #view-snapshot-scoped vars; lift them so the PNG matches the on-screen list/grid. */
       scopeVars:['--cs-navy-900','--cs-navy-800','--cs-navy-700','--cs-navy-card','--cs-navy-line',
