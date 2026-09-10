@@ -6578,6 +6578,64 @@ window.__cfGameClock=function(team){try{if(!team)return'';return nflGameClocks.g
 /* Kickoff for a team's game this period, as an ISO string (or an epoch ms in
    replay). '' when the slate hasn't been fetched or the team isn't playing. */
 window.__cfKickoff=function(team){try{if(!team)return'';return nflKickoffs.get(team)||nflKickoffs.get(cfNormTeam(team))||'';}catch(e){return'';}};
+
+/* ── LIVE PROJECTED FINAL ──────────────────────────────────────────────────
+   Every provider hands back a PREGAME, whole-game projection for the week.
+   Summed as-is it produces a "PROJECTED FINAL" that is frozen for the entire
+   week -- it cannot fall when a player busts and, worse, cannot RISE when he
+   beats his number. That second failure also poisoned the Weekend Snapshot,
+   whose remaining-math is max(0, proj - cur): an over-performing player goes
+   negative there, clamps to zero, and silently stops being counted as having
+   any upside left. (Matt, 2026-09-10.)
+
+   Correct shape -- points already scored are BANKED and never decay; only the
+   opportunity still on the clock does:
+
+       projFinal = scored + pregameProj x fractionOfGameRemaining
+
+   which starts at the pregame number, moves in BOTH directions during play, and
+   converges on the true score as the clock runs out.
+
+   Returns null when the clock cannot be read, so callers keep the static
+   pregame number rather than printing a figure built on a guess. Note the
+   Snapshot's own clockFrac() defaults to 0.5 on an unknown clock -- fine behind
+   a probability, not behind a number we render as a score.
+
+   TWO KNOWN LIMITS, both deliberate: linear decay by game clock is a
+   simplification (scoring is not uniform across four quarters), and this is
+   CLOCK-aware but not USAGE-aware -- a player seeing no targets is projected
+   the same rest-of-game as one seeing eight. ESPN and Sleeper nudge that with
+   snap share and game script; we do not have that data and will not fake it.
+   Both limits are a large improvement on frozen. */
+function cfClockFracRemaining(team){
+  try{
+    if(!team)return null;
+    const c=(window.__cfGameClock&&window.__cfGameClock(team))||'';
+    if(!c)return null;
+    if(/final/i.test(c))return 0;
+    if(/OT/i.test(c))return 0.08;            // matches the Snapshot variance model
+    const qm=c.match(/Q(\d)/i);const q=qm?parseInt(qm[1],10):0;
+    if(!q)return null;
+    const tm=c.match(/(\d{1,2}):(\d{2})/);
+    const mins=tm?(parseInt(tm[1],10)+parseInt(tm[2],10)/60):7.5;
+    return Math.max(0,Math.min(1,((4-q)*15+mins)/60));
+  }catch(e){return null;}
+}
+window.__cfClockFracRemaining=cfClockFracRemaining;
+
+function cfLiveProj(team,staticProj,curPts){
+  if(staticProj==null)return null;
+  const sp=+staticProj; if(!isFinite(sp))return null;
+  const cur=+curPts||0;
+  let gs=null;try{gs=window.__cfGameState&&window.__cfGameState(team);}catch(e){}
+  if(gs==='pre')return +sp.toFixed(2);       // untouched until kickoff
+  if(gs==='post')return +cur.toFixed(2);     // banked; nothing left to project
+  if(gs!=='in')return null;                  // unknown state -> caller keeps static
+  const f=cfClockFracRemaining(team);
+  if(f==null)return null;
+  return +(cur+sp*f).toFixed(2);
+}
+window.__cfLiveProj=cfLiveProj;
 function loadLiveOnlyState(){try{liveOnly=localStorage.getItem(LIVE_ONLY_KEY)==='1';}catch(e){liveOnly=false;}}
 function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1':'0');}catch(e){}}
 function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();applyFilters();}
@@ -9870,13 +9928,30 @@ async function loadData(){
   valid.forEach(lg=>{
     const ctx=leagueContexts.find(c=>c.leagueName===lg.leagueName);
     const projScoring=normalizeScoringForContext(ctx);
+    /* LIVE PROJECTED FINAL (see cfLiveProj). Applied HERE, in the one shared
+       post-provider assembly, rather than inside each provider: every consumer
+       of a projection reads either leaguePoints[].proj or ctx.myProjPts, and
+       both are produced in this loop, so converting once is the only way the
+       player cards and the scoreboard's PROJECTED FINAL cannot drift apart.
+       SKIPPED FOR YAHOO: ctx.myProjPts there is Yahoo's OWN projection, which is
+       already time-aware -- replacing it with a Sleeper-derived decayed figure
+       would be a downgrade, not a fix. Historic weeks keep static projections;
+       there is no clock to decay against. */
+    const liveOn = !isHist && lg.platform!=='yahoo';
+    let lpMy=0, lpOpp=0, lpAnyProj=false;
     lg.myPlayers.forEach(p=>{
       const e=ensure(p);
       if(!e.myLeagues.includes(lg.leagueName))e.myLeagues.push(lg.leagueName);
       const k=ptsKey(p);const pts=ctx?.myPP[k]??null;
       let proj=(ctx&&ctx.myProjPP&&ctx.myProjPP[k]!=null)?ctx.myProjPP[k]:projForPlayer(p,projScoring);
       if(proj==null&&!isHist&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring); // Yahoo/ESPN fill-in via Sleeper
+      if(liveOn){const lv=cfLiveProj(e.team,proj,pts);if(lv!=null)proj=lv;}
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
+      if(proj!=null)lpAnyProj=true;
+      /* A starter with no projection at all contributes his BANKED points rather
+         than the 0 the old provider-side sums used -- points on the board are
+         never a worse estimate of a final than zero is. */
+      lpMy+=(proj!=null?proj:(pts??0));
     });
     lg.oppPlayers.forEach(p=>{
       const e=ensure(p);
@@ -9884,8 +9959,20 @@ async function loadData(){
       const k=ptsKey(p);const pts=ctx?.oppPP[k]??null;
       let proj=(ctx&&ctx.oppProjPP&&ctx.oppProjPP[k]!=null)?ctx.oppProjPP[k]:projForPlayer(p,projScoring);
       if(proj==null&&!isHist&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring); // Yahoo/ESPN fill-in via Sleeper
+      if(liveOn){const lv=cfLiveProj(e.team,proj,pts);if(lv!=null)proj=lv;}
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
+      if(proj!=null)lpAnyProj=true;
+      lpOpp+=(proj!=null?proj:(pts??0));
     });
+    /* Rebuild the league totals from the very numbers the cards now show.
+       Gated on lpAnyProj so a league with NO projection data keeps its existing
+       zeroed totals -- downstream (`hasProj`, the Snapshot's `flip` state) reads
+       0/0 as "no projections available", and summing bare current points here
+       would fake a projected final out of nothing. */
+    if(liveOn&&ctx&&lpAnyProj&&lg.myPlayers.length&&lg.oppPlayers.length){
+      ctx.myProjPts=+lpMy.toFixed(2);
+      ctx.oppProjPts=+lpOpp.toFixed(2);
+    }
     (lg.myBench||[]).forEach(p=>{
       const e=ensure(p);
       if(!e.myBenchLeagues.includes(lg.leagueName))e.myBenchLeagues.push(lg.leagueName);
