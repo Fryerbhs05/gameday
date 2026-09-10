@@ -6494,13 +6494,29 @@ function isHistoricalWeek(){const as=parseInt(activeSeason),ls=parseInt(liveSeas
 function isPriorSeason(){return parseInt(activeSeason)<parseInt(liveSeason);}
 window.isPriorSeason=isPriorSeason;
 
-async function apiFetch(url){const r=await fetch(url);if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
+/* LIVE DATA IS NEVER SERVED FROM THE BROWSER HTTP CACHE (Matt, 2026-09-10).
+   Every Sleeper URL here is fixed -- /league/<id>/matchups/<week> never varies --
+   and Sleeper serves it with roughly a 60s freshness lifetime, so the default
+   cache mode let the browser answer a LIVE-button tap out of its own store
+   without touching the network. MEASURED on TNF Wk1: the same URL fetched
+   microseconds apart in one Promise.all, differing ONLY in cache treatment,
+   disagreed for 62 SECONDS (1.00 vs 1.10 on Stevenson). That is the whole
+   reason the LIVE button felt like a no-op. Blanket rather than opt-in: the one
+   heavy payload behind this helper (/players/nfl, ~5MB) already sits behind a
+   12h localStorage gate in getPlayerDB, so it reaches the network at most twice
+   a day either way, and every other caller is live or near-live data we want
+   fresh. Cost is ~3 requests per league per minute against Sleeper's ~1000/min
+   ceiling. Does NOT address Sleeper's own ~91s lag materializing players_points
+   from its stat feed -- see project_live_score_lag_budget. */
+async function apiFetch(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
 async function fetchNflGameStates(season,week){
   const key=`${season}-${week}`;
   if(key===nflGameStatesKey&&nflGameStates.size&&Date.now()-nflGameStatesAt<NFL_STATE_TTL)return;
   try{
     const url=`${ESPN_SCOREBOARD}?dates=${season}&seasontype=2&week=${week}`;
-    const r=await fetch(url);if(!r.ok)throw new Error(`ESPN HTTP ${r.status}`);
+    /* no-store for the same reason as apiFetch: this drives the LIVE pill and
+       the game clock, and a cached scoreboard freezes both. */
+    const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(`ESPN HTTP ${r.status}`);
     const j=await r.json();
     const m=new Map(),clk=new Map(),kck=new Map();
     (j.events||[]).forEach(ev=>{
