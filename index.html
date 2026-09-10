@@ -18852,7 +18852,7 @@ loadExperimentState();
       function toGo(list){
         return list.filter(function(p){ return gameState(p.team)!=='post'; })
           .sort(function(a,b){ var pa=(a.leaguePoints&&a.leaguePoints[name]&&a.leaguePoints[name].proj)||0, pb=(b.leaguePoints&&b.leaguePoints[name]&&b.leaguePoints[name].proj)||0; return pb-pa; })
-          .map(shortName).filter(Boolean).slice(0,2);
+          .map(shortName).filter(Boolean).slice(0,3);
       }
       /* Players with any snap left to play. Unknown game state counts as REMAINING
          (conservative) so we never call a matchup "done" on missing scoreboard data. */
@@ -18868,7 +18868,12 @@ loadExperimentState();
            `started` so a never-kicked-off matchup can't be called done just because
            no player has snaps left (e.g. an empty/unresolved roster). */
         done:(isFinal || (started && remaining===0)),
-        isFinal:isFinal, myToGo:toGo(mine), oppToGo:toGo(opp)
+        isFinal:isFinal, myToGo:toGo(mine), oppToGo:toGo(opp),
+        /* Per-side remaining counts. cardDetail names players only while a side is
+           down to NAME_TO_GO_MAX or fewer; above that a list of two names off a
+           bench of fifteen reads as a lie ("Up 1.00 — Jefferson & Hall left for
+           them" when nine others are also still to play), so it counts instead. */
+        myLeft:remainingCount(mine), oppLeft:remainingCount(opp)
       });
     });
     // sort: clinched wins top, clinched losses bottom; middle by tier → win → live → tiebreak
@@ -18887,7 +18892,22 @@ loadExperimentState();
   }
 
   function nf(v){ return (Math.round(v*100)/100).toFixed(2); }
-  function names(arr){ return arr.map(function(n){return '<span class="nm">'+n+'</span>';}).join(' &amp; '); }
+  function names(arr){
+    var w=arr.map(function(n){return '<span class="nm">'+n+'</span>';});
+    if(w.length<=1) return w.join('');
+    return w.slice(0,-1).join(', ')+' &amp; '+w[w.length-1];
+  }
+  /* Above this many players still to play, the detail line counts rather than names
+     (see myLeft/oppLeft). Three is Matt's call: two names is the most a card line
+     fits, so any list that would be truncated becomes a count. */
+  var NAME_TO_GO_MAX=3;
+  /* Name the players only when the short list is COMPLETE (shortName can drop a
+     player, which would silently shrink a 3-man list to 2 and misstate the field). */
+  function toGoTxt(list,count,tail){
+    if(!count) return '';
+    if(count<=NAME_TO_GO_MAX && list.length===count) return ' &mdash; '+names(list)+' '+tail;
+    return ' &mdash; '+count+' player'+(count===1?'':'s')+' '+tail;
+  }
   function margin(r){ return Math.abs(r.curMy-r.curOpp); }
 
   /* ---- LIST card ---- */
@@ -18944,8 +18964,8 @@ loadExperimentState();
     /* Kicked off, still 0-0. Without this the gap branch below reads
        "Up 0.00 and pulling away." off an empty scoreboard. */
     else if(r.noScores){ic='&#128337;';txt='Underway &mdash; no points on the board yet.';}
-    else if(gap>=0){ic='&#9650;';txt='Up <b>'+nf(gap)+'</b>'+(r.oppToGo.length?' &mdash; '+names(r.oppToGo)+' left for them.':' and pulling away.');}
-    else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myToGo.length?' &mdash; '+names(r.myToGo)+' to go.':'.');}
+    else if(gap>=0){ic='&#9650;';txt='Up <b>'+nf(gap)+'</b>'+(r.oppLeft?toGoTxt(r.oppToGo,r.oppLeft,'left for them.'):' and pulling away.');}
+    else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myLeft?toGoTxt(r.myToGo,r.myLeft,'to go.'):'.');}
     return '<div class="cf-c-detail'+((r.pending||r.noScores)?' is-1line':'')+'"><span>'+txt+'</span></div>';
   }
   /* Screenshot-privacy mask (shared, session-only) — see cfMaskLeague. Applied
