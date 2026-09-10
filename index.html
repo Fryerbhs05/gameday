@@ -6508,7 +6508,29 @@ window.isPriorSeason=isPriorSeason;
    fresh. Cost is ~3 requests per league per minute against Sleeper's ~1000/min
    ceiling. Does NOT address Sleeper's own ~91s lag materializing players_points
    from its stat feed -- see project_live_score_lag_budget. */
-async function apiFetch(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(`HTTP ${r.status}`);return r.json();}
+async function apiFetch(url){
+  /* UNCONDITIONAL cache defeat via a unique URL, not just no-store (Matt, 2026-09-10).
+     no-store shipped first and moved the needle by less than the ~62s it should
+     have. It is the WEAKEST of the cache-defeating options: it says nothing to a
+     CDN edge, and WebKit -- which is what an iOS PWA runs -- has a long history of
+     under-honoring it cross-origin and through a service worker. A distinct URL
+     cannot be served stale by ANY layer: not the browser, not Sleeper's edge, not
+     a WebKit quirk. Cost is ~3 requests per league per minute against Sleeper's
+     ~1000/min ceiling, i.e. nothing. no-store is KEPT alongside it -- free, and
+     correct wherever it is honored.
+
+     ONE CARVE-OUT: /players/nfl is ~5MB behind a 12h localStorage gate whose
+     setItem is wrapped in a silent catch (see getPlayerDB). If that write ever
+     fails on quota, the HTTP cache is the only thing standing between a phone and
+     a 5MB download on every cold load -- so that one URL keeps its cache. This is
+     a narrower carve-out than the opt-in Matt rejected, and for a different
+     reason: not "no-store is wasteful there" but "busting removes the fallback". */
+  const u = url.includes('/players/nfl') ? url
+          : url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+  const r = await fetch(u, {cache:'no-store'});
+  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
 async function fetchNflGameStates(season,week){
   const key=`${season}-${week}`;
   if(key===nflGameStatesKey&&nflGameStates.size&&Date.now()-nflGameStatesAt<NFL_STATE_TTL)return;
@@ -6516,7 +6538,7 @@ async function fetchNflGameStates(season,week){
     const url=`${ESPN_SCOREBOARD}?dates=${season}&seasontype=2&week=${week}`;
     /* no-store for the same reason as apiFetch: this drives the LIVE pill and
        the game clock, and a cached scoreboard freezes both. */
-    const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(`ESPN HTTP ${r.status}`);
+    const r=await fetch(url+'&_cb='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error(`ESPN HTTP ${r.status}`);
     const j=await r.json();
     const m=new Map(),clk=new Map(),kck=new Map();
     (j.events||[]).forEach(ev=>{
