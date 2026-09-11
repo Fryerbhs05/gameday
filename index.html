@@ -2897,10 +2897,10 @@
     .player-team { font: 400 11px/1 var(--font-mono); color: var(--ink-500); margin-left: auto; flex-shrink: 0; }
 
     /* Bucket-card header: two columns. Left (.card-media) is a fixed-width
-       identity stack — headshot with a position-colored ring, and position +
-       team side by side beneath it. Right (.card-main) flexes to fill the rest
-       of the card width (independent of its content) and holds the name row
-       plus the scoring/roster rows. */
+       identity stack — headshot with a position-colored ring, position + team
+       side by side beneath it, and the LIVE chip beneath that. Right
+       (.card-main) flexes to fill the rest of the card width (independent of
+       its content) and holds the name row plus the scoring/roster rows. */
     .card-media { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 5px; }
     .card-shot {
       width: 44px; height: 44px; border-radius: 50%; box-sizing: border-box;
@@ -2929,13 +2929,13 @@
     .card-media__team { color: var(--ink-500); letter-spacing: 0.04em; }
     .card-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
     .card-id-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
-    /* Name no longer grows to fill the row, so the live chip sits just to the
-       right of the name. The injury tag is pinned to the card's top-right
-       corner instead (out of the name flow). */
+    /* The live chip now sits in the left media column, under the headshot and
+       the position/team line — not in the name row. The injury tag is pinned to
+       the card's top-right corner (out of the name flow). */
     .card-id-line .player-name { flex: 0 1 auto; }
     .card-id-line .inj-badge { position: absolute; top: 13px; right: 15px; flex-shrink: 0; }
 
-    /* Live-game indicator (pulsing pill in card top row) */
+    /* Live-game indicator (pulsing pill under the headshot in .card-media) */
     .live-pill {
       display: inline-flex; align-items: center; gap: 4px;
       font: 500 9px/1 var(--font-mono); padding: 3px 6px 3px 5px;
@@ -2949,6 +2949,10 @@
       animation: livePulse 1.4s ease-in-out infinite;
     }
     @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    /* Under the headshot the pill must not widen the 44px media column, so it
+       runs a touch tighter than the generic .live-pill sizing. */
+    .card-media .live-pill { gap: 3px; padding: 3px 5px 3px 4px; letter-spacing: 0.06em; }
+    .card-media .live-pill .live-dot { width: 5px; height: 5px; }
 
     .league-pts-row { font: 400 12px/1.4 var(--font-mono); display: flex; align-items: center; gap: 6px; color: var(--ink-500); }
     .league-pts-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
@@ -6660,6 +6664,18 @@ async function fetchNflGameStates(season,week){
   }catch(e){console.warn('NFL game state fetch failed:',e.message);}
 }
 function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.team)==='in';}
+/* Game over for this player's team. Mirrors isPlayerLive but on ESPN's 'post'
+   state, and falls back to the normalized alias the way __cfGameState does --
+   player.team comes from Sleeper/Yahoo (WAS/JAC/LAR) while ESPN says WSH/JAX/LA,
+   and although fetchNflGameStates files both spellings, a provider that hands us
+   a third spelling would otherwise read as "still to play" forever. A team with
+   no entry at all (bye, unfetched slate) is NOT done -- absence is not 'post'. */
+function isPlayerDone(p){
+  if(!p||!p.team)return false;
+  let st=nflGameStates.get(p.team);
+  if(st===undefined){try{st=nflGameStates.get(cfNormTeam(p.team));}catch(e){}}
+  return st==='post';
+}
 /* Accessors so the Weekend Snapshot script (separate IIFE) can read the
    module-scoped NFL game maps. 'pre' | 'in' | 'post' | null. */
 window.__cfGameState=function(team){try{if(!team)return null;return nflGameStates.get(team)||nflGameStates.get(cfNormTeam(team))||null;}catch(e){return null;}};
@@ -9170,7 +9186,14 @@ function buildCardInner(player,isHist){
   const dotColor=n=>player.myLeagues.includes(n)?'var(--cheer)':player.againstLeagues.includes(n)?'var(--enemy)':lc(n);
   let ptsHTML='';
   if(hasAnyPts){
-    const rows=Object.entries(lpd).map(([n,d])=>{const color=dotColor(n);const proj=(!isHist&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(2)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:var(--ink-700)">${cfMaskLeague(n)}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
+    /* Projections are a forecast of what is still to come, so they stop being
+       information the moment the player's game goes final -- the actual total is
+       then the whole story and "18.40 / 12.10 proj" just invites re-litigating a
+       settled number. Hoisted out of the row map: the game state is a property of
+       the PLAYER, identical for every league row. Historic weeks already suppress
+       projections via isHist. */
+    const projDone=!isHist&&isPlayerDone(player);
+    const rows=Object.entries(lpd).map(([n,d])=>{const color=dotColor(n);const proj=(!isHist&&!projDone&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(2)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:var(--ink-700)">${cfMaskLeague(n)}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
     ptsHTML=`<div style="display:flex;flex-direction:column;gap:4px">${rows}</div>`;
   }
   let rosterHTML='';
@@ -9198,18 +9221,19 @@ function buildCardInner(player,isHist){
      player's team at the time — suppress to avoid misleading data. */
   const metaTeam = isPriorSeason() ? '' : (player.team ? `<span class="card-media__sep">·</span><span class="card-media__team">${player.team}</span>` : '');
   /* Two-column header: left identity stack (headshot w/ position-colored ring,
-     position + team side by side beneath) and right main column (name row with
-     injury/live chips, then the scoring/roster rows). Ring class maps
-     eligibility/flex to one of the position colors. */
+     position + team side by side beneath, then the LIVE chip) and right main
+     column (name row with the injury chip, then the scoring/roster rows). Ring
+     class maps eligibility/flex to one of the position colors. */
   const ringCls = 'ring-' + ({QB:'QB',RB:'RB',WR:'WR',TE:'TE',K:'K',DEF:'DEF'}[(player.position||'').toUpperCase()] || 'FLEX');
   const initials = (player.full_name||'?').split(/\s+/).map(s=>s[0]||'').join('').slice(0,2).toUpperCase();
   return `<div class="card-top">`+
       `<div class="card-media">`+
         `<div class="card-shot ${ringCls}">${avatarInnerHtml(player, initials)}</div>`+
         `<div class="card-media__meta"><span class="card-media__pos ${ringCls}">${player.position||'—'}</span>${metaTeam}</div>`+
+        `${livePill}`+
       `</div>`+
       `<div class="card-main">`+
-        `<div class="card-id-line"><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${injBadge}${livePill}</div>`+
+        `<div class="card-id-line"><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${injBadge}</div>`+
         `${ptsHTML}${rosterHTML}`+
       `</div>`+
     `</div>`;
