@@ -240,12 +240,18 @@
       /* Navy tile — shared card surface for score-strip cells + player cards
          (2026-07 scoreboard/loyalties redesign, Claude Design 2a/3a/4a). */
       --tile-bg:#16304A; --tile-line:#27425F;
-      /* LIVE card halo — the in-a-live-game indicator for Loyalties cards
+      /* LIVE card frame — the in-a-live-game indicator for Loyalties cards
          (replaced the LIVE pill, 2026-09-11). Ice blue is deliberately
          OFF-PALETTE: every brand navy sits too close to --tile-bg to separate
          from the card's own surface. Retune the breath here, once. */
       --live-ice:#8FC7F0;
-      --live-halo-period:5s; --live-halo-peak:1; --live-halo-floor:0.6; --live-halo-size:12px;
+      --live-halo-period:5s; --live-halo-peak:1; --live-halo-floor:0.6; --live-frame-w:2px;
+      /* Score-change flash colors. Deliberately BRIGHTER than --cheer/--enemy:
+         the flash frame runs three-sided against a bucket rail painted in those
+         exact tokens, so reusing them made an up-flash on a Cheer card (or a
+         down-flash on an Enemy card) merge with the rail and read as a closed
+         4-sided frame. These read as their own event against either rail. */
+      --flash-up:#7FE3A6; --flash-down:#FF7D6B;
       --pts-flash-dur:1.6s;
       --max-width:980px; --max-width-wide:1320px; --gutter:24px;
       /* STANDARD desktop phone-preview scroll cap: the scrollable list region of
@@ -1838,15 +1844,18 @@
     }
     .matchup-drawer__player-pts--my { text-align: right; }
     .matchup-drawer__player-pts--opp { text-align: left; }
-    /* Losing side of each positional pairing dims its POINTS one step so the
-       winner reads brighter at a glance. Placed BEFORE --zero so a zero/negative
-       score still greys out (--zero wins on source order).
-       PLAYER NAMES ARE DELIBERATELY EXCLUDED: names are always --ink-900 in the
-       drawer, no conditional formatting (Matt, 2026-09-11 -- the two-tone names
-       read as a data state to users and confused them). Do not re-add a
-       .matchup-drawer__player-name--lose color rule. */
-    .matchup-drawer__player-pts--lose { color: var(--ink-500); }
-    .matchup-drawer__player-pts--zero { color: var(--ink-300); }
+    /* PLAYER NAMES CARRY NO CONDITIONAL COLOR AT ALL -- always --ink-900 (Matt,
+       2026-09-11). The two-tone names read as a data state to users. Do not add
+       a .matchup-drawer__player-name--lose (or any other) name color rule. */
+    /* The ONLY conditional color left in the drawer's player rows (Matt,
+       2026-09-11): a point total is dim while that player's game HASN'T KICKED
+       OFF, and reads --ink-900 from kickoff onward -- including a 0.00 that
+       stays 0.00 all game. Two earlier rules also greyed points (the losing side
+       of a pairing, and any zero/negative total) and users read grey as "not
+       playing"; don't re-add either. --empty is the em-dash filler for an
+       unpaired roster slot, which is not a score at all. */
+    .matchup-drawer__player-pts--pre,
+    .matchup-drawer__player-pts--empty { color: var(--ink-300); }
     .matchup-drawer__paired-pos {
       display: flex; justify-content: center; align-items: center;
       min-width: 44px;
@@ -2509,16 +2518,23 @@
     .player-card.filtered-out { display: none; }
     /* In a live game. Driven straight off [data-live], which buildCard and
        updateCard already maintain — no extra class to keep in sync.
-       A pseudo-element OUTSIDE the border box (inset:-1px) rather than an
-       animated border, because .player-card spends its border on the
-       bucket-colored left edge and :hover already animates border-color;
-       animating the border would fight both. Only opacity animates, so this
-       is compositor-only — no layout, no repaint of the card itself, nothing
-       that costs anything on a 50-card Enemy scroll. */
+
+       A THREE-SIDED frame: top, right and bottom only (border-left-width:0),
+       because the left edge belongs to the bucket color (green/gold/red) and
+       must stay legible. The frame is a pseudo-element, NOT the card's own
+       border, for two reasons: .player-card has already spent its border on
+       that bucket edge, and :hover animates border-color — animating the real
+       border would fight both. inset:-1px lands the pseudo's border box exactly
+       on the card's border box, so the frame sits ON the card's own hairline
+       and adds ZERO visual width (the earlier glow version read as extra space
+       between cards, which is why it's a frame now — Matt, 2026-09-11).
+       Only opacity animates: compositor-only, no layout, no repaint of the
+       card, nothing that costs anything on a 50-card Enemy scroll. */
     .player-card[data-live="1"]::after {
       content: ''; position: absolute; inset: -1px; pointer-events: none;
-      border-radius: calc(var(--radius-lg) + 1px);
-      box-shadow: 0 0 var(--live-halo-size) 2px color-mix(in srgb, var(--live-ice) 75%, transparent);
+      border-radius: var(--radius-lg);
+      border: var(--live-frame-w) solid var(--live-ice);
+      border-left-width: 0;
       opacity: 0; animation: cardBreathe var(--live-halo-period) ease-in-out infinite;
     }
     @keyframes cardBreathe {
@@ -2536,18 +2552,21 @@
        DOWN — deliberately NOT rooting impact, so an Enemy who scores flashes
        green even though that is bad news for you. Don't "fix" that to match the
        bucket colors without asking; it was the decision, not an oversight.
-       Rendered on ::before so it LAYERS OVER the [data-live] ice halo on ::after
-       rather than replacing it (z-index puts it on top) — a live player who
-       scores shows both. Like the halo it draws its glow OUTSIDE the card box,
-       so it never covers card content and never touches the bucket left edge. */
+       Rendered on ::before so it LAYERS OVER the [data-live] ice frame on
+       ::after rather than replacing it (z-index puts it on top) — a live player
+       who scores briefly shows green/red in place of ice, then falls back to
+       ice. Same three-sided geometry as the live frame, so it never covers card
+       content and never touches the bucket left edge. */
     .player-card.pts-up::before,
     .player-card.pts-down::before {
       content: ''; position: absolute; inset: -1px; pointer-events: none; z-index: 1;
-      border-radius: calc(var(--radius-lg) + 1px);
+      border-radius: var(--radius-lg);
+      border: var(--live-frame-w) solid transparent;
+      border-left-width: 0;
       opacity: 0; animation: ptsFlash var(--pts-flash-dur) var(--ease-out) 1;
     }
-    .player-card.pts-up::before   { box-shadow: 0 0 18px 3px color-mix(in srgb, var(--cheer) 85%, transparent); }
-    .player-card.pts-down::before { box-shadow: 0 0 18px 3px color-mix(in srgb, var(--enemy) 85%, transparent); }
+    .player-card.pts-up::before   { border-color: var(--flash-up); }
+    .player-card.pts-down::before { border-color: var(--flash-down); }
     @keyframes ptsFlash { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
     /* Reduced motion: hold the tint steady for the same window instead of
        pulsing it. The JS strips the class on its own timer either way. */
@@ -6717,6 +6736,25 @@ function isPlayerDone(p){
   if(st===undefined){try{st=nflGameStates.get(cfNormTeam(p.team));}catch(e){}}
   return st==='post';
 }
+/* Has this player's game kicked off yet? Drives the matchup drawer's ONLY
+   greyed points state (Matt, 2026-09-11): a point total is dim while the game
+   hasn't started and turns --ink-900 the moment it does. Returns TRUE only when
+   we positively KNOW the game is still 'pre' -- an unknown team, a bye, an
+   unfetched slate or a third team spelling all read as "started", so we never
+   grey a number we can't explain.
+   HISTORIC GUARD: nflGameStates/nflKickoffs are never refetched for a past week
+   and still describe TODAY's slate, so a 2025 Week 1 drawer would grey players
+   whose real games ended a year ago. Replay Mode reports isHist:false ON PURPOSE
+   (it replays a historic week AS live) and must keep greying -- which is why
+   this reads __conflictedLastData.isHist and NOT isHistoricalWeek(). */
+function mpGameNotStarted(team){
+  if(!team)return false;
+  try{
+    const d=window.__conflictedLastData;
+    if(d&&d.isHist)return false;
+    return window.__cfGameState(team)==='pre';
+  }catch(e){return false;}
+}
 /* Accessors so the Weekend Snapshot script (separate IIFE) can read the
    module-scoped NFL game maps. 'pre' | 'in' | 'post' | null. */
 window.__cfGameState=function(team){try{if(!team)return null;return nflGameStates.get(team)||nflGameStates.get(cfNormTeam(team))||null;}catch(e){return null;}};
@@ -8489,20 +8527,12 @@ function updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt){
     const map = side === 'my' ? myPP : oppPP;
     const pts = map[pid] != null ? +map[pid] : 0;
     span.textContent = fmtPts(pts);
-    span.classList.toggle('matchup-drawer__player-pts--zero', !(pts > 0));
-  });
-  /* Recompute per-pairing winner dimming for starter rows (skip bench). */
-  drawer.querySelectorAll('.matchup-drawer__paired-row').forEach(row => {
-    if (row.closest('[data-matchup-bench]')) return;
-    const myS = row.querySelector('.matchup-drawer__player-pts--my');
-    const opS = row.querySelector('.matchup-drawer__player-pts--opp');
-    if (!myS || !opS) return;
-    const mv = parseFloat(myS.textContent), ov = parseFloat(opS.textContent);
-    const myLose = !isNaN(mv) && !isNaN(ov) && ov > mv;
-    const opLose = !isNaN(mv) && !isNaN(ov) && mv > ov;
-    /* Points only -- player names hold a constant color (see CSS note). */
-    myS.classList.toggle('matchup-drawer__player-pts--lose', myLose);
-    opS.classList.toggle('matchup-drawer__player-pts--lose', opLose);
+    /* Kickoff is the ONLY thing that un-greys a number, and it flips DURING an
+       open drawer (1pm slate kicks off while the user is staring at it), so it
+       has to be re-evaluated on every patch -- not just at render. data-mp-team
+       is stamped by halfCells so we don't need the roster objects here. */
+    span.classList.toggle('matchup-drawer__player-pts--pre',
+      mpGameNotStarted(span.getAttribute('data-mp-team') || ''));
   });
 }
 
@@ -8577,11 +8607,11 @@ function renderMatchupDrawer(ctx, lg){
   /* Render a player half-row: either the "you" cell pair (name + pts) or
      the "opp" cell pair. side controls alignment and the data-mp-side
      attribute used by live-refresh patching. */
-  function halfCells(raw, side, ppMap, outcome){
+  function halfCells(raw, side, ppMap){
     if (raw == null){
       // placeholder for unpaired roster slot (e.g. opp has 1 more bench player)
       const nameCls = 'matchup-drawer__player-name matchup-drawer__player-name--' + side + ' matchup-drawer__placeholder';
-      const ptsCls = 'matchup-drawer__player-pts matchup-drawer__player-pts--' + side + ' matchup-drawer__player-pts--zero';
+      const ptsCls = 'matchup-drawer__player-pts matchup-drawer__player-pts--' + side + ' matchup-drawer__player-pts--empty';
       if (side === 'my'){
         return '<span class="' + nameCls + '">—</span>'
              + '<span class="' + ptsCls + '">—</span>';
@@ -8594,16 +8624,17 @@ function renderMatchupDrawer(ctx, lg){
     const pid = p.pid;
     const pts = ppMap[pid] != null ? +ppMap[pid] : 0;
     const ptsStr = fmtPts(pts);
-    const ptsZero = pts > 0 ? '' : ' matchup-drawer__player-pts--zero';
+    /* Dim ONLY before kickoff -- see the CSS note. A 0.00 after kickoff is a
+       real, earned zero and stays white. */
+    const preCls = mpGameNotStarted(p.team) ? ' matchup-drawer__player-pts--pre' : '';
     /* Pending = Sleeper name not resolvable yet. Render the app's standard .skel
        shimmer bar (reduced-motion handled globally) instead of a raw ID, so the
        row reads as "filling in" rather than as broken data. */
     const nameHtml = p.pending
       ? '<span class="matchup-drawer__player-skel skel" role="img" aria-label="Loading player name"></span>'
       : escHtml(p.full_name);
-    const losePts  = outcome === 'lose' ? ' matchup-drawer__player-pts--lose' : '';
     const nameSpan = '<span class="matchup-drawer__player-name matchup-drawer__player-name--' + side + '">' + nameHtml + '</span>';
-    const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + ptsZero + losePts + '" data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '">' + ptsStr + '</span>';
+    const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + preCls + '" data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '" data-mp-team="' + escHtml(p.team || '') + '">' + ptsStr + '</span>';
     /* Visual order: my side reads outward→inward (name then pts), opp side reads
        inward→outward (pts then name) so the points cluster around the center POS. */
     return side === 'my' ? (nameSpan + ptsSpan) : (ptsSpan + nameSpan);
@@ -8650,22 +8681,15 @@ function renderMatchupDrawer(ctx, lg){
      when one side has more players, the other side gets a placeholder cell.
      rosterPositions is the optional slot-by-index map (Sleeper) — passed
      through to posCell for slot-aware position pills. */
-  function pairedRowsHtml(myPlayers, oppPlayers, rosterPositions, showOutcome, showPos){
+  function pairedRowsHtml(myPlayers, oppPlayers, rosterPositions, showPos){
     const len = Math.max(myPlayers ? myPlayers.length : 0, oppPlayers ? oppPlayers.length : 0);
     if (!len) return '';
     const rows = [];
     for (let i = 0; i < len; i++){
       const my = myPlayers && i < myPlayers.length ? myPlayers[i] : null;
       const op = oppPlayers && i < oppPlayers.length ? oppPlayers[i] : null;
-      /* Per-pairing winner cue (starters only): dim whichever side scored less.
-         Both sides must be present with points to call it. */
-      let myOut = '', opOut = '';
-      if (showOutcome && my != null && op != null){
-        const mv = +(myPP[normalizePlayer(my).pid] || 0);
-        const ov = +(oppPP[normalizePlayer(op).pid] || 0);
-        if (mv > ov) opOut = 'lose';
-        else if (ov > mv) myOut = 'lose';
-      }
+      /* The per-pairing winner cue (dim the side that scored less) was removed
+         with the rest of the points conditional formatting -- see the CSS note. */
       /* Bench (showPos === false): no POS badge — bench players aren't in play,
          so a shared center slot would falsely imply a head-to-head pairing.
          An empty center cell keeps the 5-column grid aligned with the starters. */
@@ -8674,9 +8698,9 @@ function renderMatchupDrawer(ctx, lg){
         : posCell(my, op, i, rosterPositions);
       rows.push(
         '<div class="matchup-drawer__paired-row">'
-        + halfCells(my, 'my', myPP, myOut)
+        + halfCells(my, 'my', myPP)
         + posHtml
-        + halfCells(op, 'opp', oppPP, opOut)
+        + halfCells(op, 'opp', oppPP)
         + '</div>'
       );
     }
@@ -8693,7 +8717,7 @@ function renderMatchupDrawer(ctx, lg){
      so we pass null here and let resolveSlot fall through to p.slot. */
   const rosterPositions = (lg && Array.isArray(lg.rosterPositions)) ? lg.rosterPositions : null;
   const startersBody = (myPlayers.length || oppPlayers.length)
-    ? pairedRowsHtml(myPlayers, oppPlayers, rosterPositions, true)
+    ? pairedRowsHtml(myPlayers, oppPlayers, rosterPositions)
     : '<p class="matchup-drawer__empty">No starters.</p>';
   /* Manager team names sit in the score labels above each side's points (custom
      nickname, else display name). Fall back to You/Opp when we have no name —
@@ -8710,7 +8734,7 @@ function renderMatchupDrawer(ctx, lg){
     +   '<span class="caret">▸</span> Bench (' + benchTotal + ')'
     + '</button>'
     + '<div class="matchup-drawer__bench" data-matchup-bench="1">'
-    +   pairedRowsHtml(myBench, oppBench, null, false, false)
+    +   pairedRowsHtml(myBench, oppBench, null, false)
     + '</div>'
   ) : '';
   return '<div class="matchup-drawer' + (st === 'NO_OPPONENT' ? ' matchup-drawer--solo' : '') + '" data-status="' + dataStatus + '" data-matchup-league="' + escHtml(ctx.leagueName) + '">'
@@ -9306,6 +9330,20 @@ const CF_FLASH_MS=1700;
    +0.0 STD). Only leagues present in BOTH snapshots are netted — a league that
    just appeared or dropped out of the payload is a different quantity, not a
    delta. First sight of a player seeds and never flashes. */
+/* Replay Mode scrubs, jumps and pauses move the virtual clock BACKWARD, which
+   to any delta detector looks like every player simultaneously losing points —
+   without this the whole board would flash red on every scrub. Same contract as
+   window.__resetImpacts / __resetLiveUpdates, and called from the same
+   resetDetectors() seam: drop the baselines so the next render seeds silently,
+   and strip any frame still mid-flash. */
+window.__resetPtsFlash=function(){
+  try{
+    cfPtsPrev.clear();
+    document.querySelectorAll('.player-card.pts-up,.player-card.pts-down').forEach(function(n){
+      clearTimeout(n._cfFlashT);n.classList.remove('pts-up','pts-down');
+    });
+  }catch(e){}
+};
 function cfFlashPtsDelta(node,player){
   const key=activeSeason+'|'+activeWeek+'|'+String(player.id);
   const lpd=player.leaguePoints||{},cur={};
@@ -10772,6 +10810,7 @@ const cfReplay=(function(){
   function resetDetectors(){
     try{window.__resetImpacts&&window.__resetImpacts();}catch(e){}
     try{window.__resetLiveUpdates&&window.__resetLiveUpdates();}catch(e){}
+    try{window.__resetPtsFlash&&window.__resetPtsFlash();}catch(e){}
   }
   function jump(v){vt=Math.max(0,Math.min(total,v));resetDetectors();render();updatePanel();}
 
