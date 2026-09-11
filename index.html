@@ -240,6 +240,13 @@
       /* Navy tile — shared card surface for score-strip cells + player cards
          (2026-07 scoreboard/loyalties redesign, Claude Design 2a/3a/4a). */
       --tile-bg:#16304A; --tile-line:#27425F;
+      /* LIVE card halo — the in-a-live-game indicator for Loyalties cards
+         (replaced the LIVE pill, 2026-09-11). Ice blue is deliberately
+         OFF-PALETTE: every brand navy sits too close to --tile-bg to separate
+         from the card's own surface. Retune the breath here, once. */
+      --live-ice:#8FC7F0;
+      --live-halo-period:5s; --live-halo-peak:1; --live-halo-floor:0.6; --live-halo-size:12px;
+      --pts-flash-dur:1.6s;
       --max-width:980px; --max-width-wide:1320px; --gutter:24px;
       /* STANDARD desktop phone-preview scroll cap: the scrollable list region of
          any phone-framed desktop board (Snapshot content, Leaders rows, and
@@ -2500,6 +2507,54 @@
     .column.conflicted .player-card { border-left: 3px solid var(--split); }
     .column.enemy      .player-card { border-left: 3px solid var(--enemy); }
     .player-card.filtered-out { display: none; }
+    /* In a live game. Driven straight off [data-live], which buildCard and
+       updateCard already maintain — no extra class to keep in sync.
+       A pseudo-element OUTSIDE the border box (inset:-1px) rather than an
+       animated border, because .player-card spends its border on the
+       bucket-colored left edge and :hover already animates border-color;
+       animating the border would fight both. Only opacity animates, so this
+       is compositor-only — no layout, no repaint of the card itself, nothing
+       that costs anything on a 50-card Enemy scroll. */
+    .player-card[data-live="1"]::after {
+      content: ''; position: absolute; inset: -1px; pointer-events: none;
+      border-radius: calc(var(--radius-lg) + 1px);
+      box-shadow: 0 0 var(--live-halo-size) 2px color-mix(in srgb, var(--live-ice) 75%, transparent);
+      opacity: 0; animation: cardBreathe var(--live-halo-period) ease-in-out infinite;
+    }
+    @keyframes cardBreathe {
+      0%, 100% { opacity: var(--live-halo-floor); }
+      50%      { opacity: var(--live-halo-peak); }
+    }
+    /* The halo IDENTIFIES an active player, so reduced-motion stops the breath
+       but must not remove the indicator — it holds at peak instead. */
+    @media (prefers-reduced-motion: reduce) {
+      .player-card[data-live="1"]::after { animation: none; opacity: var(--live-halo-peak); }
+    }
+
+    /* Score-change flash. RAW DIRECTION by Matt's call (2026-09-11): green when
+       this player's points went UP since the last refresh, red when they went
+       DOWN — deliberately NOT rooting impact, so an Enemy who scores flashes
+       green even though that is bad news for you. Don't "fix" that to match the
+       bucket colors without asking; it was the decision, not an oversight.
+       Rendered on ::before so it LAYERS OVER the [data-live] ice halo on ::after
+       rather than replacing it (z-index puts it on top) — a live player who
+       scores shows both. Like the halo it draws its glow OUTSIDE the card box,
+       so it never covers card content and never touches the bucket left edge. */
+    .player-card.pts-up::before,
+    .player-card.pts-down::before {
+      content: ''; position: absolute; inset: -1px; pointer-events: none; z-index: 1;
+      border-radius: calc(var(--radius-lg) + 1px);
+      opacity: 0; animation: ptsFlash var(--pts-flash-dur) var(--ease-out) 1;
+    }
+    .player-card.pts-up::before   { box-shadow: 0 0 18px 3px color-mix(in srgb, var(--cheer) 85%, transparent); }
+    .player-card.pts-down::before { box-shadow: 0 0 18px 3px color-mix(in srgb, var(--enemy) 85%, transparent); }
+    @keyframes ptsFlash { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
+    /* Reduced motion: hold the tint steady for the same window instead of
+       pulsing it. The JS strips the class on its own timer either way. */
+    @media (prefers-reduced-motion: reduce) {
+      .player-card.pts-up::before,
+      .player-card.pts-down::before { animation: none; opacity: 1; }
+    }
     /* Dull/clinched display intentionally disabled (revisit later). Class still
        toggled in JS so the logic stays intact; just no visual difference. */
     .player-card.clinched { }
@@ -2898,9 +2953,9 @@
 
     /* Bucket-card header: two columns. Left (.card-media) is a fixed-width
        identity stack — headshot with a position-colored ring, position + team
-       side by side beneath it, and the LIVE chip beneath that. Right
-       (.card-main) flexes to fill the rest of the card width (independent of
-       its content) and holds the name row plus the scoring/roster rows. */
+       side by side beneath it. Right (.card-main) flexes to fill the rest of
+       the card width (independent of its content) and holds the name row plus
+       the scoring/roster rows. */
     .card-media { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 5px; }
     .card-shot {
       width: 44px; height: 44px; border-radius: 50%; box-sizing: border-box;
@@ -2929,30 +2984,16 @@
     .card-media__team { color: var(--ink-500); letter-spacing: 0.04em; }
     .card-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
     .card-id-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
-    /* The live chip now sits in the left media column, under the headshot and
-       the position/team line — not in the name row. The injury tag is pinned to
-       the card's top-right corner (out of the name flow). */
+    /* The name has this row to itself — the live chip that used to sit beside it
+       is now the card halo. The injury tag is pinned to the card's top-right
+       corner (out of the name flow). */
     .card-id-line .player-name { flex: 0 1 auto; }
     .card-id-line .inj-badge { position: absolute; top: 13px; right: 15px; flex-shrink: 0; }
 
-    /* Live-game indicator (pulsing pill under the headshot in .card-media) */
-    .live-pill {
-      display: inline-flex; align-items: center; gap: 4px;
-      font: 500 9px/1 var(--font-mono); padding: 3px 6px 3px 5px;
-      border-radius: var(--radius-sm); flex-shrink: 0;
-      background: color-mix(in oklab, var(--coral-500) 16%, transparent);
-      color: var(--coral-700, #993C1D); letter-spacing: 0.08em;
-    }
-    .live-pill .live-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--coral-500); flex-shrink: 0;
-      animation: livePulse 1.4s ease-in-out infinite;
-    }
+    /* The LIVE pill on player cards is GONE (2026-09-11) — the breathing card
+       halo above replaced it. livePulse SURVIVES: .btn-live.syncing .dot-live
+       still animates on it. Don't delete it with the pill's other leftovers. */
     @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-    /* Under the headshot the pill must not widen the 44px media column, so it
-       runs a touch tighter than the generic .live-pill sizing. */
-    .card-media .live-pill { gap: 3px; padding: 3px 5px 3px 4px; letter-spacing: 0.06em; }
-    .card-media .live-pill .live-dot { width: 5px; height: 5px; }
 
     .league-pts-row { font: 400 12px/1.4 var(--font-mono); display: flex; align-items: center; gap: 6px; color: var(--ink-500); }
     .league-pts-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
@@ -9215,22 +9256,21 @@ function buildCardInner(player,isHist){
     const lbl=inj==='Injured Reserve'?'IR':inj;
     injBadge=`<span class="inj-badge ${cls}">${lbl}</span>`;
   }
-  const livePill=isPlayerLive(player)?`<span class="live-pill" aria-label="In a live game"><span class="live-dot"></span>LIVE</span>`:'';
 
   /* On prior seasons, the team chip would reflect current rosters not the
      player's team at the time — suppress to avoid misleading data. */
   const metaTeam = isPriorSeason() ? '' : (player.team ? `<span class="card-media__sep">·</span><span class="card-media__team">${player.team}</span>` : '');
   /* Two-column header: left identity stack (headshot w/ position-colored ring,
-     position + team side by side beneath, then the LIVE chip) and right main
-     column (name row with the injury chip, then the scoring/roster rows). Ring
-     class maps eligibility/flex to one of the position colors. */
+     position + team side by side beneath) and right main column (name row with
+     the injury chip, then the scoring/roster rows). Ring class maps
+     eligibility/flex to one of the position colors. LIVE is no longer rendered
+     in here at all — it's the card halo, off [data-live]. */
   const ringCls = 'ring-' + ({QB:'QB',RB:'RB',WR:'WR',TE:'TE',K:'K',DEF:'DEF'}[(player.position||'').toUpperCase()] || 'FLEX');
   const initials = (player.full_name||'?').split(/\s+/).map(s=>s[0]||'').join('').slice(0,2).toUpperCase();
   return `<div class="card-top">`+
       `<div class="card-media">`+
         `<div class="card-shot ${ringCls}">${avatarInnerHtml(player, initials)}</div>`+
         `<div class="card-media__meta"><span class="card-media__pos ${ringCls}">${player.position||'—'}</span>${metaTeam}</div>`+
-        `${livePill}`+
       `</div>`+
       `<div class="card-main">`+
         `<div class="card-id-line"><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${injBadge}</div>`+
@@ -9253,6 +9293,36 @@ function cfStampTap(node,player){
   node.setAttribute('aria-label','Box score for '+(player.full_name||'this player'));
 }
 
+/* Score-change flash state, keyed season|week|playerId. The season/week in the
+   key is what makes a period switch safe: stepping to another week finds no
+   prior entry, seeds silently and flashes nothing, instead of diffing this
+   week's points against last week's and lighting up every card. No clearing
+   hook to forget on a nav path someone adds later. */
+const cfPtsPrev=new Map();
+const CF_FLASH_MS=1700;
+/* Flash a card on a points change since the previous render. Per-league values
+   are netted into ONE number because the flash is card-level and the same player
+   holds different totals per scoring format (a catch is +1.0 PPR, +0.5 HALF,
+   +0.0 STD). Only leagues present in BOTH snapshots are netted — a league that
+   just appeared or dropped out of the payload is a different quantity, not a
+   delta. First sight of a player seeds and never flashes. */
+function cfFlashPtsDelta(node,player){
+  const key=activeSeason+'|'+activeWeek+'|'+String(player.id);
+  const lpd=player.leaguePoints||{},cur={};
+  for(const n in lpd){const v=lpd[n]&&lpd[n].pts;if(typeof v==='number')cur[n]=v;}
+  const prev=cfPtsPrev.get(key);
+  cfPtsPrev.set(key,cur);
+  if(!prev)return;
+  let d=0;for(const n in cur){if(typeof prev[n]==='number')d+=cur[n]-prev[n];}
+  if(!d)return;
+  const cls=d>0?'pts-up':'pts-down';
+  node.classList.remove('pts-up','pts-down');
+  void node.offsetWidth; // reflow: restarts the animation if a flash is already mid-flight
+  node.classList.add(cls);
+  clearTimeout(node._cfFlashT);
+  node._cfFlashT=setTimeout(function(){node.classList.remove(cls);},CF_FLASH_MS);
+}
+
 function buildCard(player,isHist){
   const div=document.createElement('div');
   div.className=`player-card${player.clinched?' clinched':''}`;
@@ -9260,6 +9330,7 @@ function buildCard(player,isHist){
   div.dataset.team=player.team||'';
   div.dataset.live=isPlayerLive(player)?'1':'0';
   cfStampTap(div,player);
+  cfFlashPtsDelta(div,player);
   const inner=buildCardInner(player,isHist);
   div.innerHTML=inner;
   div._cardHash=inner;
@@ -9280,6 +9351,7 @@ function updateCard(node,player,isHist){
   /* Cards are reused across the 60s diff-render but the player OBJECT is rebuilt
      every load — restamp or the drawer opens on a stale snapshot. */
   cfStampTap(node,player);
+  cfFlashPtsDelta(node,player);
   const inner=buildCardInner(player,isHist);
   if(node._cardHash!==inner){
     node.innerHTML=inner;
