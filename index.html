@@ -301,9 +301,13 @@
     .t-stat{font:500 18px/1.1 var(--font-mono);color:var(--ink-900);}
     .t-stat-sm{font:400 13px/1.2 var(--font-mono);color:var(--ink-500);}
 
-    /* "Synced HH:MM:SS" pill — green flash on LIVE-button refresh, then fades
+    /* "Synced HH:MM:SS" pill — ice-blue flash on LIVE-button refresh, then fades
        back to the static look. .synced-flash snaps on (no transition), removing
-       the class lets the base rule's transition fade it back out over ~1.3s. */
+       the class lets the base rule's transition fade it back out over ~1.3s.
+       Ice blue (--live-ice), NOT --cheer: green is the rooting-outcome color
+       (winning / Cheer bucket), and a green pulse over the whole board on every
+       refresh read as a result, not as "synced". --live-ice is already the
+       live-data color (Loyalties card halo), so sync now speaks that language. */
     .board-foot { display: flex; justify-content: flex-end; margin-top: 16px; }
     #board-refresh-time {
       display: inline-block;
@@ -314,9 +318,9 @@
       transition: background 1.3s var(--ease-out), border-color 1.3s var(--ease-out), color 1.3s var(--ease-out);
     }
     #board-refresh-time.synced-flash {
-      background: var(--cheer-soft);
-      border-color: var(--cheer);
-      color: var(--cheer);
+      background: color-mix(in oklab, var(--live-ice) 16%, transparent);
+      border-color: var(--live-ice);
+      color: var(--live-ice);
       transition: none;
     }
 
@@ -1497,11 +1501,13 @@
       letter-spacing: 0.03em; white-space: nowrap;
       margin-bottom: 15px;
     }
-    /* Green border flash on LIVE-button refresh (mirrors the synced timestamp) —
-       snaps to cheer, then the base transition fades it back to the frame color.
-       !important clears the theme-specific border-color rules while flashing. */
+    /* Ice-blue border flash on LIVE-button refresh (mirrors the synced timestamp)
+       — snaps to --live-ice, then the base transition fades it back to the frame
+       color. !important clears the theme-specific border-color rules while
+       flashing. Was --cheer through v196; green over the full board frame read
+       as an outcome. Keep this token in lockstep with the pill above. */
     .scoreboard-frame.synced-flash, .columns.synced-flash {
-      border-color: var(--cheer) !important;
+      border-color: var(--live-ice) !important;
       transition: none;
     }
     .scoreboard-header {
@@ -11090,8 +11096,8 @@ async function handleRefresh(){
   }
 }
 function flashSyncedFeedback(){
-  // Same green snap-on / fade-back applied to the timestamp pill and to both
-  // section frames (scoreboard + 3-bucket).
+  // Same ice-blue snap-on / fade-back applied to the timestamp pill and to both
+  // section frames (scoreboard + 3-bucket). Color lives in CSS (--live-ice).
   ['board-refresh-time','scoreboard-frame','columns'].forEach(id=>{
     const el=document.getElementById(id);
     if(!el)return;
