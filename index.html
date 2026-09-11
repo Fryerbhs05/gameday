@@ -1831,10 +1831,13 @@
     }
     .matchup-drawer__player-pts--my { text-align: right; }
     .matchup-drawer__player-pts--opp { text-align: left; }
-    /* Losing side of each positional pairing dims one step so the winner reads
-       brighter at a glance. Placed BEFORE --zero so a zero/negative score still
-       greys out (--zero wins on source order). */
-    .matchup-drawer__player-name--lose,
+    /* Losing side of each positional pairing dims its POINTS one step so the
+       winner reads brighter at a glance. Placed BEFORE --zero so a zero/negative
+       score still greys out (--zero wins on source order).
+       PLAYER NAMES ARE DELIBERATELY EXCLUDED: names are always --ink-900 in the
+       drawer, no conditional formatting (Matt, 2026-09-11 -- the two-tone names
+       read as a data state to users and confused them). Do not re-add a
+       .matchup-drawer__player-name--lose color rule. */
     .matchup-drawer__player-pts--lose { color: var(--ink-500); }
     .matchup-drawer__player-pts--zero { color: var(--ink-300); }
     .matchup-drawer__paired-pos {
@@ -8440,12 +8443,9 @@ function updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt){
     const mv = parseFloat(myS.textContent), ov = parseFloat(opS.textContent);
     const myLose = !isNaN(mv) && !isNaN(ov) && ov > mv;
     const opLose = !isNaN(mv) && !isNaN(ov) && mv > ov;
-    const myN = row.querySelector('.matchup-drawer__player-name--my');
-    const opN = row.querySelector('.matchup-drawer__player-name--opp');
+    /* Points only -- player names hold a constant color (see CSS note). */
     myS.classList.toggle('matchup-drawer__player-pts--lose', myLose);
-    if (myN) myN.classList.toggle('matchup-drawer__player-name--lose', myLose);
     opS.classList.toggle('matchup-drawer__player-pts--lose', opLose);
-    if (opN) opN.classList.toggle('matchup-drawer__player-name--lose', opLose);
   });
 }
 
@@ -8544,9 +8544,8 @@ function renderMatchupDrawer(ctx, lg){
     const nameHtml = p.pending
       ? '<span class="matchup-drawer__player-skel skel" role="img" aria-label="Loading player name"></span>'
       : escHtml(p.full_name);
-    const loseName = outcome === 'lose' ? ' matchup-drawer__player-name--lose' : '';
     const losePts  = outcome === 'lose' ? ' matchup-drawer__player-pts--lose' : '';
-    const nameSpan = '<span class="matchup-drawer__player-name matchup-drawer__player-name--' + side + loseName + '">' + nameHtml + '</span>';
+    const nameSpan = '<span class="matchup-drawer__player-name matchup-drawer__player-name--' + side + '">' + nameHtml + '</span>';
     const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + ptsZero + losePts + '" data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '">' + ptsStr + '</span>';
     /* Visual order: my side reads outward→inward (name then pts), opp side reads
        inward→outward (pts then name) so the points cluster around the center POS. */
