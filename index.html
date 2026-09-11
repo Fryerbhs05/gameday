@@ -2253,16 +2253,18 @@
        Schedule in the bar and never see Conflict here. */
     /* ── Bottom bar layout — RELEASED TO ALL in-app mobile users (2026-07-04) ──
        Was experiment-gated; now every user gets:
-         Leaders · Snapshot · Home(center hub) · Conflict · More
-       Schedule + Account leave the bar and move into the …More sheet. Note:
+         Schedule · Snapshot · Home(center hub) · Conflict · More
+       Leaders + Account leave the bar and move into the …More sheet. Note:
        this is the NAV LAYOUT only — experiment MODE itself stays gated (the
        TestMode code + the admin-only …More "Experiment" tile are unchanged). */
-    .cbnav-schedule { display: none; }              /* Schedule → …More sheet */
     [data-exp-tab="account"] { display: none; }     /* Account  → …More sheet */
     /* Leaders replaced Exposure in the far-left slot (2026-07-14); Exposure
-       moved to the …More sheet. Order set explicitly, independent of DOM. */
+       moved to the …More sheet. Then Schedule replaced Leaders in that same
+       far-left slot (2026-09-11, Matt) and Leaders moved to the …More sheet —
+       the two simply traded places. Order set explicitly, independent of DOM. */
     .cbnav-exposure           { display: none; }    /* Exposure → …More sheet */
-    .cbnav-leaders            { order: 1; }
+    .cbnav-leaders            { display: none; }    /* Leaders  → …More sheet */
+    .cbnav-schedule           { order: 1; }
     [data-exp-tab="snapshot"] { order: 2; }
     [data-exp-tab="dashboard"]{ order: 3; }
     .cbnav-conflict           { order: 4; }
@@ -4599,7 +4601,7 @@
     /* Exposure / Schedule / Account are first-class rail tabs now — drop their
        redundant tiles from the …More sheet on desktop (mobile keeps them). */
     body:not(.nav-landing) .cbmore-tile[data-more-action="exposure"],
-    body:not(.nav-landing) .cbmore-tile[data-more-action="schedule"],
+    body:not(.nav-landing) .cbmore-tile[data-more-action="leaders"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="blog"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="contact"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="account"] { display: none; }
@@ -4701,7 +4703,9 @@
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></svg></span>
     <span>Exposure</span>
   </button>
-  <!-- Leaders = far-left bar slot (2026-07-14). Podium icon. -->
+  <!-- Leaders held the far-left bar slot 2026-07-14 → 2026-09-11; it now lives
+       in the …More sheet (button kept in DOM, hidden via .cbnav-leaders CSS)
+       and Schedule takes the slot. -->
   <button class="cbnav-tab cbnav-leaders" type="button" data-exp-tab="leaders" aria-label="Leaders">
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="6" height="12"/><rect x="3" y="13" width="6" height="8"/><rect x="15" y="15" width="6" height="6"/><path d="M12 2.5l1.1 2.2 2.4.35-1.75 1.7.4 2.4L12 8.05l-2.15 1.1.4-2.4-1.75-1.7 2.4-.35L12 2.5z"/></svg></span>
     <span>Leaders</span>
@@ -4710,6 +4714,7 @@
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg></span>
     <span>Conflict</span>
   </button>
+  <!-- Schedule = far-left bar slot (2026-09-11), traded with Leaders. -->
   <button class="cbnav-tab cbnav-schedule" type="button" data-exp-tab="schedule" aria-label="Schedule (watch priority)">
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></svg></span>
     <span>Schedule</span>
@@ -4741,7 +4746,10 @@
          Exposure returned to this sheet 2026-07-14 — Leaders took its bar slot.
          (Its data-more-action="exposure" click handler below never left.) */
       { key: 'exposure', label: 'Exposure', soon: false, svg: '<g transform="translate(12,12) scale(0.7059) translate(-12,-11.5)"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></g>' },
-      { key: 'schedule', label: 'Schedule', soon: false, svg: '<g transform="translate(12,12) scale(0.6667) translate(-12,-11.5)"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></g>' },
+      /* Leaders traded places with Schedule 2026-09-11 (Matt): Schedule took the
+         far-left bar slot, Leaders came here. Podium icon, height-normalized to
+         the flask like every other tile (raw art is 18.5u tall, centered 11.75). */
+      { key: 'leaders', label: 'Leaders', soon: false, svg: '<g transform="translate(12,12) scale(0.6486) translate(-12,-11.75)"><rect x="9" y="9" width="6" height="12"/><rect x="3" y="13" width="6" height="8"/><rect x="15" y="15" width="6" height="6"/><path d="M12 2.5l1.1 2.2 2.4.35-1.75 1.7.4 2.4L12 8.05l-2.15 1.1.4-2.4-1.75-1.7 2.4-.35L12 2.5z"/></g>' },
       /* Shop / Blog / Partners / Contact are not built yet. They were showing
          to everyone as dimmed "Soon" tiles, which reads as dead weight — so
          they are now adminOnly: visible to the owner as a placeholder preview,
@@ -4815,6 +4823,9 @@
       else if (action === 'blog' && typeof window.showBlog === 'function') { window.showBlog(); }
       else if (action === 'account' && typeof window.showAccount === 'function') { window.showAccount(); window.scrollTo(0, 0); }
       else if (action === 'exposure' && typeof window.showExposure === 'function') { window.showExposure(); window.scrollTo(0, 0); }
+      else if (action === 'leaders' && typeof window.showLeaders === 'function') { window.showLeaders(); window.scrollTo(0, 0); }
+      /* Kept as a harmless no-op path: Schedule left the sheet 2026-09-11, but a
+         cached shell may still render its tile for one load. */
       else if (action === 'schedule' && typeof window.showWatch === 'function') { window.showWatch(); window.scrollTo(0, 0); }
       else if (action === 'experiment') {
         /* Toggle experiment mode. Both paths reload the page (existing
