@@ -1991,6 +1991,16 @@
       border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
     }
     .lf-live-label { font: 500 13px/1.35 var(--font-sans); color: var(--ink-700); }
+    /* Two mutually exclusive scope toggles (live-only / yet-to-finish) live in
+       one bordered group, so stacking them does not double the hairline
+       between them. .lf-live-row keeps its standalone borders for any other
+       caller; inside the group they are stripped and re-drawn once. */
+    .lf-live-group {
+      border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+      margin: 4px 0 6px;
+    }
+    .lf-live-group .lf-live-row { border: none; margin: 0; padding: 12px 4px; }
+    .lf-live-group .lf-live-row + .lf-live-row { border-top: 1px solid var(--line); }
 
     /* ── Screenshot privacy toggles (Hide League / Team Names) ──────────────
        Sit at the TOP of every Filters sheet that carries league visibility,
@@ -6552,7 +6562,7 @@
 <script>
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#7AA8D1','#5790C0','#2B6FA8','#3F5E78','#9E988A','#6E8BA8','#B0BEC9','#4A5A6A'];
 const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
-let liveOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map(),nflKickoffs=new Map();
+let liveOnly=false,toFinishOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map(),nflKickoffs=new Map();
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},hiddenLeagues=new Set(),isAnyProviderLoaded=false,liveToggleAvailable=false,leagueNamesCache=[];
 /* Account-level "global exclude": leagues the user switched OFF in the Account
    view. Keyed by `platform|leagueName` (platform-prefixed so identically-named
@@ -6837,9 +6847,43 @@ function cfLiveProj(team,staticProj,curPts){
   return +(cur+sp*f).toFixed(2);
 }
 window.__cfLiveProj=cfLiveProj;
-function loadLiveOnlyState(){try{liveOnly=localStorage.getItem(LIVE_ONLY_KEY)==='1';}catch(e){liveOnly=false;}}
+/* Still to come: the player's game is either running or hasn't kicked off.
+   DELIBERATELY NOT the inverse of isPlayerDone (Matt, 2026-09-13). !done is
+   true for a bye week, an unfetched slate, a DEF with no team and any third
+   team spelling -- so a player who will never take the field this week would
+   have shown up under "yet to finish". This asserts POSITIVE knowledge of a
+   'pre' or 'in' state instead, the same rule mpGameNotStarted uses for the
+   drawer's grey points: a state we cannot explain is never claimed. Alias
+   fallback mirrors isPlayerDone (Sleeper/Yahoo WAS/JAC/LAR vs ESPN
+   WSH/JAX/LA). */
+function isPlayerToFinish(p){
+  if(!p||!p.team)return false;
+  let st=nflGameStates.get(p.team);
+  if(st===undefined){try{st=nflGameStates.get(cfNormTeam(p.team));}catch(e){}}
+  return st==='pre'||st==='in';
+}
+/* NOT PERSISTED, on purpose (feedback_filter_persistence): a filter that HIDES
+   content resets to its default on every page load, so a toggle left on last
+   Sunday can't silently shrink this Sunday's board. toFinishOnly is therefore
+   in-memory only and always boots false -- which also means the mutual
+   exclusion below can never boot into an impossible both-on pair. live-only's
+   own localStorage is GRANDFATHERED by that same note; don't copy it forward. */
+function loadLiveOnlyState(){try{liveOnly=localStorage.getItem(LIVE_ONLY_KEY)==='1';}catch(e){liveOnly=false;}toFinishOnly=false;}
 function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1':'0');}catch(e){}}
-function toggleLiveOnly(){liveOnly=!liveOnly;saveLiveOnlyState();applyFilters();}
+/* The two scope toggles are MUTUALLY EXCLUSIVE by design (Matt, 2026-09-13):
+   live-only is a strict subset of yet-to-finish, so ANDing them would leave the
+   broader switch visibly on while doing nothing. Turning either one on turns
+   the other off; both off = show everything. */
+function toggleLiveOnly(){liveOnly=!liveOnly;if(liveOnly)toFinishOnly=false;saveLiveOnlyState();applyFilters();cfSyncScopeToggles();}
+function toggleToFinishOnly(){toFinishOnly=!toFinishOnly;if(toFinishOnly)liveOnly=false;saveLiveOnlyState();applyFilters();cfSyncScopeToggles();}
+/* Repaint BOTH switches from state rather than flipping the clicked one, so the
+   exclusion is visible the instant either is tapped. */
+function cfSyncScopeToggles(){
+  try{
+    document.querySelectorAll('[data-lf-live]').forEach(b=>{b.classList.toggle('on',liveOnly);b.setAttribute('aria-checked',liveOnly?'true':'false');});
+    document.querySelectorAll('[data-lf-tofinish]').forEach(b=>{b.classList.toggle('on',toFinishOnly);b.setAttribute('aria-checked',toFinishOnly?'true':'false');});
+  }catch(e){}
+}
 
 
 const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
@@ -8943,9 +8987,15 @@ function renderLeagueFilterSheet(){
   const names=leagueNamesCache;
   let liveRow='';
   if(cfLiveToggleVisible()){
-    liveRow=`<div class="lf-live-row">`
+    liveRow=`<div class="lf-live-group">`
+      +`<div class="lf-live-row">`
       +`<span class="lf-live-label">Show only players currently in a live game</span>`
-      +`<button class="live-toggle${liveOnly?' on':''}" data-lf-live="1" type="button" aria-label="Toggle live-only view"></button>`
+      +`<button class="live-toggle${liveOnly?' on':''}" data-lf-live="1" type="button" role="switch" aria-checked="${liveOnly?'true':'false'}" aria-label="Toggle live-only view"></button>`
+      +`</div>`
+      +`<div class="lf-live-row">`
+      +`<span class="lf-live-label">Show only players yet to finish</span>`
+      +`<button class="live-toggle${toFinishOnly?' on':''}" data-lf-tofinish="1" type="button" role="switch" aria-checked="${toFinishOnly?'true':'false'}" aria-label="Toggle yet-to-finish view"></button>`
+      +`</div>`
       +`</div>`;
   }
   return `<div class="league-filter-sheet">`
@@ -9149,7 +9199,12 @@ function openLeagueFilterSheet(){
    board behind the sheet updates immediately. */
 document.addEventListener('click',function(e){
   const liveBtn=e.target.closest('[data-lf-live]');
-  if(liveBtn){toggleLiveOnly();liveBtn.classList.toggle('on',liveOnly);return;}
+  if(liveBtn){toggleLiveOnly();return;}
+  /* Yet-to-finish: live games PLUS games that haven't kicked off. Exclusive
+     with live-only -- toggleToFinishOnly clears the other flag and
+     cfSyncScopeToggles repaints both switches, so no manual .on flip here. */
+  const tofBtn=e.target.closest('[data-lf-tofinish]');
+  if(tofBtn){toggleToFinishOnly();return;}
   /* Screenshot privacy toggles. Flip state, flip the switch, repaint every
      surface behind the sheet so the mask lands immediately — the user is about
      to screenshot, so there must be no stale real name left on screen. */
@@ -9205,6 +9260,10 @@ function cfRefreshOpenLeagueSection(){
 function applyFilters(){
   /* live-only is only meaningful on the current/live week (not historic/demo/no-data). */
   const liveActive=liveOnly&&liveToggleAvailable;
+  /* Same gate as live-only: both scopes read TODAY's NFL slate, which says
+     nothing about a historic or demo week. Exclusive with liveActive by
+     construction, but the && keeps this honest if state is ever forced. */
+  const toFinishActive=toFinishOnly&&!liveOnly&&liveToggleAvailable;
   const anyHidden=hiddenLeagues.size>0;
   ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
     const list=document.getElementById(id);const cards=list.querySelectorAll('.player-card');
@@ -9212,12 +9271,13 @@ function applyFilters(){
       // Card stays if at least one of its leagues is not hidden.
       const leagueOk=!anyHidden||c.dataset.leagues.split('|').some(lg=>!hiddenLeagues.has(lg));
       const liveOk=!liveActive||c.dataset.live==='1';
-      c.classList.toggle('filtered-out',!leagueOk||!liveOk);
+      const toFinishOk=!toFinishActive||c.dataset.tofinish==='1';
+      c.classList.toggle('filtered-out',!leagueOk||!liveOk||!toFinishOk);
     });
     let e=list.querySelector('.filter-empty');const vis=[...cards].filter(c=>!c.classList.contains('filtered-out')&&c.style.display!=='none');
     if(!vis.length&&cards.length){
       if(!e){e=document.createElement('div');e.className='empty-state filter-empty';list.appendChild(e);}
-      e.textContent=liveActive&&anyHidden?'No matching players are in live games right now.':liveActive?'No players in this bucket are in live games right now.':'No players match this filter.';
+      e.textContent=liveActive&&anyHidden?'No matching players are in live games right now.':liveActive?'No players in this bucket are in live games right now.':toFinishActive&&anyHidden?'No matching players have a game left to play.':toFinishActive?'No players in this bucket have a game left to play.':'No players match this filter.';
     }else if(e)e.remove();
   });
   updatePillCounts();
@@ -9384,6 +9444,7 @@ function buildCard(player,isHist){
   div.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
   div.dataset.team=player.team||'';
   div.dataset.live=isPlayerLive(player)?'1':'0';
+  div.dataset.tofinish=isPlayerToFinish(player)?'1':'0';
   cfStampTap(div,player);
   cfFlashPtsDelta(div,player);
   const inner=buildCardInner(player,isHist);
@@ -9402,6 +9463,7 @@ function updateCard(node,player,isHist){
   node.dataset.leagues=[...player.myLeagues,...player.againstLeagues].join('|');
   node.dataset.team=player.team||'';
   node.dataset.live=isPlayerLive(player)?'1':'0';
+  node.dataset.tofinish=isPlayerToFinish(player)?'1':'0';
   node.classList.toggle('clinched',!!player.clinched);
   /* Cards are reused across the 60s diff-render but the player OBJECT is rebuilt
      every load — restamp or the drawer opens on a stale snapshot. */
