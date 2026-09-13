@@ -8504,36 +8504,45 @@ function ctxDisplayState(ctx){
     const total=((ctx&&ctx.myPoints)||0)+((ctx&&ctx.oppPoints)||0);
     return {dataStatus:'',stTxt:total>0?'In progress':'Upcoming',stCls:'none'};
   }
-  /* A LIVE cell reports an exact QUANTITY, never a verdict (locked-state-spec.md
-     §3, Matt 2026-09-13). "Projected Win" / "Projected Loss" were forecasts
-     dressed as dispositions, and their end state -- "WON" / "OUT OF REACH" -- was
-     the bug this whole change exists to kill. An adjective editorializes however
-     it is hedged; a number claims nothing, closes no door, and tightens on its own
-     as the slate burns down. BOTH HALVES MUST BE INDEPENDENTLY EXACT: the gap is
-     the real gap, and the count is the count of starters not positively 'post' on
-     the side that still has work to do. Note "needs 88.16 from 4 players" would be
-     FALSE -- it silently assumes the leader scores nothing more -- which is why
-     the two facts are joined by a separator and not by a claim.
-     dataStatus stays winning/losing so the tile keeps its accent and score color.
-     GATED OFF by CF_SHOW_LIVE_QUANTITY pending Matt's evaluation -- see that flag.
-     hasToGo guards contexts that carry no to-go counts at all (demo mode, sample
-     board) so the branch can never print a bogus "0 to play". There is NO
-     projected-verdict fallback under either gate, by design. */
-  if(st==='LIVE'&&CF_SHOW_LIVE_QUANTITY){
+  /* LIVE cells keep their PROJECTION-DRIVEN COLOR but say nothing declarative.
+     Two separate things used to live in one return object and I removed both at
+     once when the label went (Matt caught it, 2026-09-13): `stTxt` was the claim
+     ("Projected Win"), `dataStatus` is just the tile's top-accent and score color.
+     The color is an ambient forecast the user reads at a glance and can weigh for
+     themselves; the WORDS were a disposition asserted in the app's voice. Only the
+     words were the problem, so only the words are gone.
+
+     stCls stays 'live' ON PURPOSE. It colors the status TEXT, and that text now
+     reads "Live" -- painting a liveness badge with the rooting-outcome palette is
+     the same mistake as the Snapshot's LIVE dot in v205 and the green sync flash
+     in v197. Accent and scores carry the outlook; the badge stays neutral.
+
+     The quantity ("Up 88.16 . 4 opponents to play") is built and tested but gated
+     off behind CF_SHOW_LIVE_QUANTITY pending evaluation -- see that flag. When it
+     is on it reuses the SAME dataStatus computed here, so color behaves
+     identically either way and flipping the flag can never change the palette.
+     hasToGo guards demo mode and the sample board, which carry no to-go counts and
+     would otherwise print "0 to play". There is no projected-VERDICT fallback in
+     either gate state, by design. */
+  if(st==='LIVE'){
+    const myP=+ctx.myProjPts||0, oppP=+ctx.oppProjPts||0;
+    let ds='live';
+    if((myP+oppP)>0) ds = myP>oppP ? 'winning' : (myP<oppP ? 'losing' : 'tossup');
     const hasToGo=ctx&&(ctx.myToGo!=null||ctx.oppToGo!=null);
-    if(hasToGo){
+    if(CF_SHOW_LIVE_QUANTITY&&hasToGo){
       const gap=(+ctx.myPoints||0)-(+ctx.oppPoints||0), g=Math.abs(gap).toFixed(2);
       if(gap>0){
         const n=+ctx.oppToGo||0;
-        return {dataStatus:'winning',stTxt:'Up '+g+' · '+n+(n===1?' opponent to play':' opponents to play'),stCls:'win'};
+        return {dataStatus:ds,stTxt:'Up '+g+' · '+n+(n===1?' opponent to play':' opponents to play'),stCls:'live'};
       }
       if(gap<0){
         const n=+ctx.myToGo||0;
-        return {dataStatus:'losing',stTxt:'Down '+g+' · '+n+' to play',stCls:'loss'};
+        return {dataStatus:ds,stTxt:'Down '+g+' · '+n+' to play',stCls:'live'};
       }
       const n=(+ctx.myToGo||0)+(+ctx.oppToGo||0);
-      return {dataStatus:'tossup',stTxt:'Level · '+n+' to play',stCls:'tossup'};
+      return {dataStatus:ds,stTxt:'Level · '+n+' to play',stCls:'live'};
     }
+    return {dataStatus:ds,stTxt:'● Live',stCls:'live'};
   }
   /* 3a: finals carry their margin — "✓ Won · +22.3" reads at a glance. */
   if(st==='FINAL_WIN'||st==='FINAL_LOSS'){
@@ -19394,6 +19403,18 @@ loadExperimentState();
   var SD={QB:7.5,RB:6.5,WR:6.5,TE:5.0,DST:6.0,DEF:6.0,K:3.0,FLEX:6.5,PK:3.0};
   var TUNE=1.0;                 // global decisiveness knob (raise => softer %)
   var COL={win:'#5DCAA5',loss:'#E07A6E',flip:'#7AA8D1',cwin:'#5DCAA5',closs:'#E07A6E'};
+  /* The LIVE badge is a BROADCAST signal, not a rooting outcome (Matt, 2026-09-13).
+     It used to paint itself COL[r.state] -- green while you were winning, salmon
+     while losing, blue on a toss-up -- so one badge carried two meanings and the
+     dot changed color as the lead swung. Same failure as the green sync flash in
+     v197: a rooting-outcome color on a non-outcome surface reads as a result.
+     Always red now, and DELIBERATELY not the salmon --enemy/#E07A6E used for a
+     losing matchup, so a live winning card can never read as a loss. The outcome
+     is already carried by the score colors and the bar directly beside this.
+     LITERAL HEX, not a CSS var: this subtree is the share-PNG clone root and
+     clones lose ancestor-scoped custom properties (feedback_share_clone_scoped_vars)
+     -- a var() here renders colorless in the exported image. */
+  var LIVE_RED='#E5484D';
   var VIEW_KEY='cf_snapshot_view';
 
   function ncdf(z){ var t=1/(1+0.2316419*Math.abs(z)),d=0.3989423*Math.exp(-z*z/2);
@@ -19564,7 +19585,7 @@ loadExperimentState();
        a STRICT lock, so the honest word for a closs that isn't final is LOST. */
     if(r.state==='closs')return '<span class="cf-c-status" style="color:#E88A7F">&#10005; '+(r.isFinal?'FINAL':'LOST')+'</span>';
     if(r.pending)return '<span class="cf-c-status" style="color:#7AA8D1"><span class="dot" style="background:#7AA8D1"></span>PENDING</span>';
-    var c=COL[r.state]; return '<span class="cf-c-status" style="color:'+c+'"><span class="dot pulse" style="background:'+c+'"></span>LIVE</span>';
+    return '<span class="cf-c-status" style="color:'+LIVE_RED+'"><span class="dot pulse" style="background:'+LIVE_RED+'"></span>LIVE</span>';
   }
   function cardScore(r){
     var clinched=(r.state==='cwin'||r.state==='closs');
@@ -19651,7 +19672,7 @@ loadExperimentState();
   }
   function gridStatus(r){
     if(r.pending)return '<span class="cf-t-status" style="color:#7AA8D1"><span class="dot" style="background:#7AA8D1"></span>PENDING</span>';
-    if(r.live){var c=COL[r.state];return '<span class="cf-t-status" style="color:'+c+'"><span class="dot pulse" style="background:'+c+'"></span>LIVE</span>';}
+    if(r.live){return '<span class="cf-t-status" style="color:'+LIVE_RED+'"><span class="dot pulse" style="background:'+LIVE_RED+'"></span>LIVE</span>';}
     return '<span class="cf-t-status" style="color:#9E988A">UPCOMING</span>';
   }
   function tileHTML(r){
