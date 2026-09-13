@@ -7257,10 +7257,119 @@ function avatarInnerHtml(player, initials){
   return ini + img;
 }
 
-function calcLiveState(myPts,oppPts,myProj,oppProj){
-  if(!myProj&&!oppProj)return'LIVE';
-  const lead=myPts-oppPts,oppRem=Math.max(0,oppProj-oppPts),myRem=Math.max(0,myProj-myPts);
-  if(lead>oppRem)return'LOCKED_WIN';if(-lead>myRem)return'LOCKED_LOSS';return'LIVE';
+/* == STRICT LOCK MODEL (spec: locked-state-spec.md, Matt 2026-09-13) ========
+     LOCKED_WIN  <=>  myFloor  > oppCeiling
+     LOCKED_LOSS <=>  oppFloor > myCeiling
+   Strict '>' -- an exact tie is not a lock.
+
+   WHAT THIS REPLACED: a PROJECTION test (`lead > oppProj-oppPts`) with ZERO
+   cushion, which rendered the word "WON" the instant a median-ish forecast said
+   you were ahead. It declared a win at 103.46-15.30 with four opponent starters
+   un-kicked-off whose real ceiling was ~120, not the 45.15 projected. Matt's two
+   requirements: the word "Won" is never wrong, and the app never closes the door
+   on a spectacular comeback. Both are met by making the TEST true, not by
+   softening the copy -- you cannot close a door that is already closed.
+
+   CEILING. Fantasy scoring has NO upper bound, so an unfinished player's ceiling
+   is unbounded, full stop. A side with anyone still to play therefore has an
+   INFINITE ceiling and cannot be locked against; a fully-'post' side's ceiling is
+   its real score, exactly. No percentile table, no upside model, no new data
+   source -- that falls out of the strict framing and is a reason to prefer it.
+
+   FLOOR. A side's score can FALL while its players are active, which the old code
+   never modeled at all. Banked points are meaningful for everyone EXCEPT a
+   defense (Matt, 2026-09-13): a D/ST showing +10 early can finish at -4 as the
+   points-allowed tiers re-score, so an active DEF floors FLAT at the worst tier.
+   Everyone else keeps what they banked and can only shed a bounded penalty -- one
+   lost fumble for a skill position, four interceptions for a QB. The QB case is
+   why a single flat -2 is wrong: there is no cap on picks.
+
+   CONSEQUENCE, non-obvious: the two tests trigger on DIFFERENT sets of games.
+   LOCKED_WIN needs THEIR starters all post (finite opp ceiling) plus my own
+   downside; LOCKED_LOSS needs MY starters all post plus theirs. So you can clinch
+   a win with a player still on the field, and be eliminated while they still have
+   players playing. Neither state is derivable from "is the week over".
+
+   ACCEPTED WRINKLE: a ruled-out player whose game hasn't kicked off reads 'pre',
+   so his ceiling is unbounded though he will score 0 -- we have no reliable
+   inactive status. That only ever DELAYS a lock, never fires a false one. Every
+   uncertainty in this design pushes toward claiming less, on purpose. */
+
+/* Worst points-allowed tier with zero other production. LEAGUE-SCORING
+   DEPENDENT: leagues that ALSO score yards-allowed tiers can finish lower than
+   this, so it is a var, not a literal -- override before trusting a lock in a
+   scoring system this number does not describe. */
+var CF_FLOOR_DEF = -4;
+/* Bounded downside for an ACTIVE non-DEF, applied on top of banked points.
+   QB: four interceptions at -2. Skill: one lost fumble. K: cannot go negative. */
+var CF_FLOOR_PENALTY = {QB:-8, RB:-2, WR:-2, TE:-2, K:0};
+var CF_FLOOR_PENALTY_DEFAULT = -2;
+
+/* Team + position for a lock calculation, across all three provider shapes: a
+   bare Sleeper id string, or a Yahoo/ESPN player object. Returns '' for anything
+   unresolvable, which downstream reads as "still to play" -- the safe direction. */
+function cfLockMeta(p){
+  if(p==null)return null;
+  if(typeof p==='string'){
+    var db=(window.playerDB&&window.playerDB[p])||null;
+    if(db)return {id:p,team:db.team||'',pos:String(db.position||'').toUpperCase()};
+    /* Sleeper files team defenses under the team abbreviation itself. */
+    return {id:p,team:(p.length<=4?p:''),pos:(p.length<=4?'DEF':'')};
+  }
+  var id=p.player_key!=null?String(p.player_key):(p.id!=null?String(p.id):'');
+  return {id:id,team:p.team||'',pos:String(p.position||p.slot||'').toUpperCase()};
+}
+function cfIsDefPos(pos){var P=String(pos||'').toUpperCase();return P==='DEF'||P==='DST'||P==='D/ST';}
+/* Slot strings arrive multi-position ("W/R/T", "Q/W/R/T", "WR,RB"). Any slot that
+   COULD hold a QB takes the QB penalty -- conservative, and superflex is real. */
+function cfFloorPenaltyFor(pos){
+  var P=String(pos||'').toUpperCase();
+  if(P.indexOf('QB')!==-1||P.indexOf('Q/')===0)return CF_FLOOR_PENALTY.QB;
+  if(P==='K'||P==='PK')return CF_FLOOR_PENALTY.K;
+  return CF_FLOOR_PENALTY_DEFAULT;
+}
+/* Starters whose NFL game is not POSITIVELY 'post'. isPlayerDone asserts a real
+   'post' only, so a bye, an unfetched slate, a DEF with no team or a third team
+   spelling all count as STILL TO PLAY -- never claim a matchup is over on missing
+   data. Do NOT swap in !isPlayerToFinish here. */
+function cfSideToGo(players){
+  if(!Array.isArray(players))return 0;
+  var n=0;
+  players.forEach(function(p){
+    var m=cfLockMeta(p);if(!m)return;
+    if(!isPlayerDone({team:m.team}))n++;
+  });
+  return n;
+}
+/* Unbounded unless EVERY starter is done; then it is the side's real score.
+   An empty or unresolved roster is never lockable against. */
+function cfSideCeiling(players,total){
+  if(!Array.isArray(players)||!players.length)return Infinity;
+  return cfSideToGo(players)>0?Infinity:(+total||0);
+}
+/* Side total plus each ACTIVE player's bounded downside. A done player is banked
+   and contributes nothing further in either direction. */
+function cfSideFloor(players,ppMap,total){
+  if(!Array.isArray(players)||!players.length)return -Infinity;
+  var f=+total||0,pp=ppMap||{};
+  players.forEach(function(p){
+    var m=cfLockMeta(p);if(!m)return;
+    if(isPlayerDone({team:m.team}))return;
+    var pts=+pp[m.id]||0;
+    f+=cfIsDefPos(m.pos)?(CF_FLOOR_DEF-pts):cfFloorPenaltyFor(m.pos);
+  });
+  return f;
+}
+/* The ONLY producer of LOCKED_WIN / LOCKED_LOSS. Also returns the per-side
+   still-to-play counts, which ctxDisplayState renders as the honest quantity
+   standing in for the retired "Projected Win" / "OUT OF REACH" verdicts. */
+function cfMatchupLock(o){
+  o=o||{};
+  var myPts=+o.myPoints||0,oppPts=+o.oppPoints||0;
+  var state='LIVE';
+  if(cfSideFloor(o.myPlayers,o.myPP,myPts)>cfSideCeiling(o.oppPlayers,oppPts))state='LOCKED_WIN';
+  else if(cfSideFloor(o.oppPlayers,o.oppPP,oppPts)>cfSideCeiling(o.myPlayers,myPts))state='LOCKED_LOSS';
+  return {state:state,myToGo:cfSideToGo(o.myPlayers),oppToGo:cfSideToGo(o.oppPlayers)};
 }
 function calcHistoricalState(m,o){return m>o?'FINAL_WIN':m<o?'FINAL_LOSS':'FINAL_TIE';}
 
@@ -7269,7 +7378,7 @@ function calcHistoricalState(m,o){return m>o?'FINAL_WIN':m<o?'FINAL_LOSS':'FINAL
    have no head-to-head opponent AT ALL, and an ordinary bye in an odd-sized
    league produces the same shape -- our side loads, theirs is empty.
 
-   Left ungated, calcLiveState() reads that empty side as oppPts=0 AND oppProj=0,
+   Left ungated, the old projection test read that empty side as oppPts=0 AND
    so oppRem=0, so `lead > oppRem` is true the instant we score a single point --
    and the app confidently declared a WIN over nobody. Matt's user saw exactly
    that: "WON, 26.20 - 0.00" against an opponent named "Opp" with an empty roster
@@ -8383,15 +8492,39 @@ function ctxDisplayState(ctx){
   const st=(ctx&&ctx.leagueState)||'NO_MATCHUP';
   if(st==='LIVE'&&!(isDemoMode||(ctx&&ctx.liveOnField))){
     const total=((ctx&&ctx.myPoints)||0)+((ctx&&ctx.oppPoints)||0);
-    return {dataStatus:'',stTxt:total>0?'In progress':'Upcoming',stCls:'none'};
+    /* Nothing on the board yet -- there is no gap to report. Once there ARE
+       points the quantity below is true whether or not anyone is on the field,
+       so we no longer stop at a bare "In progress". */
+    if(total<=0) return {dataStatus:'',stTxt:'Upcoming',stCls:'none'};
   }
-  /* 3a: live cells declare their PROJECTED disposition — PROJECTED WIN / TOSS-UP /
-     PROJECTED LOSS — instead of a bare "● Live", with matching top accent
-     and score color. The label is driven purely by projected final points, so it
-     reads as a forecast rather than the current on-field lead (which sits right
-     next to it). Toss-up only on an exact projection tie (effectively never).
-     Falls back to the plain live badge when the provider gives no projections. */
+  /* A LIVE cell reports an exact QUANTITY, never a verdict (locked-state-spec.md
+     §3, Matt 2026-09-13). "Projected Win" / "Projected Loss" were forecasts
+     dressed as dispositions, and their end state -- "WON" / "OUT OF REACH" -- was
+     the bug this whole change exists to kill. An adjective editorializes however
+     it is hedged; a number claims nothing, closes no door, and tightens on its own
+     as the slate burns down. BOTH HALVES MUST BE INDEPENDENTLY EXACT: the gap is
+     the real gap, and the count is the count of starters not positively 'post' on
+     the side that still has work to do. Note "needs 88.16 from 4 players" would be
+     FALSE -- it silently assumes the leader scores nothing more -- which is why
+     the two facts are joined by a separator and not by a claim.
+     dataStatus stays winning/losing so the tile keeps its accent and score color.
+     Falls back to the old projected label only where a context carries no to-go
+     counts at all (demo mode, sample board) rather than printing a bogus "0". */
   if(st==='LIVE'){
+    const hasToGo=ctx&&(ctx.myToGo!=null||ctx.oppToGo!=null);
+    if(hasToGo){
+      const gap=(+ctx.myPoints||0)-(+ctx.oppPoints||0), g=Math.abs(gap).toFixed(2);
+      if(gap>0){
+        const n=+ctx.oppToGo||0;
+        return {dataStatus:'winning',stTxt:'Up '+g+' · '+n+(n===1?' opponent to play':' opponents to play'),stCls:'win'};
+      }
+      if(gap<0){
+        const n=+ctx.myToGo||0;
+        return {dataStatus:'losing',stTxt:'Down '+g+' · '+n+' to play',stCls:'loss'};
+      }
+      const n=(+ctx.myToGo||0)+(+ctx.oppToGo||0);
+      return {dataStatus:'tossup',stTxt:'Level · '+n+' to play',stCls:'tossup'};
+    }
     const myP=+ctx.myProjPts||0, oppP=+ctx.oppProjPts||0;
     if((myP+oppP)>0){
       const m=myP-oppP;
@@ -9950,7 +10083,7 @@ async function loadYahooLeague(yLeague, week, isHist) {
       myTeamName = me?.name || null; oppTeamName = opp?.name || null;
       if (!hasRealOpponent(opp && opp.team_key, oppPoints, oppProjPts)) leagueState = 'NO_OPPONENT';
       else if (myMatchup.status === 'postevent' || isHist) leagueState = calcHistoricalState(myPoints, oppPoints);
-      else leagueState = calcLiveState(myPoints, oppPoints, myProjPts, oppProjPts);
+      else leagueState = 'LIVE';   // refined by cfMatchupLock once both rosters are in hand
     }
   } catch (e) { console.warn('Yahoo scoreboard failed for', yLeague.name, e.message); }
   let myPlayers = [], oppPlayers = [], myBench = [], oppBench = [], myPP = {}, oppPP = {};
@@ -9968,12 +10101,20 @@ async function loadYahooLeague(yLeague, week, isHist) {
       oppBench = starters.length ? oppRoster.filter(p => !p.isStarter) : [];
     } catch (e) { console.warn('Yahoo opp roster failed for', yLeague.name, e.message); }
   }
+  /* STRICT LOCK (locked-state-spec.md). Unlike the projection test it replaced,
+     this needs per-player game states and points, which only exist AFTER both
+     rosters load — so it cannot run up in the scoreboard block above. */
+  let myToGo = 0, oppToGo = 0;
+  if (leagueState === 'LIVE') {
+    const lk = cfMatchupLock({myPlayers, oppPlayers, myPP, oppPP, myPoints, oppPoints});
+    leagueState = lk.state; myToGo = lk.myToGo; oppToGo = lk.oppToGo;
+  }
   /* Only call it a real matchup if both rosters loaded — otherwise we render
      "you vs nobody" cards when the opponent roster fetch silently failed. */
   const matchupActuallyValid = hasMatchup && myPlayers.length > 0 && (!opponentTeamKey || oppPlayers.length > 0);
   return {
     result: { leagueName: yLeague.name, myPlayers, oppPlayers, myBench, oppBench, hasMatchup: matchupActuallyValid, fmt, myTeamName, oppTeamName, source: 'yahoo' },
-    ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myProjPts, oppProjPts, myPP, oppPP, fmt, myTeamName, oppTeamName, source: 'yahoo' },
+    ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myProjPts, oppProjPts, myPP, oppPP, myToGo, oppToGo, fmt, myTeamName, oppTeamName, source: 'yahoo' },
     debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: matchupActuallyValid, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
   };
 }
@@ -12258,7 +12399,7 @@ function parseEspnLeague(data,season,week,isHist,lid){
 
   let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0;
   let myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0,oppTeamName=null;
-  let myProjPP={},oppProjPP={};   // per-player ESPN projections (statSourceId 1), for the Weekend Snapshot win-prob engine
+  let myProjPP={},oppProjPP={},myToGo=0,oppToGo=0;   // per-player ESPN projections (statSourceId 1), for the Weekend Snapshot win-prob engine
 
   if(matchup){
     hasMatchup=true;
@@ -12325,7 +12466,7 @@ function parseEspnLeague(data,season,week,isHist,lid){
     }
 
     /* Project totals derived per-player from ESPN's projection rows, then
-       fed into the same calcLiveState/calcHistoricalState helpers Sleeper
+       fed into the same cfMatchupLock/calcHistoricalState helpers Sleeper
        uses — keeps state-decision logic identical across providers. We also
        keep the PER-PLAYER projections (not just the sum) so the Weekend
        Snapshot win-prob engine can read remaining/to-go data like Sleeper. */
@@ -12334,8 +12475,12 @@ function parseEspnLeague(data,season,week,isHist,lid){
     oppStarters.forEach(e=>{const obj=espnPlayerObj(e);if(!obj)return;const pr=espnPlayerStat(e,week,1);if(pr!==null){oppProjPP[obj.player_key]=pr;oppProj+=pr;}});
     myProjPts=myProj;oppProjPts=oppProj;
     leagueState=hasRealOpponent(oppStarters,oppPoints,oppProj)
-      ?(isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,myProj,oppProj))
+      ?(isHist?calcHistoricalState(myPoints,oppPoints):'LIVE')
       :'NO_OPPONENT';
+    if(leagueState==='LIVE'){
+      const lk=cfMatchupLock({myPlayers,oppPlayers,myPP,oppPP,myPoints,oppPoints});
+      leagueState=lk.state;myToGo=lk.myToGo;oppToGo=lk.oppToGo;
+    }
   }else{
     /* No matchup for this week — common in off-season or pre-week-1.
        Fall back to the team's roster snapshot so the user still sees their
@@ -12349,7 +12494,7 @@ function parseEspnLeague(data,season,week,isHist,lid){
 
   return{
     lg:{leagueName,myPlayers,oppPlayers,myBench,oppBench,hasMatchup,fmt,myTeamName,oppTeamName},
-    ctx:{leagueName,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,myProjPP,oppProjPP,fmt,myTeamName,oppTeamName},
+    ctx:{leagueName,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,myProjPP,oppProjPP,myToGo,oppToGo,fmt,myTeamName,oppTeamName},
     dbg:{name:leagueName,leagueId,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr:false}
   };
 }
@@ -12543,7 +12688,7 @@ const PROVIDERS={
         let matchups=[];try{const raw=await getMatchups(lg.league_id,week);matchups=Array.isArray(raw)?raw:[];}catch(e){matchups=[];}
         const myMatchup=matchups.find(m=>m.roster_id===myRoster.roster_id);
         const oppMatchup=myMatchup?matchups.find(m=>m.matchup_id===myMatchup.matchup_id&&m.roster_id!==myRoster.roster_id):null;
-        let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0,oppTeamName=null;
+        let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0,myToGo=0,oppToGo=0,oppTeamName=null;
         if(myMatchup){
           hasMatchup=true;
           const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
@@ -12564,8 +12709,12 @@ const PROVIDERS={
           const projScoring=lg.scoring_settings||synthesizeScoringFromFmt(fmt);
           myProjPts=hasProj?projSum(myPlayers,projScoring):0;oppProjPts=hasProj?projSum(oppPlayers,projScoring):0;
           leagueState=hasRealOpponent(oppPlayers,oppPoints,oppProjPts)
-            ?(isHist?calcHistoricalState(myPoints,oppPoints):calcLiveState(myPoints,oppPoints,myProjPts,oppProjPts))
+            ?(isHist?calcHistoricalState(myPoints,oppPoints):'LIVE')
             :'NO_OPPONENT';
+          if(leagueState==='LIVE'){
+            const lk=cfMatchupLock({myPlayers,oppPlayers,myPP,oppPP,myPoints,oppPoints});
+            leagueState=lk.state;myToGo=lk.myToGo;oppToGo=lk.oppToGo;
+          }
         }else{myPlayers=(myRoster.players||[]).filter(id=>id&&id!=='0');}
         myPlayers=myPlayers.filter(id=>id&&id!=='0');
         oppPlayers=oppPlayers.filter(id=>id&&id!=='0');
@@ -12574,7 +12723,7 @@ const PROVIDERS={
         /* Match Yahoo's stance: only call it a real matchup if both rosters
            actually loaded. Prevents "you vs empty" half-loads. */
         const matchupActuallyValid=hasMatchup&&myPlayers.length>0&&oppPlayers.length>0;
-        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,fmt,myTeamName,oppTeamName,scoringRaw:lg.scoring_settings||null});
+        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,myToGo,oppToGo,fmt,myTeamName,oppTeamName,scoringRaw:lg.scoring_settings||null});
         debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:matchupActuallyValid,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
         /* roster_positions: ordered slot codes (QB, RB, ..., FLEX, BN, ...) that
            map 1:1 with myMatchup.starters index. Pass through so the matchup
@@ -19409,7 +19558,9 @@ loadExperimentState();
   /* ---- LIST card ---- */
   function cardStatus(r){
     if(r.state==='cwin')return '<span class="cf-c-status" style="color:#5DCAA5">&#10003; WON</span>';
-    if(r.state==='closs')return '<span class="cf-c-status" style="color:#E88A7F">&#10005; '+(r.isFinal?'FINAL':'OUT OF REACH')+'</span>';
+    /* "OUT OF REACH" is retired (locked-state-spec.md). cwin/closs now derive from
+       a STRICT lock, so the honest word for a closs that isn't final is LOST. */
+    if(r.state==='closs')return '<span class="cf-c-status" style="color:#E88A7F">&#10005; '+(r.isFinal?'FINAL':'LOST')+'</span>';
     if(r.pending)return '<span class="cf-c-status" style="color:#7AA8D1"><span class="dot" style="background:#7AA8D1"></span>PENDING</span>';
     var c=COL[r.state]; return '<span class="cf-c-status" style="color:'+c+'"><span class="dot pulse" style="background:'+c+'"></span>LIVE</span>';
   }
@@ -19443,8 +19594,8 @@ loadExperimentState();
   }
   function cardBar(r){
     var pct=Math.round(r.prob*100), fill=(r.state==='closs')?'#E07A6E':COL[r.state], w=(r.state==='cwin'||r.state==='closs')?100:pct, Lf,Rf;
-    if(r.state==='cwin'){Lf='<span style="color:#5DCAA5">Won</span>';Rf='<span class="muted">+'+nf(margin(r))+' &mdash; can\'t be caught</span>';}
-    else if(r.state==='closs'){Lf='<span style="color:#E88A7F">'+(r.isFinal?'Final':'Out of reach')+'</span>';Rf='<span class="muted">&minus;'+nf(margin(r))+'</span>';}
+    if(r.state==='cwin'){Lf='<span style="color:#5DCAA5">Won</span>';Rf='<span class="muted">+'+nf(margin(r))+'</span>';}
+    else if(r.state==='closs'){Lf='<span style="color:#E88A7F">'+(r.isFinal?'Final':'Lost')+'</span>';Rf='<span class="muted">&minus;'+nf(margin(r))+'</span>';}
     else{Lf='<span style="color:'+COL[r.state]+'">'+pct+'% win</span>';Rf='<span class="muted">'+(r.pending?(r.hasProj?'pre-kickoff projection':'not started yet'):(r.noScores?'underway &mdash; no scoring yet':'projected'))+'</span>';}
     return '<div class="cf-c-barwrap"><div class="cf-c-bar"><i style="width:'+w+'%;background:'+fill+(r.state==='closs'?';opacity:.6':'')+'"></i></div></div>';
   }
@@ -19453,7 +19604,7 @@ loadExperimentState();
     if(r.done) return '';
     var ic,txt,gap=r.curMy-r.curOpp;
     if(r.state==='cwin'){ic='&#127942;';txt='Locked in &mdash; nothing left to sweat.';}
-    else if(r.state==='closs'){ic='&#128577;';txt='Out of reach &mdash; <b>&minus;'+nf(margin(r))+'</b>.';}
+    else if(r.state==='closs'){ic='&#128577;';txt='Lost &mdash; <b>&minus;'+nf(margin(r))+'</b>.';}
     else if(r.pending){
       ic='&#128197;';
       if(!r.hasProj){ txt='Hasn’t kicked off yet.'; }
@@ -19505,7 +19656,7 @@ loadExperimentState();
     var inner;
     if(r.state==='cwin'||r.state==='closs'){
       var m=r.curMy-r.curOpp, won=m>=0;
-      var label=won?'Won by +'+nf(Math.abs(m)):(r.isFinal?'Lost by ':'Out by ')+nf(Math.abs(m));
+      var label=won?'Won by +'+nf(Math.abs(m)):'Lost by '+nf(Math.abs(m));
       inner='<div class="cf-t-result" style="color:'+(won?'#5DCAA5':'#E88A7F')+'">'+label+'</div>'+gridScore(r);
     }else{
       inner='<div class="cf-t-row"><div class="cf-t-stat" style="color:'+COL[r.state]+'">'+Math.round(r.prob*100)+'<small>%</small></div>'+gridStatus(r)+'</div>'+gridScore(r);
