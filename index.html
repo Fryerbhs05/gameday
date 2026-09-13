@@ -7305,6 +7305,16 @@ var CF_FLOOR_DEF = -4;
 var CF_FLOOR_PENALTY = {QB:-8, RB:-2, WR:-2, TE:-2, K:0};
 var CF_FLOOR_PENALTY_DEFAULT = -2;
 
+/* LIVE-cell quantity ("Up 88.16 · 4 opponents to play"), OFF pending evaluation
+   (Matt, 2026-09-13). The code below it in ctxDisplayState is complete and
+   tested; this is a display decision, not a broken feature, so it is gated
+   rather than deleted. With the flag off a LIVE cell falls through to the plain
+   "● Live" badge (and "Upcoming"/"In progress" when nobody is on the field).
+   It deliberately does NOT fall back to "● Projected Win"/"Projected Loss" --
+   that forecast-as-disposition is exactly what the strict-lock work retired, and
+   it must not reappear as the off-state. ctx.myToGo/oppToGo stay populated. */
+var CF_SHOW_LIVE_QUANTITY = false;
+
 /* Team + position for a lock calculation, across all three provider shapes: a
    bare Sleeper id string, or a Yahoo/ESPN player object. Returns '' for anything
    unresolvable, which downstream reads as "still to play" -- the safe direction. */
@@ -8492,10 +8502,7 @@ function ctxDisplayState(ctx){
   const st=(ctx&&ctx.leagueState)||'NO_MATCHUP';
   if(st==='LIVE'&&!(isDemoMode||(ctx&&ctx.liveOnField))){
     const total=((ctx&&ctx.myPoints)||0)+((ctx&&ctx.oppPoints)||0);
-    /* Nothing on the board yet -- there is no gap to report. Once there ARE
-       points the quantity below is true whether or not anyone is on the field,
-       so we no longer stop at a bare "In progress". */
-    if(total<=0) return {dataStatus:'',stTxt:'Upcoming',stCls:'none'};
+    return {dataStatus:'',stTxt:total>0?'In progress':'Upcoming',stCls:'none'};
   }
   /* A LIVE cell reports an exact QUANTITY, never a verdict (locked-state-spec.md
      §3, Matt 2026-09-13). "Projected Win" / "Projected Loss" were forecasts
@@ -8508,9 +8515,11 @@ function ctxDisplayState(ctx){
      FALSE -- it silently assumes the leader scores nothing more -- which is why
      the two facts are joined by a separator and not by a claim.
      dataStatus stays winning/losing so the tile keeps its accent and score color.
-     Falls back to the old projected label only where a context carries no to-go
-     counts at all (demo mode, sample board) rather than printing a bogus "0". */
-  if(st==='LIVE'){
+     GATED OFF by CF_SHOW_LIVE_QUANTITY pending Matt's evaluation -- see that flag.
+     hasToGo guards contexts that carry no to-go counts at all (demo mode, sample
+     board) so the branch can never print a bogus "0 to play". There is NO
+     projected-verdict fallback under either gate, by design. */
+  if(st==='LIVE'&&CF_SHOW_LIVE_QUANTITY){
     const hasToGo=ctx&&(ctx.myToGo!=null||ctx.oppToGo!=null);
     if(hasToGo){
       const gap=(+ctx.myPoints||0)-(+ctx.oppPoints||0), g=Math.abs(gap).toFixed(2);
@@ -8524,13 +8533,6 @@ function ctxDisplayState(ctx){
       }
       const n=(+ctx.myToGo||0)+(+ctx.oppToGo||0);
       return {dataStatus:'tossup',stTxt:'Level · '+n+' to play',stCls:'tossup'};
-    }
-    const myP=+ctx.myProjPts||0, oppP=+ctx.oppProjPts||0;
-    if((myP+oppP)>0){
-      const m=myP-oppP;
-      if(m>0)  return {dataStatus:'winning',stTxt:'● Projected Win',stCls:'win'};
-      if(m<0)  return {dataStatus:'losing', stTxt:'● Projected Loss',stCls:'loss'};
-      return {dataStatus:'tossup',stTxt:'● Toss-up',stCls:'tossup'};
     }
   }
   /* 3a: finals carry their margin — "✓ Won · +22.3" reads at a glance. */
