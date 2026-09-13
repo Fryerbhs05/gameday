@@ -4168,6 +4168,15 @@
     .wp-ownership__x { display: inline-block; font: 700 22px/1 var(--font-sans); }
     .wp-ownership__x--me  { color: var(--coral-500); }
     .wp-ownership__x--opp { color: var(--navy-700); }
+    /* Depth multiplier — the DIGIT appended to the X, so the cell reads "×2"
+       as one token. Matched to .wp-ownership__x exactly (Matt, 2026-09-13):
+       same family, weight and 22px size, NOT --font-mono like the rest of the
+       WP metadata, and no letter-spacing between them. If you restyle the X,
+       restyle this in the same edit or "×2" splits into two typefaces in a
+       1%-wide cell. Rendered only at n > 1 — see ownCell(). */
+    .wp-ownership__mult { display: inline-block; font: 700 22px/1 var(--font-sans); }
+    .wp-ownership__mult--me  { color: var(--coral-500); }
+    .wp-ownership__mult--opp { color: var(--navy-700); }
     .wp-ownership tbody tr { border-bottom: 1px solid var(--line-soft); }
     .wp-ownership tbody tr:last-child { border-bottom: 0; }
     .wp-ownership__player-row { cursor: pointer; transition: background var(--duration-fast) var(--ease-out); }
@@ -9171,6 +9180,11 @@ function cfApplyLeagueVisibility(){
   try{if(typeof renderScoresStrip==='function'&&Array.isArray(window.currentContexts))renderScoresStrip(window.currentContexts);}catch(e){}
   try{if(window.__conflictedExposureOpen&&typeof window.renderExposureView==='function')window.renderExposureView();}catch(e){}
   try{if(window.__cfLeadersOpen&&typeof window.__ldrRender==='function')window.__ldrRender();}catch(e){}
+  /* Watch Priority became league-filter-aware on 2026-09-13 (ownership
+     multiplier). Before that it read the raw league arrays and needed no
+     nudge here; now its priority scores, slot ranking and the ×N counts all
+     derive from the visible set, so it repaints like every other view. */
+  try{if(window.__conflictedWatchOpen&&typeof window.__wpApplyLeagueVisibility==='function')window.__wpApplyLeagueVisibility();}catch(e){}
   cfSyncFilterActive();
 }
 window.cfApplyLeagueVisibility=cfApplyLeagueVisibility;
@@ -16596,6 +16610,21 @@ loadExperimentState();
   /* Returns { playersByTeam: {ABBR: [playerEntry]}, playerLookup: {id: playerEntry} }
      Each playerEntry tags: which leagues the player starts/benches in for the user
      (me) and the opposing roster (opp). */
+  /* Watch Priority's own copy of the league-visibility filter. The Exposure
+     block has an identical `visibleLeagues()` but lives in a separate IIFE, so
+     it is not reachable here — both read the SAME global `hiddenLeagues` set,
+     which is the contract that matters. If you change the semantics in one,
+     change both or the ownership multiplier will disagree with Exposure's
+     counts for the same player. Returns the list untouched when nothing is
+     hidden so the common path allocates nothing. */
+  function wpVisibleLeagues(list){
+    if (!Array.isArray(list)) return [];
+    try {
+      if (typeof hiddenLeagues === 'undefined' || !hiddenLeagues || !hiddenLeagues.size) return list;
+      return list.filter(function(n){ return !hiddenLeagues.has(n); });
+    } catch(e){ return list; }
+  }
+
   function buildPlayerIndex(data){
     var byTeam = {};
     if (!data) return { byTeam: byTeam, all: [] };
@@ -16612,10 +16641,15 @@ loadExperimentState();
         pos: (p.position || '').toUpperCase(),
         team: tm,
         injuryStatus: p.injuryStatus || null,
-        myStartLeagues: (p.myLeagues || []).slice(),
-        myBenchLeagues: (p.myBenchLeagues || []).slice(),
-        oppStartLeagues: (p.againstLeagues || []).slice(),
-        oppBenchLeagues: (p.againstBenchLeagues || []).slice(),
+        /* Filtered at INDEX level, not at render, so every WP consumer —
+           calcGamePriority's score, the slot ranking, and the ownership
+           multiplier — counts the same leagues. A player whose only
+           rostering is in a hidden league now has all four arrays empty and
+           drops out of calcGamePriority entirely, which is the point. */
+        myStartLeagues: wpVisibleLeagues(p.myLeagues || []).slice(),
+        myBenchLeagues: wpVisibleLeagues(p.myBenchLeagues || []).slice(),
+        oppStartLeagues: wpVisibleLeagues(p.againstLeagues || []).slice(),
+        oppBenchLeagues: wpVisibleLeagues(p.againstBenchLeagues || []).slice(),
         raw: p
       };
       if (!byTeam[tm]) byTeam[tm] = [];
@@ -17205,10 +17239,16 @@ loadExperimentState();
 
     var pos = (p.position||'').toUpperCase();
     var team = (p.team || '—');
-    var myStart = (p.myLeagues || []);
-    var myBench = (p.myBenchLeagues || []);
-    var oppStart = (p.againstLeagues || []);
-    var oppBench = (p.againstBenchLeagues || []);
+    /* Filtered like the game drawer's matrix — this drawer reads allRostered
+       DIRECTLY rather than going through buildPlayerIndex, so it needs its own
+       wpVisibleLeagues() pass or a hidden league would still be listed here by
+       name while the ×N count next door has already dropped it. */
+    var myStart = wpVisibleLeagues(p.myLeagues || []);
+    var myBench = wpVisibleLeagues(p.myBenchLeagues || []);
+    var oppStart = wpVisibleLeagues(p.againstLeagues || []);
+    var oppBench = wpVisibleLeagues(p.againstBenchLeagues || []);
+    var rosteredSomewhere = ((p.myLeagues||[]).length + (p.myBenchLeagues||[]).length +
+                             (p.againstLeagues||[]).length + (p.againstBenchLeagues||[]).length) > 0;
 
     function lgRow(name, sideClass){
       return '<div class="wp-drawer__row"><span class="wp-drawer__name">' + esc(name) + '</span>' +
@@ -17233,7 +17273,11 @@ loadExperimentState();
         oppBench.map(function(n){ return lgRow(n, 'wp-pill--opp-bench'); }).join('') + '</div>';
     }
     if (!sections){
-      sections = '<p class="wp-drawer__sub">Not rostered in any league this week.</p>';
+      /* Don't claim he's unrostered when the league filter is what emptied
+         the list — that reads as a data bug. */
+      sections = rosteredSomewhere
+        ? '<p class="wp-drawer__sub">Rostered only in leagues you\'ve filtered out.</p>'
+        : '<p class="wp-drawer__sub">Not rostered in any league this week.</p>';
     }
 
     var wpInitials = (p.full_name||'?').split(/\s+/).map(function(s){return s[0]||'';}).join('').slice(0,2).toUpperCase();
@@ -17248,13 +17292,19 @@ loadExperimentState();
     sections;
   }
 
+  /* What the WP-owned bottom sheet is currently showing, so a league toggle
+     can repaint it in place. Cleared on close — a stale ref would repaint a
+     sheet another view now owns. */
+  var wpOpenDrawer = null;   // null | { kind: 'player'|'game', id: String }
+
   function openPlayerDrawer(playerId){
     if (!window.BottomSheet) return;
     var html = renderPlayerDrawer(playerId);
+    wpOpenDrawer = { kind: 'player', id: playerId };
     if (window.BottomSheet.isOpen() && window.BottomSheet.getOwner() === 'watch'){
       window.BottomSheet.setBody(html);
     } else {
-      window.BottomSheet.open(html, { owner: 'watch', onClose: function(){} });
+      window.BottomSheet.open(html, { owner: 'watch', onClose: function(){ wpOpenDrawer = null; } });
     }
   }
 
@@ -17286,14 +17336,26 @@ loadExperimentState();
     }
 
     /* Roster-ownership matrix: every relevant player gets one row, with
-       My Rosters / Opp Rosters as the two columns. An X marks each side
-       the player appears on (starter + bench both count as ownership).
-       No league identifiers — presence only. */
+       My Rosters / Opp Rosters as the two columns. An X marks each side the
+       player appears on, and a ×N multiplier rides beside it when the same
+       player is rostered on that side in more than one league (Matt,
+       2026-09-13 — "Rome Odunze is on two of my teams"). Still no league
+       identifiers: depth only, not which leagues.
+
+       The counts come from the SAME expression calcGamePriority scores with,
+       including its includeBench term. That coupling is deliberate. The X
+       used to be bench-inclusive unconditionally while the ranking above it
+       was bench-aware, which nothing exposed while the cell held a bare
+       glyph — a boolean cannot contradict itself. A printed number can, so
+       with "Starters only" set, a bench-only rostering now shows no X at
+       all rather than an X the ranking never counted. Change these two
+       lines and the number stops matching the slot order. */
+    var wpIncludeBench = !!state.includeBench;
     var rows = (scored.players || []).map(function(p){
       var pe = p.entry;
-      var onMy  = pe.myStartLeagues.length  + pe.myBenchLeagues.length  > 0;
-      var onOpp = pe.oppStartLeagues.length + pe.oppBenchLeagues.length > 0;
-      return { p: p, onMy: onMy, onOpp: onOpp };
+      var myN  = pe.myStartLeagues.length  + (wpIncludeBench ? pe.myBenchLeagues.length  : 0);
+      var oppN = pe.oppStartLeagues.length + (wpIncludeBench ? pe.oppBenchLeagues.length : 0);
+      return { p: p, onMy: myN > 0, onOpp: oppN > 0, myN: myN, oppN: oppN };
     });
 
     /* Sort: conflicted first, then My-only, then Opp-only; within each
@@ -17320,14 +17382,30 @@ loadExperimentState();
     if (!rows.length){
       sections = '<p class="wp-drawer__sub">No relevant players in this game for the current view.</p>';
     } else {
+      /* One cell renderer for both columns. n === 0 renders empty (no X),
+         n === 1 renders the bare X exactly as before — the multiplier is
+         suppressed at 1 so the common single-league case stays visually
+         quiet and only real doubled-up exposure draws the eye.
+
+         At n > 1 the DIGIT ALONE is appended to the existing X: the cell
+         reads "×2", not "× ×2". The X is already a multiplication sign, so
+         emitting a second one just to carry the number gave two glyphs where
+         the eye wants one token. Digit inherits the X's family, weight and
+         size for the same reason. */
+      function ownCell(n, side){
+        if (!n) return '';
+        return '<span class="wp-ownership__x wp-ownership__x--' + side + '">×</span>' +
+          (n > 1 ? '<span class="wp-ownership__mult wp-ownership__mult--' + side + '">' + n + '</span>' : '');
+      }
+
       var bodyRows = rows.map(function(r){
         var pe = r.p.entry;
         var nameCell = esc(pe.name || '—') +
           ' <span class="wp-ownership__pos">' + esc(pe.pos || '—') + '</span>';
         return '<tr class="wp-ownership__player-row" data-wp-player="' + esc(pe.id) + '">' +
           '<th class="wp-ownership__row">' + nameCell + '</th>' +
-          '<td class="wp-ownership__cell">' + (r.onMy  ? '<span class="wp-ownership__x wp-ownership__x--me">×</span>'  : '') + '</td>' +
-          '<td class="wp-ownership__cell">' + (r.onOpp ? '<span class="wp-ownership__x wp-ownership__x--opp">×</span>' : '') + '</td>' +
+          '<td class="wp-ownership__cell">' + ownCell(r.myN,  'me')  + '</td>' +
+          '<td class="wp-ownership__cell">' + ownCell(r.oppN, 'opp') + '</td>' +
           '</tr>';
       }).join('');
       sections =
@@ -17360,12 +17438,34 @@ loadExperimentState();
   function openGameDrawer(gameId){
     if (!window.BottomSheet) return;
     var html = renderGameDrawer(gameId);
+    wpOpenDrawer = { kind: 'game', id: gameId };
     if (window.BottomSheet.isOpen() && window.BottomSheet.getOwner() === 'watch'){
       window.BottomSheet.setBody(html);
     } else {
-      window.BottomSheet.open(html, { owner: 'watch', onClose: function(){} });
+      window.BottomSheet.open(html, { owner: 'watch', onClose: function(){ wpOpenDrawer = null; } });
     }
   }
+
+  /* League-visibility nudge. WP consumes `hiddenLeagues` at render time (via
+     wpVisibleLeagues inside buildPlayerIndex), so hiding a league has to
+     re-run the render — cfApplyLeagueVisibility calls this. It repaints the
+     open drawer too: the ownership multiplier is the first WP surface that
+     prints a league-dependent NUMBER, so a stale sheet would now show a
+     count the board behind it disagrees with. */
+  function wpApplyLeagueVisibility(){
+    if (!window.__conflictedWatchOpen) return;
+    try { renderWatchView(); } catch(e){}
+    if (!wpOpenDrawer) return;
+    try {
+      if (!window.BottomSheet || !window.BottomSheet.isOpen() || window.BottomSheet.getOwner() !== 'watch'){
+        wpOpenDrawer = null; return;
+      }
+      window.BottomSheet.setBody(
+        wpOpenDrawer.kind === 'game' ? renderGameDrawer(wpOpenDrawer.id) : renderPlayerDrawer(wpOpenDrawer.id)
+      );
+    } catch(e){}
+  }
+  window.__wpApplyLeagueVisibility = wpApplyLeagueVisibility;
 
   /* ── Show / hide ───────────────────────────────────────────── */
   function hideAllForWatch(){
@@ -17603,6 +17703,7 @@ loadExperimentState();
     }
     /* Drawer close */
     if (e.target.closest('[data-wp-drawer-close]')){
+      wpOpenDrawer = null;
       if (window.BottomSheet) window.BottomSheet.close();
       return;
     }
