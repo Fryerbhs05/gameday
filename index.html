@@ -19556,24 +19556,30 @@ loadExperimentState();
     if(w.length<=1) return w.join('');
     return w.slice(0,-1).join(', ')+' &amp; '+w[w.length-1];
   }
-  /* Three buckets for the detail line's tail, Matt's call (2026-09-10). All three
-     read off the WHOLE matchup, not just the side being talked about, because the
-     question the line answers is "how much game is left?":
-       both sides still hold >LOTS_PER_SIDE  -> "lots of game left."  (early Sunday:
-           naming two of fifteen was a truncated list posing as the full field)
-       TOTAL remaining <=NAME_TO_GO_MAX      -> name them
-       anything between                      -> "N players to go." (N = the total)
-     Names stay one-sided (theirs when you're up, yours when you're chasing) — that
-     is the side you can still root about; only the thresholds are matchup-wide. */
+  /* Detail-line tail — three buckets, thresholds read matchup-wide ("how much game
+     is left?"). Both sides >LOTS_PER_SIDE -> "lots of game left."; TOTAL remaining
+     <=NAME_TO_GO_MAX -> name the players; otherwise a split count. Names now show
+     BOTH sides ("yours vs theirs") whenever players remain on each — the earlier
+     one-sided naming (v180) hid the other side's players and misread as "this is the
+     whole field" (Matt, 2026-09-14). One side already done -> a one-sided line for
+     whoever's left. */
   var LOTS_PER_SIDE=4, NAME_TO_GO_MAX=3;
-  /* Name the players only when the short list is COMPLETE (shortName can drop a
-     player, which would silently shrink a 3-man list to 2 and misstate the field). */
-  function toGoTxt(list,sideLeft,myLeft,oppLeft,tail){
-    if(!sideLeft) return '';
+  /* Name players only when a side's short list is COMPLETE (shortName can drop a
+     player, silently shrinking the list); if either side's list is short we fall
+     through to the count. Symmetric in my/opp — both call sites pass the same tuple
+     and only their outer guard (pulling away / bare deficit) differs. */
+  function toGoTxt(myList,myLeft,oppList,oppLeft){
     if(myLeft>LOTS_PER_SIDE && oppLeft>LOTS_PER_SIDE) return ' &mdash; lots of game left.';
     var total=myLeft+oppLeft;
-    if(total<=NAME_TO_GO_MAX && list.length===sideLeft) return ' &mdash; '+names(list)+' '+tail;
-    return ' &mdash; '+total+' player'+(total===1?'':'s')+' to go.';
+    if(myLeft>0 && oppLeft>0){
+      if(total<=NAME_TO_GO_MAX && myList.length===myLeft && oppList.length===oppLeft)
+        return ' &mdash; '+names(myList)+' vs '+names(oppList)+' to go.';
+      return ' &mdash; '+myLeft+' of yours and '+oppLeft+' of theirs to go.';
+    }
+    /* One side is done; describe whoever remains. */
+    var n=myLeft||oppLeft, list=myLeft?myList:oppList, who=myLeft?'yours':'theirs';
+    if(total<=NAME_TO_GO_MAX && list.length===n) return ' &mdash; '+names(list)+' to go.';
+    return ' &mdash; '+n+' of '+who+' to go.';
   }
   function margin(r){ return Math.abs(r.curMy-r.curOpp); }
 
@@ -19639,8 +19645,8 @@ loadExperimentState();
     /* Kicked off, still 0-0. Without this the gap branch below reads
        "Up 0.00 and pulling away." off an empty scoreboard. */
     else if(r.noScores){ic='&#128337;';txt='Underway &mdash; no points on the board yet.';}
-    else if(gap>=0){ic='&#9650;';txt='Up <b>'+nf(gap)+'</b>'+(r.oppLeft?toGoTxt(r.oppToGo,r.oppLeft,r.myLeft,r.oppLeft,'left for them.'):' and pulling away.');}
-    else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myLeft?toGoTxt(r.myToGo,r.myLeft,r.myLeft,r.oppLeft,'to go.'):'.');}
+    else if(gap>=0){ic='&#9650;';txt='Up <b>'+nf(gap)+'</b>'+(r.oppLeft?toGoTxt(r.myToGo,r.myLeft,r.oppToGo,r.oppLeft):' and pulling away.');}
+    else{ic='&#9201;';txt='Chasing <b>'+nf(-gap)+'</b>'+(r.myLeft?toGoTxt(r.myToGo,r.myLeft,r.oppToGo,r.oppLeft):'.');}
     return '<div class="cf-c-detail'+((r.pending||r.noScores)?' is-1line':'')+'"><span>'+txt+'</span></div>';
   }
   /* Screenshot-privacy mask (shared, session-only) — see cfMaskLeague. Applied
