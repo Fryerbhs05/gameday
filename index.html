@@ -6906,6 +6906,36 @@ function cfSyncScopeToggles(){
 
 const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
 const getNFLState=()=>apiFetch(`${BASE}/state/nfl`);
+/* ── Current-week priming (2026-09-15) ───────────────────────────────
+   getNFLState() is a network round-trip, so on a cold boot activeWeek sat at its
+   hardcoded 1 until that promise resolved — the app flashed "Week 1" then jumped
+   to the real week. The board snapshot primes the week too, but only when it is
+   fresh (<24h) and the user is connected with a rendered board; any longer gap
+   fell back to Week 1. This tiny dedicated cache records the last *confirmed*
+   live week every time getNFLState resolves and is read synchronously at first
+   paint (all boot paths), so the first render lands on the real week. It is only
+   a hint: run()/getNFLState stays authoritative and re-snaps on every load, so a
+   week rollover between opens self-corrects. 30-day TTL survives bye-week usage
+   gaps but expires across the offseason (falling back to the Week 1 / current-year
+   default the preseason wants anyway). */
+const LIVE_STATE_LS_KEY='gd_live_state_v1';
+const LIVE_STATE_MAX_AGE_MS=30*24*60*60*1000;
+function saveLiveState(){try{localStorage.setItem(LIVE_STATE_LS_KEY,JSON.stringify({week:liveWeek,season:liveSeason,off:liveOffseason,ts:Date.now()}));}catch(e){}}
+function primeLiveWeekFromCache(){
+  try{
+    const raw=localStorage.getItem(LIVE_STATE_LS_KEY);if(!raw)return;
+    const st=JSON.parse(raw);
+    if(!st||typeof st.week!=='number'||st.week<1||st.week>MAX_WEEK)return;
+    if(typeof st.ts==='number'&&Date.now()-st.ts>LIVE_STATE_MAX_AGE_MS)return;
+    liveWeek=st.week;
+    if(st.season)liveSeason=String(st.season);
+    liveOffseason=!!st.off;
+    /* Only the pre-load paint is affected: the first run() still overwrites
+       activeWeek/activeSeason from the authoritative getNFLState (guarded by
+       !isAnyProviderLoaded), so this never pins a data fetch to a stale week. */
+    if(!isAnyProviderLoaded){activeWeek=liveWeek;activeSeason=liveSeason;}
+  }catch(e){}
+}
 const getLeagues=(uid,s)=>apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
 const getRosters=lid=>apiFetch(`${BASE}/league/${lid}/rosters`);
 const getLeagueUsers=lid=>apiFetch(`${BASE}/league/${lid}/users`);
@@ -10284,6 +10314,7 @@ async function loadData(){
   /* No live week (week:0) or NFL is in its off-period → offseason. Used to stop
      ESPN from rendering a phantom Week 1 from a stale/un-renewed-league schedule. */
   liveOffseason=!_hasLiveWeek;
+  saveLiveState(); /* record confirmed live week for next cold-boot prime */
   if(!isAnyProviderLoaded){activeWeek=liveWeek;activeSeason=liveSeason;}
   isAnyProviderLoaded=true;
   buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);
@@ -11490,7 +11521,8 @@ document.addEventListener('visibilitychange',async()=>{
   }
 });
 
-buildWeekSelect(1);buildSeasonSelect(THIS_YR);
+primeLiveWeekFromCache(); /* land first paint on the real current week, not a Week 1 flash */
+buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);
 
 document.querySelectorAll('.column > .column-header').forEach(h=>{
   h.addEventListener('click',()=>h.parentElement.classList.toggle('collapsed'));
@@ -20276,10 +20308,12 @@ function cfHeroHTML(h){
     '<div class="cfv-count">'+cfCountLine(h.nConf, h.nOne, true)+'</div></div>';
 }
 function cfTerminalHTML(reason){
-  var p = (reason==='all-settled')
+  var settled = (reason==='all-settled');
+  var h = settled ? 'Nothing left to sweat' : 'Nobody&rsquo;s Conflicted tonight';
+  var p = settled
     ? 'Every league is decided &mdash; nothing left to root for or against. Enjoy the games.'
-    : 'None of your players are still to play in the night games, so there\'s nothing left to track here. Check your Weekend Snapshot to see where your matchups landed.';
-  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD</div><div class="cfc-term"><h4>Nothing left to sweat</h4><p>'+p+'</p><a id="cfc-snaplink">See your Weekend Snapshot</a></div></div>';
+    : 'None of your players are riding both sides this week &mdash; no one you&rsquo;re rooting for in one league and against in another. There&rsquo;s no <span class="cfc-gold">conflict</span> to call here. Your matchups are still live, though &mdash; the Weekend Snapshot has where each one stands.';
+  return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD</div><div class="cfc-term"><h4>'+h+'</h4><p>'+p+'</p><a id="cfc-snaplink">See your Weekend Snapshot</a></div></div>';
 }
 
 /* Afternoon-suppression gate — see original. */
