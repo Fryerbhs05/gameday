@@ -19593,6 +19593,13 @@ loadExperimentState();
     return ' &mdash; '+n+' of '+who+' to go.';
   }
   function margin(r){ return Math.abs(r.curMy-r.curOpp); }
+  /* A row that still shows a % is one the STRICT LOCK MODEL declined to call
+     certain (cwin/closs render "Won"/"Lost", never a %), so 0/100 must be
+     impossible here — while a game is live there is always a comeback path.
+     Clamp the DISPLAYED integer to [1,99]; raw r.prob is untouched so state
+     classification and the within-tier sort still see the true value. (Matt,
+     2026-09-15: "0 and 100 are certain — right now there is uncertainty.") */
+  function pctDisp(r){ return Math.min(99, Math.max(1, Math.round(r.prob*100))); }
 
   /* ---- LIST card ---- */
   function cardStatus(r){
@@ -19632,7 +19639,7 @@ loadExperimentState();
       +'</div>'+projLine;
   }
   function cardBar(r){
-    var pct=Math.round(r.prob*100), fill=(r.state==='closs')?'#E07A6E':COL[r.state], w=(r.state==='cwin'||r.state==='closs')?100:pct, Lf,Rf;
+    var pct=pctDisp(r), fill=(r.state==='closs')?'#E07A6E':COL[r.state], w=(r.state==='cwin'||r.state==='closs')?100:pct, Lf,Rf;
     if(r.state==='cwin'){Lf='<span style="color:#5DCAA5">Won</span>';Rf='<span class="muted">+'+nf(margin(r))+'</span>';}
     else if(r.state==='closs'){Lf='<span style="color:#E88A7F">'+(r.isFinal?'Final':'Lost')+'</span>';Rf='<span class="muted">&minus;'+nf(margin(r))+'</span>';}
     else{Lf='<span style="color:'+COL[r.state]+'">'+pct+'% win</span>';Rf='<span class="muted">'+(r.pending?(r.hasProj?'pre-kickoff projection':'not started yet'):(r.noScores?'underway &mdash; no scoring yet':'projected'))+'</span>';}
@@ -19698,7 +19705,7 @@ loadExperimentState();
       var label=won?'Won by +'+nf(Math.abs(m)):'Lost by '+nf(Math.abs(m));
       inner='<div class="cf-t-result" style="color:'+(won?'#5DCAA5':'#E88A7F')+'">'+label+'</div>'+gridScore(r);
     }else{
-      inner='<div class="cf-t-row"><div class="cf-t-stat" style="color:'+COL[r.state]+'">'+Math.round(r.prob*100)+'<small>%</small></div>'+gridStatus(r)+'</div>'+gridScore(r);
+      inner='<div class="cf-t-row"><div class="cf-t-stat" style="color:'+COL[r.state]+'">'+pctDisp(r)+'<small>%</small></div>'+gridStatus(r)+'</div>'+gridScore(r);
     }
     return '<div class="cf-tile '+r.state+'" data-cf-lg="'+lgAttr(r.name)+'"><div class="cf-t-name">'+snapMaskLg(r.name)+'</div>'+inner+'</div>';
   }
