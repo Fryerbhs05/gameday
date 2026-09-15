@@ -19649,7 +19649,7 @@ loadExperimentState();
         var sigma=Math.sqrt(v)*TUNE;
         prob=sigma<0.5?(mu>0?1:0):ncdf(mu/sigma);
         prob=Math.max(0,Math.min(1,prob));
-        state=prob>=0.55?'win':(prob<=0.45?'loss':'flip');
+        state=prob>=0.51?'win':(prob<=0.49?'loss':'flip');  // coin-toss band tightened 0.55/0.45 -> 0.51/0.49 (Matt, 2026-09-15): 'flip' now only within ~+-0.7 projected pts of dead-even; a projected +3.35 reads as favored, not toss-up
       }
 
       // to-go names (not yet final), strongest projection first
