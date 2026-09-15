@@ -12797,7 +12797,13 @@ const PROVIDERS={
         let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0,myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0,myToGo=0,oppToGo=0,oppTeamName=null;
         if(myMatchup){
           hasMatchup=true;
-          const starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
+          let starters=(myMatchup.starters||[]).filter(id=>id&&id!=='0');
+          /* Upcoming/unset weeks: Sleeper omits matchup.starters until a lineup is saved
+             for that week, so fall back to the roster's standing lineup (roster.starters)
+             before dumping the FULL roster into the starters section (which rendered bench
+             players as starters with misaligned slot badges). roster.starters mirrors a set
+             matchup.starters exactly, so live weeks are unaffected. */
+          if(!starters.length)starters=(myRoster.starters||[]).filter(id=>id&&id!=='0');
           const allMine=(myMatchup.players||myRoster.players||[]).filter(id=>id&&id!=='0');
           myPlayers=starters.length?starters:allMine;
           const myStartSet=new Set(starters);
@@ -12806,7 +12812,8 @@ const PROVIDERS={
           const oppRoster=rosters.find(r=>r.roster_id===oppMatchup?.roster_id);
           oppTeamName=teamNameForRoster(oppRoster);
           const oppTaxiIds=new Set((oppRoster?.taxi||[]).filter(Boolean));
-          const oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
+          let oppStarters=(oppMatchup?.starters||[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
+          if(!oppStarters.length)oppStarters=(oppRoster?.starters||[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
           const oppAll=(oppMatchup?(oppMatchup.players||oppRoster?.players||[]):[]).filter(id=>id&&id!=='0'&&!oppTaxiIds.has(id));
           oppPlayers=oppStarters.length?oppStarters:oppAll;
           const oppStartSet=new Set(oppStarters);
