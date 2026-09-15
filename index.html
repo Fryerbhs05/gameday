@@ -16666,8 +16666,15 @@ loadExperimentState();
        for a future-season query. limit=400 is generous — a week has ~16 games.
        Cache-buster `_ts` prevents any intermediate proxy from serving a
        stale response keyed on the URL alone. */
-    var range = weekDateRange(season, week);
-    var url = WP_SCOREBOARD + '?dates=' + range + '&seasontype=2&limit=400&_ts=' + now;
+    /* ESPN dropped support for the YYYYMMDD-YYYYMMDD RANGE query — it now returns
+       HTTP 400 for EVERY range (2025 and 2026 alike, confirmed 2026-09-15), which
+       silently emptied BOTH Watch Priority AND the Conflict Card (both build off
+       this one fetch — the Conflict Card via __cfEnsureSlots → __cfTeamSlotMap).
+       Switch to the year+week form: dates=<year>&seasontype=2&week=<N>. Verified
+       2026-09-15 to return the exact per-week slate for current, future AND past
+       weeks/seasons (16 games, correct week) — the same shape fetchNflGameStates
+       has used reliably all along. limit=400 is generous; `_ts` busts proxies. */
+    var url = WP_SCOREBOARD + '?dates=' + encodeURIComponent(season) + '&seasontype=2&week=' + encodeURIComponent(week) + '&limit=400&_ts=' + now;
     console.log('[WP] fetching', season, 'week', week, '→', url);
     return fetch(url, { cache: 'no-store' }).then(function(r){
       if (!r.ok) throw new Error('ESPN HTTP ' + r.status);
