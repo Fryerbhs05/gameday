@@ -6921,14 +6921,37 @@ const getNFLState=()=>apiFetch(`${BASE}/state/nfl`);
 const LIVE_STATE_LS_KEY='gd_live_state_v1';
 const LIVE_STATE_MAX_AGE_MS=30*24*60*60*1000;
 function saveLiveState(){try{localStorage.setItem(LIVE_STATE_LS_KEY,JSON.stringify({week:liveWeek,season:liveSeason,off:liveOffseason,ts:Date.now()}));}catch(e){}}
+/* Storage-FREE estimate of the current regular-season NFL week from today's
+   date. This is the wide-sweeping fallback: a user whose localStorage is full
+   (heavy-use phones) can't have EITHER cache below — writes silently fail — so a
+   write-dependent prime never fires for exactly the users who need it most. The
+   date math needs nothing stored. Anchor: Sleeper flips state.week on the
+   Tuesday after Labor Day (first Monday of September), then weekly. Returns null
+   outside the regular-season window (pre/off-season, playoffs) so getNFLState
+   — still the authority — owns those; in-season it returns the live week even
+   when nothing is cached. A Tuesday-morning boundary can be a few hours off; the
+   getNFLState confirm that always follows fixes it under the splash. */
+function estimateLiveNflWeek(now){
+  try{
+    now=now||new Date();
+    const y=(now.getMonth()<=1)?now.getFullYear()-1:now.getFullYear(); // Jan/Feb belong to the prior season
+    const sep1=new Date(y,8,1);
+    const laborDay=new Date(y,8,1+((8-sep1.getDay())%7));  // first Monday of September
+    const week1Tue=new Date(y,8,laborDay.getDate()+1);     // Tuesday after Labor Day == Sleeper's Week 1 flip
+    const wk=Math.floor((now-week1Tue)/(7*24*3600*1000))+1;
+    return (wk>=1&&wk<=MAX_WEEK)?wk:null;
+  }catch(e){return null;}
+}
 function primeLiveWeekFromCache(){
   /* Land the FIRST synchronous paint on the real current week instead of the
      hardcoded 1. Sources, in order: (1) our dedicated last-confirmed-week cache,
-     (2) the board snapshot the app writes on every live render — it carries
-     liveWeek and is present across app versions, so priming works on the very
-     first load after a deploy with NO warmup pass. Purely a paint hint:
-     loadData()/getNFLState stays authoritative and re-snaps activeWeek while
-     !isAnyProviderLoaded, so a week rollover between opens self-corrects. */
+     (2) the board snapshot the app writes on every live render, (3) a storage-FREE
+     date estimate. Layers 1–2 are the most accurate but require a successful
+     localStorage write, which fails when storage is full — so layer 3 guarantees
+     the right week for every user regardless of storage, incognito, or first-ever
+     visit. Purely a paint hint: loadData()/getNFLState stays authoritative and
+     re-snaps activeWeek while !isAnyProviderLoaded, so any estimate error or week
+     rollover self-corrects the moment state lands. */
   function apply(week,season,off){
     if(typeof week!=='number'||week<1||week>MAX_WEEK)return false;
     liveWeek=week;
@@ -6938,13 +6961,18 @@ function primeLiveWeekFromCache(){
     return true;
   }
   const fresh=(ts)=>typeof ts!=='number'||(Date.now()-ts)<=LIVE_STATE_MAX_AGE_MS;
+  let done=false;
   try{
     const raw=localStorage.getItem(LIVE_STATE_LS_KEY);
-    if(raw){const st=JSON.parse(raw);if(st&&fresh(st.ts)&&apply(st.week,st.season,st.off))return;}
+    if(raw){const st=JSON.parse(raw);if(st&&fresh(st.ts))done=apply(st.week,st.season,st.off);}
   }catch(e){}
-  try{
+  if(!done)try{
     const raw=localStorage.getItem('conflicted_board_snapshot_v1');
-    if(raw){const s=JSON.parse(raw);if(s&&fresh(s.ts)){const w=(typeof s.liveWeek==='number')?s.liveWeek:s.week;apply(w,s.liveSeason||s.season,undefined);}}
+    if(raw){const s=JSON.parse(raw);if(s&&fresh(s.ts)){const w=(typeof s.liveWeek==='number')?s.liveWeek:s.week;done=apply(w,s.liveSeason||s.season,undefined);}}
+  }catch(e){}
+  if(!done)try{
+    const now=new Date();const wk=estimateLiveNflWeek(now);
+    if(wk){const y=(now.getMonth()<=1)?now.getFullYear()-1:now.getFullYear();done=apply(wk,y,false);}
   }catch(e){}
 }
 const getLeagues=(uid,s)=>apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
