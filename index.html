@@ -6572,6 +6572,14 @@
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#7AA8D1','#5790C0','#2B6FA8','#3F5E78','#9E988A','#6E8BA8','#B0BEC9','#4A5A6A'];
 const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 let liveOnly=false,toFinishOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map(),nflKickoffs=new Map();
+/* GAME-WINDOW poll cadence (Matt, 2026-09-15): while any NFL game is in progress
+   we tighten both the board refresh and the NFL-state re-fetch to 30s so a game's
+   'post' flip (and the LOCKED/LOST verdict that rides on it) is caught within ~30s
+   instead of ~60s. Keyed on a POSITIVE 'in' in the state map, so it is active ONLY
+   during a live window and reverts to 60s the moment no game is on the field —
+   never a faster poll at 3am. */
+const NFL_STATE_TTL_LIVE=30*1000;
+function anyGameInProgress(){ try{ for(const v of nflGameStates.values()){ if(v==='in') return true; } }catch(e){} return false; }
 let isDemoMode=false,liveWeek=1,liveSeason=String(THIS_YR),activeWeek=1,activeSeason=String(THIS_YR),colorMap={},hiddenLeagues=new Set(),isAnyProviderLoaded=false,liveToggleAvailable=false,leagueNamesCache=[];
 /* Account-level "global exclude": leagues the user switched OFF in the Account
    view. Keyed by `platform|leagueName` (platform-prefixed so identically-named
@@ -6722,7 +6730,8 @@ async function apiFetch(url){
 }
 async function fetchNflGameStates(season,week){
   const key=`${season}-${week}`;
-  if(key===nflGameStatesKey&&nflGameStates.size&&Date.now()-nflGameStatesAt<NFL_STATE_TTL)return;
+  const _stateTtl=anyGameInProgress()?NFL_STATE_TTL_LIVE:NFL_STATE_TTL;
+  if(key===nflGameStatesKey&&nflGameStates.size&&Date.now()-nflGameStatesAt<_stateTtl)return;
   try{
     const url=`${ESPN_SCOREBOARD}?dates=${season}&seasontype=2&week=${week}`;
     /* no-store for the same reason as apiFetch: this drives the LIVE pill and
@@ -11442,7 +11451,10 @@ function readBoardSnapshot(){
 }
 function clearBoardSnapshot(){try{localStorage.removeItem(BOARD_SNAPSHOT_KEY);localStorage.removeItem(SNAPSHOT_TS_KEY);}catch(e){}}
 
-const REFRESH_MS=60*1000;let refreshTimer=null;let lastFetchTime=0;let isFetching=false;
+const REFRESH_MS=60*1000;const REFRESH_MS_LIVE=30*1000;let refreshTimer=null;let lastFetchTime=0;let isFetching=false;
+/* 30s while a game is live (anyGameInProgress), 60s otherwise — the setInterval tick
+   stays 10s, only this threshold moves. Same game-window gate as the NFL-state TTL. */
+function currentRefreshMs(){ return anyGameInProgress()?REFRESH_MS_LIVE:REFRESH_MS; }
 function shouldAutoRefresh(){return !isDemoMode && !(window.__cfReplay&&window.__cfReplay.active()) && isAnyProviderConnected() && !isHistoricalWeek();}
 function isDashboardVisible(){const b=document.getElementById('board');if(!b)return false;const d=b.style.display;return !(d==='none'||d==='');}
 /* Keep the live poll alive on the dashboard AND on any registered, data-driven
@@ -11460,7 +11472,7 @@ function startAutoRefresh(){
   refreshTimer=setInterval(async()=>{
     if(document.hidden)return;
     if(!isLiveDataViewVisible())return; // poll on dashboard + registered live views; idle on static views
-    if(Date.now()-lastFetchTime>=REFRESH_MS){
+    if(Date.now()-lastFetchTime>=currentRefreshMs()){
       lastFetchTime=Date.now(); // claim the slot before awaiting so the next tick won't fire
       try{renderBoard(await loadData(),getPrimaryDisplayName());}
       catch(e){console.warn('Auto-refresh failed silently:',e.message);}
@@ -11471,7 +11483,7 @@ function stopAutoRefresh(){if(refreshTimer){clearInterval(refreshTimer);refreshT
 document.addEventListener('visibilitychange',async()=>{
   if(document.hidden)return; if(!shouldAutoRefresh())return;
   if(!isLiveDataViewVisible())return; // refresh in place on dashboard + registered live views
-  if(Date.now()-lastFetchTime>=REFRESH_MS){
+  if(Date.now()-lastFetchTime>=currentRefreshMs()){
     lastFetchTime=Date.now(); // claim the slot before awaiting
     try{renderBoard(await loadData(),getPrimaryDisplayName());}
     catch(e){console.warn('Tab-return refresh failed:',e.message);}
@@ -19412,7 +19424,7 @@ loadExperimentState();
 <script>
 (function(){
   var SD={QB:7.5,RB:6.5,WR:6.5,TE:5.0,DST:6.0,DEF:6.0,K:3.0,FLEX:6.5,PK:3.0};
-  var TUNE=1.0;                 // global decisiveness knob (raise => softer %)
+  var TUNE=1.1;                 // global decisiveness knob (raise => softer %). 1.0->1.1 (Matt, 2026-09-15): a slight, deliberate softening — widens sigma ~10%, nudges every live % toward 50. Not calibrated against outcomes; a feel adjustment.
   var COL={win:'#5DCAA5',loss:'#E07A6E',flip:'#7AA8D1',cwin:'#5DCAA5',closs:'#E07A6E'};
   /* The LIVE badge is a BROADCAST signal, not a rooting outcome (Matt, 2026-09-13).
      It used to paint itself COL[r.state] -- green while you were winning, salmon
@@ -19498,10 +19510,27 @@ loadExperimentState();
       // game state is unknown (demo mode, or a team not in the scoreboard map yet)
       var myRemFrac=Math.max(0,Math.min(1,(projMy-curMy)/Math.max(1,projMy)));
       var oppRemFrac=Math.max(0,Math.min(1,(projOpp-curOpp)/Math.max(1,projOpp)));
+      /* TERMINAL CASE from the GAME-STATE map, not the provider leagueState.
+         Once every starter on BOTH sides is positively 'post', both sides' ceilings
+         equal their scores (the strict-lock terminal case), so the result is settled
+         by score — decide it HERE rather than paint a live % while we wait for the
+         provider to refine leagueState or the platform to flip its postevent flag.
+         Closes: a FINAL TIE (cfMatchupLock never locks a tie, strict >, so it lingers
+         LIVE), the LOCKED→FINAL / postevent lag, and a stale quick-boot snapshot.
+         Uses the SAME 'post' test as remainingCount/`done`, and never fires while any
+         starter's game is unknown/not-post (conservative — same rule as the lock, so
+         it can't claim a result on missing data). It does NOT shorten a still-LIVE
+         loss whose gate is one of MY OWN games not yet 'post' — that window is ESPN
+         'post' timing + the 60s state TTL and self-heals a cycle later. (Matt,
+         2026-09-15: no win% once a matchup is effectively decided.) */
+      var allStartersPost = started && (mine.length+opp.length)>0 &&
+        mine.concat(opp).every(function(p){ return gameState(p.team)==='post'; });
+
       var state,prob;
 
       if(decided&&isWin){ state='cwin'; prob=1; }
       else if(decided&&(isLoss||isTie)){ state='closs'; prob=0; }
+      else if(allStartersPost){ if(curMy>curOpp){ state='cwin'; prob=1; } else { state='closs'; prob=0; } }  // over but leagueState still LIVE
       else if(noScores&&!hasProj){ state='flip'; prob=0.5; }   // no projections + no scores → true unknown, not 0%
       else {
         var myRem=Math.max(0,projMy-curMy), oppRem=Math.max(0,projOpp-curOpp);
