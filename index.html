@@ -6922,18 +6922,29 @@ const LIVE_STATE_LS_KEY='gd_live_state_v1';
 const LIVE_STATE_MAX_AGE_MS=30*24*60*60*1000;
 function saveLiveState(){try{localStorage.setItem(LIVE_STATE_LS_KEY,JSON.stringify({week:liveWeek,season:liveSeason,off:liveOffseason,ts:Date.now()}));}catch(e){}}
 function primeLiveWeekFromCache(){
-  try{
-    const raw=localStorage.getItem(LIVE_STATE_LS_KEY);if(!raw)return;
-    const st=JSON.parse(raw);
-    if(!st||typeof st.week!=='number'||st.week<1||st.week>MAX_WEEK)return;
-    if(typeof st.ts==='number'&&Date.now()-st.ts>LIVE_STATE_MAX_AGE_MS)return;
-    liveWeek=st.week;
-    if(st.season)liveSeason=String(st.season);
-    liveOffseason=!!st.off;
-    /* Only the pre-load paint is affected: the first run() still overwrites
-       activeWeek/activeSeason from the authoritative getNFLState (guarded by
-       !isAnyProviderLoaded), so this never pins a data fetch to a stale week. */
+  /* Land the FIRST synchronous paint on the real current week instead of the
+     hardcoded 1. Sources, in order: (1) our dedicated last-confirmed-week cache,
+     (2) the board snapshot the app writes on every live render — it carries
+     liveWeek and is present across app versions, so priming works on the very
+     first load after a deploy with NO warmup pass. Purely a paint hint:
+     loadData()/getNFLState stays authoritative and re-snaps activeWeek while
+     !isAnyProviderLoaded, so a week rollover between opens self-corrects. */
+  function apply(week,season,off){
+    if(typeof week!=='number'||week<1||week>MAX_WEEK)return false;
+    liveWeek=week;
+    if(season)liveSeason=String(season);
+    if(typeof off==='boolean')liveOffseason=off;
     if(!isAnyProviderLoaded){activeWeek=liveWeek;activeSeason=liveSeason;}
+    return true;
+  }
+  const fresh=(ts)=>typeof ts!=='number'||(Date.now()-ts)<=LIVE_STATE_MAX_AGE_MS;
+  try{
+    const raw=localStorage.getItem(LIVE_STATE_LS_KEY);
+    if(raw){const st=JSON.parse(raw);if(st&&fresh(st.ts)&&apply(st.week,st.season,st.off))return;}
+  }catch(e){}
+  try{
+    const raw=localStorage.getItem('conflicted_board_snapshot_v1');
+    if(raw){const s=JSON.parse(raw);if(s&&fresh(s.ts)){const w=(typeof s.liveWeek==='number')?s.liveWeek:s.week;apply(w,s.liveSeason||s.season,undefined);}}
   }catch(e){}
 }
 const getLeagues=(uid,s)=>apiFetch(`${BASE}/user/${uid}/leagues/nfl/${s}`);
@@ -11523,6 +11534,7 @@ document.addEventListener('visibilitychange',async()=>{
 
 primeLiveWeekFromCache(); /* land first paint on the real current week, not a Week 1 flash */
 buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);
+try{updateNavUI();}catch(e){} /* reflect the primed week in the header + scoreboard context on first paint, not just the dropdown */
 
 document.querySelectorAll('.column > .column-header').forEach(h=>{
   h.addEventListener('click',()=>h.parentElement.classList.toggle('collapsed'));
