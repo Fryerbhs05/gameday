@@ -194,18 +194,14 @@
             if(today && ls.getItem('conflicted_splash_day')!==today){firstToday=true;ls.setItem('conflicted_splash_day',today);}
           }catch(e2){}
           window.__cfFirstOpenToday=firstToday;
-          /* QUICK MODE: not the day's first open, and a FRESH board snapshot means
-             the board paints in ~100-400ms — so the splash is only covering the
-             pre-JS login paint, not a brand moment. Playing the full choreography
-             there just shows a half-finished assemble before it fades. Read the
-             O(1) timestamp mirror and mark the gate so CSS renders a clean STATIC
-             brand stamp instead. */
-          if(!firstToday){
-            var ts=0; try{ts=+(ls.getItem('conflicted_snapshot_ts')||0);}catch(e3){}
-            if(ts>0 && (Date.now()-ts) < 86400000) d.classList.add('boot-quick');
-          }
+          /* FULL BEAT ON EVERY OPEN (Matt, 2026-09-15): the branded splash now
+             plays its full choreography and is held until the fresh data pull
+             lands on EVERY open, not just the day's first — so the reveal always
+             shows the true current week + scores and the old Week-1-then-Week-2
+             flash can't surface. QUICK MODE (static stamp for non-first opens) is
+             retired; do NOT add 'boot-quick'. */
           /* Failsafe: never let the splash trap the user if boot stalls or throws. */
-          window.__bootSplashFailsafe=setTimeout(function(){d.classList.remove('booting');},8000);
+          window.__bootSplashFailsafe=setTimeout(function(){d.classList.remove('booting');},12000);
         }
       }catch(e){}
     })();
@@ -14873,6 +14869,9 @@ loadExperimentState();
     try{clearTimeout(window.__bootSplashFailsafe);}catch(e){}
     try{clearTimeout(_coldCeilingT);}catch(e){}
     try{document.documentElement.classList.remove('booting');}catch(e){}
+    /* Clear the one-shot SW auto-update guard so the NEXT deploy can auto-apply
+       again (it only needs to survive a single failed activation). */
+    try{if(/[?&]swu=1/.test(location.search)){var _u=new URL(location.href);_u.searchParams.delete('swu');history.replaceState(null,'',_u.href);}}catch(e){}
   }
   /* ── FIRST-LOAD BRAND SPLASH HOLD (Matt, 2026-07-18) ──────────────────────
      On a felt cold load the branded boot splash is held as a brand moment that
@@ -14891,7 +14890,7 @@ loadExperimentState();
      that cut at the peak of the inhale, which is why it read as "cut short").
      Same value governs BOTH the daily beat and a genuine cold load, so the two
      feel identical (Matt, 2026-07-19). */
-  const COLD_SPLASH_MIN_MS=4500, COLD_SPLASH_MAX_MS=7000;
+  const COLD_SPLASH_MIN_MS=4500, COLD_SPLASH_MAX_MS=9000;
   let _coldSplashArmed=false, _coldCeilingT=null;
   /* True when a snapshot boot is holding the splash purely for the once-a-day
      brand beat. The connected branch below must NOT endBoot() in that case or it
@@ -14994,8 +14993,11 @@ loadExperimentState();
            is scheduled off the clock, NOT off the revalidation, so a slow pull can
            never stretch a splash sitting over ready content. Every other open
            reveals immediately. */
-        if(window.__cfFirstOpenToday){armColdSplash();releaseColdSplash(false);_dailyHoldScheduled=true;}
-        else endBoot(); // real board is up — fade the splash to it
+        /* Hold the branded beat on EVERY open: arm the splash over the snapshot
+           cover but do NOT release here. The connected branch below releases it
+           only AFTER the fresh run() (week + scores) lands, so the reveal shows
+           the true current week, never the snapshot's possibly-stale one. */
+        armColdSplash();
       }catch(e){console.warn('snapshot boot failed, falling back to cold boot:',e.message);clearBoardSnapshot();}
     }
   }
@@ -15034,16 +15036,17 @@ loadExperimentState();
   const _endSnapshotSync=()=>{const btn=document.getElementById('refresh-btn');if(btn)btn.classList.remove('syncing');};
   if(cameFromYahooOAuth){showSetup();endBoot();}
   else if(isAnyProviderConnected()){
-    /* Felt cold load → hold the brand splash over the pull (4.5s min / 7s ceiling).
-       Snapshot boots skip this: the board is already painted, so the pull is a
-       silent background revalidation and boot already ended. Arm BEFORE run() so
-       the ceiling can still fire if the pull hangs. */
-    if(!bootedFromSnapshot)armColdSplash();
+    /* EVERY open holds the brand splash over the fresh pull (4.5s min / 9s ceiling)
+       — snapshot boots included (they armed above; this call is idempotent). Arm
+       BEFORE run() so the ceiling can still fire if the pull hangs. */
+    armColdSplash(); // idempotent; snapshot path already armed, cold path arms here
     const ok=await run();
     _clMark('data'); // status → first board painted (NFL state + provider pull + render)
     _endSnapshotSync();
-    if(bootedFromSnapshot){ if(!_dailyHoldScheduled)endBoot(); } // board already up; don't cut a daily beat short
-    else releaseColdSplash(false);            // 4.5s min, then reveal the finished board (or ceiling already fired)
+    /* EVERY open: fade only AFTER run() (week + scores) has landed, honoring the
+       branded-beat minimum. Snapshot and cold paths are now identical — both hold
+       the splash across the fresh pull so the reveal is always the real week. */
+    releaseColdSplash(false);
     if(bootedFromSnapshot&&ok)flashSyncedFeedback(); // same green snap as a manual sync
     /* Report the felt cold-load timing. Excludes snapshot boot (board was
        already on screen — the pull is a background revalidation, not a felt
@@ -18572,6 +18575,21 @@ loadExperimentState();
       var _userTriggeredUpdate = false;
       var _reloadingForUpdate = false;
 
+      /* Auto-apply an update that's ALREADY WAITING at boot (under the splash),
+         once, without waiting for the user to tap Refresh — the toast is easy to
+         miss on mobile, which stranded phones on old code. URL-guarded (swu=1) so
+         a worker that fails to activate can't reload-loop; after one spent attempt
+         it falls back to the manual toast. endBoot() strips the guard so the next
+         deploy can auto-apply again. An update that installs WHILE the app is open
+         (mid-session) still uses the toast — never an auto-reload that yanks the
+         user out of what they're doing. */
+      function autoApplyUpdate(worker){
+        if(!worker)return;
+        if(/[?&]swu=1/.test(location.search)){ showUpdatePrompt(worker); return; }
+        _userTriggeredUpdate = true;
+        try{ worker.postMessage({ type: 'SKIP_WAITING' }); }catch(e){}
+      }
+
       function showUpdatePrompt(worker) {
         if (_updatePromptShown || !worker) return;
         _updatePromptShown = true;
@@ -18606,13 +18624,14 @@ loadExperimentState();
       navigator.serviceWorker.addEventListener('controllerchange', function() {
         if (!_userTriggeredUpdate || _reloadingForUpdate) return;
         _reloadingForUpdate = true;
+        try{ var u=new URL(location.href); if(!u.searchParams.has('swu')) u.searchParams.set('swu','1'); location.replace(u.href); return; }catch(e){}
         window.location.reload();
       });
 
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('/sw.js').then(function(reg) {
           // An update may already be waiting from a previous visit.
-          if (reg.waiting && navigator.serviceWorker.controller) showUpdatePrompt(reg.waiting);
+          if (reg.waiting && navigator.serviceWorker.controller) autoApplyUpdate(reg.waiting);
           // Or one may finish installing while this page is open.
           reg.addEventListener('updatefound', function() {
             var nw = reg.installing;
