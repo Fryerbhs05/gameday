@@ -1692,7 +1692,7 @@
     .score-cell.is-tappable:active { transform: translateY(0); }
 
     /* ── Matchup drawer (opens from .score-cell tap) ────────────── */
-    .matchup-drawer { padding: 6px 0 4px; }
+    .matchup-drawer { padding: 6px 0 4px; animation: mpLiveBreath 2.6s ease-in-out infinite; }
     .matchup-drawer__head {
       display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
     }
@@ -1858,6 +1858,32 @@
        unpaired roster slot, which is not a score at all. */
     .matchup-drawer__player-pts--pre,
     .matchup-drawer__player-pts--empty { color: var(--ink-300); }
+    /* OPTION 2 -- live breathing dot (Matt, 2026-09-17). A single ice marker on a
+       LIVE player's points: the only new state channel, layout unchanged, names
+       still always --ink-900 and the point COLOR rules still exactly pre-dim /
+       started-white (final and live points are both white -- the dot is what tells
+       them apart). All dots breathe in perfect SYNC, including one that appears when
+       a game kicks off mid-drawer, because they do NOT animate their own opacity
+       (independent per-element animations drift when elements are inserted at
+       different times). Instead the drawer animates ONE inherited custom property
+       and every dot just reads its current value. */
+    @property --mp-live-breath { syntax: '<number>'; inherits: true; initial-value: 1; }
+    @keyframes mpLiveBreath { 0%, 100% { --mp-live-breath: .28; } 50% { --mp-live-breath: .9; } }
+    .matchup-drawer__player-pts { position: relative; } /* anchor for the dot */
+    .matchup-drawer__player-pts--live::before {
+      content: ''; position: absolute; top: 50%; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--live-ice); pointer-events: none;
+      transform: translateY(-50%); opacity: var(--mp-live-breath);
+    }
+    /* Dot hugs the number on its inboard (POS-badge-facing) edge so it always sits
+       next to the digits regardless of value width. */
+    .matchup-drawer__player-pts--live.matchup-drawer__player-pts--my::before  { right: -8px; }
+    .matchup-drawer__player-pts--live.matchup-drawer__player-pts--opp::before { left: -8px; }
+    @media (prefers-reduced-motion: reduce) {
+      .matchup-drawer { animation: none; }
+      /* the dot IDENTIFIES a live player, so hold it at peak rather than remove it */
+      .matchup-drawer__player-pts--live::before { opacity: .9; }
+    }
     .matchup-drawer__paired-pos {
       display: flex; justify-content: center; align-items: center;
       min-width: 44px;
@@ -1902,6 +1928,9 @@
       .matchup-drawer__player-name { font-size: 11px; }
       .matchup-drawer__player-pts { font-size: 11px; min-width: 28px; }
       .matchup-drawer__player-skel { width: 68px; height: 9px; }
+      .matchup-drawer__player-pts--live::before { width: 5px; height: 5px; }
+      .matchup-drawer__player-pts--live.matchup-drawer__player-pts--my::before  { right: -5.5px; }
+      .matchup-drawer__player-pts--live.matchup-drawer__player-pts--opp::before { left: -5.5px; }
     }
 
     /* League filters */
@@ -6796,6 +6825,18 @@ function mpGameNotStarted(team){
     return window.__cfGameState(team)==='pre';
   }catch(e){return false;}
 }
+/* Is this player's game in progress right now? Parallel to mpGameNotStarted --
+   same historic guard (a past week's stale slate must not paint live dots) and
+   the same __cfGameState alias fallback, which plain isPlayerLive lacks. Drives
+   the matchup drawer's live breathing dot (Matt, 2026-09-17). */
+function mpGameLive(team){
+  if(!team)return false;
+  try{
+    const d=window.__conflictedLastData;
+    if(d&&d.isHist)return false;
+    return window.__cfGameState(team)==='in';
+  }catch(e){return false;}
+}
 /* Accessors so the Weekend Snapshot script (separate IIFE) can read the
    module-scoped NFL game maps. 'pre' | 'in' | 'post' | null. */
 window.__cfGameState=function(team){try{if(!team)return null;return nflGameStates.get(team)||nflGameStates.get(cfNormTeam(team))||null;}catch(e){return null;}};
@@ -8821,6 +8862,10 @@ function updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt){
        is stamped by halfCells so we don't need the roster objects here. */
     span.classList.toggle('matchup-drawer__player-pts--pre',
       mpGameNotStarted(span.getAttribute('data-mp-team') || ''));
+    /* Kickoff also flips the live dot ON (pre->in) and game-end flips it OFF
+       (in->post -> final = white, no dot), re-evaluated every tick like --pre. */
+    span.classList.toggle('matchup-drawer__player-pts--live',
+      mpGameLive(span.getAttribute('data-mp-team') || ''));
   });
 }
 
@@ -8915,6 +8960,9 @@ function renderMatchupDrawer(ctx, lg){
     /* Dim ONLY before kickoff -- see the CSS note. A 0.00 after kickoff is a
        real, earned zero and stays white. */
     const preCls = mpGameNotStarted(p.team) ? ' matchup-drawer__player-pts--pre' : '';
+    /* Live breathing-dot marker -- mutually exclusive with pre (a team is
+       pre|in|post). mpGameLive mirrors mpGameNotStarted's historic guard + alias. */
+    const liveCls = mpGameLive(p.team) ? ' matchup-drawer__player-pts--live' : '';
     /* Pending = Sleeper name not resolvable yet. Render the app's standard .skel
        shimmer bar (reduced-motion handled globally) instead of a raw ID, so the
        row reads as "filling in" rather than as broken data. */
@@ -8922,7 +8970,7 @@ function renderMatchupDrawer(ctx, lg){
       ? '<span class="matchup-drawer__player-skel skel" role="img" aria-label="Loading player name"></span>'
       : escHtml(p.full_name);
     const nameSpan = '<span class="matchup-drawer__player-name matchup-drawer__player-name--' + side + '">' + nameHtml + '</span>';
-    const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + preCls + '" data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '" data-mp-team="' + escHtml(p.team || '') + '">' + ptsStr + '</span>';
+    const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + preCls + liveCls + '" data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '" data-mp-team="' + escHtml(p.team || '') + '">' + ptsStr + '</span>';
     /* Visual order: my side reads outward→inward (name then pts), opp side reads
        inward→outward (pts then name) so the points cluster around the center POS. */
     return side === 'my' ? (nameSpan + ptsSpan) : (ptsSpan + nameSpan);
@@ -21039,11 +21087,25 @@ if(typeof window.cfRegisterView==='function'){
   }
   function scoped(slotKey){
     var d=data()||{};
-    return{
-      cheer:scopePlayers(d.cheerFor,slotKey),
-      conf:scopePlayers(d.conflicted,slotKey),
-      enemy:scopePlayers(d.enemies,slotKey)
-    };
+    var cheer=scopePlayers(d.cheerFor,slotKey),
+        conf=scopePlayers(d.conflicted,slotKey),
+        enemy=scopePlayers(d.enemies,slotKey);
+    /* Re-bucket on the VISIBLE league set (2026-09-17). The bucket stamped at
+       build time (p.bucket) uses ALL leagues, but scopePlayers has already
+       filtered myLeagues/againstLeagues down to visible-only names. So a player
+       stamped Conflicted whose against-side (or my-side) was entirely hidden no
+       longer belongs in the gold band — hiding a league must remove it from the
+       data, not leave a phantom "Conflicted ×0" row. Same rule classifyPlayer
+       uses: both sides present -> Conflicted, one side -> Cheer/Enemy. Players
+       are already clones (rcApplyLeagueFilter), so this never touches raw data. */
+    var stillConf=[];
+    conf.forEach(function(p){
+      var my=(p.myLeagues||[]).length, vs=(p.againstLeagues||[]).length;
+      if(my>0&&vs>0)stillConf.push(p);
+      else if(my>0)cheer.push(p);
+      else if(vs>0)enemy.push(p);
+    });
+    return{ cheer:cheer, conf:stillConf, enemy:enemy };
   }
   /* ── Include Bench (cheer only, 2026-08-26) ───────────────────────────────
      Adds MY benched players to the cheer view. A player qualifies as bench-
