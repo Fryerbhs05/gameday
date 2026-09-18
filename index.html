@@ -3033,17 +3033,12 @@
     .card-shot.ring-K   { border-color: var(--neutral); }
     .card-shot.ring-DEF { border-color: var(--enemy); }
     .card-shot.ring-FLEX{ border-color: var(--ink-300); }
-    .card-media__meta { font: 400 10px/1 var(--font-mono); display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-    .card-media__pos { font-weight: 500; letter-spacing: 0.04em; }
-    .card-media__pos.ring-QB  { color: var(--coral-500); }
-    .card-media__pos.ring-RB  { color: var(--cheer); }
-    .card-media__pos.ring-WR  { color: var(--navy-500); }
-    .card-media__pos.ring-TE  { color: var(--split); }
-    .card-media__pos.ring-K   { color: var(--neutral); }
-    .card-media__pos.ring-DEF { color: var(--enemy); }
-    .card-media__pos.ring-FLEX{ color: var(--ink-700); }
-    .card-media__sep { color: var(--ink-300); }
-    .card-media__team { color: var(--ink-500); letter-spacing: 0.04em; }
+    .card-media__meta { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .card-media__pos {
+      font: 500 9px/1 var(--font-mono); letter-spacing: .1em; color: var(--ink-500);
+      border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px 5px;
+    }
+    .card-media__team { font: 400 11px/1 var(--font-sans); color: var(--ink-500); }
     .card-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
     .card-id-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
     /* The name has this row to itself — the live chip that used to sit beside it
@@ -9640,7 +9635,7 @@ function buildCardInner(player,isHist){
 
   /* On prior seasons, the team chip would reflect current rosters not the
      player's team at the time — suppress to avoid misleading data. */
-  const metaTeam = isPriorSeason() ? '' : (player.team ? `<span class="card-media__sep">·</span><span class="card-media__team">${player.team}</span>` : '');
+  const metaTeam = isPriorSeason() ? '' : (player.team ? `<span class="card-media__team">${player.team}</span>` : '');
   /* Two-column header: left identity stack (headshot w/ position-colored ring,
      position + team side by side beneath) and right main column (name row with
      the injury chip, then the scoring/roster rows). Ring class maps
@@ -9650,8 +9645,8 @@ function buildCardInner(player,isHist){
   const initials = (player.full_name||'?').split(/\s+/).map(s=>s[0]||'').join('').slice(0,2).toUpperCase();
   return `<div class="card-top">`+
       `<div class="card-media">`+
-        `<div class="card-shot ${ringCls}">${avatarInnerHtml(player, initials)}</div>`+
-        `<div class="card-media__meta"><span class="card-media__pos ${ringCls}">${player.position||'—'}</span>${metaTeam}</div>`+
+        `<div class="card-shot">${avatarInnerHtml(player, initials)}</div>`+
+        `<div class="card-media__meta"><span class="card-media__pos">${player.position||'—'}</span>${metaTeam}</div>`+
       `</div>`+
       `<div class="card-main">`+
         `<div class="card-id-line"><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${injBadge}</div>`+
