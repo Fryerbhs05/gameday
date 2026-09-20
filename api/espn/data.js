@@ -79,6 +79,57 @@ function buildEspnUrl(leagueId, season, views, week) {
   return `${base}?${params.toString()}`;
 }
 
+// ── Payload projection: slim the boxscore response (2026-09-20) ─────────────
+// ESPN's boxscore payload ships a lot the Conflicted client never reads. To cut
+// Vercel Fast Origin Transfer we strip the clearly-unused heavy per-player
+// fields and each player's stat rows for OTHER weeks (every boxscore call is
+// scoped to one week, so other weeks' rows are never consumed by
+// parseEspnLeague/espnPlayerStat). CONSERVATIVE on purpose: full settings, full
+// schedule, and the complete stat detail for the requested week are all kept.
+// Fail-open: any error returns ESPN's raw data untouched, so a bug here can
+// never blank the scoreboard.
+const ESPN_PLAYER_DROP = ['seasonOutlook', 'outlooks', 'rankings', 'draftRanksByRankType', 'ownership'];
+function slimEspnPlayer(player, week) {
+  if (!player || typeof player !== 'object') return;
+  for (const k of ESPN_PLAYER_DROP) { if (k in player) delete player[k]; }
+  // Keep only the requested week's stat rows (all stat sources + full detail).
+  if (Array.isArray(player.stats) && week != null) {
+    player.stats = player.stats.filter((st) => st && Number(st.scoringPeriodId) === week);
+  }
+}
+function slimEspnEntries(entries, week) {
+  if (!Array.isArray(entries)) return;
+  for (const e of entries) {
+    const p = e && e.playerPoolEntry && e.playerPoolEntry.player;
+    if (p) slimEspnPlayer(p, week);
+  }
+}
+function slimBoxscore(data, week) {
+  try {
+    if (!data || typeof data !== 'object') return data;
+    const wk = week != null ? Number(week) : null;
+    // Matchup rosters (the live render path).
+    if (Array.isArray(data.schedule)) {
+      for (const m of data.schedule) {
+        for (const side of ['home', 'away']) {
+          const r = m && m[side] && m[side].rosterForCurrentScoringPeriod;
+          if (r) slimEspnEntries(r.entries, wk);
+        }
+      }
+    }
+    // Team roster snapshots (the no-matchup fallback path).
+    if (Array.isArray(data.teams)) {
+      for (const t of data.teams) {
+        if (t && t.roster) slimEspnEntries(t.roster.entries, wk);
+      }
+    }
+    return data;
+  } catch (e) {
+    console.error('slimBoxscore failed (non-fatal, returning raw):', e.message);
+    return data;
+  }
+}
+
 module.exports = async (req, res) => {
   try {
     // ── Abuse throttle (fail-open — see api/_lib/accounts.rateLimitOk) ──────
@@ -289,7 +340,11 @@ module.exports = async (req, res) => {
     }
 
     const data = await espnRes.json();
-    res.status(200).json(data);
+    if (endpoint === 'boxscore') {
+      res.status(200).json(slimBoxscore(data, week));
+    } else {
+      res.status(200).json(data);
+    }
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
