@@ -20437,7 +20437,7 @@ function cfClusterV4HTML(c, base){
     best='<div class="cfv-best">'+cfBestCase(f)+'</div>';
   } else if(c._ranges.length===1 && c._live.length===2){ var r=c._ranges[0];
     sum='Win both — he needs <b>'+Math.round(r.floor)+'&ndash;'+Math.round(r.ceil)+'</b>.';
-  } else if(c._live.length>1){ sum='Every one still winnable — hold the targets below.'; }
+  } else if(c._live.length>1){ sum='Every one still winnable — hold the thresholds below.'; }
   var legs=c._live.slice().sort(function(a,b){ var rank={needs:0,slipping:1,holding:2,winning:2}; return rank[a._state]-rank[b._state]; })
     .map(function(lg,i){ lg.__id=base+i; return cfLegHTML(lg, base+i); }).join('');
   return '<div class="cfv-cl'+(c._true?' true':'')+'">'+
@@ -20446,6 +20446,14 @@ function cfClusterV4HTML(c, base){
       '<span class="cfv-lives">'+lives+'</span></div>'+
     (sum?('<div class="cfv-sum'+sumCls+'">'+sum+'</div>'):'')+ best + legs +
   '</div>';
+}
+function cfJoinNames(a){ var n=a.length; if(n<=1)return a[0]||''; if(n===2)return a[0]+' and '+a[1]; return a.slice(0,-1).join(', ')+', and '+a[n-1]; }
+function cfWinStat(hasMiracle, allLegs){
+  var names=[]; allLegs.forEach(function(lg){ var nm=cfEsc(cfLg(lg.name)); if(nm && names.indexOf(nm)<0) names.push(nm); });
+  if(!names.length) return hasMiracle?'You can still win the ones in play.':'You can win all of it tonight.';
+  var verb=hasMiracle?'You can still win ':'You can win ';
+  var what=(names.length<=3)?cfJoinNames(names):(names.length+' leagues');
+  return verb+what+' tonight.';
 }
 function cfHero(liveClusters, hasMiracle){
   var allLegs=[]; liveClusters.forEach(function(c){ c._live.forEach(function(lg){ allLegs.push(lg); }); });
@@ -20457,7 +20465,7 @@ function cfHero(liveClusters, hasMiracle){
   var n=liveClusters.length;
   if(anyTrue) return {cls:'true',badge:'TRUE CONFLICT',stat:'You can’t run the table tonight.',sub:'A player below can win one league or the other — not both. Your call how it falls.',n:n,nConf:nConf,nOne:nOne};
   if(allPrayer) return {cls:'hope',stat:(n===1?'It’s down to a long shot.':'It’s down to long shots.'),sub:'Only a negative play swings it now — but it’s not over till the whistle.',n:n,nConf:nConf,nOne:nOne};
-  return {cls:'win',stat:(hasMiracle?'You can still win the ones in play.':(n===1?'You can win it tonight.':'You can win all of it tonight.')),sub:((anyNeeds||anyPrayer)?'Still winnable — hold what you’ve got and get the rest home.':'Clean path — hold each target below.'),n:n,nConf:nConf,nOne:nOne};
+  return {cls:'win',stat:cfWinStat(hasMiracle,allLegs),sub:((anyNeeds||anyPrayer)?'Still winnable — hold what you’ve got and get the rest home.':'Clean path — hold each threshold below.'),n:n,nConf:nConf,nOne:nOne};
 }
 function cfHeroHTML(h){
   return '<div class="cfv-hero '+h.cls+'">'+(h.badge?('<div class="cfv-badge">'+h.badge+'</div>'):'')+
@@ -20608,8 +20616,8 @@ function cfDemoCardHTML(){
 function cfOffseasonHTML(){
   return '<div class="cfc-frame"><div class="cfc-kick">CONFLICT CARD &middot; PREVIEW</div>'+
     '<div class="cfc-teaser">'+
-    '<h4>This is where your Sunday-night targets will live</h4>'+
-    '<p>In season, the Conflict Card lines up every player you’re rooting for <b>and</b> against and gives you one live target per league &mdash; when to cheer, when to root him quiet. Here’s a sample. Lights up again Week&nbsp;1.</p></div>'+
+    '<h4>This is where your Sunday-night thresholds will live</h4>'+
+    '<p>In season, the Conflict Card lines up every player you’re rooting for <b>and</b> against and gives you one live threshold per league &mdash; when to cheer, when to root him quiet. Here’s a sample. Lights up again Week&nbsp;1.</p></div>'+
     cfDemoCardHTML()+
     '<div class="cfc-teaser"><a id="cfc-snaplink">See your Weekend Snapshot</a></div></div>';
 }
