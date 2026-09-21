@@ -10471,6 +10471,15 @@ async function loadData(){
      makes the first paint correct. TTL-cached, so the 60s auto-refresh (map
      already warm) pays nothing. */
   if(!isHist)await fetchNflGameStates(activeSeason,activeWeek);
+  /* Player DB must ALSO be primed before the providers compute leagueState.
+     Sleeper starters are bare player-ID strings, and cfLockMeta resolves each
+     one's team via window.playerDB; without it every Sleeper starter reads
+     team:'' -> isPlayerDone false -> nothing locks -> LIVE on the first paint.
+     (ESPN players carry .team inline, so the game-states fix alone already made
+     ESPN correct; Sleeper additionally needs this.) Hoisted from below.
+     localStorage-cached, so a returning user pays a JSON.parse, not the 5MB
+     download, and the pull happens once — the later use reads this same const. */
+  const playerDB=await getPlayerDB();window.playerDB=playerDB;
   let{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds,allDisabled}=await fetchAllProviders(activeSeason,activeWeek,isHist);
   /* Every league is switched off in Manage leagues. There ARE leagues — don't
      run the prior-season fallback or show "no leagues found"; point the user to
@@ -10522,7 +10531,7 @@ async function loadData(){
   function sleeperFmtField(fmt){const f=(''+(fmt||'')).toLowerCase();if(f.indexOf('half')>=0)return'pts_half_ppr';if(f.indexOf('std')>=0||f.indexOf('standard')>=0)return'pts_std';return'pts_ppr';}
   function projPtsFmt(id,fmt){const p=sleeperProjections[id];if(!p)return null;const f=sleeperFmtField(fmt);return p[f]??p.pts_ppr??p.pts_half_ppr??p.pts_std??null;}
   const offseasonMode=valid.every(l=>!l.hasMatchup),hasScoring=valid.some(l=>l.hasMatchup);
-  const playerDB=await getPlayerDB();setLoading('Classifying players.');
+  setLoading('Classifying players.'); /* playerDB already fetched + assigned to window above, before the providers, so Sleeper leagueState locks on the first paint */
   /* Expose to delegated handlers (matchup drawer) that need to hydrate raw
      Sleeper player IDs (strings) into {full_name, position, team} at render time. */
   window.playerDB=playerDB;
