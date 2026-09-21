@@ -23059,7 +23059,7 @@ if(typeof window.cfRegisterView==='function'){
       try{if(typeof hiddenLeagues!=='undefined')leagues=leagues.filter(function(c){return !hiddenLeagues.has(c.leagueName);});}catch(e){}
       var host=document.getElementById('cf-league-scores');
       if(!leagues.length){if(host&&host.parentNode)host.parentNode.removeChild(host);return;}
-      if(!host){host=document.createElement('div');host.id='cf-league-scores';strip.parentNode.insertBefore(host,strip.nextSibling);}
+      if(!host){host=document.createElement('div');host.id='cf-league-scores';var _frm=document.getElementById('scoreboard-frame')||strip.parentNode;_frm.parentNode.insertBefore(host,_frm.nextSibling);}
       var modOpen=(window.__cfLSModOpen!==false);
       var body='';
       var keyMap={};
@@ -23108,7 +23108,7 @@ if(typeof window.cfRegisterView==='function'){
   try{
     if(!document.getElementById('cf-ls-style')){
       var st=document.createElement('style');st.id='cf-ls-style';
-      st.textContent='#cf-league-scores{margin-top:14px;border-top:1px solid var(--line,#2A3949);padding-top:14px;}'
+      st.textContent='#cf-league-scores{margin-top:14px;border:1px solid var(--navy-300,#2A3949);border-radius:var(--radius-lg,16px);padding:16px;}'+'@media (max-width:480px){#cf-league-scores{padding:12px 10px;}}'
       +'.cf-ls-modhead{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;}'
       +'.cf-ls-modhead:focus-visible{outline:2px solid var(--navy-500,#2B6FA8);outline-offset:2px;border-radius:6px;}'
       +'.cf-ls-modwm{grid-column:2;justify-self:center;display:inline-flex;align-items:center;font:700 var(--section-wordmark-size,24px)/1 var(--font-sans,Inter,sans-serif);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-900,#F5EFE4);}'

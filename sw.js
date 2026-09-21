@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v229'; // v229: SCOREBOARD section header reads "MY MATCHUPS" for the owner account (ADMIN_EMAILS / body.is-admin); everyone else still sees SCOREBOARD (index.html, Matt, 2026-09-21)
+const CACHE_VERSION = 'conflicted-v230'; // v230: My Matchups + League Scores split into two independent collapsible sections — League Scores lifted out of scoreboard-frame into its own navy section frame (index.html, Matt, 2026-09-21)
 const _prev_v225 = 'v225: League Scores ESPN matchup drawer sorts starters into canonical slot order so center POS pills stop stacking mismatched positions (cfEspnAllMatchups, Matt, 2026-09-21)'
 // v223: Matchup drawer -- LIVE players get a synchronized breathing ice dot on their points, splitting live from final (both were white); pre-kickoff dim unchanged (index.html, Matt, 2026-09-17)
 // v220: FIX empty schedule — ESPN dropped YYYYMMDD range queries (HTTP 400), which emptied Watch Priority AND the Conflict Card (shared fetchWeekGames). Switched to dates=<year>&seasontype=2&week=<N>, verified to return correct per-week slates
