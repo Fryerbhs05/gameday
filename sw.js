@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v227'; // v227: FIX Sleeper matchup states still LIVE on cold load (ESPN was fixed in v226) -- window.playerDB now primed BEFORE fetchAllProviders so cfLockMeta can resolve each Sleeper starter's team on the first paint (index.html loadData, Matt, 2026-09-21)
+const CACHE_VERSION = 'conflicted-v228'; // v228: League Scores drawer -- winner's score is green, loser's is never red (non-personal matchups); scoped via data-ls on the drawer (index.html, Matt, 2026-09-21)
 const _prev_v225 = 'v225: League Scores ESPN matchup drawer sorts starters into canonical slot order so center POS pills stop stacking mismatched positions (cfEspnAllMatchups, Matt, 2026-09-21)'
 // v223: Matchup drawer -- LIVE players get a synchronized breathing ice dot on their points, splitting live from final (both were white); pre-kickoff dim unchanged (index.html, Matt, 2026-09-17)
 // v220: FIX empty schedule — ESPN dropped YYYYMMDD range queries (HTTP 400), which emptied Watch Priority AND the Conflict Card (shared fetchWeekGames). Switched to dates=<year>&seasontype=2&week=<N>, verified to return correct per-week slates

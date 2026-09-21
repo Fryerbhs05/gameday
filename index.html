@@ -1791,6 +1791,12 @@
     .matchup-drawer[data-status="winning"] .matchup-drawer__score-value--you { color: var(--cheer); }
     .matchup-drawer[data-status="losing"]  .matchup-drawer__score-value--you { color: var(--enemy); }
     .matchup-drawer[data-status="split"]   .matchup-drawer__score-value--you { color: var(--split); }
+    /* League Scores drawers are NON-personal: the "you"/home slot is just one of
+       two league teams, so the default winning=green-you / losing=red-you rules
+       above paint the WRONG team red on a home loss. For LS drawers, color the
+       actual winner green and never show a red score. (Matt, 2026-09-21) */
+    .matchup-drawer[data-ls="1"][data-status="losing"] .matchup-drawer__score-value--you { color: var(--ink-900); }
+    .matchup-drawer[data-ls="1"][data-status="losing"] .matchup-drawer__score-value--opp { color: var(--cheer); }
     .matchup-drawer__state {
       display: block; text-align: center; margin: 0 0 16px;
       font: 500 10px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
@@ -9069,7 +9075,7 @@ function renderMatchupDrawer(ctx, lg){
     +   pairedRowsHtml(myBench, oppBench, null, false)
     + '</div>'
   ) : '';
-  return '<div class="matchup-drawer' + (st === 'NO_OPPONENT' ? ' matchup-drawer--solo' : '') + '" data-status="' + dataStatus + '" data-matchup-league="' + escHtml(ctx.leagueName) + '">'
+  return '<div class="matchup-drawer' + (st === 'NO_OPPONENT' ? ' matchup-drawer--solo' : '') + '" data-status="' + dataStatus + '"' + (ctx.ls ? ' data-ls="1"' : '') + ' data-matchup-league="' + escHtml(ctx.leagueName) + '">'
     + '<div class="matchup-drawer__head">'
     +   '<span class="matchup-drawer__dot" style="background:' + color + '"></span>'
     +   '<h3 class="matchup-drawer__name">' + escHtml(cfMaskLeague(ctx.leagueName)) + '</h3>'
@@ -22888,7 +22894,7 @@ if(typeof window.cfRegisterView==='function'){
   var cfBuildDrawer=function(mine,opp,leagueName,fmt,rosterPositions,isFin){
     var state='LIVE';
     try{ if(isFin&&typeof calcHistoricalState==='function')state=calcHistoricalState(+mine.score||0,+opp.score||0); }catch(e){ state='LIVE'; }
-    var ctx={leagueName:leagueName,leagueState:state,myPoints:+mine.score||0,oppPoints:+opp.score||0,myPP:mine.pp||{},oppPP:opp.pp||{},myTeamName:mine.name||null,oppTeamName:opp.name||null,fmt:fmt||''};
+    var ctx={leagueName:leagueName,leagueState:state,myPoints:+mine.score||0,oppPoints:+opp.score||0,myPP:mine.pp||{},oppPP:opp.pp||{},myTeamName:mine.name||null,oppTeamName:opp.name||null,fmt:fmt||'',ls:true};
     var lg={leagueName:leagueName,myPlayers:mine.players||[],oppPlayers:opp.players||[],myBench:mine.bench||[],oppBench:opp.bench||[],fmt:fmt||''};
     if(rosterPositions)lg.rosterPositions=rosterPositions;
     return {ctx:ctx,lg:lg};
