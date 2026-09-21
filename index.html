@@ -12876,7 +12876,7 @@ const PROVIDERS={
         /* Match Yahoo's stance: only call it a real matchup if both rosters
            actually loaded. Prevents "you vs empty" half-loads. */
         const matchupActuallyValid=hasMatchup&&myPlayers.length>0&&oppPlayers.length>0;
-        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,myToGo,oppToGo,fmt,myTeamName,oppTeamName,scoringRaw:lg.scoring_settings||null});
+        contexts.push({leagueName:lg.name,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,myToGo,oppToGo,fmt,myTeamName,oppTeamName,scoringRaw:lg.scoring_settings||null,allMatchups:((typeof cfIsLSUser==='function'&&cfIsLSUser()&&typeof cfSleeperAllMatchups==='function')?cfSleeperAllMatchups(matchups,rosters,myRoster&&myRoster.roster_id,teamNameByUser,isHist):null)});
         debugLeagues.push({name:lg.name,leagueId:lg.league_id,rosterFound:true,matchupFound:matchupActuallyValid,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr,provider:'sleeper'});
         /* roster_positions: ordered slot codes (QB, RB, ..., FLEX, BN, ...) that
            map 1:1 with myMatchup.starters index. Pass through so the matchup
@@ -22879,6 +22879,24 @@ if(typeof window.cfRegisterView==='function'){
     }catch(e){return null;}
   };
 
+  window.cfSleeperAllMatchups=function(matchups,rosters,myRosterId,teamNameByUser,isHist){
+    try{
+      if(!Array.isArray(matchups)||!matchups.length)return null;
+      var rosterById={};(Array.isArray(rosters)?rosters:[]).forEach(function(r){if(r&&r.roster_id!=null)rosterById[r.roster_id]=r;});
+      var nameOf=function(rid){var r=rosterById[rid];var oid=r&&r.owner_id;var nm=(oid!=null&&teamNameByUser)?teamNameByUser[oid]:null;return nm||null;};
+      var groups={};
+      matchups.forEach(function(m){if(m&&m.matchup_id!=null){(groups[m.matchup_id]=groups[m.matchup_id]||[]).push(m);}});
+      var rows=[];
+      Object.keys(groups).forEach(function(k){
+        var g=groups[k];if(g.length<2)return;
+        var a=g[0],b=g[1];
+        rows.push({homeName:nameOf(a.roster_id),awayName:nameOf(b.roster_id),homeScore:+(a.points||0),awayScore:+(b.points||0),isMine:(a.roster_id===myRosterId||b.roster_id===myRosterId)});
+      });
+      if(!rows.length)return null;
+      var fin=!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek());
+      return {matchups:rows,isFinal:fin};
+    }catch(e){return null;}
+  };
   var OPEN=(window.__cfLSOpen=window.__cfLSOpen||{});
 
   window.cfRenderLeagueScores=function(contexts){
