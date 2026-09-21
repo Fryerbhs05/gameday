@@ -22845,9 +22845,11 @@ if(typeof window.cfRegisterView==='function'){
 </script>
 <script>
 /* ── Conflicted: LEAGUE SCORES (email-gated beta for fryerm@net.elmhurst.edu) ──
-   Additive + gated. Renders an all-league accordion under the SCOREBOARD strip.
-   ESPN only for now (ctx.allMatchups is attached in parseEspnLeague). Every path
-   is wrapped so a failure here can never affect the core scoreboard. */
+   Additive + gated. A self-contained module nested INSIDE the scoreboard frame:
+   a centered, stylized "LEAGUE SCORES" wordmark (coral tick + section wordmark
+   size, matching SCOREBOARD) that taps to collapse the whole module, with a
+   per-league accordion inside. ESPN only for now. Every path is wrapped so a
+   failure here can never affect the core scoreboard. */
 (function(){
   window.cfIsLSUser=function(){try{return !!(window.__account&&String(window.__account.email||'').toLowerCase()==='fryerm@net.elmhurst.edu');}catch(e){return false;}};
 
@@ -22886,8 +22888,9 @@ if(typeof window.cfRegisterView==='function'){
       try{if(typeof hiddenLeagues!=='undefined')leagues=leagues.filter(function(c){return !hiddenLeagues.has(c.leagueName);});}catch(e){}
       var host=document.getElementById('cf-league-scores');
       if(!leagues.length){if(host&&host.parentNode)host.parentNode.removeChild(host);return;}
-      if(!host){host=document.createElement('section');host.id='cf-league-scores';strip.parentNode.insertBefore(host,strip.nextSibling);}
-      var html='<div class="cf-ls-head"><span class="cf-ls-tick"></span><span class="cf-ls-title"><b>LEAGUE</b><span>&nbsp;SCORES</span></span></div>';
+      if(!host){host=document.createElement('div');host.id='cf-league-scores';strip.parentNode.insertBefore(host,strip.nextSibling);}
+      var modOpen=(window.__cfLSModOpen!==false);
+      var body='';
       leagues.forEach(function(c){
         var name=c.leagueName,open=!!OPEN[name],am=c.allMatchups,fin=am.isFinal;
         var rows=am.matchups.map(function(m){
@@ -22895,13 +22898,15 @@ if(typeof window.cfRegisterView==='function'){
           var hn=mask(cfMaskTeam,m.homeName)||'—',an=mask(cfMaskTeam,m.awayName)||'—';
           return '<div class="cf-ls-row"><div class="cf-ls-teams"><div class="cf-ls-team '+(hw?'w':'l')+'">'+cfEsc(hn)+'</div><div class="cf-ls-team '+(hw?'l':'w')+'">'+cfEsc(an)+'</div></div>'+(fin?'<span class="cf-ls-final">FINAL</span>':'')+'<div class="cf-ls-scores"><div class="'+(hw?'w':'l')+'">'+(+m.homeScore||0).toFixed(2)+'</div><div class="'+(hw?'l':'w')+'">'+(+m.awayScore||0).toFixed(2)+'</div></div></div>';
         }).join('');
-        html+='<div class="cf-ls-league" data-league="'+cfEsc(name)+'"><button type="button" class="cf-ls-hbtn" aria-expanded="'+(open?'true':'false')+'"><span class="cf-ls-chev'+(open?' open':'')+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span><span class="cf-ls-lname">'+cfEsc(mask(cfMaskLeague,name))+'</span></button><div class="cf-ls-panel"'+(open?'':' hidden')+'>'+rows+'</div></div>';
+        body+='<div class="cf-ls-league" data-league="'+cfEsc(name)+'"><button type="button" class="cf-ls-hbtn" aria-expanded="'+(open?'true':'false')+'"><span class="cf-ls-chev'+(open?' open':'')+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span><span class="cf-ls-lname">'+cfEsc(mask(cfMaskLeague,name))+'</span></button><div class="cf-ls-panel"'+(open?'':' hidden')+'>'+rows+'</div></div>';
       });
-      host.innerHTML=html;
+      host.innerHTML='<button type="button" class="cf-ls-modhead" aria-expanded="'+(modOpen?'true':'false')+'" aria-label="Collapse or expand League Scores"><span class="cf-ls-modwm">LEAGUE SCORES</span><span class="cf-ls-modchev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span></button><div class="cf-ls-body"'+(modOpen?'':' hidden')+'>'+body+'</div>';
+      var mh=host.querySelector('.cf-ls-modhead'),mb=host.querySelector('.cf-ls-body');
+      if(mh)mh.addEventListener('click',function(){var now=!(window.__cfLSModOpen!==false);window.__cfLSModOpen=now;mh.setAttribute('aria-expanded',now?'true':'false');if(mb)mb.hidden=!now;});
       Array.prototype.forEach.call(host.querySelectorAll('.cf-ls-league'),function(el){
-        var name=el.getAttribute('data-league'),btn=el.querySelector('.cf-ls-hbtn'),panel=el.querySelector('.cf-ls-panel'),chev=el.querySelector('.cf-ls-chev');
+        var lname=el.getAttribute('data-league'),btn=el.querySelector('.cf-ls-hbtn'),panel=el.querySelector('.cf-ls-panel'),chev=el.querySelector('.cf-ls-chev');
         if(!btn)return;
-        btn.addEventListener('click',function(){var now=!OPEN[name];OPEN[name]=now;btn.setAttribute('aria-expanded',now?'true':'false');if(panel)panel.hidden=!now;if(chev)chev.classList.toggle('open',now);});
+        btn.addEventListener('click',function(){var now=!OPEN[lname];OPEN[lname]=now;btn.setAttribute('aria-expanded',now?'true':'false');if(panel)panel.hidden=!now;if(chev)chev.classList.toggle('open',now);});
       });
     }catch(e){}
   };
@@ -22909,11 +22914,15 @@ if(typeof window.cfRegisterView==='function'){
   try{
     if(!document.getElementById('cf-ls-style')){
       var st=document.createElement('style');st.id='cf-ls-style';
-      st.textContent='#cf-league-scores{padding:0 16px 24px;display:flex;flex-direction:column;gap:8px;max-width:var(--max-width,980px);margin:0 auto;width:100%;box-sizing:border-box;}'
-      +'.cf-ls-head{display:flex;align-items:center;gap:8px;padding:18px 0 4px;}'
-      +'.cf-ls-tick{width:3px;height:15px;background:var(--coral-500,#E88761);border-radius:2px;}'
-      +'.cf-ls-title{font:800 15px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.04em;color:var(--ink-900,#F5EFE4);}'
-      +'.cf-ls-title span{color:var(--coral-500,#E88761);}'
+      st.textContent='#cf-league-scores{margin-top:14px;border-top:1px solid var(--line,#2A3949);padding-top:14px;}'
+      +'.cf-ls-modhead{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;}'
+      +'.cf-ls-modhead:focus-visible{outline:2px solid var(--navy-500,#2B6FA8);outline-offset:2px;border-radius:6px;}'
+      +'.cf-ls-modwm{grid-column:2;justify-self:center;display:inline-flex;align-items:center;font:700 var(--section-wordmark-size,24px)/1 var(--font-sans,Inter,sans-serif);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-900,#F5EFE4);}'
+      +'.cf-ls-modwm::before{content:"";display:inline-block;flex:none;width:3px;height:14px;border-radius:2px;background:var(--coral-500,#E88761);margin-right:8px;}'
+      +'.cf-ls-modchev{grid-column:3;justify-self:end;display:inline-flex;color:var(--ink-500,#9E988A);transition:transform .15s ease;}'
+      +'.cf-ls-modhead[aria-expanded="true"] .cf-ls-modchev{transform:rotate(180deg);}'
+      +'.cf-ls-body{margin-top:14px;display:flex;flex-direction:column;gap:8px;}'
+      +'.cf-ls-body[hidden]{display:none;}'
       +'.cf-ls-hbtn{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;padding:13px 12px;background:var(--paper-soft,#162635);border:1px solid var(--line,#2A3949);border-radius:12px;}'
       +'.cf-ls-hbtn:focus-visible{outline:2px solid var(--navy-500,#2B6FA8);outline-offset:2px;}'
       +'.cf-ls-chev{display:inline-flex;color:var(--ink-500,#9E988A);transition:transform .15s ease;}'
