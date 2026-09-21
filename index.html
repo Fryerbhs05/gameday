@@ -22972,12 +22972,20 @@ if(typeof window.cfRegisterView==='function'){
 
   var OPEN=(window.__cfLSOpen=window.__cfLSOpen||{});
 
+  var cfStripDrawerMid=function(html){
+    try{
+      var tmp=document.createElement('div');tmp.innerHTML=html;
+      var mid=tmp.querySelector('.matchup-drawer__hdr-mid');
+      if(mid){while(mid.firstChild)mid.removeChild(mid.firstChild);}
+      return tmp.innerHTML;
+    }catch(e){return html;}
+  };
   window.cfOpenLSDrawer=function(d,key){
     try{
       if(!d||!window.BottomSheet||typeof window.renderMatchupDrawer!=='function')return;
       var owner='matchup:'+key;
       if(window.BottomSheet.isOpen()&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()===owner){window.BottomSheet.close();return;}
-      var html=window.renderMatchupDrawer(d.ctx,d.lg);
+      var html=cfStripDrawerMid(window.renderMatchupDrawer(d.ctx,d.lg));
       if(window.BottomSheet.isOpen()){window.BottomSheet.setBody(html);if(window.BottomSheet.setOwner)window.BottomSheet.setOwner(owner);}
       else window.BottomSheet.open(html,{owner:owner});
     }catch(e){}
