@@ -8783,6 +8783,7 @@ function renderScoresStrip(contexts){
        points in place — no re-render, no scroll jump, no flash. */
     updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt);
   });
+  try{if(typeof cfRenderLeagueScores==='function'&&typeof cfIsLSUser==='function'&&cfIsLSUser())cfRenderLeagueScores(contexts);}catch(e){}
 }
 
 /* Self-heal hook for the Sleeper name race. A matchup drawer opened during the
@@ -12639,7 +12640,7 @@ function parseEspnLeague(data,season,week,isHist,lid){
 
   return{
     lg:{leagueName,myPlayers,oppPlayers,myBench,oppBench,hasMatchup,fmt,myTeamName,oppTeamName},
-    ctx:{leagueName,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,myProjPP,oppProjPP,myToGo,oppToGo,fmt,myTeamName,oppTeamName},
+    ctx:{leagueName,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,myProjPP,oppProjPP,myToGo,oppToGo,fmt,myTeamName,oppTeamName,allMatchups:((typeof cfIsLSUser==='function'&&cfIsLSUser()&&typeof cfEspnAllMatchups==='function')?cfEspnAllMatchups(data,week,myTeam,isHist):null)},
     dbg:{name:leagueName,leagueId,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr:false}
   };
 }
@@ -22842,5 +22843,98 @@ if(typeof window.cfRegisterView==='function'){
   });
 })();
 </script>
+<script>
+/* ── Conflicted: LEAGUE SCORES (email-gated beta for fryerm@net.elmhurst.edu) ──
+   Additive + gated. Renders an all-league accordion under the SCOREBOARD strip.
+   ESPN only for now (ctx.allMatchups is attached in parseEspnLeague). Every path
+   is wrapped so a failure here can never affect the core scoreboard. */
+(function(){
+  window.cfIsLSUser=function(){try{return !!(window.__account&&String(window.__account.email||'').toLowerCase()==='fryerm@net.elmhurst.edu');}catch(e){return false;}};
+
+  var cfEsc=(typeof escHtml==='function')?escHtml:function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});};
+  var mask=function(fn,v){try{return (typeof fn==='function')?fn(v):v;}catch(e){return v;}};
+
+  window.cfEspnAllMatchups=function(data,week,myTeam,isHist){
+    try{
+      if(!data||!Array.isArray(data.schedule)||!Array.isArray(data.teams))return null;
+      var BENCH=(typeof ESPN_BENCH_SLOTS!=='undefined')?ESPN_BENCH_SLOTS:null;
+      var nameOf=function(id){var t=data.teams.find(function(x){return x.id===id;});if(!t)return null;return t.name||[t.location,t.nickname].filter(Boolean).join(' ').trim()||t.abbrev||null;};
+      var sideScore=function(side){
+        var entries=(side&&side.rosterForCurrentScoringPeriod&&side.rosterForCurrentScoringPeriod.entries)||[];
+        var starters=BENCH?entries.filter(function(e){return !BENCH.has(e.lineupSlotId);}):entries;
+        if(isHist||!starters.length||typeof espnPlayerStat!=='function')return Number((side&&side.totalPoints)||0);
+        var s=0;starters.forEach(function(e){var p=espnPlayerStat(e,week,0);if(p!=null)s+=(+p||0);});return +s.toFixed(2);
+      };
+      var rows=[];
+      data.schedule.forEach(function(sc){
+        if(sc.matchupPeriodId!==week)return;
+        if(!sc.home||!sc.away)return;
+        rows.push({homeName:nameOf(sc.home.teamId),awayName:nameOf(sc.away.teamId),homeScore:sideScore(sc.home),awayScore:sideScore(sc.away),isMine:!!(myTeam&&(sc.home.teamId===myTeam.id||sc.away.teamId===myTeam.id))});
+      });
+      if(!rows.length)return null;
+      var fin=!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek());
+      return {matchups:rows,isFinal:fin};
+    }catch(e){return null;}
+  };
+
+  var OPEN=(window.__cfLSOpen=window.__cfLSOpen||{});
+
+  window.cfRenderLeagueScores=function(contexts){
+    try{
+      var strip=document.getElementById('scores-strip');if(!strip)return;
+      var leagues=(contexts||[]).filter(function(c){return c&&c.allMatchups&&c.allMatchups.matchups&&c.allMatchups.matchups.length;});
+      try{if(typeof hiddenLeagues!=='undefined')leagues=leagues.filter(function(c){return !hiddenLeagues.has(c.leagueName);});}catch(e){}
+      var host=document.getElementById('cf-league-scores');
+      if(!leagues.length){if(host&&host.parentNode)host.parentNode.removeChild(host);return;}
+      if(!host){host=document.createElement('section');host.id='cf-league-scores';strip.parentNode.insertBefore(host,strip.nextSibling);}
+      var html='<div class="cf-ls-head"><span class="cf-ls-tick"></span><span class="cf-ls-title"><b>LEAGUE</b><span>&nbsp;SCORES</span></span></div>';
+      leagues.forEach(function(c){
+        var name=c.leagueName,open=!!OPEN[name],am=c.allMatchups,fin=am.isFinal;
+        var rows=am.matchups.map(function(m){
+          var hw=(+m.homeScore||0)>=(+m.awayScore||0);
+          var hn=mask(cfMaskTeam,m.homeName)||'—',an=mask(cfMaskTeam,m.awayName)||'—';
+          return '<div class="cf-ls-row"><div class="cf-ls-teams"><div class="cf-ls-team '+(hw?'w':'l')+'">'+cfEsc(hn)+'</div><div class="cf-ls-team '+(hw?'l':'w')+'">'+cfEsc(an)+'</div></div>'+(fin?'<span class="cf-ls-final">FINAL</span>':'')+'<div class="cf-ls-scores"><div class="'+(hw?'w':'l')+'">'+(+m.homeScore||0).toFixed(2)+'</div><div class="'+(hw?'l':'w')+'">'+(+m.awayScore||0).toFixed(2)+'</div></div></div>';
+        }).join('');
+        html+='<div class="cf-ls-league" data-league="'+cfEsc(name)+'"><button type="button" class="cf-ls-hbtn" aria-expanded="'+(open?'true':'false')+'"><span class="cf-ls-chev'+(open?' open':'')+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span><span class="cf-ls-lname">'+cfEsc(mask(cfMaskLeague,name))+'</span></button><div class="cf-ls-panel"'+(open?'':' hidden')+'>'+rows+'</div></div>';
+      });
+      host.innerHTML=html;
+      Array.prototype.forEach.call(host.querySelectorAll('.cf-ls-league'),function(el){
+        var name=el.getAttribute('data-league'),btn=el.querySelector('.cf-ls-hbtn'),panel=el.querySelector('.cf-ls-panel'),chev=el.querySelector('.cf-ls-chev');
+        if(!btn)return;
+        btn.addEventListener('click',function(){var now=!OPEN[name];OPEN[name]=now;btn.setAttribute('aria-expanded',now?'true':'false');if(panel)panel.hidden=!now;if(chev)chev.classList.toggle('open',now);});
+      });
+    }catch(e){}
+  };
+
+  try{
+    if(!document.getElementById('cf-ls-style')){
+      var st=document.createElement('style');st.id='cf-ls-style';
+      st.textContent='#cf-league-scores{padding:0 16px 24px;display:flex;flex-direction:column;gap:8px;max-width:var(--max-width,980px);margin:0 auto;width:100%;box-sizing:border-box;}'
+      +'.cf-ls-head{display:flex;align-items:center;gap:8px;padding:18px 0 4px;}'
+      +'.cf-ls-tick{width:3px;height:15px;background:var(--coral-500,#E88761);border-radius:2px;}'
+      +'.cf-ls-title{font:800 15px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.04em;color:var(--ink-900,#F5EFE4);}'
+      +'.cf-ls-title span{color:var(--coral-500,#E88761);}'
+      +'.cf-ls-hbtn{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;padding:13px 12px;background:var(--paper-soft,#162635);border:1px solid var(--line,#2A3949);border-radius:12px;}'
+      +'.cf-ls-hbtn:focus-visible{outline:2px solid var(--navy-500,#2B6FA8);outline-offset:2px;}'
+      +'.cf-ls-chev{display:inline-flex;color:var(--ink-500,#9E988A);transition:transform .15s ease;}'
+      +'.cf-ls-chev.open{transform:rotate(90deg);}'
+      +'.cf-ls-lname{flex:1 1 auto;min-width:0;text-align:left;font:700 13px/1.1 var(--font-sans,Inter,sans-serif);color:var(--ink-900,#F5EFE4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+      +'.cf-ls-panel{margin-top:6px;background:var(--paper-deep,#0A1019);border:1px solid var(--line,#2A3949);border-radius:12px;padding:2px 8px;}'
+      +'.cf-ls-panel[hidden]{display:none;}'
+      +'.cf-ls-row{display:flex;align-items:center;gap:8px;padding:9px 4px 9px 8px;border-bottom:1px solid var(--line-soft,#1F2C3A);}'
+      +'.cf-ls-row:last-child{border-bottom:0;}'
+      +'.cf-ls-teams{flex:1 1 auto;min-width:0;}'
+      +'.cf-ls-team{font:700 12px/1.3 var(--font-sans,Inter,sans-serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-900,#F5EFE4);}'
+      +'.cf-ls-team.l{color:var(--ink-500,#9E988A);font-weight:500;}'
+      +'.cf-ls-final{font:600 8px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.08em;color:var(--ink-500,#9E988A);flex:0 0 auto;}'
+      +'.cf-ls-scores{text-align:right;flex:0 0 auto;}'
+      +'.cf-ls-scores>div{font:700 13px/1.25 var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-900,#F5EFE4);}'
+      +'.cf-ls-scores>div.l{font-weight:500;color:var(--ink-500,#9E988A);}';
+      document.head.appendChild(st);
+    }
+  }catch(e){}
+})();
+</script>
+
 </body>
 </html>
