@@ -22879,6 +22879,16 @@ if(typeof window.cfRegisterView==='function'){
       var nameOf=function(id){var t=data.teams.find(function(x){return x.id===id;});if(!t)return null;return t.name||[t.location,t.nickname].filter(Boolean).join(' ').trim()||t.abbrev||null;};
       var sideObj=function(side){
         var entries=(side&&side.rosterForCurrentScoringPeriod&&side.rosterForCurrentScoringPeriod.entries)||[];
+        /* Sort into canonical slot order BEFORE building rows so the drawer pairs
+           YOU vs OPP slot-for-slot (QB<->QB, FLEX<->FLEX). ESPN returns roster
+           entries in an arbitrary order; without this the index-paired center
+           pills stack mismatched positions (RB/WR, FLEX/RB, ...). Mirrors the
+           parseEspnLeague .sort(bySlot) that already fixed the My Matchups drawer.
+           Stable sort keeps ESPN's intra-slot order; bench (rank 90) falls to the
+           end and is still separated by the ESPN_BENCH_SLOTS filter below. */
+        if(typeof espnSlotRank==='function'){
+          entries=entries.slice().sort(function(a,b){return espnSlotRank(a&&a.lineupSlotId)-espnSlotRank(b&&b.lineupSlotId);});
+        }
         var starters=[],bench=[],pp={},teams=[],sum=0,hasSum=false;
         entries.forEach(function(e){
           var o=(typeof espnPlayerObj==='function')?espnPlayerObj(e):null;if(!o)return;
@@ -22902,7 +22912,8 @@ if(typeof window.cfRegisterView==='function'){
         var flip=awayMine&&!homeMine;
         var mine=flip?{name:awayName,score:a.score,players:a.starters,bench:a.bench,pp:a.pp}:{name:homeName,score:h.score,players:h.starters,bench:h.bench,pp:h.pp};
         var opp=flip?{name:homeName,score:h.score,players:h.starters,bench:h.bench,pp:h.pp}:{name:awayName,score:a.score,players:a.starters,bench:a.bench,pp:a.pp};
-        rows.push({homeName:homeName,awayName:awayName,homeScore:h.score,awayScore:a.score,isMine:(homeMine||awayMine),isFinal:isFin,teams:allTeams,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',null,isFin)});
+        var mkE='e|'+(leagueName||'')+'|'+[sc.home.teamId,sc.away.teamId].sort(function(x,y){return x-y;}).join('-');
+        rows.push({homeName:homeName,awayName:awayName,homeScore:h.score,awayScore:a.score,isMine:(homeMine||awayMine),isFinal:isFin,teams:allTeams,mkey:mkE,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',null,isFin)});
       });
       if(!rows.length)return null;
       return {matchups:rows,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
@@ -22937,7 +22948,8 @@ if(typeof window.cfRegisterView==='function'){
         var flip=bMine&&!aMine;
         var mine=flip?{name:bn,score:B.score,players:B.starters,bench:B.bench,pp:B.pp}:{name:an,score:A.score,players:A.starters,bench:A.bench,pp:A.pp};
         var opp=flip?{name:an,score:A.score,players:A.starters,bench:A.bench,pp:A.pp}:{name:bn,score:B.score,players:B.starters,bench:B.bench,pp:B.pp};
-        rows.push({homeName:an,awayName:bn,homeScore:A.score,awayScore:B.score,isMine:(aMine||bMine),isFinal:isFin,teams:allTeams,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',rosterPositions||null,isFin)});
+        var mkS='s|'+(leagueName||'')+'|'+[a.roster_id,b.roster_id].sort(function(x,y){return x-y;}).join('-');
+        rows.push({homeName:an,awayName:bn,homeScore:A.score,awayScore:B.score,isMine:(aMine||bMine),isFinal:isFin,teams:allTeams,mkey:mkS,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',rosterPositions||null,isFin)});
       });
       if(!rows.length)return null;
       return {matchups:rows,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
@@ -22971,6 +22983,33 @@ if(typeof window.cfRegisterView==='function'){
     }catch(e){}
   };
 
+  window.cfPatchLSDrawer=function(ctx){
+    try{
+      if(!ctx||!window.BottomSheet||!window.BottomSheet.getSheetEl)return;
+      var sheetEl=window.BottomSheet.getSheetEl();if(!sheetEl)return;
+      var drawer=sheetEl.querySelector('.matchup-drawer[data-matchup-league]');if(!drawer)return;
+      var disp=(typeof ctxDisplayState==='function')?ctxDisplayState(ctx):{dataStatus:'',stTxt:'',stCls:''};
+      var fmtPts=function(v){return (v==null||isNaN(+v))?'—':(+v).toFixed(2);};
+      var youEl=drawer.querySelector('[data-mp-score="you"]'),oppEl=drawer.querySelector('[data-mp-score="opp"]');
+      if(youEl)youEl.textContent=fmtPts(ctx.myPoints);
+      if(oppEl)oppEl.textContent=fmtPts(ctx.oppPoints);
+      var hdr=(typeof mpHeaderParts==='function')?mpHeaderParts(disp.stTxt):{chip:disp.stTxt,sub:'',subNum:false};
+      var chipEl=drawer.querySelector('[data-mp-state]');
+      if(chipEl){chipEl.className='matchup-drawer__hdr-chip '+disp.stCls;chipEl.textContent=hdr.chip;}
+      var marginEl=drawer.querySelector('[data-mp-margin]');
+      if(marginEl){marginEl.className='matchup-drawer__hdr-margin '+disp.stCls+' '+(hdr.subNum?'is-num':'is-tag');if(hdr.sub){marginEl.hidden=false;marginEl.textContent=hdr.sub;}else{marginEl.hidden=true;marginEl.textContent='';}}
+      drawer.setAttribute('data-status',disp.dataStatus);
+      var myPP=ctx.myPP||{},oppPP=ctx.oppPP||{};
+      drawer.querySelectorAll('[data-mp-pid]').forEach(function(span){
+        var side=span.getAttribute('data-mp-side'),pid=span.getAttribute('data-mp-pid');
+        var map=side==='my'?myPP:oppPP;var pts=map[pid]!=null?+map[pid]:0;
+        span.textContent=fmtPts(pts);
+        span.classList.toggle('matchup-drawer__player-pts--pre',(typeof mpGameNotStarted==='function')&&mpGameNotStarted(span.getAttribute('data-mp-team')||''));
+        span.classList.toggle('matchup-drawer__player-pts--live',(typeof mpGameLive==='function')&&mpGameLive(span.getAttribute('data-mp-team')||''));
+      });
+    }catch(e){}
+  };
+
   window.cfRenderLeagueScores=function(contexts){
     try{
       var strip=document.getElementById('scores-strip');if(!strip)return;
@@ -22981,12 +23020,14 @@ if(typeof window.cfRegisterView==='function'){
       if(!host){host=document.createElement('div');host.id='cf-league-scores';strip.parentNode.insertBefore(host,strip.nextSibling);}
       var modOpen=(window.__cfLSModOpen!==false);
       var body='';
+      var keyMap={};
       leagues.forEach(function(c){
         var name=c.leagueName,open=!!OPEN[name],am=c.allMatchups,fin=am.isFinal;
         var rows=am.matchups.map(function(m){
           var hw=(+m.homeScore||0)>=(+m.awayScore||0);
           var rf=(m.isFinal!=null)?m.isFinal:(fin||cfMatchupFinalFromTeams(m.teams||[]));
           var hn=mask(cfMaskTeam,m.homeName)||'—',an=mask(cfMaskTeam,m.awayName)||'—';
+          if(m.drawer&&m.mkey)keyMap[m.mkey]=m.drawer;
           var tap=!!m.drawer;
           return '<div class="cf-ls-row'+(tap?' is-tap':'')+'"'+(tap?' role="button" tabindex="0" aria-label="Open matchup detail"':'')+'>'
             +'<div class="cf-ls-teams"><div class="cf-ls-team '+(hw?'w':'l')+'">'+cfEsc(hn)+'</div><div class="cf-ls-team '+(hw?'l':'w')+'">'+cfEsc(an)+'</div></div>'
@@ -23007,12 +23048,18 @@ if(typeof window.cfRegisterView==='function'){
         var ms=(c&&c.allMatchups&&c.allMatchups.matchups)||[];
         Array.prototype.forEach.call(el.querySelectorAll('.cf-ls-row'),function(rowEl,mi){
           var d=ms[mi]&&ms[mi].drawer;if(!d)return;
-          var key=(c.leagueName||'lg')+'#'+mi;
-          var openFn=function(){cfOpenLSDrawer(d,key);};
+          var mk=(ms[mi]&&ms[mi].mkey)||((c.leagueName||'lg')+'#'+mi);
+          var openFn=function(){cfOpenLSDrawer(d,mk);};
           rowEl.addEventListener('click',openFn);
           rowEl.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();openFn();}});
         });
       });
+      try{
+        if(window.BottomSheet&&window.BottomSheet.isOpen&&window.BottomSheet.isOpen()&&window.BottomSheet.getOwner){
+          var _own=window.BottomSheet.getOwner()||'';
+          if(_own.indexOf('matchup:')===0){var _fk=keyMap[_own.slice('matchup:'.length)];if(_fk&&_fk.ctx)cfPatchLSDrawer(_fk.ctx);}
+        }
+      }catch(e){}
     }catch(e){}
   };
 
