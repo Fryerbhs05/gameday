@@ -10198,9 +10198,11 @@ async function loadYahooLeague(yLeague, week, isHist) {
   const isCoMgr = teams.find(t => t.team_key === myTeamKey)?.isComanager || false;
   let opponentTeamKey = null, myPoints = 0, oppPoints = 0, myProjPts = 0, oppProjPts = 0;
   let hasMatchup = false, leagueState = 'NO_MATCHUP', myTeamName = null, oppTeamName = null;
+  let allMatchupsY = null;
   try {
     const sbJson = await yhFetch('endpoint=scoreboard&league_key=' + encodeURIComponent(yLeague.league_key) + '&week=' + week);
     const matchups = parseYahooScoreboard(sbJson);
+    allMatchupsY = ((typeof cfIsLSUser==='function'&&cfIsLSUser()&&typeof cfYahooAllMatchups==='function')?cfYahooAllMatchups(matchups,myTeamKey,isHist):null);
     const myMatchup = matchups.find(m => m.teams.some(t => t.team_key === myTeamKey));
     if (myMatchup) {
       hasMatchup = true;
@@ -10243,7 +10245,7 @@ async function loadYahooLeague(yLeague, week, isHist) {
   const matchupActuallyValid = hasMatchup && myPlayers.length > 0 && (!opponentTeamKey || oppPlayers.length > 0);
   return {
     result: { leagueName: yLeague.name, myPlayers, oppPlayers, myBench, oppBench, hasMatchup: matchupActuallyValid, fmt, myTeamName, oppTeamName, source: 'yahoo' },
-    ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myProjPts, oppProjPts, myPP, oppPP, myToGo, oppToGo, fmt, myTeamName, oppTeamName, source: 'yahoo' },
+    ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myProjPts, oppProjPts, myPP, oppPP, myToGo, oppToGo, fmt, myTeamName, oppTeamName, source: 'yahoo', allMatchups: allMatchupsY },
     debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: matchupActuallyValid, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
   };
 }
@@ -22867,11 +22869,12 @@ if(typeof window.cfRegisterView==='function'){
         if(isHist||!starters.length||typeof espnPlayerStat!=='function')return Number((side&&side.totalPoints)||0);
         var s=0;starters.forEach(function(e){var p=espnPlayerStat(e,week,0);if(p!=null)s+=(+p||0);});return +s.toFixed(2);
       };
+      var teamsFor=function(side){var entries=(side&&side.rosterForCurrentScoringPeriod&&side.rosterForCurrentScoringPeriod.entries)||[];var starters=BENCH?entries.filter(function(e){return !BENCH.has(e.lineupSlotId);}):entries;return starters.map(function(e){var o=(typeof espnPlayerObj==='function')?espnPlayerObj(e):null;return o&&o.team;}).filter(Boolean);};
       var rows=[];
       data.schedule.forEach(function(sc){
         if(sc.matchupPeriodId!==week)return;
         if(!sc.home||!sc.away)return;
-        rows.push({homeName:nameOf(sc.home.teamId),awayName:nameOf(sc.away.teamId),homeScore:sideScore(sc.home),awayScore:sideScore(sc.away),isMine:!!(myTeam&&(sc.home.teamId===myTeam.id||sc.away.teamId===myTeam.id))});
+        rows.push({homeName:nameOf(sc.home.teamId),awayName:nameOf(sc.away.teamId),homeScore:sideScore(sc.home),awayScore:sideScore(sc.away),isMine:!!(myTeam&&(sc.home.teamId===myTeam.id||sc.away.teamId===myTeam.id)),teams:teamsFor(sc.home).concat(teamsFor(sc.away))});
       });
       if(!rows.length)return null;
       var fin=!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek());
@@ -22886,17 +22889,34 @@ if(typeof window.cfRegisterView==='function'){
       var nameOf=function(rid){var r=rosterById[rid];var oid=r&&r.owner_id;var nm=(oid!=null&&teamNameByUser)?teamNameByUser[oid]:null;return nm||null;};
       var groups={};
       matchups.forEach(function(m){if(m&&m.matchup_id!=null){(groups[m.matchup_id]=groups[m.matchup_id]||[]).push(m);}});
+      var teamsFor=function(entry){var ss=(entry&&entry.starters)||[];var db=(window.playerDB)||{};return ss.map(function(id){var p=db[id];return p&&p.team;}).filter(Boolean);};
       var rows=[];
       Object.keys(groups).forEach(function(k){
         var g=groups[k];if(g.length<2)return;
         var a=g[0],b=g[1];
-        rows.push({homeName:nameOf(a.roster_id),awayName:nameOf(b.roster_id),homeScore:+(a.points||0),awayScore:+(b.points||0),isMine:(a.roster_id===myRosterId||b.roster_id===myRosterId)});
+        rows.push({homeName:nameOf(a.roster_id),awayName:nameOf(b.roster_id),homeScore:+(a.points||0),awayScore:+(b.points||0),isMine:(a.roster_id===myRosterId||b.roster_id===myRosterId),teams:teamsFor(a).concat(teamsFor(b))});
       });
       if(!rows.length)return null;
       var fin=!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek());
       return {matchups:rows,isFinal:fin};
     }catch(e){return null;}
   };
+  window.cfYahooAllMatchups=function(matchups,myTeamKey,isHist){
+    try{
+      if(!Array.isArray(matchups)||!matchups.length)return null;
+      var rows=[];
+      matchups.forEach(function(mm){
+        var ts=(mm&&mm.teams)||[];if(ts.length<2)return;
+        var a=ts[0],b=ts[1];
+        rows.push({homeName:a.name||null,awayName:b.name||null,homeScore:+(a.points||0),awayScore:+(b.points||0),isMine:(a.team_key===myTeamKey||b.team_key===myTeamKey),isFinal:!!(mm&&mm.status==='postevent')});
+      });
+      if(!rows.length)return null;
+      var fin=!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek());
+      return {matchups:rows,isFinal:fin};
+    }catch(e){return null;}
+  };
+  var cfGameStateOf=function(t){try{if(typeof window.__cfGameState==='function'){var s=window.__cfGameState(t);if(s)return s;}}catch(e){}try{if(typeof nflGameStates!=='undefined'&&nflGameStates){var s2=nflGameStates.get(t);if(s2===undefined&&typeof cfNormTeam==='function')s2=nflGameStates.get(cfNormTeam(t));return s2||null;}}catch(e){}return null;};
+  var cfMatchupFinalFromTeams=function(teams){try{if(typeof nflGameStates==='undefined'||!nflGameStates||!nflGameStates.size)return false;var post=false,pending=false;(teams||[]).forEach(function(t){if(!t)return;var st=cfGameStateOf(t);if(st==='post')post=true;else if(st==='in'||st==='pre')pending=true;});return post&&!pending;}catch(e){return false;}};
   var OPEN=(window.__cfLSOpen=window.__cfLSOpen||{});
 
   window.cfRenderLeagueScores=function(contexts){
@@ -22912,9 +22932,9 @@ if(typeof window.cfRegisterView==='function'){
       leagues.forEach(function(c){
         var name=c.leagueName,open=!!OPEN[name],am=c.allMatchups,fin=am.isFinal;
         var rows=am.matchups.map(function(m){
-          var hw=(+m.homeScore||0)>=(+m.awayScore||0);
+          var hw=(+m.homeScore||0)>=(+m.awayScore||0);var rf=(m.isFinal!=null)?m.isFinal:(fin||cfMatchupFinalFromTeams(m.teams||[]));
           var hn=mask(cfMaskTeam,m.homeName)||'—',an=mask(cfMaskTeam,m.awayName)||'—';
-          return '<div class="cf-ls-row"><div class="cf-ls-teams"><div class="cf-ls-team '+(hw?'w':'l')+'">'+cfEsc(hn)+'</div><div class="cf-ls-team '+(hw?'l':'w')+'">'+cfEsc(an)+'</div></div>'+(fin?'<span class="cf-ls-final">FINAL</span>':'')+'<div class="cf-ls-scores"><div class="'+(hw?'w':'l')+'">'+(+m.homeScore||0).toFixed(2)+'</div><div class="'+(hw?'l':'w')+'">'+(+m.awayScore||0).toFixed(2)+'</div></div></div>';
+          return '<div class="cf-ls-row"><div class="cf-ls-teams"><div class="cf-ls-team '+(hw?'w':'l')+'">'+cfEsc(hn)+'</div><div class="cf-ls-team '+(hw?'l':'w')+'">'+cfEsc(an)+'</div></div>'+(rf?'<span class="cf-ls-final">FINAL</span>':'')+'<div class="cf-ls-scores"><div class="'+(hw?'w':'l')+'">'+(+m.homeScore||0).toFixed(2)+'</div><div class="'+(hw?'l':'w')+'">'+(+m.awayScore||0).toFixed(2)+'</div></div></div>';
         }).join('');
         body+='<div class="cf-ls-league" data-league="'+cfEsc(name)+'"><button type="button" class="cf-ls-hbtn" aria-expanded="'+(open?'true':'false')+'"><span class="cf-ls-chev'+(open?' open':'')+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span><span class="cf-ls-lname">'+cfEsc(mask(cfMaskLeague,name))+'</span></button><div class="cf-ls-panel"'+(open?'':' hidden')+'>'+rows+'</div></div>';
       });
