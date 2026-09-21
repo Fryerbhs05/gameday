@@ -8479,6 +8479,8 @@ function showBoardSkeleton(){
   if(sec)sec.style.display='none';
   if(lu&&!(window.experimentEnabled&&window.experimentEnabled()))lu.style.display='none';
   if(strip)strip.style.display='none';
+  const lsSec=document.getElementById('cf-league-scores');
+  if(lsSec)lsSec.style.display='none';
   const host=document.getElementById('board-skeleton');
   if(host)host.style.display='block';
 }
@@ -8487,6 +8489,8 @@ function hideBoardSkeleton(){
   if(host)host.style.display='none';
   const strip=document.getElementById('scoreboard-frame');
   if(strip)strip.style.display='';
+  const lsSec=document.getElementById('cf-league-scores');
+  if(lsSec)lsSec.style.display='';
   /* Restore the section we hid. On the success path renderBoard runs right after
      this and re-sets display based on noData; on the error keep-stale path this
      is what brings the previous period's board back instead of a blank gap. */
