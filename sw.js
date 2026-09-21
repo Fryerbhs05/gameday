@@ -13,7 +13,8 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v225'; // v225: League Scores ESPN matchup drawer sorts starters into canonical slot order so center POS pills stop stacking mismatched positions (cfEspnAllMatchups, Matt, 2026-09-21)
+const CACHE_VERSION = 'conflicted-v226'; // v226: FIX matchup states showing "In progress" on cold load then WON/LOST after first refresh -- fetchNflGameStates now runs BEFORE fetchAllProviders so cfMatchupLock has game states in hand on the first paint (index.html loadData, Matt, 2026-09-21)
+const _prev_v225 = 'v225: League Scores ESPN matchup drawer sorts starters into canonical slot order so center POS pills stop stacking mismatched positions (cfEspnAllMatchups, Matt, 2026-09-21)'
 // v223: Matchup drawer -- LIVE players get a synchronized breathing ice dot on their points, splitting live from final (both were white); pre-kickoff dim unchanged (index.html, Matt, 2026-09-17)
 // v220: FIX empty schedule — ESPN dropped YYYYMMDD range queries (HTTP 400), which emptied Watch Priority AND the Conflict Card (shared fetchWeekGames). Switched to dates=<year>&seasontype=2&week=<N>, verified to return correct per-week slates
 // v189: MATCHUP DRAWER PLAYER NAMES ARE ALWAYS ONE COLOR (Matt, 2026-09-11). Names on the losing side of each positional pairing were dimmed to --ink-500 while the winning side stayed --ink-900, so the same player read grey in one row and white in another and users took the grey as a data state (out, bye, not playing). Removed the .matchup-drawer__player-name--lose rule, the class off the initial render span in halfCells(), and the live-refresh classList.toggle for names. POINTS still dim on the losing side and still grey at zero -- that conditional formatting is intentional and stays. Do not re-add name-side coloring.

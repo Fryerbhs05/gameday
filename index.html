@@ -10460,6 +10460,17 @@ async function loadData(){
     const allDisabled=rawValidCount>0&&valid.length===0&&__reqDisabled.size>0;
     return{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds,allDisabled};
   }
+  /* Game states MUST be in hand before the providers compute each league's
+     leagueState. cfMatchupLock/isPlayerDone read nflGameStates to decide
+     LOCKED_WIN / LOCKED_LOSS vs LIVE, and that decision happens INSIDE
+     fetchAllProviders (each provider's loadLeagues). Fetching states only
+     AFTER fetchAllProviders (the old order, still below for the fallback-season
+     re-point) meant a cold first load saw an empty map and rendered every
+     decided matchup as LIVE ("In progress"); the map stayed warm afterward, so
+     the very next refresh recomputed correctly as WON/LOST. Fetching first
+     makes the first paint correct. TTL-cached, so the 60s auto-refresh (map
+     already warm) pays nothing. */
+  if(!isHist)await fetchNflGameStates(activeSeason,activeWeek);
   let{valid,leagueContexts,debugLeagues,sleeperProjections,hasProj,failedProviderIds,allDisabled}=await fetchAllProviders(activeSeason,activeWeek,isHist);
   /* Every league is switched off in Manage leagues. There ARE leagues — don't
      run the prior-season fallback or show "no leagues found"; point the user to
@@ -10495,7 +10506,9 @@ async function loadData(){
       : `No leagues found for <strong>${dn}</strong> in <strong>${activeSeason}</strong> on ${checked}. You may not have been in a league that year, or the season hasn't started yet.`;
     return{noData:true,noDataReason:reason,cheerFor:[],conflicted:[],enemies:[],allRostered:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
   }
-  /* Best-effort fetch of NFL game states for the live-only toggle. Doesn't block on failure. */
+  /* States were already fetched above (before the providers). This second call
+     is a TTL no-op on the normal path; it only does real work if the
+     fallback-season branch re-pointed activeSeason, changing the cache key. */
   if(!isHist)await fetchNflGameStates(activeSeason,activeWeek);
   /* Per-player projections via Sleeper's public, auth-free feed. Fetch
      UNCONDITIONALLY (not only when a Sleeper league is connected) so Yahoo/ESPN
