@@ -1522,12 +1522,6 @@
     }
     .scoreboard-wordmark__a { color: var(--ink-900); }
     .scoreboard-wordmark__b { color: var(--ink-900); }
-    /* Header rename for preview users (PREVIEW_EMAILS / body.is-preview):
-       they see "MY MATCHUPS" in place of SCOREBOARD. Cosmetic swap only. */
-    .scoreboard-wordmark .sb-word { display: inline-flex; align-items: baseline; gap: 0; }
-    .scoreboard-wordmark .sb-word--admin { display: none; }
-    body.is-preview .scoreboard-wordmark .sb-word--default { display: none; }
-    body.is-preview .scoreboard-wordmark .sb-word--admin { display: inline-flex; }
     /* Coral tick (5a) — short vertical accent before every section title
        (SCOREBOARD / LOYALTIES / LIVE UPDATES). The full bisected treatment is
        reserved for the CONFLICTED wordmark so split marks don't compete. */
@@ -4827,19 +4821,6 @@
       { key: 'experiment', label: 'Experiment', soon: false, adminOnly: true, svg: '<path d="M10 3h4"/><path d="M10 3v6l-5.2 9.2A2 2 0 0 0 6.5 21h11a2 2 0 0 0 1.7-2.8L14 9V3"/><path d="M7.3 15h9.4"/>' }
     ];
     var ADMIN_EMAILS = ['fryerm@net.elmhurst.edu'];
-    /* Preview allowlist — features Matt is trialing with a few real users
-       (My Matchups header rename + League Scores). Superset includes the
-       owner; NOT admin, so these users do NOT get admin-only nav/tools.
-       Cosmetic client-side gate only, NOT a security boundary. */
-    var PREVIEW_EMAILS = ['fryerm@net.elmhurst.edu','riedjeremy@yahoo.com'];
-    window.cfPreviewEmails = PREVIEW_EMAILS;
-    function isPreviewUser() {
-      try {
-        var a = window.__account;
-        return !!(a && a.signedIn && a.email && PREVIEW_EMAILS.indexOf(String(a.email).trim().toLowerCase()) >= 0);
-      } catch (e) { return false; }
-    }
-    window.cfIsPreviewUser = isPreviewUser;
     function isAdminUser() {
       try {
         var a = window.__account;
@@ -4854,7 +4835,6 @@
     window.cfIsAdmin = isAdminUser;
     function syncAdminClass() {
       try { document.body.classList.toggle('is-admin', isAdminUser()); } catch (e) {}
-      try { document.body.classList.toggle('is-preview', isPreviewUser()); } catch (e) {}
     }
     syncAdminClass();
     try { setInterval(syncAdminClass, 400); } catch (e) {}
@@ -5327,7 +5307,7 @@
   <div class="board-inner">
     <div class="scoreboard-frame" id="scoreboard-frame">
       <div class="scoreboard-header">
-        <div class="scoreboard-wordmark"><span class="sb-word sb-word--default"><span class="scoreboard-wordmark__a">SCORE</span><span class="scoreboard-wordmark__b">BOARD</span></span><span class="sb-word sb-word--admin"><span class="scoreboard-wordmark__a">MY&nbsp;</span><span class="scoreboard-wordmark__b">MATCHUPS</span></span></div>
+        <div class="scoreboard-wordmark"><span class="scoreboard-wordmark__a">MY&nbsp;</span><span class="scoreboard-wordmark__b">MATCHUPS</span></div>
         <span class="scoreboard-context" id="scoreboard-context"></span>
         <button class="scoreboard-share" id="scoreboard-share" type="button" aria-label="Share scoreboard as an image" title="Share scoreboard">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
@@ -22906,7 +22886,7 @@ if(typeof window.cfRegisterView==='function'){
 })();
 </script>
 <script>
-/* ── Conflicted: LEAGUE SCORES (email-gated beta — PREVIEW_EMAILS via cfIsLSUser) ──
+/* ── Conflicted: LEAGUE SCORES (released to all users 2026-09-22) ──
    Additive + gated. A self-contained module nested inside the scoreboard frame:
    centered stylized "LEAGUE SCORES" wordmark that taps to collapse the module,
    a per-league accordion, and per-matchup rows that open the SAME bottom-sheet
@@ -22915,7 +22895,7 @@ if(typeof window.cfRegisterView==='function'){
    scoreboard payload carries no rosters). Every path is wrapped so a failure
    here can never affect the core scoreboard. */
 (function(){
-  window.cfIsLSUser=function(){try{if(typeof window.cfIsPreviewUser==='function')return !!window.cfIsPreviewUser();var e=String((window.__account&&window.__account.email)||'').trim().toLowerCase();return ['fryerm@net.elmhurst.edu','riedjeremy@yahoo.com'].indexOf(e)>=0;}catch(e){return false;}};
+  window.cfIsLSUser=function(){return true;}; /* released to all users 2026-09-22 */
 
   var cfEsc=(typeof escHtml==='function')?escHtml:function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];});};
   var mask=function(fn,v){try{return (typeof fn==='function')?fn(v):v;}catch(e){return v;}};
