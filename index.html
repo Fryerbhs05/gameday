@@ -1580,13 +1580,26 @@
     /* League name mirrors the bucket .player-name treatment — bright white,
        bold Inter, mixed case (not the old muted-grey uppercase mono-ish label)
        so the scoreboard reads consistently with the LOYALTIES buckets. */
+    /* Two-line league name slot (2026-09-23): the box is ALWAYS two lines tall
+       (2 × 1.2 line-height = 2.4em) so every tile in the strip stays the same
+       height whether a name needs one row or two. Short names center vertically
+       in the slot; names longer than two rows still ellipsize (line-clamp).
+       The name span is width:100% (not shrink-to-fit) so the html-to-image share
+       export can't freeze a narrower width and clip it. If you change the
+       height here, move .score-cell__divider's top by the same amount. */
     .score-cell__league {
       font: 700 14px/1.2 var(--font-sans); color: var(--ink-900);
       letter-spacing: -0.01em; text-transform: none;
-      margin-bottom: 11px; display: flex; align-items: center; justify-content: center;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+      height: 2.4em; margin-bottom: 11px;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; text-align: center;
     }
-    .score-cell__league-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .score-cell__league-name {
+      width: 100%; min-width: 0; overflow: hidden;
+      display: -webkit-box; -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2; line-clamp: 2;
+      overflow-wrap: anywhere;
+    }
     /* Single score line (3a): your score left (status-colored), opponent right
        (muted) — one row instead of the old stacked You/Opp rows. */
     .score-cell__scores {
@@ -1610,7 +1623,7 @@
     .score-cell[data-status="split"]   .score-cell__points--you { color: var(--split); }
     /* Split motif — thin vertical divider bisecting the score cell (your side / their side) */
     .score-cell__divider {
-      position: absolute; top: 36px; bottom: 54px; left: 50%;
+      position: absolute; top: 53px; bottom: 54px; left: 50%; /* 36px + one extra 16.8px league-name row */
       width: 1px; background: var(--tile-line); transform: translateX(-0.5px);
       pointer-events: none;
     }
