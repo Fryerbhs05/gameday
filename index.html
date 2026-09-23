@@ -9409,8 +9409,8 @@ window.cfRenderPrivacySection=cfRenderPrivacySection;
 
 /* ── Shared league show/hide section ────────────────────────────────────────
    ONE partial, injected by every sheet that offers league visibility: the
-   GameDay/Snapshot drawer above, Exposure's filters sheet, and Leaders'. All
-   three read and write the SAME `hiddenLeagues` set, so hiding a league is a
+   GameDay/Snapshot drawer above, Exposure's filters sheet, Leaders', and
+   Watch Priority's (2026-09-23). All read and write the SAME `hiddenLeagues` set, so hiding a league is a
    global act — it holds as the user hops views and it reaches the share
    exports. Rows carry the league's INDEX (not the raw name) so names with
    quotes or spaces can't break the attribute.
@@ -17195,8 +17195,12 @@ loadExperimentState();
     /* ── Game of the Week: the singular highest-scoring game across ALL slots. ── */
     var weekLeader = null;
     var weekLeaderScore = -1;
+    /* topScore > 0 guard (2026-09-23): with every league filtered out (or a
+       week where you have nobody), all games score 0 and the -1 seed used to
+       crown the first slot's top game anyway — a "Game of the Week" with zero
+       players. Now no game is flagged until at least one scores. */
     orderedSlots.forEach(function(s){
-      if (s.topGame && s.topScore > weekLeaderScore){
+      if (s.topGame && s.topScore > 0 && s.topScore > weekLeaderScore){
         weekLeader = s.topGame;
         weekLeaderScore = s.topScore;
       }
@@ -17601,7 +17605,11 @@ loadExperimentState();
                              (p.againstLeagues||[]).length + (p.againstBenchLeagues||[]).length) > 0;
 
     function lgRow(name, sideClass){
-      return '<div class="wp-drawer__row"><span class="wp-drawer__name">' + esc(name) + '</span>' +
+      /* Masked at render — the privacy toggle is now reachable from WP's own
+         Filters sheet, so the one WP surface that prints league names must
+         honor it. */
+      var shown = (typeof window.cfMaskLeague === 'function') ? window.cfMaskLeague(name) : name;
+      return '<div class="wp-drawer__row"><span class="wp-drawer__name">' + esc(shown) + '</span>' +
         '<span class="wp-pill ' + sideClass + '"><span class="wp-pill__pos">' + esc(pos) + '</span></span></div>';
     }
 
@@ -17924,6 +17932,24 @@ loadExperimentState();
           wpBtn('data-wp-mustwatch', 'must', 'Must Watch Games <span class="wp-mw-count" id="wp-mw-count-must">' + (mustWatchSlots > 0 ? mustWatchSlots : '0') + '</span>', state.mustWatch) +
         '</div>' +
       '</div>' +
+      /* Shared global league show/hide + screenshot privacy (added 2026-09-23,
+         Matt) — the SAME partials Exposure and Leaders inject, reading/writing
+         the one global `hiddenLeagues` set. WP's data layer has been
+         league-aware since 2026-09-13 (wpVisibleLeagues in buildPlayerIndex),
+         but its sheet never offered the toggles, so a league could only be
+         hidden from another view. A toggle here runs the shared delegated
+         handler → cfApplyLeagueVisibility → __wpApplyLeagueVisibility, which
+         re-scores every game (card numbers, slot player counts, Must Watch
+         counts in this sheet, Game of the Week) from the visible leagues only.
+         cfRenderLeagueSection returns '' for single-league accounts. The
+         privacy wrapper carries .lf-privacy-wrap so desktop hides the whole
+         group, same as the other sheets. */
+      (typeof window.cfRenderPrivacySection === 'function'
+        ? '<div class="wp-settings__section lf-privacy-wrap">' + window.cfRenderPrivacySection() + '</div>'
+        : '') +
+      (typeof window.cfRenderLeagueSection === 'function'
+        ? (function(html){ return html ? '<div class="wp-settings__section">' + html + '</div>' : ''; })(window.cfRenderLeagueSection())
+        : '') +
       '<div class="wp-settings__footer">' +
         '<button type="button" class="wp-settings__reset" data-wp-settings-reset="1">Reset to defaults</button>' +
         '<button type="button" class="wp-settings__done" data-wp-settings-close="1">Done</button>' +
