@@ -222,11 +222,14 @@
       --split:#D9A445;     --split-soft:#3A2D14;
       --neutral:#9E988A;   --neutral-soft:#1F2530;
       /* Side identity — "my rosters" vs "opp rosters" on Exposure + Watch Priority.
-         Change the pair here to recolor every me/opp surface at once. The
+         Change the pair here to recolor every me/opp surface at once. Mapped to
+         the Loyalties rooting palette (2026-09-23): my rosters = cheer, opp
+         rosters = enemy ("opp and enemy are the same thing" — Matt); a player on
+         both sides uses --split, same as the Conflicted bucket. Was coral/navy. The
          SCOREBOARD deliberately does NOT use these (2026-09-23): there, you vs opp
          carries no hue — status colors (cheer/enemy/split) mark your side and the
          opponent is always muted --ink-500. */
-      --side-me:var(--coral-500);  --side-opp:var(--navy-700);
+      --side-me:var(--cheer);      --side-opp:var(--enemy);
       /* Fixed dark-surface palette — single source of truth for always-dark UI
          (Watch Priority takeover, demo/experiment ribbons, GOTW). Intentionally
          does NOT theme-flip: identical in light and dark. */
@@ -3915,7 +3918,7 @@
     .wp-pill--me-bench { background: transparent; color: var(--side-me); border: 1px dashed var(--side-me); }
     .wp-pill--opp-start { background: var(--side-opp); color: var(--paper-soft); }
     .wp-pill--opp-bench { background: transparent; color: var(--side-opp); border: 1px dashed var(--side-opp); }
-    .wp-pill--conflict { background: linear-gradient(95deg, var(--side-me) 0 50%, var(--side-opp) 50% 100%); color: var(--paper-soft); }
+    .wp-pill--conflict { background: var(--split); color: var(--paper-soft); } /* both sides = Conflicted gold */
     .wp-pill__pos { font: 500 9px/1 var(--font-mono); opacity: 0.78; letter-spacing: .04em; }
     .wp-pill__count { font: 500 9px/1 var(--font-mono); background: rgba(255,255,255,0.25); padding: 2px 4px; border-radius: 6px; }
     .wp-pill.is-final { opacity: 0.55; }
@@ -6319,8 +6322,7 @@
   .exp-phone-screen{background:#0b1420;border-radius:31px;overflow:hidden;width:314px;height:628px;position:relative;
     --ink-900:#F5EFE4;--ink-700:#C9D6E4;--ink-500:#8FA3B8;--ink-300:#5A6B7D;
     --paper:#0f1a24;--paper-deep:#16232f;--line-soft:rgba(122,168,209,.16);
-    --coral-500:#E88761;--navy-700:#5A8BBD;
-    --side-me:var(--coral-500);--side-opp:var(--navy-700);}
+    --coral-500:#E88761;--navy-700:#5A8BBD;}
   /* TRUE-device canvas: rows render at real iPhone width (390px) then the whole
      canvas scales 0.805 → 314px, keeping genuine on-device proportions instead of
      cramming into ~286px. Flex column: wordmark/kicker/hero pinned, list scrolls. */
