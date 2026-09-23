@@ -221,6 +221,12 @@
       --enemy:#D86A5C;     --enemy-soft:#3A1F1A;
       --split:#D9A445;     --split-soft:#3A2D14;
       --neutral:#9E988A;   --neutral-soft:#1F2530;
+      /* Side identity — "my rosters" vs "opp rosters" on Exposure + Watch Priority.
+         Change the pair here to recolor every me/opp surface at once. The
+         SCOREBOARD deliberately does NOT use these (2026-09-23): there, you vs opp
+         carries no hue — status colors (cheer/enemy/split) mark your side and the
+         opponent is always muted --ink-500. */
+      --side-me:var(--coral-500);  --side-opp:var(--navy-700);
       /* Fixed dark-surface palette — single source of truth for always-dark UI
          (Watch Priority takeover, demo/experiment ribbons, GOTW). Intentionally
          does NOT theme-flip: identical in light and dark. */
@@ -632,7 +638,7 @@
     .lps-sc em { font: 700 16px/1 var(--font-mono); font-style: normal; }
     .lps-sc i { font: 500 14px/1 var(--font-mono); font-style: normal; color: #9E988A; }
     .lps-bar { position: relative; display: block; height: 5px; border-radius: 99px; background: #1A3A52; margin-bottom: 7px; }
-    .lps-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--coral-500); border-radius: 99px 0 0 99px; }
+    .lps-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-500); border-radius: 99px 0 0 99px; } /* inline bg = tile's score color */
     .lps-bar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #F5EFE4; border-radius: 1px; }
     .lps-st { display: block; text-align: center; font: 500 9px/1 var(--font-sans); letter-spacing: 0.08em; white-space: nowrap; }
     .lps-updlist { display: flex; flex-direction: column; gap: 6px; padding: 0 16px; }
@@ -1567,7 +1573,7 @@
     .score-cell[data-status="split"]    { border-top: 3px solid var(--split); }
     .score-cell[data-status="tossup"]   { border-top: 3px solid var(--navy-700); }
     .score-cell[data-status="final"]    { border-top: 3px solid var(--neutral); }
-    .score-cell[data-status="live"]     { border-top: 3px solid var(--coral-500); }
+    .score-cell[data-status="live"]     { border-top: 3px solid var(--live-ice); }
     /* League name mirrors the bucket .player-name treatment — bright white,
        bold Inter, mixed case (not the old muted-grey uppercase mono-ish label)
        so the scoreboard reads consistently with the LOYALTIES buckets. */
@@ -1587,9 +1593,14 @@
     .score-cell__points {
       font: 900 16px/1 var(--font-sans); letter-spacing: -0.02em;
       font-variant-numeric: tabular-nums; white-space: nowrap;
-      color: var(--navy-700);
+      color: var(--ink-500);
     }
     .score-cell__points--opp { font-weight: 800; color: var(--ink-500); }
+    /* No status yet (pregame / between game windows): your score is muted to
+       MATCH the opponent's — color and weight — so neither side leads the eye
+       until there's something to say. Status colors below take over from there.
+       Was a --navy-700 fallback that clashed with the coral bar (2026-09-23). */
+    .score-cell[data-status=""] .score-cell__points--you { font-weight: 800; }
     .score-cell[data-status="winning"] .score-cell__points--you { color: var(--cheer); }
     .score-cell[data-status="losing"]  .score-cell__points--you { color: var(--enemy); }
     .score-cell[data-status="tossup"]  .score-cell__points--you { color: var(--navy-700); }
@@ -1604,7 +1615,7 @@
       font: 600 10px/1 var(--font-sans); margin-top: 8px;
       letter-spacing: 0.08em; text-transform: uppercase; text-align: center;
     }
-    .score-cell__state.live   { color: var(--coral-500); }
+    .score-cell__state.live   { color: var(--live-ice); } /* liveness, not outcome */
     .score-cell__state.win    { color: var(--cheer); }
     .score-cell__state.loss   { color: var(--enemy); }
     .score-cell__state.tossup { color: var(--navy-700); }
@@ -1619,10 +1630,13 @@
        already carries the muted "No opponent". */
     .score-cell--solo .score-cell__points--opp { display: none; }
 
-    /* ── Projected-final bar (Option 3) — your share vs. their share in the
-       site's team colors: coral (you) on the left, navy/blue (them) on the
-       right. A white tick marks the 50% centerline; the further your coral
-       fill crosses past it, the stronger your projected win. */
+    /* ── Projected-final bar (Option 3) — your share (fill, left) vs. theirs
+       (empty track, right). The fill is ALWAYS your score's color (2026-09-23,
+       mocks/scoreboard-color-principles-mock.html): the tile's status color once
+       it has one, otherwise green/red from the projection itself (data-lean,
+       set in applyScoreCellProj) — so pregame bars still show who's projected
+       ahead while both 0.00s stay muted. The opponent's value is muted grey,
+       matching their score. No team hue anywhere on the scoreboard. */
     .score-cell__proj { margin-top: 10px; }
     .score-cell__proj-label {
       font: 600 9px/1 var(--font-sans); color: var(--ink-500);
@@ -1643,7 +1657,7 @@
     .score-cell[data-status="final"]   .score-cell__proj.is-final .score-cell__proj-fill { background: var(--neutral); }
     .score-cell__proj-fill {
       position: absolute; left: 0; top: 0; bottom: 0;
-      background: var(--coral-500);
+      background: var(--ink-500);
       border-radius: var(--radius-pill) 0 0 var(--radius-pill);
       transition: width var(--duration-fast) var(--ease-out);
     }
@@ -1660,12 +1674,27 @@
       display: flex; justify-content: space-between;
       font: 600 11px/1 var(--font-sans); margin-top: 5px;
     }
-    .score-cell__proj-you { color: var(--coral-500); }
-    .score-cell__proj-opp { color: var(--navy-700); }
+    .score-cell__proj-you { color: var(--ink-500); }
+    .score-cell__proj-opp { color: var(--ink-500); }
+    /* 1) No status: lean from the projection. */
+    .score-cell__proj[data-lean="ahead"]  .score-cell__proj-fill { background: var(--cheer); }
+    .score-cell__proj[data-lean="behind"] .score-cell__proj-fill { background: var(--enemy); }
+    .score-cell__proj[data-lean="ahead"]  .score-cell__proj-you  { color: var(--cheer); }
+    .score-cell__proj[data-lean="behind"] .score-cell__proj-you  { color: var(--enemy); }
+    /* 2) Status wins (same specificity, later in source) so bar + value always
+       match the score above them. Must stay ABOVE the .is-empty block. */
+    .score-cell[data-status="winning"] .score-cell__proj-fill { background: var(--cheer); }
+    .score-cell[data-status="losing"]  .score-cell__proj-fill { background: var(--enemy); }
+    .score-cell[data-status="split"]   .score-cell__proj-fill { background: var(--split); }
+    .score-cell[data-status="tossup"]  .score-cell__proj-fill { background: var(--navy-700); }
+    .score-cell[data-status="winning"] .score-cell__proj-you  { color: var(--cheer); }
+    .score-cell[data-status="losing"]  .score-cell__proj-you  { color: var(--enemy); }
+    .score-cell[data-status="split"]   .score-cell__proj-you  { color: var(--split); }
+    .score-cell[data-status="tossup"]  .score-cell__proj-you  { color: var(--navy-700); }
     /* Empty/placeholder projection — no live matchup to project (no-matchup,
        final, or a provider that returns no projections). Keeps the block and its
        "Projected Final" label so every card is the same height, but renders an
-       inert muted track with em-dash values instead of a real coral/navy split.
+       inert muted track with em-dash values instead of a real split.
        The card's bottom state line already carries "No matchup". */
     .score-cell__proj.is-empty .score-cell__proj-bar { background: color-mix(in oklab, var(--ink-500) 22%, transparent); }
     .score-cell__proj.is-empty .score-cell__proj-fill,
@@ -3452,8 +3481,8 @@
     .exp-toggle button + button { border-left: 1px solid var(--line); }
     .exp-toggle button:hover:not(.active):not(:disabled) { background: var(--paper-deep); }
     .exp-toggle button.active { color: var(--paper); background: var(--ink-900); }
-    .exp-toggle.mode-positive button.active { background: var(--coral-500); }
-    .exp-toggle.mode-negative button.active { background: var(--navy-700); color: var(--paper-soft); }
+    .exp-toggle.mode-positive button.active { background: var(--side-me); }
+    .exp-toggle.mode-negative button.active { background: var(--side-opp); color: var(--paper-soft); }
     /* Exposure's position pills ride the shared period bar's seg row. The row
        already supplies the frame, so the pill strip drops its own border/fill
        and just scrolls horizontally to keep all seven on one line. */
@@ -3495,8 +3524,8 @@
     .exp-filter-pill:hover:not(.active) { background: var(--paper-deep); }
     .exp-filter-pill.active { background: var(--ink-900); color: var(--paper); border-color: var(--ink-900); }
     /* Active pill tracks the mode so it agrees with the bar's mode switch. */
-    .exp-filters.mode-positive .exp-filter-pill.active { background: var(--coral-500); border-color: var(--coral-500); color: var(--paper); }
-    .exp-filters.mode-negative .exp-filter-pill.active { background: var(--navy-700); border-color: var(--navy-700); color: var(--paper-soft); }
+    .exp-filters.mode-positive .exp-filter-pill.active { background: var(--side-me); border-color: var(--side-me); color: var(--paper); }
+    .exp-filters.mode-negative .exp-filter-pill.active { background: var(--side-opp); border-color: var(--side-opp); color: var(--paper-soft); }
 
     .exp-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 22px; }
     .exp-kpi { background: var(--paper-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-md); padding: 14px 16px; }
@@ -3515,8 +3544,8 @@
     .exp-list__name strong { white-space: nowrap; font-weight: 500; }
     .exp-list__name em { font: 500 10px/1 var(--font-mono); color: var(--ink-500); letter-spacing: 0.04em; font-style: normal; flex-shrink: 0; }
     .exp-list__bar { height: 8px; background: var(--paper-deep); border-radius: 4px; overflow: hidden; }
-    .exp-list__bar div { height: 100%; background: var(--coral-500); transition: width var(--duration-base) var(--ease-out); border-radius: 4px; }
-    .exp-list.mode-negative .exp-list__bar div { background: var(--navy-700); }
+    .exp-list__bar div { height: 100%; background: var(--side-me); transition: width var(--duration-base) var(--ease-out); border-radius: 4px; }
+    .exp-list.mode-negative .exp-list__bar div { background: var(--side-opp); }
     .exp-list__count { font: 500 12px/1.2 var(--font-mono); color: var(--ink-500); text-align: right; white-space: nowrap; }
 
     .exp-empty { text-align: center; padding: 60px 20px; }
@@ -3707,13 +3736,13 @@
     .exp-drawer__head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
     .exp-drawer__avatar {
       width: 42px; height: 42px; border-radius: 50%;
-      background: var(--coral-500); color: var(--paper);
+      background: var(--side-me); color: var(--paper);
       display: flex; align-items: center; justify-content: center;
       font: 500 13px/1 var(--font-sans); flex-shrink: 0;
     }
     /* Opp-roster (negative) mode — keep the avatar in the navy "against" color
-       so it matches the rest of the for/against palette on this view. */
-    .exp-drawer__avatar.mode-negative { background: var(--navy-700); }
+       so it matches the rest of the for/against palette on this view (--side-*). */
+    .exp-drawer__avatar.mode-negative { background: var(--side-opp); }
 
     /* ── Headshot thumbnails ──────────────────────────────────────────
        The <img> is layered over the initials and fills the circle; if it
@@ -3882,11 +3911,11 @@
     .wp-pills { display: flex; flex-wrap: wrap; gap: 6px; }
     .wp-pill { font: 500 11px/1.2 var(--font-sans); padding: 4px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; max-width: 100%; }
     .wp-pill__name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22ch; }
-    .wp-pill--me-start { background: var(--coral-500); color: var(--paper-soft); }
-    .wp-pill--me-bench { background: transparent; color: var(--coral-700); border: 1px dashed var(--coral-500); }
-    .wp-pill--opp-start { background: var(--navy-700); color: var(--paper-soft); }
-    .wp-pill--opp-bench { background: transparent; color: var(--navy-700); border: 1px dashed var(--navy-500); }
-    .wp-pill--conflict { background: linear-gradient(95deg, var(--coral-500) 0 50%, var(--navy-700) 50% 100%); color: var(--paper-soft); }
+    .wp-pill--me-start { background: var(--side-me); color: var(--paper-soft); }
+    .wp-pill--me-bench { background: transparent; color: var(--side-me); border: 1px dashed var(--side-me); }
+    .wp-pill--opp-start { background: var(--side-opp); color: var(--paper-soft); }
+    .wp-pill--opp-bench { background: transparent; color: var(--side-opp); border: 1px dashed var(--side-opp); }
+    .wp-pill--conflict { background: linear-gradient(95deg, var(--side-me) 0 50%, var(--side-opp) 50% 100%); color: var(--paper-soft); }
     .wp-pill__pos { font: 500 9px/1 var(--font-mono); opacity: 0.78; letter-spacing: .04em; }
     .wp-pill__count { font: 500 9px/1 var(--font-mono); background: rgba(255,255,255,0.25); padding: 2px 4px; border-radius: 6px; }
     .wp-pill.is-final { opacity: 0.55; }
@@ -4184,7 +4213,7 @@
 
     /* Ownership matrix — single-player drawer view.
        Player on Y axis, My/Opp Rosters on X axis. X marker color matches the
-       for/against palette: coral for My, navy for Opp. */
+       for/against palette: --side-me for My, --side-opp for Opp. */
     .wp-ownership { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 4px; }
     .wp-ownership th, .wp-ownership td { padding: 10px 8px; text-align: center; }
     .wp-ownership thead th {
@@ -4196,8 +4225,8 @@
     /* Let the name column expand to fit the longest "Name POS" without
        wrapping; X columns shrink to content. */
     .wp-ownership__col--me, .wp-ownership__col--opp { width: 1%; white-space: nowrap; }
-    .wp-ownership__col--me  { color: var(--coral-700); }
-    .wp-ownership__col--opp { color: var(--navy-700); }
+    .wp-ownership__col--me  { color: var(--side-me); }
+    .wp-ownership__col--opp { color: var(--side-opp); }
     .wp-ownership__row {
       text-align: left; font: 500 13px/1.2 var(--font-sans);
       color: var(--ink-900); padding-left: 0;
@@ -4208,8 +4237,8 @@
       border-left: 1px solid var(--line-soft);
     }
     .wp-ownership__x { display: inline-block; font: 700 22px/1 var(--font-sans); }
-    .wp-ownership__x--me  { color: var(--coral-500); }
-    .wp-ownership__x--opp { color: var(--navy-700); }
+    .wp-ownership__x--me  { color: var(--side-me); }
+    .wp-ownership__x--opp { color: var(--side-opp); }
     /* Depth multiplier — the DIGIT appended to the X, so the cell reads "×2"
        as one token. Matched to .wp-ownership__x exactly (Matt, 2026-09-13):
        same family, weight and 22px size, NOT --font-mono like the rest of the
@@ -4217,8 +4246,8 @@
        restyle this in the same edit or "×2" splits into two typefaces in a
        1%-wide cell. Rendered only at n > 1 — see ownCell(). */
     .wp-ownership__mult { display: inline-block; font: 700 22px/1 var(--font-sans); }
-    .wp-ownership__mult--me  { color: var(--coral-500); }
-    .wp-ownership__mult--opp { color: var(--navy-700); }
+    .wp-ownership__mult--me  { color: var(--side-me); }
+    .wp-ownership__mult--opp { color: var(--side-opp); }
     .wp-ownership tbody tr { border-bottom: 1px solid var(--line-soft); }
     .wp-ownership tbody tr:last-child { border-bottom: 0; }
     .wp-ownership__player-row { cursor: pointer; transition: background var(--duration-fast) var(--ease-out); }
@@ -5129,10 +5158,10 @@
               </div>
               <div class="lps-sechead" style="padding-top:10px"><i></i><b><span class="w">SCORE</span><span class="c">BOARD</span></b><svg class="lps-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></div>
               <div class="lps-grid">
-                <div class="lps-cell" style="border-top-color:var(--cheer)"><b>The Gridiron</b><span class="lps-sc"><em style="color:var(--cheer)">121.5</em><i>108.2</i></span><span class="lps-bar"><i style="width:53%"></i><u style="left:53%"></u></span><span class="lps-st" style="color:var(--cheer)">WINNING · LIVE</span></div>
-                <div class="lps-cell" style="border-top-color:var(--navy-700)"><b>Money League</b><span class="lps-sc"><em style="color:var(--navy-700)">87.3</em><i>86.9</i></span><span class="lps-bar"><i style="width:50%"></i><u style="left:50%"></u></span><span class="lps-st" style="color:var(--navy-700)">TOSS-UP · LIVE</span></div>
-                <div class="lps-cell" style="border-top-color:var(--cheer)"><b>Dynasty Royale</b><span class="lps-sc"><em style="color:var(--cheer)">104.0</em><i>96.0</i></span><span class="lps-bar"><i style="width:55%"></i><u style="left:55%"></u></span><span class="lps-st" style="color:var(--cheer)">WINNING · LIVE</span></div>
-                <div class="lps-cell" style="border-top-color:var(--enemy)"><b>The Underdogs</b><span class="lps-sc"><em style="color:var(--enemy)">70.0</em><i>84.0</i></span><span class="lps-bar"><i style="width:47%"></i><u style="left:47%"></u></span><span class="lps-st" style="color:var(--enemy)">LOSING · LIVE</span></div>
+                <div class="lps-cell" style="border-top-color:var(--cheer)"><b>The Gridiron</b><span class="lps-sc"><em style="color:var(--cheer)">121.5</em><i>108.2</i></span><span class="lps-bar"><i style="background:var(--cheer);width:53%"></i><u style="left:53%"></u></span><span class="lps-st" style="color:var(--cheer)">WINNING · LIVE</span></div>
+                <div class="lps-cell" style="border-top-color:var(--navy-700)"><b>Money League</b><span class="lps-sc"><em style="color:var(--navy-700)">87.3</em><i>86.9</i></span><span class="lps-bar"><i style="background:var(--navy-700);width:50%"></i><u style="left:50%"></u></span><span class="lps-st" style="color:var(--navy-700)">TOSS-UP · LIVE</span></div>
+                <div class="lps-cell" style="border-top-color:var(--cheer)"><b>Dynasty Royale</b><span class="lps-sc"><em style="color:var(--cheer)">104.0</em><i>96.0</i></span><span class="lps-bar"><i style="background:var(--cheer);width:55%"></i><u style="left:55%"></u></span><span class="lps-st" style="color:var(--cheer)">WINNING · LIVE</span></div>
+                <div class="lps-cell" style="border-top-color:var(--enemy)"><b>The Underdogs</b><span class="lps-sc"><em style="color:var(--enemy)">70.0</em><i>84.0</i></span><span class="lps-bar"><i style="background:var(--enemy);width:47%"></i><u style="left:47%"></u></span><span class="lps-st" style="color:var(--enemy)">LOSING · LIVE</span></div>
               </div>
               <div class="lps-sechead lps-sechead--sm"><i></i><b><span class="w">LIVE</span><span class="c">&nbsp;UPDATES</span></b></div>
               <div class="lps-updlist">
@@ -6279,8 +6308,8 @@
   .exp-deskcols{display:flex;justify-content:center;align-items:flex-start;gap:40px;flex:none;}
   .exp-deskcol{display:flex;flex-direction:column;align-items:center;}
   .exp-col-cap{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.10em;text-transform:uppercase;color:#6E8296;margin-bottom:14px;}
-  .exp-col-cap.f{color:#E88761;}
-  .exp-col-cap.a{color:#7AA8D1;}
+  .exp-col-cap.f{color:var(--side-me);}
+  .exp-col-cap.a{color:var(--side-opp);}
 
   .exp-phone-frame{padding:14px;border:1px solid rgba(43,111,168,.35);border-radius:56px;background:rgba(43,111,168,.06);}
   .exp-phone{width:340px;border-radius:42px;padding:13px;position:relative;
@@ -6290,7 +6319,8 @@
   .exp-phone-screen{background:#0b1420;border-radius:31px;overflow:hidden;width:314px;height:628px;position:relative;
     --ink-900:#F5EFE4;--ink-700:#C9D6E4;--ink-500:#8FA3B8;--ink-300:#5A6B7D;
     --paper:#0f1a24;--paper-deep:#16232f;--line-soft:rgba(122,168,209,.16);
-    --coral-500:#E88761;--navy-700:#5A8BBD;}
+    --coral-500:#E88761;--navy-700:#5A8BBD;
+    --side-me:var(--coral-500);--side-opp:var(--navy-700);}
   /* TRUE-device canvas: rows render at real iPhone width (390px) then the whole
      canvas scales 0.805 → 314px, keeping genuine on-device proportions instead of
      cramming into ~286px. Flex column: wordmark/kicker/hero pinned, list scrolls. */
@@ -8571,8 +8601,8 @@ function sortContextsByPriority(contexts){
   }).map(d=>d.c);
 }
 /* Projected-final bar (Option 3). Renders each side's projected total as a
-   coral (you) / navy-blue (them) split — matching the site's team colors —
-   with a white centerline tick. Shown only while a matchup is live or clinched
+   split — your fill in your score's color (status, else projection lean via
+   data-lean), the opponent's side muted — with a white centerline tick. Shown only while a matchup is live or clinched
    and real projection data exists; hidden for finals, no-matchup, and any
    provider/week that returns no projections. */
 function applyScoreCellProj(cell, ctx, st){
@@ -8599,6 +8629,7 @@ function applyScoreCellProj(cell, ctx, st){
     wrap.classList.remove('is-empty');
     wrap.classList.add('is-final');
     if(labelEl)labelEl.textContent='Final Score';
+    delete wrap.dataset.lean;                                   // finals color by result (data-status)
     if(fill)fill.style.width='100%';
     if(mid)mid.style.left='50%';
     if(youEl)youEl.textContent=(+ctx.myPoints||0).toFixed(2);
@@ -8609,6 +8640,7 @@ function applyScoreCellProj(cell, ctx, st){
   if(labelEl)labelEl.textContent='Projected Final';
   if(!showState || total<=0){
     wrap.classList.add('is-empty');
+    delete wrap.dataset.lean;
     if(fill)fill.style.width='0%';
     if(mid)mid.style.left='50%';
     if(youEl)youEl.textContent='—';
@@ -8616,6 +8648,9 @@ function applyScoreCellProj(cell, ctx, st){
     return;
   }
   wrap.classList.remove('is-empty');
+  // Projection lean colors the bar when the tile has no status yet (pregame /
+  // between windows). A status, when present, overrides it in CSS.
+  wrap.dataset.lean = myP>oppP ? 'ahead' : (myP<oppP ? 'behind' : 'even');
   // Visual split is AMPLIFIED so projection margins read at a glance: a raw share
   // of 53% (e.g. 160 vs 141) looks near-even, which undersells a 19-pt lead. We
   // take your share's signed deviation from 50% and multiply it by
@@ -8625,7 +8660,7 @@ function applyScoreCellProj(cell, ctx, st){
   const dev=(myP/total)-0.5;                                 // signed: + = you ahead
   const pct=Math.max(6,Math.min(94,50+dev*100*PROJ_SENSITIVITY));
   if(fill)fill.style.width=pct.toFixed(1)+'%';
-  if(mid)mid.style.left=pct.toFixed(1)+'%';                  // divider rides the coral/navy boundary
+  if(mid)mid.style.left=pct.toFixed(1)+'%';                  // divider rides the you/them boundary
   if(youEl)youEl.textContent=myP.toFixed(2);
   if(oppEl)oppEl.textContent=oppP.toFixed(2);
 }
