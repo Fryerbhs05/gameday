@@ -3994,9 +3994,11 @@
     .wp-settings__section .wp-mustwatch-toggle button:hover:not(.active) {
       background: var(--paper-deep); color: var(--ink-900);
     }
+    /* Active state matches the Must Watch / All games coral (Matt, 2026-09-23)
+       — ink-900 read as white in dark mode. Cheer/Hate still override below. */
     .wp-settings__section .wp-view-toggle button.active,
     .wp-settings__section .wp-bench-toggle button.active {
-      background: var(--ink-900); color: var(--paper);
+      background: var(--coral-500, #D85A30); color: var(--paper);
     }
     /* Cheer/Hate views keep their semantic colors even inside the drawer. */
     .wp-settings__section .wp-view-toggle[data-view="cheer"] button.active { background: var(--cheer, #3D8B5C); color: var(--paper); }
@@ -17932,7 +17934,7 @@ loadExperimentState();
           wpBtn('data-wp-mustwatch', 'must', 'Must Watch Games <span class="wp-mw-count" id="wp-mw-count-must">' + (mustWatchSlots > 0 ? mustWatchSlots : '0') + '</span>', state.mustWatch) +
         '</div>' +
       '</div>' +
-      /* Shared global league show/hide + screenshot privacy (added 2026-09-23,
+      /* Shared global league show/hide (added 2026-09-23,
          Matt) — the SAME partials Exposure and Leaders inject, reading/writing
          the one global `hiddenLeagues` set. WP's data layer has been
          league-aware since 2026-09-13 (wpVisibleLeagues in buildPlayerIndex),
@@ -17941,12 +17943,10 @@ loadExperimentState();
          handler → cfApplyLeagueVisibility → __wpApplyLeagueVisibility, which
          re-scores every game (card numbers, slot player counts, Must Watch
          counts in this sheet, Game of the Week) from the visible leagues only.
-         cfRenderLeagueSection returns '' for single-league accounts. The
-         privacy wrapper carries .lf-privacy-wrap so desktop hides the whole
-         group, same as the other sheets. */
-      (typeof window.cfRenderPrivacySection === 'function'
-        ? '<div class="wp-settings__section lf-privacy-wrap">' + window.cfRenderPrivacySection() + '</div>'
-        : '') +
+         cfRenderLeagueSection returns '' for single-league accounts. */
+      /* Screenshot privacy toggles intentionally NOT included here (Matt,
+         2026-09-23) — Watch Priority's cards and slots never print league or
+         team names, so the mask has nothing to hide on this view. */
       (typeof window.cfRenderLeagueSection === 'function'
         ? (function(html){ return html ? '<div class="wp-settings__section">' + html + '</div>' : ''; })(window.cfRenderLeagueSection())
         : '') +
