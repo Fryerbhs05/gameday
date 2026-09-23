@@ -5369,13 +5369,13 @@
         <button type="button" data-ldr-side="A">CRUSHED ME</button>
       </div>
       <div class="cf-snap-toggle" role="tablist" id="cf-snap-toggle">
-        <button id="cf-snap-btn-list" class="is-on" type="button" data-cf-view="list" role="tab">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>
-          List
-        </button>
-        <button id="cf-snap-btn-grid" type="button" data-cf-view="grid" role="tab">
+        <button id="cf-snap-btn-grid" class="is-on" type="button" data-cf-view="grid" role="tab">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
           Grid
+        </button>
+        <button id="cf-snap-btn-list" type="button" data-cf-view="list" role="tab">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="14" y2="8"/><line x1="2" y1="12" x2="14" y2="12"/></svg>
+          List
         </button>
       </div>
       <!-- Exposure's position filters moved into the Filters sheet (2026-07-23,
@@ -20216,7 +20216,7 @@ loadExperimentState();
       for(var i=0;i<d.length;i++)d[i].classList.toggle('dim');
     },850);
   }
-  function getView(){ try{ var v=localStorage.getItem(VIEW_KEY); return (v==='grid')?'grid':'list'; }catch(e){ return 'list'; } }
+  function getView(){ try{ var v=localStorage.getItem(VIEW_KEY); return (v==='list')?'list':'grid'; }catch(e){ return 'grid'; } } /* Grid is the default (2026-09-23); List only when explicitly chosen */
 
   /* ── Desktop dual-frame (List + Grid side by side) ─────────────────────────
      Reuses cardHTML / tileHTML / the render() strings so the framed preview is
@@ -20248,8 +20248,8 @@ loadExperimentState();
       var hint0=document.getElementById('cf-snap-hint'); if(hint0)hint0.style.display='none';
       return;
     }
-    cols.innerHTML=deskCol('List',CF_LIST_ICO,deskFrameInner('list',kickerText,heroHTML,subText,footText,rows))
-      +deskCol('Grid',CF_GRID_ICO,deskFrameInner('grid',kickerText,heroHTML,subText,footText,rows));
+    cols.innerHTML=deskCol('Grid',CF_GRID_ICO,deskFrameInner('grid',kickerText,heroHTML,subText,footText,rows))
+      +deskCol('List',CF_LIST_ICO,deskFrameInner('list',kickerText,heroHTML,subText,footText,rows));
     /* Demo mode has no account, so a one-click sign-in link is meaningless →
        drop the email action, its divider, and the "we'll email you" hint,
        leaving just the "Built for mobile" label. */
