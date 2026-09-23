@@ -1762,6 +1762,20 @@
     .matchup-drawer__score-value {
       font: 500 28px/1 var(--font-mono); color: var(--ink-900); margin: 0;
     }
+    /* Team projected final under the score -- deliberately quiet: small, grey,
+       never tinted by data-status (only the score carries the outlook color). */
+    /* flex-wrap, NOT nowrap: on a ~320px phone each side column is only ~60px,
+       narrower than "PROJ 104.88" -- the label then drops above the number
+       instead of pushing past the band edge (min-content overflow pattern). */
+    .matchup-drawer__score-proj {
+      font: 500 12px/1 var(--font-mono); color: var(--ink-500); margin: 6px 0 0;
+      display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline;
+      gap: 3px 4px; min-width: 0; white-space: nowrap;
+    }
+    .matchup-drawer__score-proj[hidden] { display: none; }
+    .matchup-drawer__score-proj-k {
+      font: 600 9px/1 var(--font-sans); letter-spacing: .08em;
+    }
     /* Header center: state chip stacked over the margin figure — replaces the
        old dead "—" separator and the standalone state line below the score band. */
     .matchup-drawer__hdr-mid {
@@ -8855,6 +8869,8 @@ function updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt){
   }
   /* Status attribute (drives the score color). */
   drawer.setAttribute('data-status', dataStatus);
+  /* Team projected finals under each score -- move with the clock, so patch. */
+  mpApplyProj(drawer, ctx);
   /* Per-player points. ctx.myPP / oppPP are the up-to-date per-player point maps. */
   const myPP = ctx.myPP || {};
   const oppPP = ctx.oppPP || {};
@@ -8876,6 +8892,37 @@ function updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt){
       mpGameLive(span.getAttribute('data-mp-team') || ''));
   });
 }
+
+/* ── Drawer team projections (2026-09-23, Matt) ──────────────────────
+   Small grey "PROJ 121.36" under each side's score in EVERY matchup drawer
+   (My Matchups, League Scores, Snapshot -- all share renderMatchupDrawer).
+   Same gate as the scoreboard tile's projected-final bar: only LIVE / LOCKED_*
+   states with real projection data, never on a past week and never on a FINAL
+   (there the projection just equals the score). A side with no number shows an
+   em-dash rather than a fake 0.00. Both render and live-patch go through here so
+   the two can't disagree. */
+function mpProjParts(ctx){
+  const st=(ctx&&ctx.leagueState)||'';
+  let hist=false;try{hist=(typeof isHistoricalWeek==='function')&&isHistoricalWeek();}catch(e){}
+  const has=v=>v!=null&&v!==''&&isFinite(+v);
+  const my=ctx&&ctx.myProjPts, op=ctx&&ctx.oppProjPts;
+  const tot=(has(my)?+my:0)+(has(op)?+op:0);
+  const show=!hist&&(st==='LIVE'||st==='LOCKED_WIN'||st==='LOCKED_LOSS')&&tot>0;
+  return {show, you:has(my)?(+my).toFixed(2):'—', opp:has(op)?(+op).toFixed(2):'—'};
+}
+function mpProjInner(v){return '<span class="matchup-drawer__score-proj-k">PROJ</span> '+v;}
+function mpApplyProj(drawer, ctx){
+  try{
+    if(!drawer)return;
+    const pp=mpProjParts(ctx);
+    drawer.querySelectorAll('[data-mp-proj]').forEach(el=>{
+      const side=el.getAttribute('data-mp-proj');
+      el.hidden=!pp.show;
+      el.innerHTML=pp.show?mpProjInner(side==='opp'?pp.opp:pp.you):'';
+    });
+  }catch(e){}
+}
+window.mpApplyProj=mpApplyProj;
 
 /* ── Matchup drawer (opens from .score-cell tap) ───────────────────
    Renders a bottom-sheet view of a single matchup: header, score band,
@@ -9073,6 +9120,9 @@ function renderMatchupDrawer(ctx, lg){
   const myLabel  = myNm  || 'You';
   const oppLabel = oppNm || 'Opp';
   const benchTotal = myBench.length + oppBench.length;
+  const projP = mpProjParts(ctx);
+  const projEl = side => '<p class="matchup-drawer__score-proj" data-mp-proj="' + side + '"' + (projP.show ? '' : ' hidden') + '>'
+    + (projP.show ? mpProjInner(side === 'opp' ? projP.opp : projP.you) : '') + '</p>';
   const benchHtml = benchTotal ? (
     '<button type="button" class="matchup-drawer__toggle" data-matchup-bench-toggle="1" aria-expanded="false">'
     +   '<span class="caret">▸</span> Bench (' + benchTotal + ')'
@@ -9092,6 +9142,7 @@ function renderMatchupDrawer(ctx, lg){
     +   '<div class="matchup-drawer__score-side">'
     +     '<p class="matchup-drawer__score-label"' + (myNm ? ' title="' + myNm + '"' : '') + '>' + myLabel + '</p>'
     +     '<p class="matchup-drawer__score-value matchup-drawer__score-value--you" data-mp-score="you">' + fmtPts(ctx.myPoints) + '</p>'
+    +     projEl('you')
     +   '</div>'
     +   '<div class="matchup-drawer__hdr-mid">'
     +     '<span class="matchup-drawer__hdr-chip ' + stCls + '" data-mp-state="1">' + escHtml(hdr.chip) + '</span>'
@@ -9100,6 +9151,7 @@ function renderMatchupDrawer(ctx, lg){
     +   '<div class="matchup-drawer__score-side matchup-drawer__score-side--opp">'
     +     '<p class="matchup-drawer__score-label"' + (oppNm ? ' title="' + oppNm + '"' : '') + '>' + oppLabel + '</p>'
     +     '<p class="matchup-drawer__score-value matchup-drawer__score-value--opp" data-mp-score="opp">' + fmtPts(ctx.oppPoints) + '</p>'
+    +     projEl('opp')
     +   '</div>'
     + '</div>'
     + startersBody
@@ -10695,6 +10747,13 @@ async function loadData(){
         if(r.isMine&&pinOK&&r.mineSide){
           if(r.mineSide==='home'){r.homeProj=+myP.toFixed(2);r.awayProj=+opP.toFixed(2);}
           else{r.homeProj=+opP.toFixed(2);r.awayProj=+myP.toFixed(2);}
+        }
+        /* Hand the row's numbers to its drawer. The drawer's "you" slot is the
+           home team unless the user's team is away (cfBuildDrawer's flip). */
+        if(r.drawer&&r.drawer.ctx){
+          const fl=(r.mineSide==='away');
+          r.drawer.ctx.myProjPts=fl?r.awayProj:r.homeProj;
+          r.drawer.ctx.oppProjPts=fl?r.homeProj:r.awayProj;
         }
       });
     });
@@ -23139,6 +23198,7 @@ if(typeof window.cfRegisterView==='function'){
       var marginEl=drawer.querySelector('[data-mp-margin]');
       if(marginEl){marginEl.className='matchup-drawer__hdr-margin '+disp.stCls+' '+(hdr.subNum?'is-num':'is-tag');if(hdr.sub){marginEl.hidden=false;marginEl.textContent=hdr.sub;}else{marginEl.hidden=true;marginEl.textContent='';}}
       drawer.setAttribute('data-status',disp.dataStatus);
+      if(typeof window.mpApplyProj==='function')window.mpApplyProj(drawer,ctx);
       var myPP=ctx.myPP||{},oppPP=ctx.oppPP||{};
       drawer.querySelectorAll('[data-mp-pid]').forEach(function(span){
         var side=span.getAttribute('data-mp-side'),pid=span.getAttribute('data-mp-pid');
