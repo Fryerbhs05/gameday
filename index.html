@@ -10652,6 +10652,53 @@ async function loadData(){
       if(!e.againstBenchLeagues.includes(lg.leagueName))e.againstBenchLeagues.push(lg.leagueName);
     });
   });
+  /* ── LEAGUE SCORES PROJECTIONS (2026-09-23, Matt) ──────────────────────────
+     Every League Scores row gets a projected final per side, built by the SAME
+     rules as My Matchups above so the two can never disagree in method:
+       - ESPN: ESPN's per-player projection, Sleeper fill-in when ESPN has none.
+       - Sleeper: league-scored Sleeper projection (projScoreP).
+       - both then go through cfLiveProj (banked points + unplayed share decays).
+       - Yahoo: Yahoo's own team projection, untouched (set in cfYahooAllMatchups).
+       - a starter with no projection contributes his banked points, not 0.
+       - a side with NO projection data at all is null (UI hides it), never 0.00.
+       - historic weeks: null -- no forecast for a finished week.
+     Your OWN row is then pinned to ctx.myProjPts/oppProjPts so the same game
+     never shows two different projections on one screen. */
+  try{
+    leagueContexts.forEach(ctx=>{
+      const am=ctx&&ctx.allMatchups;if(!am||!Array.isArray(am.matchups))return;
+      const lsScoring=normalizeScoringForContext(ctx);
+      const lsLive=!isHist&&ctx.source!=='yahoo';
+      const sideProj=list=>{
+        if(isHist||!Array.isArray(list)||!list.length)return null;
+        let sum=0,any=false;
+        list.forEach(p=>{
+          if(!p)return;
+          const pts=(p.pts!=null&&isFinite(+p.pts))?+p.pts:null;
+          let proj=(p.proj!=null&&isFinite(+p.proj))?+p.proj:null;
+          if(proj==null&&hasProj){
+            let sid=p.sid||null;
+            if(!sid&&p.name){try{const ck=canonicalPlayerKey(p.name,p.team,p.pos,null)||'';const m=/^sl:(\d+)$/.exec(ck);if(m)sid=m[1];else if(/^DST\|/.test(ck))sid=ck.slice(4);}catch(e){}}
+            if(sid)proj=projScoreP(sid,lsScoring);
+          }
+          if(lsLive&&proj!=null){const lv=cfLiveProj(p.team,proj,pts);if(lv!=null)proj=lv;}
+          if(proj!=null)any=true;
+          sum+=(proj!=null?proj:(pts||0));
+        });
+        return any?+sum.toFixed(2):null;
+      };
+      const myP=+ctx.myProjPts||0,opP=+ctx.oppProjPts||0,pinOK=!isHist&&(myP+opP)>0;
+      am.matchups.forEach(r=>{
+        if(!r)return;
+        if(isHist){r.homeProj=null;r.awayProj=null;return;}
+        if(r.projSides){r.homeProj=sideProj(r.projSides.home);r.awayProj=sideProj(r.projSides.away);}
+        if(r.isMine&&pinOK&&r.mineSide){
+          if(r.mineSide==='home'){r.homeProj=+myP.toFixed(2);r.awayProj=+opP.toFixed(2);}
+          else{r.homeProj=+opP.toFixed(2);r.awayProj=+myP.toFixed(2);}
+        }
+      });
+    });
+  }catch(e){}
   /* Flag matchups that have a STARTER currently in an in-progress NFL game.
      Drives the "● Live" badge (via ctxDisplayState) so it only shows when a game
      is actually being played with one of the matchup's players on the field —
@@ -22955,16 +23002,23 @@ if(typeof window.cfRegisterView==='function'){
         if(typeof espnSlotRank==='function'){
           entries=entries.slice().sort(function(a,b){return espnSlotRank(a&&a.lineupSlotId)-espnSlotRank(b&&b.lineupSlotId);});
         }
-        var starters=[],bench=[],pp={},teams=[],sum=0,hasSum=false;
+        var starters=[],bench=[],pp={},teams=[],pj=[],sum=0,hasSum=false;
         entries.forEach(function(e){
           var o=(typeof espnPlayerObj==='function')?espnPlayerObj(e):null;if(!o)return;
           var pts=(typeof espnPlayerStat==='function')?espnPlayerStat(e,week,0):null;
           if(pts!=null)pp[o.player_key]=pts;
           if(BENCH&&BENCH.has(e.lineupSlotId)){bench.push(o);}
-          else{starters.push(o);if(o.team)teams.push(o.team);if(pts!=null){sum+=(+pts||0);hasSum=true;}}
+          else{
+            starters.push(o);if(o.team)teams.push(o.team);if(pts!=null){sum+=(+pts||0);hasSum=true;}
+            /* Raw PREGAME inputs for the League Scores projection (statSourceId 1 =
+               ESPN's own projection). Converted to a live projected final in the
+               shared loadData post-pass, never here. */
+            var pr=(!isHist&&typeof espnPlayerStat==='function')?espnPlayerStat(e,week,1):null;
+            pj.push({team:o.team||'',pts:pts,proj:pr,name:o.name,pos:o.position});
+          }
         });
         var score=(isHist||!hasSum)?Number((side&&side.totalPoints)||0):+sum.toFixed(2);
-        return {starters:starters,bench:bench,pp:pp,teams:teams,score:score};
+        return {starters:starters,bench:bench,pp:pp,teams:teams,pj:pj,score:score};
       };
       var rows=[];
       data.schedule.forEach(function(sc){
@@ -22979,7 +23033,7 @@ if(typeof window.cfRegisterView==='function'){
         var mine=flip?{name:awayName,score:a.score,players:a.starters,bench:a.bench,pp:a.pp}:{name:homeName,score:h.score,players:h.starters,bench:h.bench,pp:h.pp};
         var opp=flip?{name:homeName,score:h.score,players:h.starters,bench:h.bench,pp:h.pp}:{name:awayName,score:a.score,players:a.starters,bench:a.bench,pp:a.pp};
         var mkE='e|'+(leagueName||'')+'|'+[sc.home.teamId,sc.away.teamId].sort(function(x,y){return x-y;}).join('-');
-        rows.push({homeName:homeName,awayName:awayName,homeScore:h.score,awayScore:a.score,isMine:(homeMine||awayMine),isFinal:isFin,teams:allTeams,mkey:mkE,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',null,isFin)});
+        rows.push({homeName:homeName,awayName:awayName,homeScore:h.score,awayScore:a.score,isMine:(homeMine||awayMine),mineSide:(homeMine?'home':(awayMine?'away':null)),projSides:{home:h.pj,away:a.pj},homeProj:null,awayProj:null,isFinal:isFin,teams:allTeams,mkey:mkE,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',null,isFin)});
       });
       if(!rows.length)return null;
       return {matchups:rows,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
@@ -22994,11 +23048,19 @@ if(typeof window.cfRegisterView==='function'){
       var db=(window.playerDB)||{};
       var sideObj=function(entry){
         var starters=((entry&&entry.starters)||[]).filter(function(id){return id&&id!=='0';});
+        /* Upcoming/unset weeks: Sleeper omits matchup.starters until a lineup is
+           saved -- fall back to the roster's standing lineup, exactly as My
+           Matchups does, so that team neither projects 0 nor opens an empty drawer. */
+        if(!starters.length){var _r=entry&&rosterById[entry.roster_id];starters=((_r&&_r.starters)||[]).filter(function(id){return id&&id!=='0';});}
         var all=(((entry&&entry.players))||starters).filter(function(id){return id&&id!=='0';});
         var sset={};starters.forEach(function(id){sset[id]=1;});
         var bench=all.filter(function(id){return !sset[id];});
         var teams=starters.map(function(id){var p=db[id];return p&&p.team;}).filter(Boolean);
-        return {starters:starters,bench:bench,pp:(entry&&entry.players_points)||{},teams:teams,score:+((entry&&entry.points)||0)};
+        var ppS=(entry&&entry.players_points)||{};
+        /* Raw inputs for the League Scores projection; the league-scored Sleeper
+           projection is looked up by id in the loadData post-pass. */
+        var pj=starters.map(function(id){var p=db[id];return {team:(p&&p.team)||'',pts:(ppS[id]!=null?ppS[id]:null),proj:null,sid:id};});
+        return {starters:starters,bench:bench,pp:ppS,teams:teams,pj:pj,score:+((entry&&entry.points)||0)};
       };
       var groups={};
       matchups.forEach(function(m){if(m&&m.matchup_id!=null){(groups[m.matchup_id]=groups[m.matchup_id]||[]).push(m);}});
@@ -23015,7 +23077,7 @@ if(typeof window.cfRegisterView==='function'){
         var mine=flip?{name:bn,score:B.score,players:B.starters,bench:B.bench,pp:B.pp}:{name:an,score:A.score,players:A.starters,bench:A.bench,pp:A.pp};
         var opp=flip?{name:an,score:A.score,players:A.starters,bench:A.bench,pp:A.pp}:{name:bn,score:B.score,players:B.starters,bench:B.bench,pp:B.pp};
         var mkS='s|'+(leagueName||'')+'|'+[a.roster_id,b.roster_id].sort(function(x,y){return x-y;}).join('-');
-        rows.push({homeName:an,awayName:bn,homeScore:A.score,awayScore:B.score,isMine:(aMine||bMine),isFinal:isFin,teams:allTeams,mkey:mkS,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',rosterPositions||null,isFin)});
+        rows.push({homeName:an,awayName:bn,homeScore:A.score,awayScore:B.score,isMine:(aMine||bMine),mineSide:(aMine?'home':(bMine?'away':null)),projSides:{home:A.pj,away:B.pj},homeProj:null,awayProj:null,isFinal:isFin,teams:allTeams,mkey:mkS,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',rosterPositions||null,isFin)});
       });
       if(!rows.length)return null;
       return {matchups:rows,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
@@ -23029,7 +23091,11 @@ if(typeof window.cfRegisterView==='function'){
       matchups.forEach(function(mm){
         var ts=(mm&&mm.teams)||[];if(ts.length<2)return;
         var a=ts[0],b=ts[1];
-        rows.push({homeName:a.name||null,awayName:b.name||null,homeScore:+(a.points||0),awayScore:+(b.points||0),isMine:(a.team_key===myTeamKey||b.team_key===myTeamKey),isFinal:!!(mm&&mm.status==='postevent')});
+        var aM=(a.team_key===myTeamKey),bM=(b.team_key===myTeamKey);
+        /* Yahoo's own team projection, used as-is (same exemption My Matchups makes).
+           Both 0 = Yahoo returned no projection -> null, never a fake 0.00. */
+        var yp=(!isHist&&((+a.projPoints||0)+(+b.projPoints||0))>0);
+        rows.push({homeName:a.name||null,awayName:b.name||null,homeScore:+(a.points||0),awayScore:+(b.points||0),isMine:(aM||bM),mineSide:(aM?'home':(bM?'away':null)),homeProj:yp?+(+a.projPoints).toFixed(2):null,awayProj:yp?+(+b.projPoints).toFixed(2):null,isFinal:!!(mm&&mm.status==='postevent')});
       });
       if(!rows.length)return null;
       return {matchups:rows,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
@@ -23103,11 +23169,17 @@ if(typeof window.cfRegisterView==='function'){
           var hn=mask(cfMaskTeam,m.homeName)||'—',an=mask(cfMaskTeam,m.awayName)||'—';
           if(m.drawer&&m.mkey)keyMap[m.mkey]=m.drawer;
           var tap=!!m.drawer;
+          /* Column 2: FINAL for a decided matchup, else the projected final per
+             side (right-justified against the score column), else empty. */
+          var fp=function(v){return (v==null||isNaN(+v))?'—':(+v).toFixed(2);};
+          var hasP=(m.homeProj!=null||m.awayProj!=null);
+          var col2=rf?'<span class="cf-ls-final">FINAL</span>'
+            :(hasP?'<div>'+fp(m.homeProj)+'</div><div>'+fp(m.awayProj)+'</div>':'');
           return '<div class="cf-ls-row'+(tap?' is-tap':'')+'"'+(tap?' role="button" tabindex="0" aria-label="Open matchup detail"':'')+'>'
             +'<div class="cf-ls-teams"><div class="cf-ls-team '+(hw?'w':'l')+'">'+cfEsc(hn)+'</div><div class="cf-ls-team '+(hw?'l':'w')+'">'+cfEsc(an)+'</div></div>'
-            +(rf?'<span class="cf-ls-final">FINAL</span>':'')
+            +'<div class="cf-ls-proj"'+(hasP&&!rf?' aria-label="Projected final"':'')+'>'+col2+'</div>'
             +'<div class="cf-ls-scores"><div class="'+(hw?'w':'l')+'">'+(+m.homeScore||0).toFixed(2)+'</div><div class="'+(hw?'l':'w')+'">'+(+m.awayScore||0).toFixed(2)+'</div></div>'
-            +(tap?'<span class="cf-ls-chevr"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>':'')
+            +'<span class="cf-ls-chevr">'+(tap?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>':'')+'</span>'
           +'</div>';
         }).join('');
         body+='<div class="cf-ls-league" data-league="'+cfEsc(name)+'"><button type="button" class="cf-ls-hbtn" aria-expanded="'+(open?'true':'false')+'"><span class="cf-ls-chev'+(open?' open':'')+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span><span class="cf-ls-lname">'+cfEsc(mask(cfMaskLeague,name))+'</span></button><div class="cf-ls-panel"'+(open?'':' hidden')+'>'+rows+'</div></div>';
@@ -23156,19 +23228,23 @@ if(typeof window.cfRegisterView==='function'){
       +'.cf-ls-lname{flex:1 1 auto;min-width:0;text-align:left;font:700 13px/1.1 var(--font-sans,Inter,sans-serif);color:var(--ink-900,#F5EFE4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
       +'.cf-ls-panel{margin-top:6px;background:var(--paper-deep,#0A1019);border:1px solid var(--line,#2A3949);border-radius:12px;padding:2px 8px;}'
       +'.cf-ls-panel[hidden]{display:none;}'
-      +'.cf-ls-row{display:flex;align-items:center;gap:8px;padding:9px 4px 9px 8px;border-bottom:1px solid var(--line-soft,#1F2C3A);}'
+      /* Fixed tracks (not auto) so the proj + score columns line up down every
+         row of a league; names take the flexible left ~half and ellipsize. */
+      +'.cf-ls-row{display:grid;grid-template-columns:minmax(0,1fr) 58px 58px 14px;align-items:center;column-gap:6px;padding:9px 4px 9px 8px;border-bottom:1px solid var(--line-soft,#1F2C3A);}'
       +'.cf-ls-row:last-child{border-bottom:0;}'
       +'.cf-ls-row.is-tap{cursor:pointer;border-radius:8px;}'
       +'.cf-ls-row.is-tap:hover{background:rgba(255,255,255,0.03);}'
       +'.cf-ls-row.is-tap:focus-visible{outline:2px solid var(--navy-500,#2B6FA8);outline-offset:-2px;border-radius:8px;}'
       +'.cf-ls-teams{flex:1 1 auto;min-width:0;}'
-      +'.cf-ls-team{font:700 12px/1.3 var(--font-sans,Inter,sans-serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-900,#F5EFE4);}'
+      +'.cf-ls-team{font:700 12px/16px var(--font-sans,Inter,sans-serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-900,#F5EFE4);}'
       +'.cf-ls-team.l{color:var(--ink-500,#9E988A);font-weight:500;}'
-      +'.cf-ls-final{font:600 8px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.08em;color:var(--ink-500,#9E988A);flex:0 0 auto;}'
-      +'.cf-ls-scores{text-align:right;flex:0 0 auto;}'
-      +'.cf-ls-scores>div{font:700 13px/1.25 var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-900,#F5EFE4);}'
+      +'.cf-ls-proj{min-width:0;text-align:right;}'
+      +'.cf-ls-proj>div{font:500 11px/16px var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-500,#9E988A);white-space:nowrap;}'
+      +'.cf-ls-final{font:600 8px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.08em;color:var(--ink-500,#9E988A);}'
+      +'.cf-ls-scores{min-width:0;text-align:right;}'
+      +'.cf-ls-scores>div{font:700 13px/16px var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-900,#F5EFE4);white-space:nowrap;}'
       +'.cf-ls-scores>div.l{font-weight:500;color:var(--ink-500,#9E988A);}'
-      +'.cf-ls-chevr{display:inline-flex;flex:0 0 auto;color:var(--ink-300,#5F5E5A);margin-left:2px;}';
+      +'.cf-ls-chevr{display:inline-flex;justify-content:flex-end;color:var(--ink-300,#5F5E5A);}';
       document.head.appendChild(st);
     }
   }catch(e){}
