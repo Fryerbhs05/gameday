@@ -2788,6 +2788,39 @@
     .loy-controls { border: 1px solid var(--navy-300); border-radius: var(--radius-lg); padding: 12px; margin-bottom: 12px; }
     .loy-controls .exp-tabbar { margin: 0 0 10px; }
     .loy-controls .loy-view-toggle { margin: 0; }
+    /* Scope pill (All / Live / Remaining) — sits BELOW the view toggle because it
+       only applies to Player Cards: in Rooting Card mode (or on a past week / demo)
+       it folds away, and since it's the bottom row nothing above it moves — the
+       toggle stays under the thumb (Matt, 2026-09-23; mock:
+       mocks/loyalties-scope-filter-mock-v2.html). Same state as the Filters
+       drawer's two switches (liveOnly / toFinishOnly), painted by
+       cfSyncScopeToggles. Fold = grid-rows 1fr→0fr, driven by .is-folded, which
+       __loyView sets at the START of a flip so it folds alongside the slide. */
+    .loy-scope { display: grid; grid-template-rows: 1fr; margin-top: 10px; opacity: 1;
+      transition: grid-template-rows .32s var(--ease-out), margin-top .32s var(--ease-out), opacity .2s var(--ease-out); }
+    .loy-scope > .loy-scope-inner { overflow: hidden; min-height: 0; }
+    .loy-scope.is-folded { grid-template-rows: 0fr; margin-top: 0; opacity: 0; pointer-events: none; }
+    .loy-scope-pill { position: relative; display: flex; background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 3px; }
+    .loy-scope-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 3); border-radius: var(--radius-pill);
+      background: var(--tile-bg); box-shadow: inset 0 0 0 1px var(--tile-line);
+      transition: transform .26s var(--ease-out), background .2s, box-shadow .2s; }
+    .loy-scope-pill[data-sel="live"] .loy-scope-thumb { transform: translateX(100%);
+      background: color-mix(in oklab, var(--live-ice) 14%, var(--tile-bg));
+      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--live-ice) 60%, transparent); }
+    .loy-scope-pill[data-sel="tofinish"] .loy-scope-thumb { transform: translateX(200%); }
+    .loy-scope-pill button { flex: 1 1 0; min-width: 0; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 7px 0; background: transparent; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; white-space: nowrap;
+      color: var(--ink-500); font: 700 12px/1 var(--font-sans); transition: color var(--duration-fast) var(--ease-out); }
+    .loy-scope-pill button.on { color: var(--ink-900); }
+    .loy-scope-pill button[data-scope="live"].on { color: var(--live-ice); }
+    .loy-scope-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--live-ice); flex-shrink: 0; }
+    .loy-scope-pill button:not(.on) .loy-scope-dot { opacity: .55; }
+    .loy-scope-pill button.on .loy-scope-dot { animation: loyScopeDot 2.4s ease-in-out infinite; }
+    @keyframes loyScopeDot { 0%, 100% { box-shadow: 0 0 0 0 rgba(143,199,240,.55); } 50% { box-shadow: 0 0 0 4px rgba(143,199,240,0); } }
+    @media (prefers-reduced-motion: reduce) {
+      .loy-scope, .loy-scope-thumb { transition: none; }
+      .loy-scope-pill button.on .loy-scope-dot { animation: none; }
+    }
     /* Stage: both views live here so the slide can cross them + morph height. */
     .loy-stage { position: relative; transition: height .32s var(--ease-out); }
     .loy-stage.anim, .loy-stage.hmorph { overflow: hidden; }
@@ -2813,6 +2846,9 @@
        still wins when the section is collapsed — this ID selector would otherwise
        out-specify it and leave the buckets visible in Rooting Card mode. */
     .loyalties-section.rc-mode:not(.collapsed) #exp-tabbar { display: flex; gap: 6px; margin-top: 0; margin-bottom: 12px; }
+    /* Inside the controls box keep the SAME 10px gap as Player Cards mode, or the
+       view toggle nudges 2px every flip (the scope pill work made that visible). */
+    .loyalties-section.rc-mode:not(.collapsed) .loy-controls #exp-tabbar { margin-bottom: 10px; }
     .loyalties-section.rc-mode .exp-tab {
       flex: 1 1 0; display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 5px;
       padding: 11px 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -5407,6 +5443,19 @@
         Rooting Card
       </button>
     </div>
+    <!-- Scope pill (All / Live / Remaining) — Player Cards only, current week only.
+         Starts folded; __loyView.syncScope() opens it. Clicks route through
+         cfSetScope → the same liveOnly/toFinishOnly state as the Filters drawer. -->
+    <div class="loy-scope is-folded" id="loy-scope" inert>
+      <div class="loy-scope-inner">
+        <div class="loy-scope-pill" id="loy-scope-pill" role="radiogroup" aria-label="Show players" data-sel="all">
+          <span class="loy-scope-thumb" aria-hidden="true"></span>
+          <button type="button" role="radio" data-scope="all" aria-checked="true" class="on">All</button>
+          <button type="button" role="radio" data-scope="live" aria-checked="false"><span class="loy-scope-dot" aria-hidden="true"></span>Live</button>
+          <button type="button" role="radio" data-scope="tofinish" aria-checked="false">Remaining</button>
+        </div>
+      </div>
+    </div>
     </div>
     <!-- Stage holds both views so the directional-slide flip can cross them and
          morph the panel height. #columns kept its id (all handlers/CSS key off it). -->
@@ -6986,8 +7035,28 @@ function cfSyncScopeToggles(){
   try{
     document.querySelectorAll('[data-lf-live]').forEach(b=>{b.classList.toggle('on',liveOnly);b.setAttribute('aria-checked',liveOnly?'true':'false');});
     document.querySelectorAll('[data-lf-tofinish]').forEach(b=>{b.classList.toggle('on',toFinishOnly);b.setAttribute('aria-checked',toFinishOnly?'true':'false');});
+    /* Loyalties scope pill — the same two flags as one pick-one control. */
+    const pill=document.getElementById('loy-scope-pill');
+    if(pill){
+      const sel=liveOnly?'live':toFinishOnly?'tofinish':'all';
+      pill.dataset.sel=sel;
+      pill.querySelectorAll('button[data-scope]').forEach(b=>{const on=b.dataset.scope===sel;b.classList.toggle('on',on);b.setAttribute('aria-checked',on?'true':'false');});
+    }
   }catch(e){}
 }
+/* Pick-one setter for the Loyalties scope pill: 'all' | 'live' | 'tofinish'.
+   Reuses the drawer togglers so persistence (live-only only) and the mutual
+   exclusion stay in exactly one place. */
+function cfSetScope(v){
+  if(v==='live'){if(!liveOnly)toggleLiveOnly();return;}
+  if(v==='tofinish'){if(!toFinishOnly)toggleToFinishOnly();return;}
+  if(!liveOnly&&!toFinishOnly)return;
+  liveOnly=false;toFinishOnly=false;saveLiveOnlyState();applyFilters();cfSyncScopeToggles();
+}
+document.addEventListener('click',function(e){
+  const b=e.target.closest&&e.target.closest('#loy-scope-pill button[data-scope]');
+  if(b)cfSetScope(b.dataset.scope);
+});
 
 
 const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
@@ -9365,8 +9434,8 @@ function renderLeagueFilterSheet(){
       +`<button class="live-toggle${liveOnly?' on':''}" data-lf-live="1" type="button" role="switch" aria-checked="${liveOnly?'true':'false'}" aria-label="Toggle live-only view"></button>`
       +`</div>`
       +`<div class="lf-live-row">`
-      +`<span class="lf-live-label">Show only players yet to finish</span>`
-      +`<button class="live-toggle${toFinishOnly?' on':''}" data-lf-tofinish="1" type="button" role="switch" aria-checked="${toFinishOnly?'true':'false'}" aria-label="Toggle yet-to-finish view"></button>`
+      +`<span class="lf-live-label">Show only players remaining</span>`
+      +`<button class="live-toggle${toFinishOnly?' on':''}" data-lf-tofinish="1" type="button" role="switch" aria-checked="${toFinishOnly?'true':'false'}" aria-label="Toggle remaining-players view"></button>`
       +`</div>`
       +`</div>`;
   }
@@ -21910,6 +21979,18 @@ if(typeof window.cfRegisterView==='function'){
   if(!section||!toggle||!bar||!cols||!stage||!host||!scale)return;
   var RC_W=390, DUR=420;
   var st={view:'cards', bucket:null};
+  var scope=document.getElementById('loy-scope');
+  /* Scope pill: open only on Player Cards for the current (non-historic,
+     non-demo) week — the same gate as the drawer's live switches. Called at the
+     START of a flip so the fold rides alongside the slide. */
+  function syncScope(){
+    if(!scope)return;
+    var live=false; try{ live=(typeof liveToggleAvailable!=='undefined')&&!!liveToggleAvailable; }catch(e){}
+    var show=live&&st.view==='cards';
+    scope.classList.toggle('is-folded',!show);
+    if(show)scope.removeAttribute('inert'); else scope.setAttribute('inert','');
+    try{ if(typeof cfSyncScopeToggles==='function')cfSyncScopeToggles(); }catch(e){}
+  }
   var busy=false;
   var reduce=false; try{reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
 
@@ -21969,7 +22050,7 @@ if(typeof window.cfRegisterView==='function'){
     var outEl=(st.view==='rc')?host:cols;
     var inEl =(target==='rc')?host:cols;
     var h0=outEl.offsetHeight;
-    st.view=target; setToggleBtns(); highlightTabs();
+    st.view=target; setToggleBtns(); highlightTabs(); syncScope();
     if(reduce){
       inEl.style.display=''; outEl.style.display='';
       if(target==='rc')buildCard(); else applyCards();
@@ -22013,7 +22094,7 @@ if(typeof window.cfRegisterView==='function'){
     var ok=avail();
     toggle.style.display=ok?'':'none';
     if(!ok && st.view==='rc'){ st.view='cards'; section.classList.remove('rc-mode'); setToggleBtns(); }
-    applyCards(); highlightTabs();
+    applyCards(); highlightTabs(); syncScope();
     if(section.classList.contains('rc-mode'))buildCard();
   }
 
