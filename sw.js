@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v258'; // v258: Root-for player rows open the Loyalties box-score drawer (cfOpenPlayerDrawer) (index.html, Matt, 2026-09-24)
+const CACHE_VERSION = 'conflicted-v259'; // v259: Leagues - 'Root against your rivals' copy; per-frame jump recorder removed (bounded 1.5s post-render stabilizer), live dots self-animated (no view-wide animation), owner-only unclean-restart logger (index.html, Matt, 2026-09-24)
 const _prev_v225 = 'v225: League Scores ESPN matchup drawer sorts starters into canonical slot order so center POS pills stop stacking mismatched positions (cfEspnAllMatchups, Matt, 2026-09-21)'
 // v223: Matchup drawer -- LIVE players get a synchronized breathing ice dot on their points, splitting live from final (both were white); pre-kickoff dim unchanged (index.html, Matt, 2026-09-17)
 // v220: FIX empty schedule — ESPN dropped YYYYMMDD range queries (HTTP 400), which emptied Watch Priority AND the Conflict Card (shared fetchWeekGames). Switched to dates=<year>&seasontype=2&week=<N>, verified to return correct per-week slates

@@ -23714,9 +23714,9 @@ if(typeof window.cfRegisterView==='function'){
 /* Live dot — same ice marker + shared breath as the matchup drawer: the view
    animates ONE inherited property (mpLiveBreath) and every dot reads it, so
    dots stay in sync even when a refresh re-creates them mid-cycle. */
-#view-leagues{animation:mpLiveBreath 2.6s ease-in-out infinite;}
-#view-leagues .lv-dot{width:6px;height:6px;border-radius:50%;background:var(--live-ice);opacity:var(--mp-live-breath,.9);flex:none;}
-@media (prefers-reduced-motion: reduce){#view-leagues{animation:none;}#view-leagues .lv-dot{opacity:.9;}}
+@keyframes lvDotBreath{0%,100%{opacity:.28;}50%{opacity:.9;}}
+#view-leagues .lv-dot{width:6px;height:6px;border-radius:50%;background:var(--live-ice);opacity:.9;flex:none;animation:lvDotBreath 2.6s ease-in-out infinite;}
+@media (prefers-reduced-motion: reduce){#view-leagues .lv-dot{animation:none;opacity:.9;}}
 #view-leagues .lv-none{font:500 11.5px/1.4 var(--font-sans);color:var(--ink-500);padding:8px 0 4px;}
 </style>
 <script>
@@ -24097,7 +24097,7 @@ if(typeof window.cfRegisterView==='function'){
         +'<div class="lv-tg-h" role="button" tabindex="0" data-lv-tgtog aria-expanded="'+tOpen+'"><div style="min-width:0"><div class="lv-tg-nm">'+esc(mT(name))+'</div><div class="lv-tg-vs">vs '+rvName+'</div></div><span class="lv-tg-wp">'+(wp?wp+' to win':'')+'</span><span class="lv-tg-chev">'+CHEV+'</span></div>'
         +'<div class="lv-tg-b">'+inner+'</div></div>';
     }).join('');
-    return '<div class="lv-root"><div class="lv-root-h" data-lv-key="dv:'+esc(M.c.leagueName)+':root">Root for</div><div class="lv-root-s">Guilt-free: none of these players work against you in any league.</div>'+html+'</div>';
+    return '<div class="lv-root"><div class="lv-root-h" data-lv-key="dv:'+esc(M.c.leagueName)+':root">Root against your rivals</div><div class="lv-root-s">All upside. None of these players work against you.</div>'+html+'</div>';
   }
 
   /* ══ Render ══ */
@@ -24235,81 +24235,52 @@ if(typeof window.cfRegisterView==='function'){
     var v=document.getElementById('view-leagues');if(!v||!W.__cfLeaguesOpen)return;
     var _anc=anchorSnap(v),_y0=W.scrollY;
     try{renderInner(v);}finally{anchorRestore(v,_anc);}
-    JR.lastRender=Date.now();JR.lastRenderDy=Math.round(W.scrollY-_y0);
+    phaseDots(v);
     jrStart();
   }
-  /* ── Jump recorder (OWNER ONLY, temporary diagnostic, 2026-09-24) ──
-     Matt still saw the page jump on auto-refresh after the anchoring fix, and
-     it doesn't reproduce off-device. This samples every animation frame while
-     the Leagues view is open: it tracks the keyed element at the top of the
-     screen and flags when its on-screen position moves without the reader
-     scrolling (no touch/wheel/key input in the last 400ms). Each hit logs, via
-     cfTrack -> Supabase events, how far it moved, how long after our last
-     repaint, the scroll delta our anchor applied, and the heights of every
-     block above the view (header, outage banner, period bar, sections) before
-     vs after — enough to name the culprit. Max 25 per session. Remove once the
-     cause is confirmed. The same sampler also STABILIZES: a layout shift from
-     anywhere above the reader (scroll unchanged, element moved) is countered
-     in the next frame — the scroll anchoring Safari lacks natively. */
-  var JR={on:false,lastRender:0,lastRenderDy:0,lastInput:0,sent:0,prev:null};
+  /* ── Post-render stabilizer (bounded, 2026-09-24) ──
+     Replaces the always-on per-frame jump recorder. That loop ran EVERY frame
+     for as long as the Leagues page was open (forced layout each frame, on top
+     of a subtree-wide style animation) and the app's unexplained full reloads
+     all landed ~3 min after opening this page — so nothing here runs
+     continuously any more. After each repaint we watch for up to 1.5s: if the
+     element at the top of the screen moves while the scroll position didn't
+     (and the reader isn't touching the screen), scroll by the same amount so it
+     stays put — the scroll anchoring Safari doesn't do natively. Then it stops. */
+  var JR={on:false,until:0,lastInput:0};
   ['touchstart','touchmove','wheel','keydown','pointerdown'].forEach(function(ev){try{W.addEventListener(ev,function(){JR.lastInput=Date.now();},{passive:true});}catch(e){}});
-  try{W.addEventListener('touchend',function(){JR.lastInput=Date.now()+600;},{passive:true});}catch(e){} /* momentum after lift */
-  function jrBlocks(){
-    var o={};
-    [['hdr','.site-header'],['out','#cf-yahoo-outage'],['pb','#cf-period-bar'],['dws','#lv-div-sec'],['lss','#lv-ls-sec'],['view','#view-leagues']].forEach(function(p){
-      try{var e=document.querySelector(p[1]);if(!e){o[p[0]]=null;return;}var r=e.getBoundingClientRect();o[p[0]]=Math.round(r.top)+'/'+Math.round(r.height);}catch(x){}
-    });
-    try{o.bodyPad=getComputedStyle(document.body).paddingTop;}catch(x){}
-    return o;
-  }
+  try{W.addEventListener('touchend',function(){JR.lastInput=Date.now()+1500;},{passive:true});}catch(e){} /* momentum after lift */
   function jrFind(v,k){var ns=v.querySelectorAll('[data-lv-key]');for(var i=0;i<ns.length;i++){if(ns[i].getAttribute('data-lv-key')===k)return ns[i];}return null;}
   function jrStart(){
-    if(JR.on)return;JR.on=true;JR.prev=null;
-    var node=null,lastPick=0,lastB=null,lastBAt=0;
+    JR.until=Date.now()+1500;
+    if(JR.on)return;JR.on=true;
+    var node=null,prev=null;
     (function tick(){
-      if(!W.__cfLeaguesOpen){JR.on=false;return;}
+      if(!W.__cfLeaguesOpen||Date.now()>JR.until){JR.on=false;return;}
       try{
-        var v=document.getElementById('view-leagues'),now=Date.now();
-        if(v&&v.classList.contains('lv-loading')){node=null;JR.prev=null;requestAnimationFrame(tick);return;}
-        /* Re-pick the top-of-screen element a few times a second (or when a
-           repaint detached it); measure just that one node every frame. */
-        if(v&&(!node||!node.isConnected||now-lastPick>300)){
-          var k0=node&&node.getAttribute('data-lv-key');
-          var a=(!node||node.isConnected)?anchorSnap(v):null;
-          node=(a?jrFind(v,a.k):null)||(k0?jrFind(v,k0):null);lastPick=now;
-        }
-        if(now-lastBAt>250){lastB=jrBlocks();lastBAt=now;}
-        if(node){
-          var k=node.getAttribute('data-lv-key'),top=node.getBoundingClientRect().top,y=W.scrollY,H=document.documentElement.scrollHeight;
-          if(JR.prev&&JR.prev.k===k){
-            var quiet=(now-JR.lastInput)>400;
-            /* Two different events. LAYOUT shift: the element's DOCUMENT position
-               moved (something above it changed height) — counter it on the spot,
-               i.e. the scroll anchoring Safari doesn't do natively. SCROLL jump:
-               the page scrolled with no reader input — can't be undone safely
-               (could be deliberate), so it's only recorded. */
-            var dy=y-JR.prev.y,dTop=top-JR.prev.top;
-            var kind=null,mag=0;
-            /* Scroll unchanged but the element moved on screen = layout above it
-               changed height: scroll by the same amount so it stays put. (A move
-               of the scroll position with the element held in place is our own
-               anchor restore doing its job — nothing to do.) */
-            if(quiet&&Math.abs(dy)<1&&Math.abs(dTop)>=2){kind='layout';mag=dTop;try{W.scrollBy(0,dTop);}catch(e){}y=W.scrollY;top=node.getBoundingClientRect().top;}
-            else if(quiet&&Math.abs(dy)>=1&&Math.abs(dTop)>=6){kind='scroll';mag=dTop;}
-            if(kind&&Math.abs(mag)>=6&&JR.sent<25){
-              JR.sent++;
-              var info={kind:kind,d:Math.round(mag),dy:Math.round(W.scrollY-JR.prev.y),dH:H-JR.prev.H,y:Math.round(W.scrollY),H:H,k:String(k).slice(0,80),
-                msSinceRender:JR.lastRender?(now-JR.lastRender):null,anchorDy:JR.lastRenderDy,
-                before:JR.prev.b,after:jrBlocks(),vw:W.innerWidth,vh:W.innerHeight};
-              try{if(typeof cfTrack==='function'&&adminOk())cfTrack('lv_jump',info);}catch(e){}
-              try{(W.__lvJumpLog=W.__lvJumpLog||[]).push(info);}catch(e){}
+        var v=document.getElementById('view-leagues');
+        if(!v||v.classList.contains('lv-loading')){node=null;prev=null;}
+        else{
+          if(!node||!node.isConnected){var a=anchorSnap(v);node=a?jrFind(v,a.k):null;prev=null;}
+          if(node){
+            var top=node.getBoundingClientRect().top,y=W.scrollY;
+            if(prev&&(Date.now()-JR.lastInput)>400&&Math.abs(y-prev.y)<1&&Math.abs(top-prev.top)>=2){
+              try{W.scrollBy(0,top-prev.top);}catch(e){}
+              y=W.scrollY;top=node.getBoundingClientRect().top;
             }
+            prev={top:top,y:y};
           }
-          JR.prev={k:k,top:top,y:y,H:H,b:lastB};
-        }else JR.prev=null;
+        }
       }catch(e){}
       requestAnimationFrame(tick);
     })();
+  }
+  /* Live dots breathe via their OWN opacity animation (no subtree-wide
+     custom-property animation on the whole view). Phase-locked to the wall
+     clock so every dot — including ones a refresh re-creates mid-cycle — stays
+     in sync: delay = -(now mod period). */
+  function phaseDots(v){
+    try{Array.prototype.forEach.call(v.querySelectorAll('.lv-dot:not([data-ph])'),function(d){d.style.animationDelay='-'+(Date.now()%2600)+'ms';d.setAttribute('data-ph','1');});}catch(e){}
   }
   function renderInner(v){
     var empty=document.getElementById('lv-empty'),ds=document.getElementById('lv-div-sec'),db=document.getElementById('lv-div-body'),ls=document.getElementById('lv-ls-sec'),lb=document.getElementById('lv-ls-body');
@@ -24342,6 +24313,53 @@ if(typeof window.cfRegisterView==='function'){
     }catch(e){}
   }
   W.__cfRenderLeagues=render;
+  /* ── Unclean-restart logger (OWNER ONLY, diagnostic, 2026-09-24) ──
+     The app has been restarting to the boot splash with no deploy behind it.
+     A clean exit (deploy auto-reload, manual reload, closing the app) fires
+     pagehide and marks the heartbeat clean; a WebKit content-process crash or
+     an iOS kill does not. Every 5s we stamp {time, view, visibility, uptime}
+     into localStorage; on the next boot, a heartbeat left NOT clean is logged
+     as app_restart_unclean — vis:'visible' with a small gap means it died in
+     front of you (crash), vis:'hidden' means iOS reclaimed it in the
+     background. Remove once the cause is confirmed. */
+  (function(){
+    var KEY='cf_hb_v1',T0=Date.now(),prev=null;
+    try{prev=JSON.parse(localStorage.getItem(KEY)||'null');}catch(e){}
+    if(prev&&!prev.clean){
+      var gap=Date.now()-(+prev.t||0);
+      setTimeout(function(){
+        try{if(adminOk()&&typeof cfTrack==='function')cfTrack('app_restart_unclean',{gap:gap,view:prev.view,vis:prev.vis,up:prev.up,lv:!!prev.lv,drawer:prev.dr||null});}catch(e){}
+      },8000);
+    }
+    function beat(clean){
+      try{
+        var av=(typeof W.cfActiveView==='function'&&W.cfActiveView())||null;
+        var dr=null;try{dr=(W.BottomSheet&&W.BottomSheet.isOpen&&W.BottomSheet.isOpen()&&W.BottomSheet.getOwner)?String(W.BottomSheet.getOwner()||'').slice(0,40):null;}catch(x){}
+        localStorage.setItem(KEY,JSON.stringify({t:Date.now(),view:av?av.id:'board',vis:document.visibilityState,up:Date.now()-T0,lv:!!W.__cfLeaguesOpen,dr:dr,clean:!!clean}));
+      }catch(e){}
+    }
+    beat(false);
+    setInterval(function(){beat(false);},5000);
+    /* Boot-stall watchdog (OWNER ONLY for now): Matt saw Home stuck on the
+       loading skeleton indefinitely after one of these restarts. If 25s after
+       boot the board skeleton is still up with no data, log boot_stall (was a
+       load still in flight?) and force ONE fresh load by releasing the
+       in-flight lock that every later load would otherwise coalesce onto. */
+    setTimeout(function(){
+      try{
+        var sk=document.getElementById('board-skeleton');
+        var stuck=!!(sk&&sk.style.display==='block'&&!W.__conflictedLastData);
+        if(!stuck||!adminOk())return;
+        var inflight=!!W.__conflictedInflight;
+        try{if(typeof cfTrack==='function')cfTrack('boot_stall',{inflight:inflight,vis:document.visibilityState});}catch(e){}
+        try{isFetching=false;}catch(e){}
+        W.__conflictedInflight=null;
+        if(typeof run==='function')run();
+      }catch(e){}
+    },25000);
+    document.addEventListener('visibilitychange',function(){beat(false);});
+    W.addEventListener('pagehide',function(){beat(true);});
+  })();
   /* ── Loading skeleton (Matt, 2026-09-24) ──
      Same shimmer (.skel) as Home's period-change skeleton, shaped like this
      page: a Division Watch frame with two league cards and a League Scores
