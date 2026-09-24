@@ -24159,13 +24159,18 @@ if(typeof window.cfRegisterView==='function'){
     if(anchor&&anchor.parentNode)anchor.parentNode.insertBefore(v,anchor.nextSibling);else document.body.appendChild(v);
     v.addEventListener('click',function(e){
       var sb=e.target.closest('[data-lv-sec]');
-      if(sb){var id=sb.getAttribute('data-lv-sec'),now=SEC[id]===false;SEC[id]=now;sb.setAttribute('aria-expanded',now?'true':'false');var bd=document.getElementById(id==='div'?'lv-div-body':'lv-ls-body');if(bd)bd.hidden=!now;return;}
+      if(sb){var id=sb.getAttribute('data-lv-sec'),now=SEC[id]===false;SEC[id]=now;sb.setAttribute('aria-expanded',now?'true':'false');var bd=document.getElementById(id==='div'?'lv-div-body':'lv-ls-body');if(bd){bd.hidden=!now;slide(bd,now);}return;}
+      /* League Scores league rows: the shared module's own button listener has
+         already flipped panel.hidden by the time this bubbles up — just animate
+         to the new state. (Home's copy of League Scores is untouched.) */
+      var lsb=e.target.closest('.cf-ls-hbtn');
+      if(lsb){var lsl=lsb.closest('.cf-ls-league'),pn=lsl&&lsl.querySelector('.cf-ls-panel');if(pn)slide(pn,!pn.hidden);return;}
       var pr=e.target.closest('[data-lv-pl]');
       if(pr){openPlayer(pr.getAttribute('data-lv-pl'));return;}
       var tt=e.target.closest('[data-lv-tgtog]');
       if(tt){toggleTg(tt);return;}
       var t=e.target.closest('[data-lv-tog]');
-      if(t){var card=t.closest('.lv-card');if(card){var nm=card.getAttribute('data-lv-lg'),now=card.getAttribute('data-open')!=='true';OPEN[nm]=now;card.setAttribute('data-open',now?'true':'false');var b=card.querySelector('.lv-hd');if(b)b.setAttribute('aria-expanded',now?'true':'false');}return;}
+      if(t){var card=t.closest('.lv-card');if(card){var nm=card.getAttribute('data-lv-lg'),now=card.getAttribute('data-open')!=='true';OPEN[nm]=now;card.setAttribute('data-open',now?'true':'false');var b=card.querySelector('.lv-hd');if(b)b.setAttribute('aria-expanded',now?'true':'false');slide(card.querySelector('.lv-body'),now);}return;}
       var rw=e.target.closest('[data-lv-row]');if(rw)openRow(rw);
     });
     v.addEventListener('keydown',function(e){if(e.key!=='Enter'&&e.key!==' ')return;var pr=e.target.closest&&e.target.closest('[data-lv-pl]');if(pr){e.preventDefault();openPlayer(pr.getAttribute('data-lv-pl'));return;}var tg=e.target.closest&&e.target.closest('[data-lv-tgtog]');if(tg){e.preventDefault();toggleTg(tg);return;}var rw=e.target.closest&&e.target.closest('[data-lv-row]');if(rw){e.preventDefault();openRow(rw);}});
@@ -24175,6 +24180,31 @@ if(typeof window.cfRegisterView==='function'){
     var g=h.closest('.lv-tg');if(!g)return;
     var k=g.getAttribute('data-lv-tg'),now=g.getAttribute('data-open')!=='true';
     TGOPEN[k]=now;g.setAttribute('data-open',now?'true':'false');h.setAttribute('aria-expanded',now?'true':'false');
+    slide(g.querySelector('.lv-tg-b'),now);
+  }
+  /* ── Fold animation for every collapsible on this page (Matt, 2026-09-24) ──
+     Same motion as Home's Loyalties fold (the scope row that folds away as the
+     Rooting Card slides in): .32s var(--ease-out) on height, .2s fade. The
+     open/closed STATE flips instantly as before (so chevrons turn at once and a
+     refresh mid-fold just lands on the final state); this only animates the
+     body between heights. An inline display:block holds a closing body visible
+     for the fold, then is cleared so the CSS closed state takes over.
+     Reduced-motion users get the instant toggle. */
+  function slide(el,open){
+    if(!el)return;
+    try{if(W.matchMedia&&W.matchMedia('(prefers-reduced-motion: reduce)').matches)return;}catch(e){}
+    if(el.__lvFin)el.__lvFin();
+    var st=el.style;
+    st.display='block';
+    var full=el.scrollHeight;
+    st.overflow='hidden';st.height=(open?0:full)+'px';st.opacity=open?'0':'1';
+    void el.offsetHeight;
+    st.transition='height .32s var(--ease-out,cubic-bezier(.2,.8,.2,1)), opacity .2s var(--ease-out,ease-out)';
+    st.height=(open?full:0)+'px';st.opacity=open?'1':'0';
+    var tm=null;
+    var fin=function(){el.removeEventListener('transitionend',te);clearTimeout(tm);el.__lvFin=null;st.transition='';st.height='';st.overflow='';st.opacity='';st.display='';};
+    var te=function(ev){if(ev.target===el&&ev.propertyName==='height')fin();};
+    el.addEventListener('transitionend',te);tm=setTimeout(fin,480);el.__lvFin=fin;
   }
   function openRow(el){
     try{
