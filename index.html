@@ -23684,8 +23684,10 @@ if(typeof window.cfRegisterView==='function'){
 
 /* Root for — guilt-free players */
 /* Clear break between STANDINGS and Root against your rivals (Matt, 2026-09-24). */
-#view-leagues .lv-root{margin:14px -10px 0;padding:14px 10px 0;border-top:2px solid color-mix(in oklab,var(--navy-300) 70%,transparent);}
-#view-leagues .lv-root-h{font:700 10px/1 var(--font-sans);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-900);}
+#view-leagues .lv-root{margin:14px -10px 0;padding:16px 10px 0;border-top:2px solid color-mix(in oklab,var(--navy-300) 70%,transparent);}
+#view-leagues .lv-root-h{font:800 12.5px/1 var(--font-sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-900);}
+/* No subtext (v267): the first matchup group sits 12px below the heading. */
+#view-leagues .lv-root-h+.lv-tg{margin-top:12px;}
 #view-leagues .lv-root-s{font:500 11px/1.35 var(--font-sans);color:var(--ink-500);margin-top:4px;}
 #view-leagues .lv-tg{margin-top:8px;background:var(--paper-deep);border:1px solid var(--line);border-radius:10px;padding:9px 10px 6px;}
 #view-leagues .lv-tg-h{display:grid;grid-template-columns:minmax(0,1fr) 14px;gap:8px;align-items:center;padding-bottom:6px;border-bottom:1px solid var(--line-soft);cursor:pointer;}
@@ -24105,7 +24107,7 @@ if(typeof window.cfRegisterView==='function'){
         +'<div class="lv-tg-h" role="button" tabindex="0" data-lv-tgtog aria-expanded="'+tOpen+'"><div style="min-width:0"><div class="lv-tg-rv">'+rvName+'</div><div class="lv-tg-for"><span>Cheer for</span><span class="lv-tg-nm">'+esc(mT(name))+'</span>'+(wp?'<span class="lv-tg-wp">· '+wp+' to win</span>':'')+'</div></div><span class="lv-tg-chev">'+CHEV+'</span></div>'
         +'<div class="lv-tg-b">'+inner+'</div></div>';
     }).join('');
-    return '<div class="lv-root"><div class="lv-root-h" data-lv-key="dv:'+esc(M.c.leagueName)+':root">Root against your rivals</div><div class="lv-root-s">None of these players can hurt you in your other leagues.</div>'+html+'</div>';
+    return '<div class="lv-root"><div class="lv-root-h" data-lv-key="dv:'+esc(M.c.leagueName)+':root">Root against your rivals</div>'+html+'</div>';
   }
 
   /* ══ Render ══ */
