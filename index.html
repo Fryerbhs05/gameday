@@ -8656,6 +8656,11 @@ function hideBoardSkeleton(){
 /* Call right before run() on a user-initiated period change. */
 function schedulePeriodSkeleton(){
   clearPeriodSkeleton();
+  /* Leagues view has its own page-shaped skeleton (same 150ms gate). */
+  if(window.__cfLeaguesOpen&&!isDemoMode&&typeof window.__cfLeaguesSkel==='function'){
+    __skelTimer=setTimeout(()=>{__skelTimer=null;window.__cfLeaguesSkel(true);},150);
+    return;
+  }
   /* Only meaningful when the board is already on screen — a cold load uses the
      full loading panel, and other views (exposure/account) manage themselves. */
   const boardEl=document.getElementById('board');
@@ -8667,6 +8672,7 @@ function schedulePeriodSkeleton(){
 function clearPeriodSkeleton(){
   if(__skelTimer){clearTimeout(__skelTimer);__skelTimer=null;}
   hideBoardSkeleton();
+  try{if(typeof window.__cfLeaguesSkel==='function')window.__cfLeaguesSkel(false);}catch(e){}
 }
 
 function updateNavUI(){
@@ -23607,6 +23613,15 @@ if(typeof window.cfRegisterView==='function'){
 #view-leagues{display:none;max-width:560px;margin:0 auto;padding:0 var(--gutter,16px) 104px;color:var(--ink-700);font-family:var(--font-sans);}
 #view-leagues .lv-sec{border:1px solid var(--navy-300);border-radius:var(--radius-lg);padding:14px 12px 12px;background:var(--paper);}
 #view-leagues .lv-sec+.lv-sec{margin-top:14px;}
+#view-leagues.lv-loading > .lv-sec,#view-leagues.lv-loading > .lv-empty{display:none!important;}
+#view-leagues #lv-skel .lv-sec+.lv-sec{margin-top:14px;}
+#view-leagues .lv-skt{width:150px;height:20px;margin:2px auto 14px;}
+#view-leagues .lv-skc{background:var(--tile-bg);border:1px solid var(--tile-line);border-radius:var(--radius-lg);padding:14px 12px;}
+#view-leagues .lv-skc+.lv-skc{margin-top:10px;}
+#view-leagues .lv-sk1{width:55%;height:16px;}
+#view-leagues .lv-sk2{width:78%;height:22px;margin-top:12px;}
+#view-leagues .lv-skl{height:44px;border-radius:12px;}
+#view-leagues .lv-skl+.lv-skl{margin-top:8px;}
 #view-leagues .lv-sec{transition:border-color 1.3s var(--ease-out,ease-out);}
 /* LIVE-button sync flash — same ice blue as the Home frames (--live-ice). */
 #view-leagues .lv-sec.synced-flash{border-color:var(--live-ice)!important;transition:none;}
@@ -23652,7 +23667,10 @@ if(typeof window.cfRegisterView==='function'){
 #view-leagues .lv-row.is-tap:hover{background:rgba(255,255,255,.03);}
 #view-leagues .lv-row.is-me{background:rgba(87,144,192,.12);border-radius:8px;border-bottom-color:transparent;}
 #view-leagues .lv-rk{font:600 11px/1 var(--font-mono);color:var(--ink-500);text-align:center;}
-#view-leagues .lv-nm{font:600 13px/17px var(--font-sans);color:var(--ink-700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#view-leagues .lv-nm{font:600 13px/17px var(--font-sans);color:var(--ink-700);white-space:nowrap;display:flex;align-items:baseline;gap:5px;min-width:0;}
+/* Record rides after the name and never truncates; a long name ellipsizes first. */
+#view-leagues .lv-nm-t{min-width:0;overflow:hidden;text-overflow:ellipsis;}
+#view-leagues .lv-rec{flex:none;font:500 12px/17px var(--font-sans);color:var(--ink-500);}
 #view-leagues .lv-row.is-me .lv-nm{font-weight:800;color:var(--ink-900);}
 #view-leagues .lv-sub{font:500 11px/15px var(--font-sans);color:var(--ink-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #view-leagues .lv-sub .m{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-700);}
@@ -24078,11 +24096,11 @@ if(typeof window.cfRegisterView==='function'){
       hero='<span class="k '+cls+'">'+nLost+' of '+rivals.length+'</span><span class="t">division rival'+(rivals.length===1?'':'s')+' '+(past?'lost':'projected to lose')+'</span>';
     }
     var rows=M.rows.map(function(r,ri){
-      var g=r.g,sub=esc(recTxt(r.T)),sub2='',pill='<span class="lv-pill">—</span>';
+      var g=r.g,sub='',sub2='',pill='<span class="lv-pill">—</span>';
       if(g){
         var vs=(g.opp===M.D.myId)?'you':esc(mT(g.oppName));
         var rvr=!r.isMe&&g.opp!==M.D.myId&&M.D.teams[g.opp]&&M.D.teams[g.opp].div===M.me.div;
-        sub+=' · vs '+vs+(rvr?' · <span class="rv">rival vs rival</span>':'');
+        sub+='vs '+vs+(rvr?' · <span class="rv">rival vs rival</span>':'');
         if(g.fin){
           sub2='<div class="lv-sub">Final · <span class="m">'+g.my.toFixed(2)+'–'+g.op.toFixed(2)+'</span></div>';
           var res=(g.my>g.op)?'W':((g.my<g.op)?'L':'T');
@@ -24092,10 +24110,10 @@ if(typeof window.cfRegisterView==='function'){
           var win=g.p>=0.5,toss=g.p>=0.4&&g.p<=0.6,gd=r.isMe?win:!win;
           pill='<span class="lv-pill '+(gd?'good':'bad')+(toss?' toss':'')+'">'+(win?'W':'L')+' · '+pctTxt(g.p)+'</span>';
         }
-      }else sub+=' · no game this week';
+      }else sub+='No game this week';
       var tap=!!(g&&g.row&&g.row.drawer);
       return '<div class="lv-row'+(r.isMe?' is-me':'')+(tap?' is-tap':'')+'" data-lv-key="dv:'+esc(name)+':'+esc(r.id)+'"'+(tap?' role="button" tabindex="0" data-lv-row="'+mi+':'+ri+'"':'')+'>'
-        +'<span class="lv-rk">'+r.pos+'</span><div style="min-width:0"><div class="lv-nm">'+esc(mT(r.T.name))+'</div><div class="lv-sub">'+sub+'</div>'+sub2+'</div>'+pill+'</div>';
+        +'<span class="lv-rk">'+r.pos+'</span><div style="min-width:0"><div class="lv-nm"><span class="lv-nm-t">'+esc(mT(r.T.name))+'</span><span class="lv-rec">('+esc(recTxt(r.T))+')</span></div><div class="lv-sub">'+sub+'</div>'+sub2+'</div>'+pill+'</div>';
     }).join('');
     var note=M.isHist?'<div class="lv-note">Records are season-to-date as of today, not as of Week '+esc(M.week)+'.</div>':'';
     var root=M.isHist?'':rootHTML(M,data,ix);
@@ -24228,6 +24246,7 @@ if(typeof window.cfRegisterView==='function'){
       if(!W.__cfLeaguesOpen){JR.on=false;return;}
       try{
         var v=document.getElementById('view-leagues'),now=Date.now();
+        if(v&&v.classList.contains('lv-loading')){node=null;JR.prev=null;requestAnimationFrame(tick);return;}
         /* Re-pick the top-of-screen element a few times a second (or when a
            repaint detached it); measure just that one node every frame. */
         if(v&&(!node||!node.isConnected||now-lastPick>300)){
@@ -24271,9 +24290,11 @@ if(typeof window.cfRegisterView==='function'){
   function renderInner(v){
     var empty=document.getElementById('lv-empty'),ds=document.getElementById('lv-div-sec'),db=document.getElementById('lv-div-body'),ls=document.getElementById('lv-ls-sec'),lb=document.getElementById('lv-ls-body');
     var data=lastData();
-    if(!data||data.noData||data.offseasonMode){
+    if(!data){W.__cfLeaguesSkel(true);return;}   /* cold load: shimmer, not a sentence */
+    W.__cfLeaguesSkel(false);
+    if(data.noData||data.offseasonMode){
       ds.hidden=true;ls.hidden=true;empty.hidden=false;
-      empty.textContent=!data?'Pulling your leagues…':'No league games this week.';
+      empty.textContent='No league games this week.';
       return;
     }
     empty.hidden=true;
@@ -24297,6 +24318,31 @@ if(typeof window.cfRegisterView==='function'){
     }catch(e){}
   }
   W.__cfRenderLeagues=render;
+  /* ── Loading skeleton (Matt, 2026-09-24) ──
+     Same shimmer (.skel) as Home's period-change skeleton, shaped like this
+     page: a Division Watch frame with two league cards and a League Scores
+     frame with four league bars. Shown on a cold load (no data yet) and on a
+     user period change (schedulePeriodSkeleton -> 150ms gate, so cached/instant
+     loads never flash it); cleared by clearPeriodSkeleton, which renderBoard
+     runs the moment data lands. While it's up, the real sections are hidden
+     and the jump stabilizer stands down (the swap is not a "jump"). */
+  W.__cfLeaguesSkel=function(on){
+    var v=document.getElementById('view-leagues');if(!v)return;
+    var h=document.getElementById('lv-skel');
+    if(on){
+      if(!h){
+        var card='<div class="lv-skc"><div class="skel lv-sk1"></div><div class="skel lv-sk2"></div></div>';
+        var bar='<div class="skel lv-skl"></div>';
+        h=document.createElement('div');h.id='lv-skel';h.setAttribute('aria-hidden','true');
+        h.innerHTML='<section class="lv-sec"><div class="skel lv-skt"></div>'+card+card+'</section>'
+          +'<section class="lv-sec"><div class="skel lv-skt"></div>'+bar+bar+bar+bar+'</section>';
+        v.insertBefore(h,v.firstChild);
+      }
+      h.style.display='block';v.classList.add('lv-loading');
+    }else{
+      if(h)h.style.display='none';v.classList.remove('lv-loading');
+    }
+  };
   /* LIVE button in the header's top-right, exactly as Home shows it (hideAll
      hides it on every view switch; showBoard re-shows it the same way). */
   function showLive(){try{var rb=document.getElementById('refresh-btn');if(rb)rb.style.display='inline-flex';}catch(e){}}

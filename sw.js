@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v254'; // v254: Home League Scores also sorted by priority ranking (stable across refreshes) (index.html, Matt, 2026-09-24)
+const CACHE_VERSION = 'conflicted-v256'; // v256: Division Watch standings - record in parentheses after team name, second line starts 'vs' (index.html, Matt, 2026-09-24)
 const _prev_v225 = 'v225: League Scores ESPN matchup drawer sorts starters into canonical slot order so center POS pills stop stacking mismatched positions (cfEspnAllMatchups, Matt, 2026-09-21)'
 // v223: Matchup drawer -- LIVE players get a synchronized breathing ice dot on their points, splitting live from final (both were white); pre-kickoff dim unchanged (index.html, Matt, 2026-09-17)
 // v220: FIX empty schedule — ESPN dropped YYYYMMDD range queries (HTTP 400), which emptied Watch Priority AND the Conflict Card (shared fetchWeekGames). Switched to dates=<year>&seasontype=2&week=<N>, verified to return correct per-week slates
