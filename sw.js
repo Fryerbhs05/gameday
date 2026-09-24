@@ -13,7 +13,7 @@
    HTML document.
    ============================================================ */
 
-const CACHE_VERSION = 'conflicted-v269'; // v269: Leagues open to all users; League Scores off Home; Conflict Card admin-only in …More (index.html, Matt, 2026-09-24)
+const CACHE_VERSION = 'conflicted-v271'; // v271: …More sheet — owner sees the exact normal-user grid first, then gated/in-progress tiles (Conflict, Shop, Partners) on a separate dashed-divider row at the bottom; desktop sheet shows just that row. // v270: Experiment mode fully removed — admin …More 'Experiment' tile, TestMode2026 sign-in code, amber ribbon, Preview-real-nav, Replay Mode, impact-animation test harness, and the experiment-only drawer Conflict Card row. Normal-user behavior unchanged; one-time localStorage cleanup of conflicted_experiment + conflicted_replay_snapshot_v1. // v269: Leagues open to all users; League Scores off Home; Conflict Card admin-only in …More (index.html, Matt, 2026-09-24)
 const _prev_v225 = 'v225: League Scores ESPN matchup drawer sorts starters into canonical slot order so center POS pills stop stacking mismatched positions (cfEspnAllMatchups, Matt, 2026-09-21)'
 // v223: Matchup drawer -- LIVE players get a synchronized breathing ice dot on their points, splitting live from final (both were white); pre-kickoff dim unchanged (index.html, Matt, 2026-09-17)
 // v220: FIX empty schedule — ESPN dropped YYYYMMDD range queries (HTTP 400), which emptied Watch Priority AND the Conflict Card (shared fetchWeekGames). Switched to dates=<year>&seasontype=2&week=<N>, verified to return correct per-week slates

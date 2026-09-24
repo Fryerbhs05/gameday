@@ -2242,43 +2242,6 @@
       #demo-ribbon .dr-exit-short { display: inline; }
     }
 
-    /* Pinned experiment ribbon — same chrome as the demo ribbon, but an amber
-       accent so it's instantly distinguishable from demo mode. Unlocks via a
-       secret code in the sign-in box; persists across reloads until exited. */
-    #experiment-ribbon {
-      position: fixed; left: 0; right: 0; bottom: 0; z-index: 9000;
-      display: none; align-items: center; justify-content: center; gap: 14px;
-      padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
-      background: var(--surf-panel-2); border-top: 2px solid var(--surf-amber);
-      box-shadow: 0 -6px 20px rgba(0,0,0,0.28);
-      font: 500 13px/1.3 var(--font-sans); color: var(--surf-text-soft);
-    }
-    body.experiment-active #experiment-ribbon { display: flex; }
-    body.experiment-active { padding-bottom: 64px; }
-    #experiment-ribbon .xr-text { color: var(--surf-amber-text); }
-    #experiment-ribbon .xr-exit {
-      margin-left: 4px; background: var(--surf-amber); color: var(--surf-panel-2);
-      border: 0; border-radius: var(--radius-md); cursor: pointer;
-      font: 600 13px/1 var(--font-sans); padding: 9px 16px;
-      transition: background 0.15s var(--ease-out);
-    }
-    #experiment-ribbon .xr-exit:hover, #experiment-ribbon .xr-exit:active { background: #CC9526; }
-    #experiment-ribbon .xr-link {
-      background: transparent; color: var(--surf-amber-text);
-      border: 1px solid var(--surf-amber); border-radius: var(--radius-md); cursor: pointer;
-      font: 600 13px/1 var(--font-sans); padding: 8px 14px;
-      transition: background 0.15s var(--ease-out), color 0.15s var(--ease-out);
-    }
-    #experiment-ribbon .xr-link:hover, #experiment-ribbon .xr-link:active { background: var(--surf-amber); color: var(--surf-panel-2); }
-    @media (max-width: 560px) {
-      #experiment-ribbon { gap: 10px; padding-left: 12px; padding-right: 12px; }
-      #experiment-ribbon .xr-text { display: none; }
-    }
-    /* Convenience hook: anything tagged .exp-only stays hidden unless experiment
-       mode is active. Lets you gate experimental UI in pure markup/CSS, no JS. */
-    .exp-only { display: none !important; }
-    body.experiment-active .exp-only { display: revert !important; }
-
     /* Convenience hook: anything tagged .admin-only stays hidden unless the
        signed-in account is in ADMIN_EMAILS (body.is-admin, synced on an
        interval next to .nav-signedin). Used to keep the not-yet-built site
@@ -2293,15 +2256,14 @@
        persistent mobile bar, with a More tab that opens a bottom sheet for
        About + Site links. Shown in-app (not the landing/setup screen) on a
        mobile-width viewport, for ALL users — promoted out of the TestMode2026
-       experiment gate 2026-06-21. Parks just above whichever pinned bottom
-       ribbon is active via --exp-ribbon-h (measured in JS): the experiment
-       ribbon, the demo ribbon, or — for a normal user with no ribbon —
-       --exp-ribbon-h is 0, so the bar drops flush to the bottom edge and
-       instead reserves the iOS home-indicator inset itself. */
+       experiment gate 2026-06-21. --exp-ribbon-h is a legacy offset that is
+       always 0 (the experiment ribbon it measured was removed 2026-09-24), so the
+       bar sits flush to the bottom edge and reserves the iOS home-indicator
+       inset itself. */
     /* Tab-bar height (1.5× the original 58px). Kept in a var so the content
        padding reservation and the PWA install banner can sit clear of it.
-       --exp-ribbon-h defaults to 0 here so prod (no ribbon) never over-reserves
-       before the JS measure runs; JS overrides it when a ribbon is active. */
+       --exp-ribbon-h is fixed at 0 (legacy name — kept so the calc()s that
+       reference it elsewhere stay valid). */
     :root { --cbnav-h: 87px; --exp-ribbon-h: 0px; }
     #exp-bottom-nav { display: none; }
     #exp-bottom-nav {
@@ -2325,10 +2287,8 @@
     }
     /* Hidden: travel own height + the ribbon gap below it, fully off-screen. */
     #exp-bottom-nav.cbnav-hidden { transform: translateY(calc(100% + var(--exp-ribbon-h, 0px) + 16px)); }
-    /* Flush at the screen edge → clear the home indicator. When stacked above
-       a pinned ribbon (experiment OR demo), that ribbon already owns the
-       safe-area inset, so the bar must NOT add it again. */
-    body:not(.experiment-active) #exp-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
+    /* Flush at the screen edge → clear the home indicator. */
+    body #exp-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
     .cbnav-tab {
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
       padding: 6px 2px 8px; background: transparent; border: 0; cursor: pointer;
@@ -2348,15 +2308,10 @@
     .cbnav-ico svg { width: 23px; height: 23px; display: block; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .cbnav-tab:active .cbnav-ico { transform: scale(0.92); }
     .cbnav-tab.is-on { color: var(--navy-700); }
-    /* Experiment swap: Conflict Card takes Schedule's slot in the bar for
-       experiment users; Schedule moves to the More sheet. Normal users keep
-       Schedule in the bar and never see Conflict here. */
     /* ── Bottom bar layout — RELEASED TO ALL in-app mobile users (2026-07-04) ──
        Was experiment-gated; now every user gets:
          Schedule · Snapshot · Home(center hub) · Conflict · More
-       Leaders + Account leave the bar and move into the …More sheet. Note:
-       this is the NAV LAYOUT only — experiment MODE itself stays gated (the
-       TestMode code + the admin-only …More "Experiment" tile are unchanged). */
+       Leaders + Account leave the bar and move into the …More sheet. */
     [data-exp-tab="account"] { display: none; }     /* Account  → …More sheet */
     /* Leaders replaced Exposure in the far-left slot (2026-07-14); Exposure
        moved to the …More sheet. Then Schedule replaced Leaders in that same
@@ -2403,20 +2358,12 @@
       /* Base content clearance for a normal user: no ribbon, so reserve just the
          bar height + the iOS home-indicator inset (the bar carries that inset). */
       body:not(.nav-landing) { padding-bottom: calc(var(--cbnav-h) + env(safe-area-inset-bottom, 0px) + 8px); }
-      /* When the pinned experiment ribbon is active it sits below the bar and
-         owns the safe-area inset, so reserve ribbon height + bar instead. (Demo
-         mode's exit pill moved to the header, so demo uses the base rule.)
-         Two classes → outranks the single-class base rule above. */
-      body.experiment-active:not(.nav-landing) { padding-bottom: calc(var(--exp-ribbon-h, 64px) + var(--cbnav-h) + 8px); }
       /* !important to beat the inline display set by updateHeaderAuthControls().
          The tab bar replaces the hamburger on mobile; More holds the site links. */
       body:not(.nav-landing) .site-header__menu-btn { display: none !important; }
       /* The three views now live on the tab bar — drop the drawer's redundant
          "Views" section so More shows only Account + Site links. */
       body:not(.nav-landing) .exp-tabbar-dupe { display: none !important; }
-      /* Float the experiment impact-test harness above the tab bar — experiment
-         mode only, so this one stays gated to body.experiment-active. */
-      body.experiment-active:not(.nav-landing) #impact-test-ctl { bottom: calc(var(--exp-ribbon-h, 64px) + 74px); }
       /* (The old floating install banner's tab-bar offset lived here. The install
          prompt is now the shared BottomSheet, which the sheet-open rules below
          already lift above the tab bar — no dedicated offset needed.) */
@@ -2442,6 +2389,9 @@
     .cbmore-ico { display: flex; align-items: center; justify-content: center; width: 44px; height: 30px; }
     .cbmore-ico svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .cbmore-label { font: 700 10px/1 var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; }
+    /* Owner-only gated row at the bottom of the sheet (see renderMoreSheet). */
+    .cbmore-admin { margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--line); }
+    .cbmore-admin-head { font: 600 9px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-500); text-align: center; padding: 0 4px 10px; }
     .cbmore-badge { font: 600 8px/1 var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-500); border: 1px solid var(--line); border-radius: 10px; padding: 2px 6px; }
 
     /* ── Bottom-nav / sheet occlusion (task #4) ──────────────────────────────
@@ -2449,32 +2399,6 @@
        be covered at the bottom. While any sheet is open, slide the bar away so it
        never blocks the sheet's content. */
     body.sheet-open #exp-bottom-nav { transform: translateY(calc(100% + var(--exp-ribbon-h, 0px) + 16px)); }
-    /* The experiment impact-test harness floats bottom-right; keep it off the sheet too. */
-    body.sheet-open #impact-test-ctl { display: none !important; }
-    /* Sheets render below the experiment ribbon (z 9000), so lift the whole sheet
-       above it in experiment mode — otherwise the bottom row hides under the
-       ribbon even when the content is short (padding only helps when scrolling). */
-    body.experiment-active .sheet,
-    body.experiment-active .exp-sheet { bottom: var(--exp-ribbon-h, 0px); }
-
-    /* "Preview real nav" — strips the experiment chrome (banner + impact-test
-       harness) for 10s so the tab bar drops to its true production position and
-       reserves the iOS home-indicator inset, exactly as a normal user sees it.
-       The 350ms height loop measures the hidden banner as 0 → bar goes flush. */
-    body.exp-nav-preview #experiment-ribbon,
-    body.exp-nav-preview #impact-test-ctl { display: none !important; }
-    body.exp-nav-preview #exp-bottom-nav { padding-bottom: env(safe-area-inset-bottom, 0px); }
-    #exp-nav-preview-chip { display: none; }
-    body.exp-nav-preview #exp-nav-preview-chip {
-      display: inline-block; white-space: nowrap;
-      position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%;
-      transform: translateX(-50%); z-index: 9100;
-      background: var(--surf-amber); color: var(--surf-panel-2);
-      border: 0; cursor: pointer; font: 600 12px/1 var(--font-mono);
-      padding: 9px 14px; border-radius: var(--radius-pill);
-      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-    }
-
     /* ── Impact animation v2 — conflicted scoring sequence ────────────────────
        REWRITTEN 2026-08-18 (Matt). v1 was a 6.5s set piece: a hero card rose out
        of the log, split into per-league cards (coral=mine / navy=opp), collided,
@@ -2562,11 +2486,6 @@
       .lu-group.w-enter, .lu-lrow.w-in, .lu-lrow.w-in .lu-bar, .lu-gnet.w-verdict { animation: none !important; }
       .lu-group.w-writing .lu-lrow, .lu-group.w-writing .lu-gnet { opacity: 1 !important; }
     }
-    /* Experiment-only test harness control (offseason review — no live scoring) */
-    #impact-test-ctl { position: fixed; bottom: 74px; right: 12px; z-index: 9001; display: none; flex-direction: column; gap: 6px; align-items: flex-end; }
-    body.experiment-active #impact-test-ctl { display: flex; }
-    #impact-test-ctl button { font: 700 12px/1 var(--font-mono); padding: 8px 12px; border-radius: var(--radius-pill); border: 1px solid var(--coral-500); background: var(--paper); color: var(--coral-500); cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
-    #impact-test-ctl button.on-loop { background: var(--coral-500); color: var(--paper); }
 
     /* No-data */
     #no-data-state { display: none; flex-direction: column; align-items: center; gap: 16px; padding: 60px 20px; text-align: center; }
@@ -3003,7 +2922,7 @@
       padding-bottom: 0; margin-bottom: 0; border-bottom: none;
     }
 
-    /* ── LIVE UPDATES log (experiment) — vertical stacked scoring feed ──
+    /* ── LIVE UPDATES log — vertical stacked scoring feed ──
        Reuses the navy LOYALTIES frame chrome. One row per (player × league)
        scoring change; left bar + league-name tint encode side (green=helping,
        red=hurting). No yellow — a player is strictly cheer or enemy per league. */
@@ -4636,7 +4555,7 @@
         <span>Leaders</span>
       </button>
     </li>
-    <li role="none" class="menu-app-only exp-only menu-signedin-only admin-only">
+    <li role="none" class="menu-app-only menu-signedin-only admin-only">
       <button class="menu-drawer__item" data-menu-action="conflict" role="menuitem" type="button">
         <span>Conflict Card</span>
       </button>
@@ -4680,19 +4599,6 @@
   </ul>
   <div class="menu-drawer__foot">All your leagues, one place.</div>
 </aside>
-
-<!-- Pinned experiment ribbon: persistent exit affordance while experimental features are unlocked -->
-<div id="experiment-ribbon" role="status" aria-live="polite">
-  <span class="xr-text">Experimental Mode — testing unreleased features</span>
-  <button class="xr-link" type="button" onclick="previewRealNav()" title="Hide the experiment banner + test buttons for 10s to see the tab bar where a normal user sees it">Preview real nav</button>
-  <button class="xr-exit" type="button" onclick="exitExperiment()">Exit Experiment</button>
-</div>
-
-<!-- Countdown shown only while "Preview real nav" is active (TestMode2026). Sits
-     at the top so it never covers the bottom tab bar being reviewed. Tap to exit. -->
-<button id="exp-nav-preview-chip" type="button" onclick="endNavPreview()" aria-live="polite">
-  Real-user view · <span id="exp-nav-preview-secs">10</span>s · tap to exit
-</button>
 
 <!-- ══ DESKTOP LEFT NAV RAIL ═══════════════════════════════════════════════
      The mobile bottom tab bar's vertical twin. Shown at ≥900px for in-app
@@ -4750,10 +4656,13 @@
     body:not(.nav-landing) .cbmore-tile[data-more-action="blog"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="contact"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="account"] { display: none; }
+    /* …so the owner's desktop sheet is just the gated row — no empty grid/divider above it. */
+    body:not(.nav-landing) .cbmore-title + .cbmore-grid { display: none; }
+    body:not(.nav-landing) .cbmore-admin { margin-top: 0; padding-top: 0; border-top: 0; }
     /* Blog + Contact are pinned rail tabs now (2026-08-20); the …More sheet is
        empty for a normal user (About lives in Account; Exposure/Schedule/Account
        are first-class tabs). Hide the rail's More button unless admin — Shop/
-       Partners/Experiment still populate the sheet for the owner. */
+       Partners/Conflict still populate the sheet for the owner. */
     body:not(.nav-landing) #cf-side-rail [data-rail-tab="more"] { display: none; }
     body:not(.nav-landing).is-admin #cf-side-rail [data-rail-tab="more"] { display: flex; }
     /* Conflict Card is admin-only in …More (2026-09-24) — no rail tab for anyone. */
@@ -4926,14 +4835,9 @@
          landing footer), and the 'about' click handler is kept as a harmless
          no-op in case any cached surface still emits data-more-action="about". */
       { key: 'account',  label: 'Account',  soon: false, svg: '<g transform="translate(12,12) scale(0.7742) translate(-12,-12.25)"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></g>' },
-      /* Admin-only shortcut into experiment mode — avoids the sign-out →
-         type-code → sign-back-in dance. Client-side email gate is purely a
-         convenience filter (the TestMode code path still exists); it is NOT
-         a security boundary and mustn't guard anything sensitive. */
       /* Conflict moved off the bar for EVERYONE (Leagues took its slot,
          2026-09-24) and is admin-only: this tile is the only way in. Two-ring art is 11u tall centered at 12, normalized to the flask body. */
-      { key: 'conflict', label: 'Conflict', soon: false, adminOnly: true, svg: '<g transform="translate(12,12) scale(1.0909) translate(-12,-12)"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></g>' },
-      { key: 'experiment', label: 'Experiment', soon: false, adminOnly: true, svg: '<path d="M10 3h4"/><path d="M10 3v6l-5.2 9.2A2 2 0 0 0 6.5 21h11a2 2 0 0 0 1.7-2.8L14 9V3"/><path d="M7.3 15h9.4"/>' }
+      { key: 'conflict', label: 'Conflict', soon: false, adminOnly: true, svg: '<g transform="translate(12,12) scale(1.0909) translate(-12,-12)"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></g>' }
     ];
     var ADMIN_EMAILS = ['fryerm@net.elmhurst.edu'];
     /* Leagues view preview list (2026-09-24): owner + Jeremy Ried. Leagues-only —
@@ -4959,18 +4863,29 @@
     syncAdminClass();
     try { setInterval(syncAdminClass, 400); } catch (e) {}
     function renderMoreSheet() {
-      var expOn = !!(window.experimentEnabled && window.experimentEnabled());
       var adminOk = isAdminUser(), leaguesOk = canLeaguesUser();
-      var tiles = ITEMS.filter(function(it){ return (!it.expOnly || expOn) && (!it.adminOnly || adminOk) && (!it.leaguesOnly || leaguesOk); }).map(function(it) {
+      /* 2026-09-24 (Matt): the owner sees EXACTLY the normal-user grid first, then
+         the gated / in-progress tiles on their own row at the bottom, behind a
+         dashed divider — so the top of the sheet is a true read of what normal
+         users get. Live gated tiles lead; "Soon" placeholders follow. */
+      function tileHtml(it) {
         var cls = 'cbmore-tile' + (it.soon ? ' is-soon' : '');
         var attrs = it.soon ? 'aria-disabled="true"' : 'data-more-action="' + it.key + '"';
-        var label = (it.key === 'experiment' && expOn) ? 'Exit Exp.' : it.label;
+        var label = it.label;
         return '<button type="button" class="' + cls + '" ' + attrs + '>' +
                  '<span class="cbmore-ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + it.svg + '</svg></span>' +
                  '<span class="cbmore-label">' + label + '</span>' +
                '</button>';
-      }).join('');
-      return '<div class="cbmore-title">More</div><div class="cbmore-grid">' + tiles + '</div>';
+      }
+      var regular = ITEMS.filter(function(it){ return !it.adminOnly && (!it.leaguesOnly || leaguesOk); });
+      var gated = adminOk ? ITEMS.filter(function(it){ return it.adminOnly && (!it.leaguesOnly || leaguesOk); }) : [];
+      gated = gated.filter(function(it){ return !it.soon; }).concat(gated.filter(function(it){ return it.soon; }));
+      var html = '<div class="cbmore-title">More</div><div class="cbmore-grid">' + regular.map(tileHtml).join('') + '</div>';
+      if (gated.length) {
+        html += '<div class="cbmore-admin"><div class="cbmore-admin-head">In progress · only you</div>' +
+                '<div class="cbmore-grid">' + gated.map(tileHtml).join('') + '</div></div>';
+      }
+      return html;
     }
     window.renderMoreSheet = renderMoreSheet;
     window.openMoreSheet = function() {
@@ -4995,12 +4910,6 @@
       /* Kept as a harmless no-op path: Schedule left the sheet 2026-09-11, but a
          cached shell may still render its tile for one load. */
       else if (action === 'schedule' && typeof window.showWatch === 'function') { window.showWatch(); window.scrollTo(0, 0); }
-      else if (action === 'experiment') {
-        /* Toggle experiment mode. Both paths reload the page (existing
-           enable/exit behavior) so gated UI appears/tears down cleanly. */
-        if (window.experimentEnabled && window.experimentEnabled()) { if (typeof window.exitExperiment === 'function') window.exitExperiment(); }
-        else if (typeof window.enableExperimentMode === 'function') { window.enableExperimentMode(); }
-      }
     });
   })();
 </script>
@@ -5580,13 +5489,9 @@
   @media (max-width:480px){ #board-skeleton .skel-frame{ padding:12px 10px; } }
 </style>
 
-<!-- ══ IMPACT ANIMATION OVERLAY (experiment) ══════════════════ -->
+<!-- ══ IMPACT ANIMATION OVERLAY ══════════════════ -->
 <!-- (#impact-overlay moved INTO #live-updates-section — the flash is contained
      in the Scoring Updates box rather than covering the viewport.) -->
-<!-- Impact-animation test buttons removed: Replay Mode (🎬 chip) is the test
-     harness now — real scoring events flow through the live pipeline, so the
-     animation triggers naturally (or on demand via "+ TD now"). The
-     window.__impactTest API remains available from the console. -->
 
 <!-- ══ ACCOUNT VIEW (opens from hamburger → Account) ══════════ -->
 <div id="view-account" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
@@ -8632,7 +8537,7 @@ function showBoardSkeleton(){
   const nde=document.getElementById('no-data-state');
   if(nde)nde.classList.remove('visible');
   if(sec)sec.style.display='none';
-  if(lu&&!(window.experimentEnabled&&window.experimentEnabled()))lu.style.display='none';
+  if(lu)lu.style.display='none';
   if(strip)strip.style.display='none';
   const lsSec=document.getElementById('cf-league-scores');
   if(lsSec)lsSec.style.display='none';
@@ -9906,20 +9811,6 @@ const CF_FLASH_MS=1700;
    +0.0 STD). Only leagues present in BOTH snapshots are netted — a league that
    just appeared or dropped out of the payload is a different quantity, not a
    delta. First sight of a player seeds and never flashes. */
-/* Replay Mode scrubs, jumps and pauses move the virtual clock BACKWARD, which
-   to any delta detector looks like every player simultaneously losing points —
-   without this the whole board would flash red on every scrub. Same contract as
-   window.__resetImpacts / __resetLiveUpdates, and called from the same
-   resetDetectors() seam: drop the baselines so the next render seeds silently,
-   and strip any frame still mid-flash. */
-window.__resetPtsFlash=function(){
-  try{
-    cfPtsPrev.clear();
-    document.querySelectorAll('.player-card.pts-up,.player-card.pts-down').forEach(function(n){
-      clearTimeout(n._cfFlashT);n.classList.remove('pts-up','pts-down');
-    });
-  }catch(e){}
-};
 function cfFlashPtsDelta(node,player){
   const key=activeSeason+'|'+activeWeek+'|'+String(player.id);
   const lpd=player.leaguePoints||{},cur={};
@@ -10086,7 +9977,7 @@ function renderBoard(data,username){
   const _timeFull=_parts.length===2?`${_parts[0]}<span class="synced-seconds">:${_ss}</span> ${_parts[1]}`:`${_hm}<span class="synced-seconds">:${_ss}</span>`;
   document.getElementById('board-refresh-time').innerHTML=`<span class="synced-label">Synced </span>${_timeFull}`;
   const nde=document.getElementById('no-data-state'),cols=document.getElementById('columns');
-  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));(function(s){if(s&&!(window.experimentEnabled&&window.experimentEnabled()))s.style.display='none';})(document.getElementById('live-updates-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');(function(se){if(se)se.hidden=true;})(document.getElementById('scores-empty'));document.getElementById('no-data-msg').innerHTML=noDataReason;(function(){var t=document.getElementById('no-data-title');if(t)t.textContent=data.noDataTitle||'No league data';var h=document.getElementById('no-data-hint');if(h){var hint=(typeof data.noDataHint==='string')?data.noDataHint:'Use the season dropdown or week selector to try a different period.';h.textContent=hint;h.style.display=hint?'':'none';}})();currentContexts=[];if(leagueMgmtViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
+  if(noData){nde.classList.add('visible');cols.style.display='none';(function(t){if(t)t.style.display='none';})(document.getElementById('exp-tabbar'));(function(s){if(s)s.style.display='none';})(document.getElementById('loyalties-section'));(function(s){if(s)s.style.display='none';})(document.getElementById('live-updates-section'));liveToggleAvailable=false;document.getElementById('league-filter-bar').classList.remove('visible');if(window.BottomSheet&&window.BottomSheet.getOwner&&window.BottomSheet.getOwner()==='league-filter')window.BottomSheet.close();document.getElementById('scores-strip').classList.remove('visible');(function(se){if(se)se.hidden=true;})(document.getElementById('scores-empty'));document.getElementById('no-data-msg').innerHTML=noDataReason;(function(){var t=document.getElementById('no-data-title');if(t)t.textContent=data.noDataTitle||'No league data';var h=document.getElementById('no-data-hint');if(h){var hint=(typeof data.noDataHint==='string')?data.noDataHint:'Use the season dropdown or week selector to try a different period.';h.textContent=hint;h.style.display=hint?'':'none';}})();currentContexts=[];if(leagueMgmtViewOpen()){try{renderAccountLeagues();}catch(e){}}updateSettingsPanel();return;}
   nde.classList.remove('visible');cols.style.display='';
   /* Restore the experimental tab bar + titled section (display reset → CSS gates take over). */
   (function(t){if(t)t.style.display='';})(document.getElementById('exp-tabbar'));
@@ -10557,10 +10448,6 @@ async function __settleSelfHeal(){
   return res;
 }
 async function loadData(){
-  /* Replay Mode (experiment-only offseason harness) supplies the entire
-     dataset synthetically — no network, works with zero providers connected.
-     This covers EVERY loadData call site (run, auto-refresh, tab-return). */
-  if(window.__cfReplay&&window.__cfReplay.active())return window.__cfReplay.data();
   if(!isAnyProviderConnected()){
     return{noData:true,noDataReason:'No providers connected.',cheerFor:[],conflicted:[],enemies:[],allRostered:[],offseasonMode:false,debugInfo:null,contexts:[],hasScoring:false,isHist:false};
   }
@@ -11170,486 +11057,6 @@ function getDemoData(){
   return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,leagues:demoLeagues,debugInfo:null,allRostered:Array.from(map.values()),cheerFor,conflicted,enemies};
 }
 
-/* ══ REPLAY MODE (experiment-only) ═══════════════════════════════════════════
-   Offseason testing harness. Two halves:
-   1) RECORDER — while viewing a real historic week (any platform mix), captures
-      the loaded rosters + final per-player points into replay-snapshot.json
-      (downloaded AND stashed in localStorage), plus the real NFL slate for that
-      week from the ESPN scoreboard (kickoff time per team).
-   2) ENGINE — replays that snapshot as if the games were live: a virtual clock
-      walks the real slate (Thu → Sun early → Sun late → SNF → MNF), every
-      player's final points are dealt out in seeded, bursty scoring events, and
-      the board is re-rendered through the SAME classification pipeline
-      (calcSignal / classifyPlayer / ctxBadge) the live app uses. nflGameStates /
-      nflGameClocks are driven directly so "● Live" badges, the live-only
-      toggle, Snapshot win-prob, and Conflict Card windows all behave.
-   Entirely client-side (zero serverless functions). Gated behind
-   window.experimentEnabled(). Exactly three prod seams know it exists:
-   loadData() short-circuit, saveBoardSnapshot() skip, shouldAutoRefresh() guard. */
-/*__CF_REPLAY_CORE_START__*/
-const __cfReplayCore=(function(){
-  'use strict';
-  const GAME_MIN=195; // kickoff → final whistle, in slate minutes
-  /* Deterministic per-string RNG (FNV-1a seed → mulberry32) so pausing,
-     scrubbing, or re-rendering always sees the identical scoring timeline. */
-  function seededRng(str){
-    let h=2166136261>>>0;
-    for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}
-    return function(){h+=0x6D2B79F5;h>>>=0;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};
-  }
-  /* Per-player scoring timeline: N event times (minutes into THEIR game) with
-     weights summing to exactly 1. cumWeight(mins) is multiplied by each
-     league's FINAL points, so one NFL performance scales consistently across
-     PPR / Half / Std finals in different leagues. */
-  function buildTimeline(playerId,finalHint){
-    const rng=seededRng('cf-replay:'+playerId);
-    const n=Math.max(2,Math.min(9,3+Math.floor(Math.abs(finalHint||8)/6)));
-    const raw=[];let wsum=0;
-    for(let i=0;i<n;i++){const w=0.35+rng();raw.push({t:5+rng()*(GAME_MIN-15),w});wsum+=w;}
-    return raw.map(e=>({t:e.t,w:e.w/wsum})).sort((a,b)=>a.t-b.t);
-  }
-  function cumWeight(evts,minsIntoGame){
-    if(minsIntoGame<0)return 0;
-    if(minsIntoGame>=GAME_MIN)return 1; // lands exactly on the recorded final
-    let c=0;for(let i=0;i<evts.length;i++){if(evts[i].t<=minsIntoGame)c+=evts[i].w;}
-    return c;
-  }
-  function teamProg(vt,kick){return Math.max(0,Math.min(1,(vt-kick)/GAME_MIN));}
-  function teamState(vt,kick){if(vt<kick)return'pre';return teamProg(vt,kick)>=1?'post':'in';}
-  function teamClock(vt,kick){
-    const st=teamState(vt,kick);
-    if(st==='pre')return'';
-    if(st==='post')return'Final';
-    const p=teamProg(vt,kick)*4;
-    const per=Math.min(4,Math.floor(p)+1);
-    const rem=15*(1-(p-Math.floor(p)));
-    const mm=Math.floor(rem),ss=Math.floor((rem-mm)*60);
-    return'Q'+per+' '+mm+':'+(ss<10?'0':'')+ss;
-  }
-  return{GAME_MIN,seededRng,buildTimeline,cumWeight,teamProg,teamState,teamClock};
-})();
-/*__CF_REPLAY_CORE_END__*/
-
-const REPLAY_LS_KEY='conflicted_replay_snapshot_v1';
-/* ESPN scoreboard team abbrs that differ from Sleeper/Yahoo conventions.
-   Same map the canonical-identity layer uses — one source of truth. */
-const CF_REPLAY_TEAM_ALIAS=CF_TEAM_ALIAS;
-
-/* ── RECORDER ── */
-async function cfRecordReplaySnapshot(){
-  /* Only REAL connected-league data may be recorded. The TestMode preview board
-     and demo mode both render getDemoData() into __conflictedLastData — a
-     recording of that would replay fake rosters and defeat the whole point. */
-  if(isDemoMode||!(typeof isAnyProviderConnected==='function'&&isAnyProviderConnected()))
-    throw new Error('Sign in and connect your real leagues first — the demo/preview board can’t be recorded.');
-  const d=window.__conflictedLastData;
-  if(!d||d.noData||!d.leagues||!d.leagues.length)throw new Error('Load a week with league data first (pick a past season + week).');
-  if(!d.leagues.some(l=>l.platform))throw new Error('This board is demo data — load your real leagues, then record.');
-  const db=window.playerDB||await getPlayerDB();window.playerDB=db;
-  _sleeperIdLookupCache=null;_sleeperNamePosCache=null; // rebuild resolver caches on the freshest DB
-  const projRng=__cfReplayCore.seededRng('cf-proj:'+activeSeason+'-'+activeWeek);
-  function norm(p,pp,projpp,isBench){
-    let id,name,pos,team,slot,inj=null,sleeperId=null;
-    if(typeof p==='string'){
-      const info=db[p]||{};
-      id=p;sleeperId=p;
-      name=info.full_name||info.last_name||('Player '+p);
-      pos=info.position||(p.length<=4?'DEF':'—');
-      team=info.team||'';slot=pos;
-      inj=info.injury_status||null;
-    }else{
-      id=String(p.player_key||p.id||p.full_name||p.name||'p');
-      name=p.full_name||p.name||'Player';
-      pos=p.position||'—';team=p.team||'';slot=p.slot||p.position||'—';
-      inj=p.injuryStatus||null;
-      try{const u=canonicalPlayerKey(name,team,pos,null);const m=u&&/^sl:(\d+)$/.exec(u);if(m)sleeperId=m[1];else if(u&&/^DST\|/.test(u))sleeperId=u.slice(4);}catch(e){}
-    }
-    const k=(typeof p==='string')?p:(p.player_key||id);
-    const pts=isBench?0:+(((pp&&pp[k])!=null?pp[k]:0)).toFixed(2);
-    let proj=(!isBench&&projpp&&projpp[k]!=null)?+(+projpp[k]).toFixed(2):null;
-    /* Historic weeks carry no projections — synthesize a plausible one around
-       the actual final so Conflict Card window math + win prob have inputs. */
-    if(proj==null&&!isBench){const base=Math.abs(pts)>2?pts:(2+8*projRng());proj=+((base*(0.8+0.4*projRng()))).toFixed(2);}
-    /* uid = the CANONICAL cross-platform identity (canonicalPlayerKey), the
-       same key loadData uses. Team-based keys split the same human into
-       duplicate cheer/enemy entries whenever platforms disagreed on team. */
-    let uid=null;try{uid=canonicalPlayerKey(name,team,pos,(typeof p==='string')?p:sleeperId)||null;}catch(e){}
-    return{id,uid,name,pos,team,slot,pts,proj,inj,sleeperId};
-  }
-  const leagues=d.leagues.map(lg=>{
-    const ctx=(d.contexts||[]).find(c=>c.leagueName===lg.leagueName&&(!lg.platform||!c.platform||c.platform===lg.platform))||{};
-    return{
-      name:lg.leagueName,platform:lg.platform||'sleeper',fmt:lg.fmt||'PPR',
-      my:(lg.myPlayers||[]).map(p=>norm(p,ctx.myPP,ctx.myProjPP,false)),
-      opp:(lg.oppPlayers||[]).map(p=>norm(p,ctx.oppPP,ctx.oppProjPP,false)),
-      myBench:(lg.myBench||[]).map(p=>norm(p,null,null,true)),
-      oppBench:(lg.oppBench||[]).map(p=>norm(p,null,null,true)),
-    };
-  });
-  /* Real slate: kickoff ISO per team from the ESPN scoreboard (works for past
-     weeks year-round). Failure is fine — the engine synthesizes a slate. */
-  const kicks={};
-  try{
-    const r=await fetch(`${ESPN_SCOREBOARD}?dates=${activeSeason}&seasontype=2&week=${activeWeek}`);
-    if(r.ok){
-      const j=await r.json();
-      (j.events||[]).forEach(ev=>{
-        const comp=ev.competitions&&ev.competitions[0];if(!comp)return;
-        const iso=ev.date||comp.date;if(!iso)return;
-        (comp.competitors||[]).forEach(c=>{
-          const ab=c.team&&c.team.abbreviation;if(!ab)return;
-          kicks[ab]=iso;
-          const alias=CF_REPLAY_TEAM_ALIAS[ab];if(alias)kicks[alias]=iso;
-        });
-      });
-    }
-  }catch(e){console.warn('replay: slate fetch failed, engine will synthesize:',e.message);}
-  const snap={version:1,season:activeSeason,week:activeWeek,recordedAt:new Date().toISOString(),kicks,leagues};
-  try{localStorage.setItem(REPLAY_LS_KEY,JSON.stringify(snap));}catch(e){console.warn('replay: localStorage stash failed (snapshot still downloads):',e.message);}
-  try{
-    const blob=new Blob([JSON.stringify(snap)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='replay-snapshot.json';
-    document.body.appendChild(a);a.click();
-    setTimeout(function(){try{URL.revokeObjectURL(a.href);a.remove();}catch(e){}},2000);
-  }catch(e){}
-  return snap;
-}
-
-/* ── ENGINE + CONTROL PANEL ── */
-const cfReplay=(function(){
-  'use strict';
-  const GM=__cfReplayCore.GAME_MIN;
-  let snap=null,active=false,playing=false,timer=null;
-  let vt=0,total=600,speed=1.5;         // vt/speed in slate-minutes (per real second)
-  let baseMs=null,teamKick={},segs=[],timelines={},bonuses={},lastBuckets=null;
-
-  /* Cross-platform merge key — MUST match how loadData unifies players, or the
-     same human on two platforms replays as two people. Recomputes the CANONICAL
-     identity live (canonicalPlayerKey — Sleeper-ID first, team never part of a
-     skill player's identity), which also repairs old snapshots recorded with
-     team-based uids; falls back to the recorded uid, then the platform id. */
-  function mk(p){
-    if(p.__mk)return p.__mk;
-    let u=null;
-    try{u=canonicalPlayerKey(p.name,p.team,p.pos,p.sleeperId||null)||null;}catch(e){}
-    p.__mk=u||p.uid||p.id;
-    return p.__mk;
-  }
-
-  function setup(s){
-    snap=s;teamKick={};timelines={};bonuses={};baseMs=null;
-    /* Freeze every player's merge key NOW, in one pass (starters + bench).
-       mk() caches per object; computing them all at the same instant means a
-       playerDB that finishes loading mid-replay can never produce a different
-       key for a leg processed later — identity stays consistent for the whole
-       session. */
-    s.leagues.forEach(l=>['my','opp','myBench','oppBench'].forEach(k=>(l[k]||[]).forEach(p=>{delete p.__mk;mk(p);})));
-    const teams=new Set();
-    s.leagues.forEach(l=>['my','opp','myBench','oppBench'].forEach(k=>(l[k]||[]).forEach(p=>{if(p.team)teams.add(p.team);})));
-    const kicks=s.kicks||{};
-    const ms=Object.values(kicks).map(x=>Date.parse(x)).filter(x=>!isNaN(x));
-    if(ms.length)baseMs=Math.min.apply(null,ms);
-    teams.forEach(t=>{
-      const iso=kicks[t]||kicks[CF_REPLAY_TEAM_ALIAS[t]];
-      if(iso&&baseMs!=null&&!isNaN(Date.parse(iso)))teamKick[t]=(Date.parse(iso)-baseMs)/60000;
-    });
-    /* Teams the scoreboard didn't cover (abbr mismatch / fetch failed / bye
-       carry-over): drop them into a synthetic Sunday. Offsets are minutes from
-       a Thu 8:15p kick: Sun 1:00p = 3885, Sun 4:25p = 4090. */
-    teams.forEach(t=>{
-      if(teamKick[t]==null){
-        const r=__cfReplayCore.seededRng('cf-slate:'+t)();
-        teamKick[t]=r<0.6?3885:4090;
-      }
-    });
-    /* One scoring timeline per HUMAN (merge key), not per platform id — the
-       same player must score at the same moments in every league. */
-    s.leagues.forEach(l=>['my','opp'].forEach(k=>(l[k]||[]).forEach(p=>{
-      const u=mk(p);
-      if(!timelines[u])timelines[u]=__cfReplayCore.buildTimeline(u,p.pts);
-    })));
-    const kickVals=Object.keys(teamKick).map(t=>teamKick[t]);
-    total=(kickVals.length?Math.max.apply(null,kickVals):0)+GM+10;
-    /* Scrub axis = only the interesting spans (games ±5 min), merged. */
-    const spans=kickVals.map(k=>[k-5,k+GM+5]).sort((a,b)=>a[0]-b[0]);
-    segs=[];spans.forEach(sp=>{const last=segs[segs.length-1];if(last&&sp[0]<=last[1])last[1]=Math.max(last[1],sp[1]);else segs.push([sp[0],sp[1]]);});
-  }
-  function segTotal(){let t=0;segs.forEach(s=>t+=s[1]-s[0]);return Math.max(1,t);}
-  function vtToSlider(v){let acc=0;for(const s of segs){if(v>s[1])acc+=s[1]-s[0];else if(v>=s[0]){acc+=v-s[0];break;}else break;}return Math.round(1000*acc/segTotal());}
-  function sliderToVt(x){let target=(x/1000)*segTotal();for(const s of segs){const len=s[1]-s[0];if(target<=len)return s[0]+target;target-=len;}return total;}
-  function nextKick(){let best=null;Object.keys(teamKick).forEach(t=>{const k=teamKick[t];if(k>vt&&(best==null||k<best))best=k;});return best;}
-  function anyLive(){return Object.keys(teamKick).some(t=>__cfReplayCore.teamState(vt,teamKick[t])==='in');}
-  function liveCount(){const seen=new Set();Object.keys(teamKick).forEach(t=>{if(__cfReplayCore.teamState(vt,teamKick[t])==='in')seen.add(teamKick[t]);});return seen.size;}
-  function clusters(){
-    const ks=[];Object.keys(teamKick).forEach(t=>{if(ks.indexOf(teamKick[t])<0)ks.push(teamKick[t]);});
-    ks.sort((a,b)=>a-b);
-    const cl=[];ks.forEach(k=>{const last=cl[cl.length-1];if(last&&k-last.start<=90)last.n++;else cl.push({start:k,n:1});});
-    return cl;
-  }
-  function fmtVt(v){
-    if(baseMs!=null){
-      try{return new Date(baseMs+v*60000).toLocaleString('en-US',{weekday:'short',hour:'numeric',minute:'2-digit'});}catch(e){}
-    }
-    return'T+'+Math.floor(v/60)+'h'+String(Math.floor(v%60)).padStart(2,'0');
-  }
-
-  function currentPts(p){
-    const kick=(teamKick[p.team]!=null)?teamKick[p.team]:3885;
-    const u=mk(p);
-    let pts=(p.pts||0)*__cfReplayCore.cumWeight(timelines[u]||[],vt-kick);
-    (bonuses[u]||[]).forEach(e=>{if(e.t<=vt)pts+=e.pts;});
-    return +pts.toFixed(2);
-  }
-  /* Projections are STATIC pregame values, exactly like prod: providers feed
-     fixed per-player projections and ctx.myProjPts never moves during games.
-     Downstream consumers (Weekend Snapshot win-prob, player cards) compute
-     their own remaining-math from proj − current. A live-drifting projection
-     here made Snapshot's numbers slide every tick and collapse to equal the
-     final score once games ended. */
-  function staticProjOf(p){return +(p.proj!=null?p.proj:(p.pts||0)).toFixed(2);}
-
-  /* Assemble a full loadData()-shaped result for "now" (mirrors getDemoData,
-     but from the recorded snapshot with the virtual clock applied). */
-  function build(){
-    const toDP=x=>({id:x.id,player_key:x.id,full_name:x.name,position:x.pos,team:x.team,slot:x.slot});
-    const contexts=[],leagues=[];
-    const map=new Map();
-    function ensure(x){
-      const key=mk(x); // merge the same human across platforms, like loadData
-      if(!map.has(key))map.set(key,{id:key,full_name:x.name,position:x.pos,team:x.team,injuryStatus:x.inj||null,sleeperId:x.sleeperId||null,myLeagues:[],againstLeagues:[],myBenchLeagues:[],againstBenchLeagues:[],leaguePoints:{},contextBadge:null,bucket:null,clinched:false});
-      const e=map.get(key);if(x.inj&&!e.injuryStatus)e.injuryStatus=x.inj;if(x.sleeperId&&!e.sleeperId)e.sleeperId=x.sleeperId;return e;
-    }
-    snap.leagues.forEach((lg,i)=>{
-      if(!colorMap[lg.name])colorMap[lg.name]=LC_COLORS[i%LC_COLORS.length];
-      const myPP={},oppPP={},myProjPP={},oppProjPP={};
-      let myPts=0,oppPts=0,myProj=0,oppProj=0,allPost=true;
-      lg.my.forEach(x=>{const c=currentPts(x);myPP[x.id]=c;myPts+=c;const sp=staticProjOf(x);myProjPP[x.id]=sp;myProj+=sp;if(__cfReplayCore.teamState(vt,(teamKick[x.team]!=null)?teamKick[x.team]:3885)!=='post')allPost=false;});
-      lg.opp.forEach(x=>{const c=currentPts(x);oppPP[x.id]=c;oppPts+=c;const sp=staticProjOf(x);oppProjPP[x.id]=sp;oppProj+=sp;if(__cfReplayCore.teamState(vt,(teamKick[x.team]!=null)?teamKick[x.team]:3885)!=='post')allPost=false;});
-      const state=allPost?(myPts>oppPts?'LOCKED_WIN':'LOCKED_LOSS'):'LIVE';
-      contexts.push({leagueName:lg.name,platform:lg.platform,leagueState:state,fmt:lg.fmt,
-        myPoints:+myPts.toFixed(2),oppPoints:+oppPts.toFixed(2),
-        myProjPts:+myProj.toFixed(2),oppProjPts:+oppProj.toFixed(2),
-        myPP,oppPP,myProjPP,oppProjPP});
-      leagues.push({leagueName:lg.name,platform:lg.platform,fmt:lg.fmt,hasMatchup:true,
-        myPlayers:lg.my.map(toDP),oppPlayers:lg.opp.map(toDP),
-        myBench:(lg.myBench||[]).map(toDP),oppBench:(lg.oppBench||[]).map(toDP)});
-      lg.my.forEach(x=>{const e=ensure(x);if(!e.myLeagues.includes(lg.name))e.myLeagues.push(lg.name);e.leaguePoints[lg.name]={pts:myPP[x.id],proj:myProjPP[x.id],fmt:lg.fmt};});
-      lg.opp.forEach(x=>{const e=ensure(x);if(!e.againstLeagues.includes(lg.name))e.againstLeagues.push(lg.name);e.leaguePoints[lg.name]={pts:oppPP[x.id],proj:oppProjPP[x.id],fmt:lg.fmt};});
-      (lg.myBench||[]).forEach(x=>{const e=ensure(x);if(!e.myBenchLeagues.includes(lg.name))e.myBenchLeagues.push(lg.name);});
-      (lg.oppBench||[]).forEach(x=>{const e=ensure(x);if(!e.againstBenchLeagues.includes(lg.name))e.againstBenchLeagues.push(lg.name);});
-    });
-    /* Drive the module NFL maps directly so isPlayerLive / __cfGameState /
-       __cfGameClock (live badges, live-only toggle, Snapshot, Watch) all see
-       the virtual slate. Real fetch is bypassed while replay is active. */
-    const m=new Map(),clk=new Map(),kck=new Map();
-    Object.keys(teamKick).forEach(t=>{
-      m.set(t,__cfReplayCore.teamState(vt,teamKick[t]));
-      const c=__cfReplayCore.teamClock(vt,teamKick[t]);if(c)clk.set(t,c);
-      if(teamKick[t])kck.set(t,teamKick[t]);
-    });
-    nflGameStates=m;nflGameClocks=clk;nflKickoffs=kck;nflGameStatesKey='replay';nflGameStatesAt=Date.now();
-    const liveLeagues=new Set();
-    map.forEach(p=>{
-      if(!isPlayerLive(p))return;
-      p.myLeagues.forEach(n=>liveLeagues.add(n));
-      p.againstLeagues.forEach(n=>liveLeagues.add(n));
-    });
-    contexts.forEach(c=>{c.liveOnField=liveLeagues.has(c.leagueName);});
-    const cheerFor=[],conflicted=[],enemies=[];
-    map.forEach(pl=>{
-      if(!pl.myLeagues.length&&!pl.againstLeagues.length)return;
-      const sig=calcSignal(pl,contexts);
-      const cls=classifyPlayer(pl,sig);
-      if(!cls)return;
-      pl.bucket=cls.bucket;pl.clinched=cls.clinched;
-      pl.contextBadge=ctxBadge(sig,false);
-      if(cls.bucket==='cheer')cheerFor.push(pl);
-      else if(cls.bucket==='conflicted')conflicted.push(pl);
-      else enemies.push(pl);
-    });
-    lastBuckets={cheerFor,conflicted,enemies};
-    return{noData:false,offseasonMode:false,hasScoring:true,isHist:false,contexts,leagues,debugInfo:null,allRostered:Array.from(map.values()),cheerFor,conflicted,enemies,__replay:true};
-  }
-
-  function render(){
-    try{renderBoard(build(),(typeof getPrimaryDisplayName==='function'&&getPrimaryDisplayName())||'Replay');}catch(e){console.warn('replay render failed:',e);}
-  }
-  function tick(){
-    if(!active||!playing||document.hidden)return;
-    vt+=speed*2; // tick interval is 2s
-    if(!anyLive()&&vt<total){const nk=nextKick();if(nk!=null&&vt<nk-2)vt=nk-2;} // skip Fri/Sat + dead windows
-    if(vt>=total){vt=total;playing=false;}
-    render();updatePanel();
-  }
-  /* Any discontinuous clock move must re-seed the impact-animation detector and
-     the Live Updates tracker BEFORE the next render — otherwise the score snap
-     reads as scoring/corrections and fires cards + log entries for the jump
-     itself. Organic ticks and "+ TD now" still animate normally. */
-  function resetDetectors(){
-    try{window.__resetImpacts&&window.__resetImpacts();}catch(e){}
-    try{window.__resetLiveUpdates&&window.__resetLiveUpdates();}catch(e){}
-    try{window.__resetPtsFlash&&window.__resetPtsFlash();}catch(e){}
-  }
-  function jump(v){vt=Math.max(0,Math.min(total,v));resetDetectors();render();updatePanel();}
-
-  async function start(){
-    let s=null;
-    try{const raw=localStorage.getItem(REPLAY_LS_KEY);if(raw)s=JSON.parse(raw);}catch(e){}
-    if(!s){try{const r=await fetch('/replay-snapshot.json',{cache:'no-store'});if(r.ok)s=await r.json();}catch(e){}}
-    if(!s||!s.leagues||!s.leagues.length){setStatus('No snapshot yet. Open a past season + week, then tap “Record this week”.');return false;}
-    try{if(!window.playerDB)getPlayerDB().then(db=>{window.playerDB=db;_sleeperIdLookupCache=null;_sleeperNamePosCache=null;if(active)render();}).catch(function(){});}catch(e){}
-    setup(s);
-    active=true;playing=true;
-    const cl=clusters();
-    vt=cl.length?cl[0].start-2:0; // open just before the first kickoff
-    resetDetectors(); // entering replay = a clock jump; seed silently
-    try{stopAutoRefresh();}catch(e){}
-    if(timer)clearInterval(timer);
-    timer=setInterval(tick,2000);
-    render();updatePanel();
-    setStatus('Replaying '+(s.season||'?')+' Week '+(s.week||'?')+' — recorded '+((s.recordedAt||'').slice(0,10)||'earlier')+'.');
-    return true;
-  }
-  function stop(){
-    if(!active)return;
-    active=false;playing=false;
-    if(timer){clearInterval(timer);timer=null;}
-    nflGameStatesKey='';nflGameStatesAt=0; // force a real game-state refetch on the next live load
-    resetDetectors(); // leaving replay = a clock jump back to reality; seed silently
-    updatePanel();
-    setStatus('Replay stopped.');
-    try{
-      if(typeof isAnyProviderConnected==='function'&&isAnyProviderConnected()&&!isDemoMode)run();
-      else if(typeof experimentGoDashboard==='function')experimentGoDashboard();
-    }catch(e){}
-  }
-
-  /* ── panel UI ── */
-  let ui=null;
-  function el(tag,cls,txt){const n=document.createElement(tag);if(cls)n.className=cls;if(txt!=null)n.textContent=txt;return n;}
-  function setStatus(msg){if(ui)ui.status.textContent=msg;}
-  function buildUI(){
-    if(ui)return ui;
-    const css=document.createElement('style');
-    css.textContent=[
-      '#cf-replay-chip{position:fixed;right:14px;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:9500;display:none;align-items:center;gap:6px;padding:9px 13px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:#101826;color:#f4efe6;font:600 12px/1 Inter,system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.35);cursor:pointer;}',
-      '#cf-replay-chip.rec{border-color:#ff6b5e;}',
-      '#cf-replay-panel{position:fixed;right:12px;bottom:calc(140px + env(safe-area-inset-bottom,0px));z-index:9501;display:none;width:min(330px,calc(100vw - 24px));padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:#0d1420;color:#f4efe6;font:12px/1.45 Inter,system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.5);}',
-      '#cf-replay-panel h4{margin:0 0 2px;font-size:13px;letter-spacing:.02em;}',
-      '#cf-replay-panel .cfr-time{font:600 12px/1.3 "JetBrains Mono",monospace;color:#ffb4ab;margin:6px 0 2px;}',
-      '#cf-replay-panel .cfr-status{color:#9fb0c3;min-height:15px;margin-bottom:8px;}',
-      '#cf-replay-panel input[type=range]{width:100%;accent-color:#ff6b5e;margin:2px 0 8px;}',
-      '#cf-replay-panel .cfr-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center;}',
-      '#cf-replay-panel button{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:#182338;color:#f4efe6;font:600 11px/1 Inter,system-ui,sans-serif;cursor:pointer;}',
-      '#cf-replay-panel button.cfr-primary{background:#ff6b5e;border-color:#ff6b5e;color:#101826;}',
-      '#cf-replay-panel button:disabled{opacity:.45;cursor:default;}',
-      '#cf-replay-panel select{max-width:150px;padding:5px 6px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:#182338;color:#f4efe6;font:11px Inter,system-ui,sans-serif;}',
-      '#cf-replay-panel .cfr-label{color:#9fb0c3;font-size:10px;text-transform:uppercase;letter-spacing:.06em;width:100%;margin-bottom:-2px;}'
-    ].join('\n');
-    document.head.appendChild(css);
-    const chip=el('button',null,'');chip.id='cf-replay-chip';chip.type='button';chip.textContent='🎬 Replay';
-    const panel=el('div');panel.id='cf-replay-panel';
-    const h=el('h4',null,'Replay Mode');
-    const time=el('div','cfr-time','—');
-    const status=el('div','cfr-status','');
-    const scrub=document.createElement('input');scrub.type='range';scrub.min='0';scrub.max='1000';scrub.value='0';
-    const rowMain=el('div','cfr-row');
-    const btnStart=el('button','cfr-primary','Start replay');btnStart.type='button';
-    const btnPlay=el('button',null,'⏸');btnPlay.type='button';
-    const selSpeed=document.createElement('select');
-    [['0.5','Slow'],['1.5','Normal'],['5','Fast'],['15','Blitz']].forEach(o=>{const op=document.createElement('option');op.value=o[0];op.textContent=o[1];if(o[0]==='1.5')op.selected=true;selSpeed.appendChild(op);});
-    rowMain.appendChild(btnStart);rowMain.appendChild(btnPlay);rowMain.appendChild(selSpeed);
-    const rowJumpLabel=el('div','cfr-label','Jump to');
-    const rowJump=el('div','cfr-row');
-    const rowEvtLabel=el('div','cfr-label','Force a scoring event');
-    const rowEvt=el('div','cfr-row');
-    const selPlayer=document.createElement('select');
-    const btnTD=el('button',null,'+ TD now');btnTD.type='button';
-    rowEvt.appendChild(selPlayer);rowEvt.appendChild(btnTD);
-    const rowRec=el('div','cfr-row');
-    const btnRec=el('button',null,'Record this week');btnRec.type='button';
-    rowRec.appendChild(btnRec);
-    panel.appendChild(h);panel.appendChild(time);panel.appendChild(status);panel.appendChild(scrub);
-    panel.appendChild(rowMain);panel.appendChild(rowJumpLabel);panel.appendChild(rowJump);
-    panel.appendChild(rowEvtLabel);panel.appendChild(rowEvt);panel.appendChild(rowRec);
-    document.body.appendChild(chip);document.body.appendChild(panel);
-    chip.addEventListener('click',function(){panel.style.display=(panel.style.display==='block')?'none':'block';if(panel.style.display==='block')updatePanel();});
-    btnStart.addEventListener('click',function(){if(active)stop();else start();});
-    btnPlay.addEventListener('click',function(){if(!active)return;playing=!playing;updatePanel();});
-    selSpeed.addEventListener('change',function(){speed=parseFloat(selSpeed.value)||1.5;});
-    scrub.addEventListener('input',function(){if(!active)return;playing=false;jump(sliderToVt(parseInt(scrub.value,10)||0));});
-    btnTD.addEventListener('click',function(){
-      if(!active)return;
-      const pid=selPlayer.value;if(!pid)return;
-      if(!bonuses[pid])bonuses[pid]=[];
-      bonuses[pid].push({t:vt,pts:+(5.5+Math.random()*3.5).toFixed(2)});
-      render();updatePanel();
-      setStatus('Scoring event injected.');
-    });
-    btnRec.addEventListener('click',async function(){
-      btnRec.disabled=true;setStatus('Recording…');
-      try{const s=await cfRecordReplaySnapshot();setStatus('Recorded '+s.season+' Week '+s.week+' ('+s.leagues.length+' leagues). Saved on this device + downloaded — upload replay-snapshot.json to the repo root to use it on other devices.');}
-      catch(e){setStatus(e.message||'Recording failed.');}
-      btnRec.disabled=false;
-    });
-    ui={chip,panel,time,status,scrub,btnStart,btnPlay,selSpeed,rowJump,selPlayer,btnRec};
-    return ui;
-  }
-  function updatePanel(){
-    if(!ui||ui.panel.style.display!=='block')return;
-    ui.btnStart.textContent=active?'Stop replay':'Start replay';
-    ui.btnPlay.textContent=playing?'⏸':'▶';
-    ui.btnPlay.disabled=!active;
-    ui.chip.classList.toggle('rec',active);
-    if(active){
-      ui.time.textContent=fmtVt(vt)+' · '+liveCount()+' game'+(liveCount()===1?'':'s')+' live';
-      ui.scrub.value=String(vtToSlider(vt));
-      /* jump presets */
-      ui.rowJump.innerHTML='';
-      const addJump=(label,v)=>{const b=el('button',null,label);b.type='button';b.addEventListener('click',function(){playing=false;jump(v);});ui.rowJump.appendChild(b);};
-      const cl=clusters();
-      cl.forEach(c=>addJump(fmtVt(c.start),c.start+8));
-      if(cl.length){let big=cl[0];cl.forEach(c=>{if(c.n>big.n)big=c;});addJump('Endgame',big.start+172);}
-      addJump('All final',total);
-      /* player list — conflicted first (impact animation / Conflict Card fodder) */
-      const cur=ui.selPlayer.value;
-      ui.selPlayer.innerHTML='';
-      const opts=[];
-      if(lastBuckets){
-        lastBuckets.conflicted.forEach(p=>opts.push(['⚔ '+p.full_name,p.id]));
-        lastBuckets.cheerFor.forEach(p=>opts.push(['✓ '+p.full_name,p.id]));
-        lastBuckets.enemies.forEach(p=>opts.push(['✗ '+p.full_name,p.id]));
-      }
-      opts.forEach(o=>{const op=document.createElement('option');op.textContent=o[0];op.value=o[1];ui.selPlayer.appendChild(op);});
-      if(cur&&opts.some(o=>o[1]===cur))ui.selPlayer.value=cur;
-    }else{
-      ui.time.textContent='—';
-      ui.rowJump.innerHTML='';
-      ui.selPlayer.innerHTML='';
-    }
-  }
-  /* Chip visibility mirrors the experiment ribbons' bulletproof interval sync. */
-  function syncChip(){
-    try{
-      const on=(typeof window.experimentEnabled==='function'&&window.experimentEnabled())&&!(typeof window.inDemoMode==='function'&&window.inDemoMode());
-      const u=buildUI();
-      u.chip.style.display=on?'flex':'none';
-      if(!on&&u.panel.style.display==='block')u.panel.style.display='none';
-      if(!on&&active)stop();
-    }catch(e){}
-  }
-  function init(){try{buildUI();setInterval(syncChip,800);syncChip();}catch(e){console.warn('replay UI init failed:',e);}}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
-  else init();
-
-  return{
-    active:function(){return active;},
-    data:function(){return build();},
-    start:start,stop:stop,jump:jump,
-  };
-})();
-window.__cfReplay=cfReplay;
-
 async function changeWeek(d){const n=activeWeek+d;if(n<1||n>MAX_WEEK)return;activeWeek=n;buildWeekSelect(n);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected()){schedulePeriodSkeleton();await run();}}
 async function changeWeekTo(w){activeWeek=parseInt(w);buildWeekSelect(activeWeek);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected()){schedulePeriodSkeleton();await run();}}
 async function changeSeason(v){activeSeason=v;activeWeek=(activeSeason===liveSeason)?liveWeek:1;colorMap={};hiddenLeagues.clear();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();stopAutoRefresh();if(!isDemoMode&&isAnyProviderConnected()){schedulePeriodSkeleton();await run();}}
@@ -11671,58 +11078,6 @@ window.goToSignUp=goToSignUp;
 function exitDemo(){try{if(typeof window.closeSiteMenu==='function')window.closeSiteMenu();}catch(e){}handleChangeUser();syncDemoRibbon();scrollToGetStarted();}
 window.exitDemo=exitDemo;
 
-/* ── Experimental mode ───────────────────────────────────────────────────────
-   Unlocked by typing the secret code below into the sign-in box (the email
-   field). Flips a persistent flag so unreleased features can ship to prod but
-   stay invisible until unlocked. Mirrors the demo-ribbon exit chrome.
-   To change the unlock code, edit EXPERIMENT_CODE and re-upload index.html. */
-const EXPERIMENT_CODE='TestMode2026';
-const EXPERIMENT_LS_KEY='conflicted_experiment';
-let isExperimentMode=false;
-/* True when experimental features should be visible. Gate any experimental UI
-   with: if(window.experimentEnabled()){ ... }  — or tag markup with class
-   "exp-only" for a pure-CSS gate. */
-window.experimentEnabled=function(){return isExperimentMode;};
-function syncExperimentRibbon(){try{document.body.classList.toggle('experiment-active',!!isExperimentMode);}catch(e){}}
-function loadExperimentState(){try{isExperimentMode=localStorage.getItem(EXPERIMENT_LS_KEY)==='1';}catch(e){isExperimentMode=false;}syncExperimentRibbon();}
-function enableExperimentMode(){isExperimentMode=true;try{localStorage.setItem(EXPERIMENT_LS_KEY,'1');}catch(e){}syncExperimentRibbon();
-  /* Reload so any experimental UI that gates at boot/render time appears cleanly,
-     mirroring the exit path. The flag is already persisted, so it survives. */
-  try{location.reload();}catch(e){}}
-window.enableExperimentMode=enableExperimentMode; /* More-sheet Experiment tile (separate script) needs it */
-function exitExperiment(){isExperimentMode=false;try{localStorage.removeItem(EXPERIMENT_LS_KEY);}catch(e){}syncExperimentRibbon();
-  /* Reload so any experimental UI that was rendered tears down cleanly, exactly
-     as it would for a normal (locked) visitor. */
-  try{location.reload();}catch(e){}}
-window.exitExperiment=exitExperiment;
-/* Returns true if the sign-in value was the unlock code (and acts on it). The
-   sign-in handler calls this before its email validation so the code never
-   gets sent to the magic-link endpoint. */
-function tryExperimentUnlock(v){
-  if((v||'').trim().toLowerCase()!==EXPERIMENT_CODE.toLowerCase())return false;
-  enableExperimentMode();
-  return true;
-}
-/* TestMode dashboard shortcut. With leagues connected it just shows the real
-   board. With nothing connected, the normal "go to dashboard" path falls back
-   to the setup/Home screen — useless for testing — so here we populate the
-   board with the demo dataset as a preview. We deliberately do NOT set
-   isDemoMode (so the demo ribbon doesn't stack on the experiment ribbon); this
-   is purely a populated board to test experimental UI against. */
-function experimentGoDashboard(){
-  try{
-    if(isAnyProviderConnected()||isDemoMode){
-      goToDashboardOrSetup();
-    }else{
-      activeWeek=liveWeek;activeSeason=liveSeason;
-      buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();
-      renderBoard(getDemoData(),'preview');
-      ensureDemoHeadshots('preview');
-    }
-  }catch(e){console.warn('experimentGoDashboard failed:',e.message);}
-  window.scrollTo(0,0);
-}
-window.experimentGoDashboard=experimentGoDashboard;
 function handleDemo(){try{cfTrack('demo_started');}catch(e){}isDemoMode=true;activeWeek=liveWeek;activeSeason=liveSeason;colorMap={};hiddenLeagues.clear();stopAutoRefresh();buildWeekSelect(activeWeek);buildSeasonSelect(activeSeason);updateNavUI();renderBoard(getDemoData(),'demo');syncDemoRibbon();window.scrollTo(0,0);ensureDemoHeadshots();}
 /* Demo player cards fall back to initials because demo rosters carry no Sleeper
    ID and the player DB (which the name→ID resolver needs) isn't loaded outside a
@@ -11785,8 +11140,6 @@ async function handleChangeUser(){isDemoMode=false;colorMap={};hiddenLeagues.cle
 /* Safety-net sync: guarantees the ribbon clears even on demo-exit paths that
    don't route through handleDemo/handleChangeUser (e.g. connecting a league). */
 try{setInterval(syncDemoRibbon,400);}catch(e){}
-/* Same bulletproof sync for the experiment ribbon. */
-try{setInterval(syncExperimentRibbon,400);}catch(e){}
 function resetRenderIndexes(){
   ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
     const el=document.getElementById(id);
@@ -11839,9 +11192,6 @@ const BOARD_SNAPSHOT_MAX_AGE_MS=24*60*60*1000; // older than a day → cold boot
 const SNAPSHOT_TS_KEY='conflicted_snapshot_ts';
 function saveBoardSnapshot(data,username){
   try{
-    /* Replay Mode data must never persist as the boot snapshot — it looks like
-       a live board but is synthetic, and would paint fake scores on next boot. */
-    if((data&&data.__replay)||(window.__cfReplay&&window.__cfReplay.active()))return;
     /* A LIVE no-data render (e.g. every league toggled off, or genuinely no
        leagues this season) must DROP any stale snapshot — otherwise the next
        boot paints the old board for a moment before the no-data state resolves.
@@ -11853,7 +11203,7 @@ function saveBoardSnapshot(data,username){
     /* Sample-board data must never be snapshotted. It renders with isDemoMode
        FALSE (the user has a real account), so the demo guard above doesn't catch
        it — without this the next cold boot would paint fake scores as the user's
-       actual board before revalidation. Same reasoning as the __replay guard. */
+       actual board before revalidation. */
     if(data.__sample)return;
     if(!isAnyProviderConnected())return;
     const snap={ts:Date.now(),week:activeWeek,season:activeSeason,liveWeek:liveWeek,liveSeason:liveSeason,username:username||'',data:data};
@@ -11879,7 +11229,7 @@ const REFRESH_MS=60*1000;const REFRESH_MS_LIVE=30*1000;let refreshTimer=null;let
 /* 30s while a game is live (anyGameInProgress), 60s otherwise — the setInterval tick
    stays 10s, only this threshold moves. Same game-window gate as the NFL-state TTL. */
 function currentRefreshMs(){ return anyGameInProgress()?REFRESH_MS_LIVE:REFRESH_MS; }
-function shouldAutoRefresh(){return !isDemoMode && !(window.__cfReplay&&window.__cfReplay.active()) && isAnyProviderConnected() && !isHistoricalWeek();}
+function shouldAutoRefresh(){return !isDemoMode && isAnyProviderConnected() && !isHistoricalWeek();}
 function isDashboardVisible(){const b=document.getElementById('board');if(!b)return false;const d=b.style.display;return !(d==='none'||d==='');}
 /* Keep the live poll alive on the dashboard AND on any registered, data-driven
    nav view (Snapshot / Exposure / Watch / future Conflict Card). renderBoard()
@@ -12210,22 +11560,17 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
   let luLog=[];                       // [{t, rows:[...], stale, from, to}], newest first
   let luLastSyncAt=0;                 // wall-clock (ms) of the last sync — gap detection + range label
   let luDay=null;                     // local date string of the current feed (midnight-wipe guard)
-  let luTestTot=Object.create(null);  // test harness: "<name>|<league>" -> running total
-  let luTestClk=3600;                 // test harness: synthetic game seconds remaining (counts down)
   let luSeq=0;                        // monotonic live-batch id — drives the freeze gate
   let luKeySeq=0;                     // fallback unique row key when a row isn't an animation target
   let luRevealedThrough=0;            // highest batch seq cleared to fully reveal
   let luGateTimer=null;               // safety fallback: un-gate even if idle never fires
-  let luPaceTimer=null;               // Replay: drips gated rows out one at a time
-  const LU_PACE_MS=2000;              // Replay: minimum gap between any two permanent rows
-  function inReplay(){try{return !!(window.__cfReplay&&window.__cfReplay.active&&window.__cfReplay.active());}catch(e){return false;}}
 
   function nflClockFor(team){try{return (team&&nflGameClocks.get(team))||'';}catch(e){return'';}}
   function localDayStr(d){d=d||new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
   function fmtClock(ms){return new Date(ms).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});}
-  /* Full clear of the feed + diff snapshot + test state. Used by the nightly wipe,
+  /* Full clear of the feed + diff snapshot. Used by the nightly wipe,
      the day-rollover guard, and user-change/disconnect. */
-  function clearAll(){luPrev=Object.create(null);luSeeded=false;luLog=[];luLastSyncAt=0;luTestTot=Object.create(null);luTestClk=3600;}
+  function clearAll(){luPrev=Object.create(null);luSeeded=false;luLog=[];luLastSyncAt=0;}
   /* Wipe the section clean at local midnight and reschedule for the next one. A
      +2s cushion avoids firing a hair early; the day-rollover guard in
      __buildLiveUpdates covers the case where the tab was asleep across midnight. */
@@ -12382,9 +11727,6 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
      A safety timer un-gates even if the idle signal never arrives. */
   function revealGated(){
     if(luGateTimer){clearTimeout(luGateTimer);luGateTimer=null;}
-    // Replay: never dump the frozen rows out at once — drip them one every
-    // LU_PACE_MS so every permanent row is at least 2s apart.
-    if(inReplay()){startPacer();return;}
     luRevealedThrough=luSeq;
     // Everything is revealed now — the landed-id set has served its purpose.
     try{if(window.__iaLanded)window.__iaLanded.clear();}catch(e){}
@@ -12414,53 +11756,17 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     }catch(e){}
   }
 
-  /* Replay row pacer: reveal gated rows one at a time, oldest first, never closer
-     than LU_PACE_MS apart, and never while a card animation is on screen (it
-     resumes when the animation goes idle). A revealed row is added to __iaLanded
-     so it survives re-renders (same mechanism the animation landing uses). */
-  function startPacer(){ if(luPaceTimer==null) schedulePace(); }
-  window.__luStartPacer=startPacer; // drain() calls this to reveal older rows before a deferred animation
-  function schedulePace(){
-    const since=Date.now()-(window.__iaLastReveal||0);
-    luPaceTimer=setTimeout(paceStep, Math.max(0, LU_PACE_MS-since));
-  }
-  function paceStep(){
-    luPaceTimer=null;
-    if(window.__iaOnScreen&&window.__iaOnScreen())return; // a card is actually playing/cooling — resume on idle
-    const log=document.getElementById('live-updates-log');
-    const els=log?log.querySelectorAll('.lu-group.lu-gate'):[];
-    if(els.length){
-      const target=els[els.length-1]; // bottom-most = oldest scoring event
-      const key=target.getAttribute('data-key');
-      if(key&&window.__iaLanded)window.__iaLanded.add(String(key));
-      target.classList.remove('lu-gate');luRevealRow(target); // grow open + phase in
-      let p=target.previousElementSibling; // un-gate this row's batch timestamp
-      while(p){if(p.classList&&p.classList.contains('lu-synchead')){if(p.classList.contains('lu-gate')){p.classList.remove('lu-gate');p.classList.add('lu-degate');}break;}p=p.previousElementSibling;}
-      window.__iaLastReveal=Date.now();
-      if(log.querySelectorAll('.lu-group.lu-gate').length) schedulePace(); // more waiting → keep dripping
-    }
-    // A deferred animation may now be clear to start (its below-rows revealed).
-    try{if(window.__iaKickDrain)window.__iaKickDrain();}catch(e){}
-  }
-
   /* Assign a batch its seq and, if a card animation is in flight, freeze it
-     (hold its rows out of the flow) until the animation queue drains. Shared by
-     the live detector AND the experiment test harness so the freeze rule holds
-     in both. A stale "catch-up" batch is never gated in render, so while busy we
+     (hold its rows out of the flow) until the animation queue drains. A stale "catch-up" batch is never gated in render, so while busy we
      leave revealedThrough untouched — bumping it would prematurely reveal a live
      batch already gated behind the running animation. */
   function gateBatch(batch){
     batch.seq=++luSeq;
     const busy=!!(window.__iaBusy&&window.__iaBusy());
-    const replay=inReplay();
-    // In Replay, gate EVERY live batch so even multi-player ticks (and quiet
-    // stretches) funnel through the 2s pacer — not just batches behind an
-    // animation. Live play keeps its natural cadence (gate only when busy).
-    if((busy||replay)&&!batch.stale){
+    if(busy&&!batch.stale){
       if(window.__iaWhenIdle)window.__iaWhenIdle(revealGated);
       if(luGateTimer)clearTimeout(luGateTimer);
       luGateTimer=setTimeout(revealGated,12000);
-      if(replay)startPacer(); // keep the drip going even outside animations
     }else if(!busy){
       luRevealedThrough=luSeq;
     }
@@ -12491,8 +11797,7 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         // A gated batch shows its timestamp only once one of its rows is actively
         // animating in place (header sits above the forming card) or has LANDED.
         // Purely-queued/frozen batches hide the header too, so no orphan/blank
-        // timestamped rows stack up while the animation plays (matters in Replay,
-        // which re-renders every virtual tick).
+        // timestamped rows stack up while the animation plays.
         let batchHasReveal=false;
         if(gatedBatch){(b.groups||[]).forEach(g=>{const gk=(g.key!=null)?String(g.key):('nokey_'+g.id);if(window.__iaLanded&&window.__iaLanded.has&&window.__iaLanded.has(gk))batchHasReveal=true;});}
         const gateHead=gatedBatch&&!batchHasReveal;
@@ -12605,9 +11910,8 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
       render(rows.length?0:-1);
       /* Rows are in the DOM now — kick the impact queue. This is load-bearing:
          the animation drives the REAL row, so it cannot start until that row
-         exists. In Replay the detector defers draining to here for exactly that
-         reason. (Live play is covered by the ~1s phase-1 splash, which always
-         outlasts the render.) */
+         exists. (Live play is also covered by the ~1s phase-1 splash, which
+         always outlasts the render.) */
       try{if(window.__iaKickDrain)window.__iaKickDrain();}catch(e){}
       /* Ticks with NO conflicted player never reach the animation queue, so no
          batch would ever drive their rows. Every mover writes itself in now
@@ -12618,59 +11922,12 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
     }catch(e){console.warn('Live Updates build failed:',e&&e.message);}
   };
 
-  /* Test harness hooks (experiment-only) — reuse the impact-animation test control.
-     Maintain their own running totals + a descending synthetic game clock so rows
-     look live during the offseason. */
-  function testEnabled(){return !!(window.experimentEnabled&&window.experimentEnabled())&&!!document.getElementById('live-updates-log');}
-  function testClk(stale){ // advance synthetic game clock; a gap jumps it by minutes
-    luTestClk=Math.max(0,luTestClk-(stale?(300+Math.floor(Math.random()*600)):(15+Math.floor(Math.random()*40))));
-    const q=luTestClk>2700?1:luTestClk>1800?2:luTestClk>900?3:4, rem=luTestClk-(4-q)*900;
-    return 'Q'+q+' '+Math.floor(rem/60)+':'+('0'+(rem%60)).slice(-2);
-  }
-  function testRow(name,r,clk){ // r: {league, side('cheer'/'enemy'/'mine'/'opp'), delta, fmt}
-    const key=name+'|'+r.league;
-    if(luTestTot[key]==null)luTestTot[key]=Math.round((5+Math.random()*8)*10)/10;
-    luTestTot[key]=Math.round((luTestTot[key]+r.delta)*10)/10;
-    return {id:'t_'+key,name:name,league:r.league,fmt:r.fmt||'',side:(r.side==='opp'?'enemy':(r.side==='mine'?'cheer':r.side)),delta:r.delta,total:luTestTot[key],clk:clk};
-  }
-  // Live framed batch. inGroups: [{name,pos,team?,net:{pos,intensity,label}, rows:[{league,side,delta,fmt}]}]
-  window.__luTestInjectLive=function(inGroups){
-    try{
-      if(!testEnabled()||!inGroups||!inGroups.length)return;
-      const empty=document.getElementById('lu-empty');if(empty)empty.textContent='No scoring changes yet — updates appear here as your players score.';
-      const clk=testClk(false);
-      const groups=inGroups.map(function(g){return {id:'t_'+g.name,name:g.name,pos:g.pos,team:g.team||'',net:g.net,rows:g.rows.map(function(r){return testRow(g.name,r,clk);})};});
-      const t=new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
-      const b={t:t,stale:false,groups:groups};
-      gateBatch(b); // experiment: same freeze rule when the harness injects live rows
-      luLog.unshift(b);
-      if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
-      render(0);
-    }catch(e){console.warn('Live Updates test (live) failed:',e&&e.message);}
-  };
-  // Stale "catch you up" batch — clustered per player, no net frame. inGroups same
-  // shape as live minus `net`: [{name,pos,team?, rows:[{league,side,delta,fmt}]}]
-  window.__luTestInjectGap=function(inGroups){
-    try{
-      if(!testEnabled()||!inGroups||!inGroups.length)return;
-      const clk=testClk(true);
-      const groups=inGroups.map(function(g){return {id:'t_'+g.name,name:g.name,pos:g.pos,team:g.team||'',rows:g.rows.map(function(r){return testRow(g.name,r,clk);})};});
-      const nowMs=Date.now(), gapMs=25*60000;
-      const t=new Date(nowMs).toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
-      const b={t:t,stale:true,from:fmtClock(nowMs-gapMs),to:fmtClock(nowMs),groups:groups};
-      gateBatch(b);
-      luLog.unshift(b);
-      if(luLog.length>LU_MAX_BATCHES)luLog.length=LU_MAX_BATCHES;
-      render(-1);
-    }catch(e){console.warn('Live Updates test (gap) failed:',e&&e.message);}
-  };
-
   /* Reset on disconnect / user change so one user's log never bleeds into another. */
   /* Repaint the feed from the existing luLog without touching state. Needed by
      the screenshot-privacy mask: the log is append-only, so already-rendered
      rows would keep showing real league names until the next scoring delta. */
   window.__luRepaint=function(){try{render();}catch(e){}};
-  window.__resetLiveUpdates=function(){clearAll();luDay=null;if(luPaceTimer){clearTimeout(luPaceTimer);luPaceTimer=null;}luRevealedThrough=luSeq;const l=document.getElementById('live-updates-log');if(l)l.innerHTML='';const e=document.getElementById('lu-empty');if(e)e.style.display='block';};
+  window.__resetLiveUpdates=function(){clearAll();luDay=null;luRevealedThrough=luSeq;const l=document.getElementById('live-updates-log');if(l)l.innerHTML='';const e=document.getElementById('lu-empty');if(e)e.style.display='block';};
 
   scheduleMidnightWipe(); // nightly clean slate
 })();
@@ -14434,9 +13691,6 @@ function openSignInModal(){
   const send = async()=>{
     const email = (backdrop.querySelector('#signin-email').value||'').trim();
     errEl.textContent='';
-    // Secret unlock: if the field holds the experiment code, flip experimental
-    // mode and bail before any magic-link request goes out.
-    if(tryExperimentUnlock(email)){ close(); window.scrollTo(0,0); return; }
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ errEl.textContent='Enter a valid email address.'; return; }
     submit.disabled=true; submit.textContent='Sending…';
     try{
@@ -15193,7 +14447,9 @@ function renderSettingsPriorityList(list,order,equal){
 
 loadPriorityState();
 loadLiveOnlyState();
-loadExperimentState();
+/* Experiment mode + Replay Mode were removed 2026-09-24. One-time cleanup of the
+   flags/snapshot they left in this browser's storage; no-op for everyone else. */
+try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('conflicted_replay_snapshot_v1');}catch(e){}
 
 (async()=>{
   /* ── COLD-LOAD TIMING INSTRUMENTATION (measurement only, no UI) ───────────
@@ -18676,22 +17932,10 @@ loadExperimentState();
   (function() {
     var nav = document.getElementById('exp-bottom-nav');
     if (!nav) return;
-    var ribbon = document.getElementById('experiment-ribbon');
 
     function visible(id) {
       var el = document.getElementById(id);
       return !!(el && el.style.display && el.style.display !== 'none');
-    }
-
-    // Keep the bar parked directly above the pinned experiment ribbon when it's
-    // active (fixed, bottom:0, z-9000, ~64px, owns the safe-area inset). Height
-    // varies with the inset. For everyone else — including demo mode, whose
-    // exit pill lives in the header now — height is 0 and the bar drops flush
-    // to the edge.
-    function syncRibbonHeight() {
-      var active = (ribbon && document.body.classList.contains('experiment-active')) ? ribbon : null;
-      var h = active ? active.offsetHeight : 0;
-      document.documentElement.style.setProperty('--exp-ribbon-h', h + 'px');
     }
 
     // Highlight the active tab off the same view-display state the drawer reads.
@@ -18767,8 +18011,6 @@ loadExperimentState();
           if (connectedOrDemo) {
             if (typeof window.goToDashboardOrSetup === 'function') window.goToDashboardOrSetup();
             else if (typeof window.showBoard === 'function') window.showBoard();
-          } else if (window.experimentEnabled && window.experimentEnabled() && typeof window.experimentGoDashboard === 'function') {
-            window.experimentGoDashboard(); // TestMode preview board — never the landing page
           }
           // else: no leagues connected → no dashboard to show; do nothing.
         } else if (tab === 'snapshot') {
@@ -18797,12 +18039,10 @@ loadExperimentState();
     });
 
     // Views switch through many code paths (drawer, deep links, board renders),
-    // so poll on the same cadence the demo/experiment ribbons already use rather
-    // than hooking every caller. Cheap: a handful of style reads every ~350ms.
-    syncRibbonHeight();
+    // so poll on a light cadence rather than hooking every caller.
+    // Cheap: a handful of style reads every ~350ms.
     syncActive();
-    setInterval(function() { syncRibbonHeight(); syncActive(); }, 350);
-    window.addEventListener('resize', syncRibbonHeight);
+    setInterval(function() { syncActive(); }, 350);
 
     // Auto-hide on scroll-down, reveal on scroll-up (Amazon-style). The work is
     // a single classList toggle, so we run it straight off the (passive) scroll
@@ -18871,44 +18111,6 @@ loadExperimentState();
     }
     syncRail();
     setInterval(syncRail, 350);
-  })();
-</script>
-
-<!-- ════ "Preview real nav" (TestMode2026) ════════════════════════════════════
-     Temporarily removes the experiment banner + impact-test buttons so the tab
-     bar relocates to its real production position for a clean visual review. -->
-<script>
-  (function() {
-    var DURATION = 10; // seconds
-    function recomputeRibbonOffset() {
-      var rib = document.getElementById('experiment-ribbon');
-      document.documentElement.style.setProperty('--exp-ribbon-h', (rib ? rib.offsetHeight : 0) + 'px');
-    }
-    window.previewRealNav = function() {
-      var body = document.body;
-      if (body.classList.contains('exp-nav-preview')) return; // already running
-      body.classList.add('exp-nav-preview');
-      // Snap the bar flush immediately; the 350ms loop also keeps it at 0 while
-      // the (now hidden) banner measures as zero height.
-      document.documentElement.style.setProperty('--exp-ribbon-h', '0px');
-      var secsEl = document.getElementById('exp-nav-preview-secs');
-      var left = DURATION;
-      if (secsEl) secsEl.textContent = left;
-      clearInterval(window.__expNavPrevIv);
-      window.__expNavPrevIv = setInterval(function() {
-        left -= 1;
-        if (secsEl) secsEl.textContent = Math.max(0, left);
-        if (left <= 0) clearInterval(window.__expNavPrevIv);
-      }, 1000);
-      clearTimeout(window.__expNavPrevTo);
-      window.__expNavPrevTo = setTimeout(window.endNavPreview, DURATION * 1000);
-    };
-    window.endNavPreview = function() {
-      clearInterval(window.__expNavPrevIv);
-      clearTimeout(window.__expNavPrevTo);
-      document.body.classList.remove('exp-nav-preview');
-      recomputeRibbonOffset(); // banner is back — re-park the bar above it at once
-    };
   })();
 </script>
 
@@ -19254,23 +18456,15 @@ loadExperimentState();
    Settings → Scoring animations. */
 (function(){
   var EPS=0.01, PREF_KEY='conflicted_impact_anim';
-  var prev=null, prevCtx=null, queue=[], running=false, paused=false, timers=[], nodes=[], testMode=false;
+  var prev=null, prevCtx=null, queue=[], running=false, paused=false, timers=[], nodes=[];
   var cooling=false, nextBatchAllowedAt=0;
-  /* Replay-only breather: after a batch's cards land, hold the NEXT batch for at
-     least this long so rows don't tumble out back-to-back (Matt). Live play has
-     its own natural spacing, so 0 there. */
-  function cooldownMs(){try{return (window.__cfReplay&&window.__cfReplay.active&&window.__cfReplay.active())?3000:0;}catch(e){return 0;}}
 
   function reduced(){try{return window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}}
   function prefOn(){try{return localStorage.getItem(PREF_KEY)!=='0';}catch(e){return true;}}
-  function expOn(){return typeof window.experimentEnabled==='function'&&window.experimentEnabled();}
   function demo(){return typeof window.inDemoMode==='function'&&window.inDemoMode();}
   function boardVisible(){return (typeof isDashboardVisible==='function')?isDashboardVisible():true;}
-  /* Un-gated 2026-08-18: expOn() is no longer required for live play, so this
-     runs for every user with the pref on (the default). The test harness still
-     needs experiment mode — it fabricates plays and must never fire for a real
-     user. demo/boardVisible/hidden guards are unchanged. */
-  function canAnimate(){if(reduced())return false;if(testMode)return expOn();return prefOn()&&!demo()&&boardVisible()&&!document.hidden;}
+  /* Runs for every user with the pref on (the default). */
+  function canAnimate(){if(reduced())return false;return prefOn()&&!demo()&&boardVisible()&&!document.hidden;}
   function overlay(){return document.getElementById('impact-overlay');}
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function fmt(d){d=Number(d)||0;return (d>=0?'+':'')+d.toFixed(2);}
@@ -19286,11 +18480,6 @@ loadExperimentState();
   function fireIdle(){var cbs=idleCbs;idleCbs=[];cbs.forEach(function(f){try{f();}catch(e){}});}
   window.__iaBusy=function(){return !!(running||queue.length||cooling);};
   window.__iaWhenIdle=function(cb){try{if(typeof cb!=='function')return;if(!(running||queue.length||cooling)){cb();}else{idleCbs.push(cb);}}catch(e){}};
-  /* On-screen = a card animation is actually playing or in its cooldown. A batch
-     that's merely QUEUED (deferred for chronology) does NOT count, so the log
-     pacer keeps dripping older rows while the animation waits its turn. */
-  window.__iaOnScreen=function(){return !!(running||cooling);};
-  function iaInReplay(){try{return !!(window.__cfReplay&&window.__cfReplay.active&&window.__cfReplay.active());}catch(e){return false;}}
   /* (v1's hasGatedBelow chronology guard is gone. It stopped a FLOATING card from
      landing above older rows that were still waiting to drip in. The row now
      animates where the log already placed it, so it can never land out of
@@ -19448,11 +18637,8 @@ loadExperimentState();
        during the 3s, erasing the pause. While cooling, __iaBusy stays true so no
        new rows surface either. */
     var wait=nextBatchAllowedAt-Date.now();
-    /* Replay: also keep ≥2s from the last permanent row shown (paced OR animated)
-       so an animation never lands right on top of a just-dripped row. */
-    if(iaInReplay())wait=Math.max(wait,((window.__iaLastReveal||0)+2000)-Date.now());
     if(wait>0){cooling=true;after(wait,function(){cooling=false;drain();});return;}
-    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(!tLooping)testMode=false;if(o){o.classList.remove('active');o.style.pointerEvents='none';}fireIdle();return;}
+    if(!queue.length||!canAnimate()){queue.length=0;nodes=[];if(o){o.classList.remove('active');o.style.pointerEvents='none';}fireIdle();return;}
     var batch=queue.shift(); runBatch(batch);
   }
 
@@ -19468,17 +18654,10 @@ loadExperimentState();
   var iaKeySeq=0;
   window.__iaLanded=new Set();
   window.__iaTickKeys={}; // per-tick id→key bridge: detector sets it, __buildLiveUpdates reads it to tag the row
-  window.__iaLastReveal=0; // ts of the last permanent row shown — the replay pacer reads this
   /* (rowFor removed — the animation no longer targets ONE row by key. Every row
      of the newest batch writes itself in, selected via .lu-new. __iaTickKeys is
      still required: it is what tells the log to MERGE a clustered pair's two
      player groups into a single card.) */
-
-  /* Time-travel reset (Replay Mode start/stop/jump/scrub): silently re-seed the
-     delta tracker and cancel anything mid-flight. Without this, rewinding the
-     virtual clock reads as a big negative "stat correction" and fires rows for
-     players whose games haven't kicked off yet (bucket correctly shows 0.00). */
-  window.__resetImpacts=function(){try{prev=null;prevCtx=null;queue.length=0;skipAll();if(window.__iaLanded)window.__iaLanded.clear();}catch(e){}};
 
   /* Phase 1 — the big "CONFLICTED" moment (once per batch). */
   function runSplash(cb){
@@ -19585,7 +18764,6 @@ loadExperimentState();
     }catch(e){}
     after(longest,function(){
       for(var j=0;j<rows.length;j++)finishRow(rows[j]);
-      window.__iaLastReveal=Date.now();
       if(done)done();
     });
   }
@@ -19597,7 +18775,7 @@ loadExperimentState();
     openLog();
     runSplash(function(){
       writeNewRows(events,function(){
-        running=false; nextBatchAllowedAt=Date.now()+cooldownMs(); drain();
+        running=false; nextBatchAllowedAt=Date.now(); drain();
       });
     });
   }
@@ -19767,11 +18945,10 @@ loadExperimentState();
       if(events.length&&canAnimate()){
         queue.push(events);
         /* No hold registration any more — the row renders visible and the
-           animation finds it by data-key. Draining is still deferred in Replay:
-           __buildLiveUpdates kicks drain right after it renders this tick, and
-           writeNewRows needs the rows to exist before it can drive them. Live play
-           gets the ~1s splash first, by which point the log has built. */
-        if(!iaInReplay())drain();
+           animation finds it by data-key. Live play gets the ~1s splash first,
+           by which point the log has built (and __buildLiveUpdates kicks drain
+           again right after it renders this tick). */
+        drain();
       }
     }catch(e){}
   };
@@ -19795,109 +18972,6 @@ loadExperimentState();
       var r=computeMood(legs);
       return {pos:!!r.color, intensity:r.intensity, label:r.label};
     }catch(e){ return null; }
-  };
-
-  /* ── Test harness (experiment-only) ──────────────────────────────────────
-     Offseason has no live scoring, so this replays a scripted slate through the
-     exact same queue + animation path. Uses demo-mode player names and the four
-     demo leagues. testMode relaxes the live-data gates (still needs experiment
-     mode on + motion allowed). Includes a fumble (negative → flips), a tie
-     (→ green), a downward stat correction (>=0.5, fires), a same-play
-     multi-player batch (Allen TD pass + St. Brown reception collide side by side),
-     and two non-conflicted single-side plays — Nacua (#2, all 'mine' → pure cheer)
-     and Adams (#4, all 'opp' → pure enemy). */
-  var DR='Dynasty Royale', RC='Redraft Chaos', GG='The Gridiron', DM='Devy Masters';
-  var TEST_PLAYS=[
-    [{name:'Bijan Robinson',pos:'RB',delta:6.0,dist:[[DR,'mine'],[RC,'opp'],[GG,'opp']]}],
-    [{name:'Puka Nacua',pos:'WR',delta:7.0,dist:[[DR,'mine'],[RC,'mine'],[GG,'mine']]}],
-    [{name:'Josh Allen',pos:'QB',delta:6.2,dist:[[DR,'opp'],[RC,'mine'],[GG,'mine']]},
-     {name:'Amon-Ra St. Brown',pos:'WR',delta:6.0,dist:[[DR,'mine'],[RC,'mine']]}],
-    [{name:'Davante Adams',pos:'WR',delta:8.0,dist:[[DR,'opp'],[RC,'opp']]}],
-    [{name:'Patrick Mahomes',pos:'QB',delta:6.0,dist:[[DR,'mine'],[RC,'opp'],[GG,'mine']]},
-     {name:'Amon-Ra St. Brown',pos:'WR',delta:7.6,dist:[[DR,'mine'],[RC,'mine']]},
-     {name:'Steelers D/ST',pos:'DEF',delta:-7.0,dist:[[DR,'opp'],[RC,'opp']]}],
-    [{name:'CeeDee Lamb',pos:'WR',delta:9.4,dist:[[DR,'mine'],[RC,'mine']]}],
-    [{name:'Tyreek Hill',pos:'WR',delta:2.8,dist:[[RC,'opp'],[GG,'mine'],[DM,'opp']]}],
-    [{name:'Saquon Barkley',pos:'RB',delta:-2.0,dist:[[DR,'opp'],[RC,'opp']]}],
-    [{name:'Justin Jefferson',pos:'WR',delta:5.4,dist:[[DR,'mine'],[RC,'opp']]}],
-    [{name:'Patrick Mahomes',pos:'QB',delta:4.0,dist:[[DR,'mine'],[RC,'opp'],[GG,'mine']]}],
-    [{name:'Christian McCaffrey',pos:'RB',delta:6.0,dist:[[DR,'opp'],[RC,'opp'],[GG,'opp']]}],
-    [{name:"Ja'Marr Chase",pos:'WR',delta:-1.5,dist:[[GG,'mine'],[RC,'opp']]}],
-    [{name:'Travis Kelce',pos:'TE',delta:8.6,dist:[[DR,'opp'],[RC,'opp']]}],
-    [{name:'Jahmyr Gibbs',pos:'RB',delta:2.0,dist:[[DR,'mine'],[RC,'opp'],[GG,'opp']]}],
-    [{name:"Ja'Marr Chase",pos:'WR',delta:12.1,dist:[[DR,'mine'],[RC,'mine'],[GG,'opp']]}],
-    [{name:'Derrick Henry',pos:'RB',delta:6.0,dist:[[DR,'mine'],[RC,'opp']]}],
-    [{name:'Justin Jefferson',pos:'WR',delta:-0.6,dist:[[DR,'opp'],[RC,'mine'],[GG,'opp']]}]
-  ];
-  /* Test legs run through the SAME full mood model. Fixed per-demo-league
-     matchup context: tier + projected total + margin + game progress. DR is the
-     Tier-1 anchor (close, lots left), RC/GG Tier-2, GG near-clinched, DM Tier-3.
-     Optional 3rd tuple element {m:margin, prog:0-1} overrides per play. */
-  /* Per-demo-league scoring format, so the Live Updates test rows show why the
-     same play yields different deltas/totals across leagues. */
-  var LU_TEST_FMT={};LU_TEST_FMT[DR]='PPR';LU_TEST_FMT[RC]='Half';LU_TEST_FMT[GG]='Std';LU_TEST_FMT[DM]='PPR';
-  var DEMO_CTX={};
-  DEMO_CTX[DR]={tier:1,T:240,margin:4,prog:0.55};
-  DEMO_CTX[RC]={tier:2,T:175,margin:-9,prog:0.55};
-  DEMO_CTX[GG]={tier:2,T:210,margin:21,prog:0.85};
-  DEMO_CTX[DM]={tier:3,T:200,margin:-11,prog:0.50};
-  function buildEvents(batch){
-    return batch.map(function(pl,i){
-      var legs=pl.dist.map(function(d){
-        var base=DEMO_CTX[d[0]]||{tier:2,T:200,margin:0,prog:0.5}, o=d[2]||{};
-        return {league:d[0],side:d[1],delta:pl.delta,tier:base.tier,T:base.T,margin:(o.m==null?base.margin:o.m),remPct:imClamp(1-(o.prog==null?base.prog:o.prog),0,1)};
-      });
-      var r=computeMood(legs);
-      return {id:'test_'+i+'_'+pl.name,name:pl.name,pos:pl.pos,legs:legs,net:r.mood,intensity:r.intensity,color:r.color,label:r.label,joy:r.joy,delta:pl.delta};
-    });
-  }
-  var tIdx=0, tTimer=null, tLooping=false;
-  function isConflictedPlay(pl){ var s=pl.dist.map(function(d){return d[1];}); return s.indexOf('mine')>=0 && s.indexOf('opp')>=0; }
-  function testNext(){
-    testMode=true; var p=TEST_PLAYS[tIdx%TEST_PLAYS.length]; tIdx++;
-    /* The impact animation is the "conflicted scoring sequence" — production only
-       ever feeds it the conflicted bucket. Mirror that here so pure-cheer / pure-enemy
-       test plays (e.g. Nacua #2, Adams #4) don't wrongly fire the CONFLICTED splash. */
-    var confPlayers=p.filter(isConflictedPlay);
-    if(confPlayers.length){ queue.push(buildEvents(confPlayers)); drain(); }
-    /* The Live Updates log gets a net-impact framed group per player (every player,
-       conflicted or not). Mood for ALL players via buildEvents — the same model the
-       animation uses — so the frame color/intensity matches the conflicted composite. */
-    try{
-      if(window.__luTestInjectLive){
-        var evs=buildEvents(p);
-        var groups=p.map(function(pl,i){
-          var ev=evs[i]||{};
-          var rows=pl.dist.map(function(d){return {league:d[0],side:(d[1]==='mine'?'cheer':'enemy'),delta:pl.delta,fmt:LU_TEST_FMT[d[0]]||''};});
-          return {name:pl.name,pos:pl.pos,net:{pos:!!ev.color,intensity:ev.intensity,label:ev.label},rows:rows};
-        });
-        window.__luTestInjectLive(groups);
-      }
-    }catch(e){}
-  }
-  /* Simulate a refresh gap: bundle the next few scripted plays into one demoted
-     "Let's Catch You Up" recap batch in the Live Updates log. Log-only — no impact
-     animation (a catch-up isn't a live conflicted moment). */
-  function testGap(){
-    if(!window.__luTestInjectGap)return;
-    var byName={}; // cluster the bundled plays per player (one card per league)
-    for(var i=0;i<3;i++){
-      var p=TEST_PLAYS[tIdx%TEST_PLAYS.length]; tIdx++;
-      p.forEach(function(pl){
-        if(!byName[pl.name])byName[pl.name]={name:pl.name,pos:pl.pos,rows:[]};
-        pl.dist.forEach(function(d){ byName[pl.name].rows.push({league:d[0],side:(d[1]==='mine'?'cheer':'enemy'),delta:pl.delta,fmt:LU_TEST_FMT[d[0]]||''}); });
-      });
-    }
-    window.__luTestInjectGap(Object.keys(byName).map(function(k){return byName[k];}));
-  }
-  window.__impactTestGap=testGap;
-  window.__impactTest={ next:testNext, gap:testGap,
-    loop:function(ms){ this.stop(); tLooping=true; testMode=true; testNext(); tTimer=setInterval(function(){ if(!running)testNext(); }, ms||25000); },
-    stop:function(){ tLooping=false; if(tTimer){clearInterval(tTimer);tTimer=null;} } };
-  window.__impactTestLoopToggle=function(btn){
-    if(!window.__impactTest)return;
-    if(tLooping){ window.__impactTest.stop(); if(btn){btn.textContent='↻ Loop 25s';btn.classList.remove('on-loop');} }
-    else { window.__impactTest.loop(25000); if(btn){btn.textContent='■ Stop loop';btn.classList.add('on-loop');} }
   };
 
   /* Settings toggle */
@@ -22571,10 +21645,9 @@ if(typeof window.cfRegisterView==='function'){
   }
 
   function lastData(){return window.__conflictedLastData||null;}
-  function limitedMode(){ /* demo + replay have synthetic single-week data only */
+  function limitedMode(){ /* demo has synthetic single-week data only */
     var demo=(typeof window.inDemoMode==='function')&&window.inDemoMode();
-    var replay=!!(window.__cfReplay&&window.__cfReplay.active&&window.__cfReplay.active());
-    return demo||replay;
+    return demo;
   }
   function lv(name,fb){ /* read a top-level `let` binding defensively */
     try{ return eval('typeof '+name+'!=="undefined"?'+name+':fb'); }catch(e){ return fb; }
