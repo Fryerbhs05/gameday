@@ -23698,6 +23698,8 @@ if(typeof window.cfRegisterView==='function'){
 #view-leagues .lv-tg-vs{font:500 11px/1.3 var(--font-sans);color:var(--ink-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
 #view-leagues .lv-tg-wp{font:600 11px/1 var(--font-mono);color:var(--ink-700);white-space:nowrap;}
 #view-leagues .lv-pl{display:grid;grid-template-columns:minmax(0,1fr) auto auto;column-gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line-soft);}
+#view-leagues .lv-pl[data-lv-pl]{cursor:pointer;-webkit-tap-highlight-color:rgba(255,255,255,.06);}
+#view-leagues .lv-pl[data-lv-pl]:focus-visible{outline:2px solid var(--navy-500);outline-offset:1px;border-radius:6px;}
 #view-leagues .lv-pl-l{display:flex;align-items:baseline;gap:7px;min-width:0;white-space:nowrap;}
 #view-leagues .lv-pl-l .lv-pl-nm{flex:0 1 auto;min-width:0;}
 #view-leagues .lv-pl-l .lv-pl-mt{flex:0 0 auto;}
@@ -24044,6 +24046,25 @@ if(typeof window.cfRegisterView==='function'){
     }
     return '<span class="lv-pl-pj is-proj">'+(p.proj!=null?'<small>PROJ</small>'+(+p.proj).toFixed(2):'')+'</span>';
   }
+  /* Root-for rows open the SAME in-week box score drawer as a Loyalties player
+     card (cfOpenPlayerDrawer; Sleeper stats for every platform). The player
+     object is kept in a map by canonical key -- never in markup -- and reused
+     across refreshes so "tap the open player again to dismiss" keeps working.
+     Prefers the app's own roster entry (it carries sleeperId); otherwise builds
+     the drawer's {full_name, position, team, sleeperId} shape. Suppressed in
+     demo, exactly like cfStampTap (synthetic players = empty drawers). */
+  var PLOBJ={};
+  function plStamp(p,e){
+    try{if(typeof W.inDemoMode==='function'&&W.inDemoMode())return null;}catch(x){}
+    if(typeof W.cfOpenPlayerDrawer!=='function')return null;
+    var k=p.key||('nm:'+p.name+'|'+p.team);
+    var m=/^sl:(\d+)$/.exec(p.key||''),o=PLOBJ[k];
+    o=o||{};
+    o.full_name=(e&&e.full_name)||p.name;o.position=(e&&e.position)||p.pos||'';o.team=(e&&e.team)||p.team||'';
+    var sid=(e&&e.sleeperId)||(m&&m[1])||null;if(sid)o.sleeperId=String(sid);
+    PLOBJ[k]=o;return k;
+  }
+  function openPlayer(k){var o=PLOBJ[k];if(o&&typeof W.cfOpenPlayerDrawer==='function')W.cfOpenPlayerDrawer(o);}
   function rootHTML(M,data,ix){
     var targets=rootTargets(M);if(!targets.length)return '';
     var html=targets.map(function(t){
@@ -24064,7 +24085,8 @@ if(typeof window.cfRegisterView==='function'){
         else inner=ok.map(function(p){
           var e=p.key&&ix[p.key],n=1+(e?visL(e.myLeagues).length:0);
           var meta=[p.pos,p.team].filter(Boolean).join(' · ');
-          return '<div class="lv-pl" data-lv-key="dv:'+esc(M.c.leagueName)+':pl:'+esc(t.id)+':'+esc(p.key||p.name)+'"><div class="lv-pl-l"><span class="lv-pl-nm">'+esc(p.name)+'</span><span class="lv-pl-mt">'+esc(meta)+'</span></div>'
+          var pk=plStamp(p,e);
+          return '<div class="lv-pl" data-lv-key="dv:'+esc(M.c.leagueName)+':pl:'+esc(t.id)+':'+esc(p.key||p.name)+'"'+(pk?' data-lv-pl="'+esc(pk)+'" role="button" tabindex="0" aria-label="Box score for '+esc(p.name)+'"':'')+'><div class="lv-pl-l"><span class="lv-pl-nm">'+esc(p.name)+'</span><span class="lv-pl-mt">'+esc(meta)+'</span></div>'
             +'<span>'+(n>1?'<span class="lv-up">x'+n+' upside</span>':'')+'</span>'
             +ptsCell(p)+'</div>';
         }).join('');
@@ -24138,13 +24160,15 @@ if(typeof window.cfRegisterView==='function'){
     v.addEventListener('click',function(e){
       var sb=e.target.closest('[data-lv-sec]');
       if(sb){var id=sb.getAttribute('data-lv-sec'),now=SEC[id]===false;SEC[id]=now;sb.setAttribute('aria-expanded',now?'true':'false');var bd=document.getElementById(id==='div'?'lv-div-body':'lv-ls-body');if(bd)bd.hidden=!now;return;}
+      var pr=e.target.closest('[data-lv-pl]');
+      if(pr){openPlayer(pr.getAttribute('data-lv-pl'));return;}
       var tt=e.target.closest('[data-lv-tgtog]');
       if(tt){toggleTg(tt);return;}
       var t=e.target.closest('[data-lv-tog]');
       if(t){var card=t.closest('.lv-card');if(card){var nm=card.getAttribute('data-lv-lg'),now=card.getAttribute('data-open')!=='true';OPEN[nm]=now;card.setAttribute('data-open',now?'true':'false');var b=card.querySelector('.lv-hd');if(b)b.setAttribute('aria-expanded',now?'true':'false');}return;}
       var rw=e.target.closest('[data-lv-row]');if(rw)openRow(rw);
     });
-    v.addEventListener('keydown',function(e){if(e.key!=='Enter'&&e.key!==' ')return;var tg=e.target.closest&&e.target.closest('[data-lv-tgtog]');if(tg){e.preventDefault();toggleTg(tg);return;}var rw=e.target.closest&&e.target.closest('[data-lv-row]');if(rw){e.preventDefault();openRow(rw);}});
+    v.addEventListener('keydown',function(e){if(e.key!=='Enter'&&e.key!==' ')return;var pr=e.target.closest&&e.target.closest('[data-lv-pl]');if(pr){e.preventDefault();openPlayer(pr.getAttribute('data-lv-pl'));return;}var tg=e.target.closest&&e.target.closest('[data-lv-tgtog]');if(tg){e.preventDefault();toggleTg(tg);return;}var rw=e.target.closest&&e.target.closest('[data-lv-row]');if(rw){e.preventDefault();openRow(rw);}});
     return v;
   }
   function toggleTg(h){
