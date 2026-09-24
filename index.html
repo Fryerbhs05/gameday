@@ -23480,6 +23480,20 @@ if(typeof window.cfRegisterView==='function'){
       var strip=document.getElementById('scores-strip');var XH=(opts&&opts.host)||null;if(!strip&&!XH)return;
       var leagues=(contexts||[]).filter(function(c){return c&&c.allMatchups&&c.allMatchups.matchups&&c.allMatchups.matchups.length;});
       try{if(typeof hiddenLeagues!=='undefined')leagues=leagues.filter(function(c){return !hiddenLeagues.has(c.leagueName);});}catch(e){}
+      /* PRIORITY order, everywhere League Scores renders (Home + Leagues view;
+         Matt, 2026-09-24). contexts arrive in provider-resolution order, which
+         changes refresh to refresh, so leagues used to swap places and the page
+         jumped. Rank = priorityOrder (already tier-sorted); unranked / equal
+         priority falls back to name so ties can't shuffle either. */
+      try{
+        var _po=(typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder))?priorityOrder:[];
+        var _eq=(typeof priorityEqual!=='undefined'&&!!priorityEqual);
+        leagues=leagues.slice().sort(function(a,b){
+          var na=String(a.leagueName||''),nb=String(b.leagueName||'');
+          if(!_eq){var ra=_po.indexOf(na),rb=_po.indexOf(nb);ra=ra<0?1e9:ra;rb=rb<0?1e9:rb;if(ra!==rb)return ra-rb;}
+          return na.localeCompare(nb);
+        });
+      }catch(e){}
       var host=XH||document.getElementById('cf-league-scores');
       if(!leagues.length){if(XH){XH.innerHTML='<div class="cf-ls-empty">No league scores for this week yet.</div>';return;}if(host&&host.parentNode)host.parentNode.removeChild(host);return;}
       if(!host){host=document.createElement('div');host.id='cf-league-scores';var _frm=document.getElementById('scoreboard-frame')||strip.parentNode;_frm.parentNode.insertBefore(host,_frm.nextSibling);}
@@ -23835,9 +23849,24 @@ if(typeof window.cfRegisterView==='function'){
   function isHidden(n){try{return (typeof hiddenLeagues!=='undefined')&&hiddenLeagues&&hiddenLeagues.has(n);}catch(e){return false;}}
   function pctOf(t){var g=t.w+t.l+t.t;return g?(t.w+0.5*t.t)/g:0;}
   function recTxt(t){return t.w+'-'+t.l+(t.t?'-'+t.t:'');}
+  /* Leagues always render in the user's PRIORITY order (Matt, 2026-09-24).
+     data.contexts arrives in provider-resolution order, which varies from one
+     refresh to the next (Sleeper/ESPN/Yahoo race), so leagues swapped places
+     on auto-refresh and the page jumped. Priority rank (the same priorityOrder
+     Home uses, already tier-sorted) is stable; equal/unranked leagues fall back
+     to name order so ties can never shuffle either. */
+  function prioSort(list){
+    var po=(typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder))?priorityOrder:[];
+    var eq=(typeof priorityEqual!=='undefined'&&!!priorityEqual);
+    return (Array.isArray(list)?list:[]).slice().sort(function(a,b){
+      var na=String((a&&a.leagueName)||''),nb=String((b&&b.leagueName)||'');
+      if(!eq){var ra=po.indexOf(na),rb=po.indexOf(nb);ra=ra<0?1e9:ra;rb=rb<0?1e9:rb;if(ra!==rb)return ra-rb;}
+      return na.localeCompare(nb);
+    });
+  }
   function buildModels(data){
     var out=[],week=+(data&&data.debugInfo&&data.debugInfo.week)||null,isHist=!!(data&&data.isHist);
-    (data&&Array.isArray(data.contexts)?data.contexts:[]).forEach(function(c){
+    prioSort(data&&data.contexts).forEach(function(c){
       try{
         var D=c&&c.div;if(!D||!D.teams||D.myId==null)return;
         if(isHidden(c.leagueName)||c.leagueState==='NO_OPPONENT')return;
@@ -24258,7 +24287,7 @@ if(typeof window.cfRegisterView==='function'){
     }catch(e){ds.hidden=true;try{console.warn('Division Watch render failed',e);}catch(x){}}
     try{
       ls.hidden=false;
-      if(typeof W.cfRenderLeagueScores==='function')W.cfRenderLeagueScores(data.contexts||[],{host:lb});
+      if(typeof W.cfRenderLeagueScores==='function')W.cfRenderLeagueScores(prioSort(data.contexts),{host:lb});
       Array.prototype.forEach.call(lb.querySelectorAll('.cf-ls-league'),function(el){
         var ln=el.getAttribute('data-league')||'';
         var hb=el.querySelector('.cf-ls-hbtn');if(hb)hb.setAttribute('data-lv-key','ls:'+ln);
