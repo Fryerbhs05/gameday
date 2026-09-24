@@ -24182,29 +24182,34 @@ if(typeof window.cfRegisterView==='function'){
     TGOPEN[k]=now;g.setAttribute('data-open',now?'true':'false');h.setAttribute('aria-expanded',now?'true':'false');
     slide(g.querySelector('.lv-tg-b'),now);
   }
-  /* ── Fold animation for every collapsible on this page (Matt, 2026-09-24) ──
-     Same motion as Home's Loyalties fold (the scope row that folds away as the
-     Rooting Card slides in): .32s var(--ease-out) on height, .2s fade. The
-     open/closed STATE flips instantly as before (so chevrons turn at once and a
-     refresh mid-fold just lands on the final state); this only animates the
-     body between heights. An inline display:block holds a closing body visible
-     for the fold, then is cleared so the CSS closed state takes over.
-     Reduced-motion users get the instant toggle. */
+  /* ── Open/close animation for every collapsible on this page (v261) ──
+     v260 animated HEIGHT, which re-lays-out the whole page on every frame —
+     choppy on iPhone. This version touches only opacity + transform (the same
+     GPU-only properties the Rooting Card slide on Home uses), so WebKit runs it
+     on the compositor with no per-frame layout:
+       open  - the body is laid out at once, then glides down 10px into place
+               while fading in (280ms);
+       close - the body lifts 6px and fades out (170ms), then collapses.
+     The open/closed STATE still flips instantly (chevrons turn at once; a
+     refresh mid-animation just lands on the final state). An inline
+     display:block holds a closing body visible for its fade. Reduced-motion
+     users get the instant toggle. */
   function slide(el,open){
-    if(!el)return;
+    if(!el||typeof el.animate!=='function')return;
     try{if(W.matchMedia&&W.matchMedia('(prefers-reduced-motion: reduce)').matches)return;}catch(e){}
-    if(el.__lvFin)el.__lvFin();
-    var st=el.style;
-    st.display='block';
-    var full=el.scrollHeight;
-    st.overflow='hidden';st.height=(open?0:full)+'px';st.opacity=open?'0':'1';
-    void el.offsetHeight;
-    st.transition='height .32s var(--ease-out,cubic-bezier(.2,.8,.2,1)), opacity .2s var(--ease-out,ease-out)';
-    st.height=(open?full:0)+'px';st.opacity=open?'1':'0';
-    var tm=null;
-    var fin=function(){el.removeEventListener('transitionend',te);clearTimeout(tm);el.__lvFin=null;st.transition='';st.height='';st.overflow='';st.opacity='';st.display='';};
-    var te=function(ev){if(ev.target===el&&ev.propertyName==='height')fin();};
-    el.addEventListener('transitionend',te);tm=setTimeout(fin,480);el.__lvFin=fin;
+    try{if(el.__lvAnim){el.__lvAnim.cancel();el.__lvAnim=null;}}catch(e){}
+    var ease='cubic-bezier(.2,.8,.2,1)',an;
+    if(open){
+      el.style.display='';
+      an=el.animate([{opacity:0,transform:'translateY(-10px)'},{opacity:1,transform:'none'}],{duration:280,easing:ease});
+      an.onfinish=an.oncancel=function(){el.__lvAnim=null;};
+    }else{
+      el.style.display='block';
+      an=el.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(-6px)'}],{duration:170,easing:'ease-in',fill:'forwards'});
+      var done=function(){el.__lvAnim=null;el.style.display='';try{an.cancel();}catch(e){}};
+      an.onfinish=done;
+    }
+    el.__lvAnim=an;
   }
   function openRow(el){
     try{
