@@ -23655,7 +23655,13 @@ if(typeof window.cfRegisterView==='function'){
 #view-leagues .lv-root-h{font:700 10px/1 var(--font-sans);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-900);}
 #view-leagues .lv-root-s{font:500 11px/1.35 var(--font-sans);color:var(--ink-500);margin-top:4px;}
 #view-leagues .lv-tg{margin-top:8px;background:var(--paper-deep);border:1px solid var(--line);border-radius:10px;padding:9px 10px 6px;}
-#view-leagues .lv-tg-h{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:baseline;padding-bottom:6px;border-bottom:1px solid var(--line-soft);}
+#view-leagues .lv-tg-h{display:grid;grid-template-columns:minmax(0,1fr) auto 14px;gap:8px;align-items:center;padding-bottom:6px;border-bottom:1px solid var(--line-soft);cursor:pointer;}
+#view-leagues .lv-tg-h:focus-visible{outline:2px solid var(--navy-500);outline-offset:2px;border-radius:6px;}
+#view-leagues .lv-tg-chev{display:inline-flex;color:var(--ink-500);transition:transform .15s ease;}
+#view-leagues .lv-tg[data-open="true"] .lv-tg-chev{transform:rotate(180deg);}
+/* Collapsed (default): just the matchup header — players hidden, no divider. */
+#view-leagues .lv-tg[data-open="false"] .lv-tg-b{display:none;}
+#view-leagues .lv-tg[data-open="false"] .lv-tg-h{padding-bottom:3px;border-bottom:0;}
 #view-leagues .lv-tg-nm{font:700 13px/1.2 var(--font-sans);color:var(--cheer);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #view-leagues .lv-tg-vs{font:500 11px/1.3 var(--font-sans);color:var(--ink-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
 #view-leagues .lv-tg-wp{font:600 11px/1 var(--font-mono);color:var(--ink-700);white-space:nowrap;}
@@ -23667,8 +23673,16 @@ if(typeof window.cfRegisterView==='function'){
 #view-leagues .lv-pl-nm{font:600 12.5px/16px var(--font-sans);color:var(--ink-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #view-leagues .lv-pl-mt{font:500 10.5px/14px var(--font-sans);color:var(--ink-500);letter-spacing:.02em;}
 #view-leagues .lv-up{font:700 9.5px/1 var(--font-sans);letter-spacing:.04em;color:var(--cheer);border:1px solid color-mix(in oklab,var(--cheer) 45%,transparent);background:var(--cheer-soft);border-radius:var(--radius-pill);padding:4px 7px;white-space:nowrap;}
-#view-leagues .lv-pl-pj{font:600 12px/1 var(--font-mono);color:var(--ink-700);text-align:right;min-width:44px;}
-#view-leagues .lv-pl-pj small{display:block;font:600 8px/1 var(--font-sans);letter-spacing:.08em;color:var(--ink-500);margin-top:3px;}
+#view-leagues .lv-pl-pj{font:600 12px/1 var(--font-mono);text-align:right;min-width:44px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:flex-end;gap:5px;}
+#view-leagues .lv-pl-pj.is-proj{color:var(--ink-500);}
+#view-leagues .lv-pl-pj.is-act{color:var(--ink-900);}
+#view-leagues .lv-pl-pj small{font:600 8.5px/1 var(--font-sans);letter-spacing:.08em;color:var(--ink-500);}
+/* Live dot — same ice marker + shared breath as the matchup drawer: the view
+   animates ONE inherited property (mpLiveBreath) and every dot reads it, so
+   dots stay in sync even when a refresh re-creates them mid-cycle. */
+#view-leagues{animation:mpLiveBreath 2.6s ease-in-out infinite;}
+#view-leagues .lv-dot{width:6px;height:6px;border-radius:50%;background:var(--live-ice);opacity:var(--mp-live-breath,.9);flex:none;}
+@media (prefers-reduced-motion: reduce){#view-leagues{animation:none;}#view-leagues .lv-dot{opacity:.9;}}
 #view-leagues .lv-none{font:500 11.5px/1.4 var(--font-sans);color:var(--ink-500);padding:8px 0 4px;}
 </style>
 <script>
@@ -23970,6 +23984,19 @@ if(typeof window.cfRegisterView==='function'){
     });
     return out;
   }
+  /* Root-for points (Matt, 2026-09-24): before kickoff = "PROJ 14.20" in grey;
+     once the player's game is on, his ACTUAL points in white with the same
+     breathing ice dot the matchup drawers use (mpGameLive semantics). Every
+     player listed is yet to finish, so it's only ever one of those two. */
+  function ptsCell(p){
+    var live=false;
+    try{live=(typeof mpGameLive==='function')?mpGameLive(p.team):(gs(p.team)==='in');}catch(e){}
+    if(live){
+      var a=(p.pts!=null&&isFinite(+p.pts))?(+p.pts):0;
+      return '<span class="lv-pl-pj is-act"><span class="lv-dot" aria-label="Live"></span>'+a.toFixed(2)+'</span>';
+    }
+    return '<span class="lv-pl-pj is-proj">'+(p.proj!=null?'<small>PROJ</small>'+(+p.proj).toFixed(2):'')+'</span>';
+  }
   function rootHTML(M,data,ix){
     var targets=rootTargets(M);if(!targets.length)return '';
     var html=targets.map(function(t){
@@ -23990,22 +24017,25 @@ if(typeof window.cfRegisterView==='function'){
         else inner=ok.map(function(p){
           var e=p.key&&ix[p.key],n=1+(e?visL(e.myLeagues).length:0);
           var meta=[p.pos,p.team].filter(Boolean).join(' · ');
-          return '<div class="lv-pl"><div class="lv-pl-l"><span class="lv-pl-nm">'+esc(p.name)+'</span><span class="lv-pl-mt">'+esc(meta)+'</span></div>'
+          return '<div class="lv-pl" data-lv-key="dv:'+esc(M.c.leagueName)+':pl:'+esc(t.id)+':'+esc(p.key||p.name)+'"><div class="lv-pl-l"><span class="lv-pl-nm">'+esc(p.name)+'</span><span class="lv-pl-mt">'+esc(meta)+'</span></div>'
             +'<span>'+(n>1?'<span class="lv-up">x'+n+' upside</span>':'')+'</span>'
-            +'<span class="lv-pl-pj">'+(p.proj!=null?(+p.proj).toFixed(2):'')+'</span></div>';
+            +ptsCell(p)+'</div>';
         }).join('');
       }
       var rvName=esc(mT(t.rival.T.name));
-      return '<div class="lv-tg"><div class="lv-tg-h"><div style="min-width:0"><div class="lv-tg-nm">'+esc(mT(name))+'</div><div class="lv-tg-vs">vs '+rvName+(t.rvr?' · rival vs rival':'')+'</div></div><span class="lv-tg-wp">'+(wp?wp+' to win':'')+'</span></div>'+inner+'</div>';
+      var tk=M.c.leagueName+'|'+t.id,tOpen=!!TGOPEN[tk];
+      return '<div class="lv-tg" data-open="'+tOpen+'" data-lv-tg="'+esc(tk)+'" data-lv-key="dv:'+esc(M.c.leagueName)+':tg:'+esc(t.id)+'">'
+        +'<div class="lv-tg-h" role="button" tabindex="0" data-lv-tgtog aria-expanded="'+tOpen+'"><div style="min-width:0"><div class="lv-tg-nm">'+esc(mT(name))+'</div><div class="lv-tg-vs">vs '+rvName+(t.rvr?' · rival vs rival':'')+'</div></div><span class="lv-tg-wp">'+(wp?wp+' to win':'')+'</span><span class="lv-tg-chev">'+CHEV+'</span></div>'
+        +'<div class="lv-tg-b">'+inner+'</div></div>';
     }).join('');
-    return '<div class="lv-root"><div class="lv-root-h">Root for</div><div class="lv-root-s">Guilt-free: none of these players work against you in any league. Points are projected finals.</div>'+html+'</div>';
+    return '<div class="lv-root"><div class="lv-root-h" data-lv-key="dv:'+esc(M.c.leagueName)+':root">Root for</div><div class="lv-root-s">Guilt-free: none of these players work against you in any league.</div>'+html+'</div>';
   }
 
   /* ══ Render ══ */
-  var OPEN=(W.__cfLvOpen=W.__cfLvOpen||{}),SEC=(W.__cfLvSec=W.__cfLvSec||{}),MODELS=[];
+  var OPEN=(W.__cfLvOpen=W.__cfLvOpen||{}),SEC=(W.__cfLvSec=W.__cfLvSec||{}),TGOPEN=(W.__cfLvTgOpen=W.__cfLvTgOpen||{}),MODELS=[];
   var CHEV='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
   function cardHTML(M,mi,data,ix){
-    var name=M.c.leagueName,open=(OPEN[name]!=null)?!!OPEN[name]:(mi===0);
+    var name=M.c.leagueName,open=!!OPEN[name]; /* collapsed until tapped open */
     var rivals=M.rows.filter(function(r){return !r.isMe;});
     var allFin=rivals.every(function(r){return !r.g||r.g.fin;});
     var known=rivals.filter(function(r){return r.g&&r.g.p!=null;}).length;
@@ -24013,7 +24043,9 @@ if(typeof window.cfRegisterView==='function'){
     var hero;
     if(!known)hero='<span class="t">No projections for your division rivals yet.</span>';
     else{
-      var cls=(nLost*2>rivals.length)?'good':((nLost*2<rivals.length)?'bad':'meh');
+      /* Any rival losing is good news for you (Matt, 2026-09-24): green from 1 up,
+         red only when none of them are losing. */
+      var cls=(nLost>0)?'good':'bad';
       hero='<span class="k '+cls+'">'+nLost+' of '+rivals.length+'</span><span class="t">division rival'+(rivals.length===1?'':'s')+' '+(past?'lost':'projected to lose')+'</span>';
     }
     var rows=M.rows.map(function(r,ri){
@@ -24041,8 +24073,8 @@ if(typeof window.cfRegisterView==='function'){
     var head=M.isHist?'RESULT':'PROJ';
     return '<div class="lv-card" data-open="'+open+'" data-lv-lg="'+esc(name)+'" data-lv-key="dv:'+esc(name)+'">'
       +'<button type="button" class="lv-hd" data-lv-tog aria-expanded="'+open+'"><span class="lv-ttl"><span class="lv-lg">'+esc(mL(name))+'</span><span class="lv-dv">'+esc(M.divName)+(/division/i.test(M.divName)?'':' division')+'</span></span><span class="lv-chev">'+CHEV+'</span></button>'
-      +'<div class="lv-top" data-lv-tog><div class="lv-hero">'+hero+'</div></div>'
-      +'<div class="lv-body"><div class="lv-colhd"><span style="grid-column:1 / 3">STANDINGS</span><span>'+head+'</span></div>'+rows+note+root+'</div></div>';
+      +'<div class="lv-top" data-lv-tog data-lv-key="dv:'+esc(name)+':hero"><div class="lv-hero">'+hero+'</div></div>'
+      +'<div class="lv-body"><div class="lv-colhd" data-lv-key="dv:'+esc(name)+':hd"><span style="grid-column:1 / 3">STANDINGS</span><span>'+head+'</span></div>'+rows+note+root+'</div></div>';
   }
   function ensureView(){
     var v=document.getElementById('view-leagues');if(v)return v;
@@ -24059,12 +24091,19 @@ if(typeof window.cfRegisterView==='function'){
     v.addEventListener('click',function(e){
       var sb=e.target.closest('[data-lv-sec]');
       if(sb){var id=sb.getAttribute('data-lv-sec'),now=SEC[id]===false;SEC[id]=now;sb.setAttribute('aria-expanded',now?'true':'false');var bd=document.getElementById(id==='div'?'lv-div-body':'lv-ls-body');if(bd)bd.hidden=!now;return;}
+      var tt=e.target.closest('[data-lv-tgtog]');
+      if(tt){toggleTg(tt);return;}
       var t=e.target.closest('[data-lv-tog]');
       if(t){var card=t.closest('.lv-card');if(card){var nm=card.getAttribute('data-lv-lg'),now=card.getAttribute('data-open')!=='true';OPEN[nm]=now;card.setAttribute('data-open',now?'true':'false');var b=card.querySelector('.lv-hd');if(b)b.setAttribute('aria-expanded',now?'true':'false');}return;}
       var rw=e.target.closest('[data-lv-row]');if(rw)openRow(rw);
     });
-    v.addEventListener('keydown',function(e){if(e.key!=='Enter'&&e.key!==' ')return;var rw=e.target.closest&&e.target.closest('[data-lv-row]');if(rw){e.preventDefault();openRow(rw);}});
+    v.addEventListener('keydown',function(e){if(e.key!=='Enter'&&e.key!==' ')return;var tg=e.target.closest&&e.target.closest('[data-lv-tgtog]');if(tg){e.preventDefault();toggleTg(tg);return;}var rw=e.target.closest&&e.target.closest('[data-lv-row]');if(rw){e.preventDefault();openRow(rw);}});
     return v;
+  }
+  function toggleTg(h){
+    var g=h.closest('.lv-tg');if(!g)return;
+    var k=g.getAttribute('data-lv-tg'),now=g.getAttribute('data-open')!=='true';
+    TGOPEN[k]=now;g.setAttribute('data-open',now?'true':'false');h.setAttribute('aria-expanded',now?'true':'false');
   }
   function openRow(el){
     try{
@@ -24082,13 +24121,21 @@ if(typeof window.cfRegisterView==='function'){
      above the reader - a row finishing, a Root-for player dropping off, League
      Scores rebuilding - never shoves what they're looking at. Safari has no
      native CSS scroll anchoring, so this has to be done by hand. */
+  function headerLine(){
+    try{var h=document.querySelector('.site-header');var b=h?h.getBoundingClientRect().bottom:0;return Math.max(0,b||0);}catch(e){return 76;}
+  }
   function anchorSnap(v){
     try{
-      var ns=v.querySelectorAll('[data-lv-key]');
-      /* Prefer the first keyed element that STARTS below the sticky header (a
-         row or league), falling back to one that merely overlaps it (a card). */
-      var fb=null;
-      for(var i=0;i<ns.length;i++){var r=ns[i].getBoundingClientRect();if(!r.height||r.bottom<=90)continue;if(r.top>=90)return {k:ns[i].getAttribute('data-lv-key'),top:r.top};if(!fb)fb={k:ns[i].getAttribute('data-lv-key'),top:r.top};}
+      var ns=v.querySelectorAll('[data-lv-key]'),line=headerLine(),fb=null,fbH=Infinity;
+      /* Keys now cover every row, player line, group header and League Scores
+         row, so the first one starting at/below the header's bottom edge IS the
+         thing at the top of the reader's screen. If the line cuts through a
+         keyed block, the innermost (shortest) straddler is the fallback. */
+      for(var i=0;i<ns.length;i++){
+        var r=ns[i].getBoundingClientRect();if(!r.height||r.bottom<=line)continue;
+        if(r.top>=line)return {k:ns[i].getAttribute('data-lv-key'),top:r.top};
+        if(r.height<fbH){fbH=r.height;fb={k:ns[i].getAttribute('data-lv-key'),top:r.top};}
+      }
       return fb;
     }catch(e){}
     return null;
@@ -24105,7 +24152,7 @@ if(typeof window.cfRegisterView==='function'){
   }
   function patchCards(host,parts){
     var kids=Array.prototype.slice.call(host.children),keyOf=function(h){var m=/data-lv-lg="([^"]*)"/.exec(h);return m?m[1]:'';};
-    var same=kids.length===parts.length&&kids.every(function(k,i){return k.getAttribute('data-lv-lg')===keyOf(parts[i]);});
+    var same=kids.length===parts.length&&kids.every(function(k,i){return esc(k.getAttribute('data-lv-lg'))===keyOf(parts[i]);});
     if(!same){host.innerHTML=parts.join('');Array.prototype.forEach.call(host.children,function(k,i){k.__h=parts[i];});return;}
     kids.forEach(function(k,i){
       if(k.__h===parts[i])return;               /* unchanged card: leave the DOM alone */
@@ -24115,8 +24162,82 @@ if(typeof window.cfRegisterView==='function'){
   }
   function render(){
     var v=document.getElementById('view-leagues');if(!v||!W.__cfLeaguesOpen)return;
-    var _anc=anchorSnap(v);
+    var _anc=anchorSnap(v),_y0=W.scrollY;
     try{renderInner(v);}finally{anchorRestore(v,_anc);}
+    JR.lastRender=Date.now();JR.lastRenderDy=Math.round(W.scrollY-_y0);
+    jrStart();
+  }
+  /* ── Jump recorder (OWNER ONLY, temporary diagnostic, 2026-09-24) ──
+     Matt still saw the page jump on auto-refresh after the anchoring fix, and
+     it doesn't reproduce off-device. This samples every animation frame while
+     the Leagues view is open: it tracks the keyed element at the top of the
+     screen and flags when its on-screen position moves without the reader
+     scrolling (no touch/wheel/key input in the last 400ms). Each hit logs, via
+     cfTrack -> Supabase events, how far it moved, how long after our last
+     repaint, the scroll delta our anchor applied, and the heights of every
+     block above the view (header, outage banner, period bar, sections) before
+     vs after — enough to name the culprit. Max 25 per session. Remove once the
+     cause is confirmed. The same sampler also STABILIZES: a layout shift from
+     anywhere above the reader (scroll unchanged, element moved) is countered
+     in the next frame — the scroll anchoring Safari lacks natively. */
+  var JR={on:false,lastRender:0,lastRenderDy:0,lastInput:0,sent:0,prev:null};
+  ['touchstart','touchmove','wheel','keydown','pointerdown'].forEach(function(ev){try{W.addEventListener(ev,function(){JR.lastInput=Date.now();},{passive:true});}catch(e){}});
+  try{W.addEventListener('touchend',function(){JR.lastInput=Date.now()+600;},{passive:true});}catch(e){} /* momentum after lift */
+  function jrBlocks(){
+    var o={};
+    [['hdr','.site-header'],['out','#cf-yahoo-outage'],['pb','#cf-period-bar'],['dws','#lv-div-sec'],['lss','#lv-ls-sec'],['view','#view-leagues']].forEach(function(p){
+      try{var e=document.querySelector(p[1]);if(!e){o[p[0]]=null;return;}var r=e.getBoundingClientRect();o[p[0]]=Math.round(r.top)+'/'+Math.round(r.height);}catch(x){}
+    });
+    try{o.bodyPad=getComputedStyle(document.body).paddingTop;}catch(x){}
+    return o;
+  }
+  function jrFind(v,k){var ns=v.querySelectorAll('[data-lv-key]');for(var i=0;i<ns.length;i++){if(ns[i].getAttribute('data-lv-key')===k)return ns[i];}return null;}
+  function jrStart(){
+    if(JR.on)return;JR.on=true;JR.prev=null;
+    var node=null,lastPick=0,lastB=null,lastBAt=0;
+    (function tick(){
+      if(!W.__cfLeaguesOpen){JR.on=false;return;}
+      try{
+        var v=document.getElementById('view-leagues'),now=Date.now();
+        /* Re-pick the top-of-screen element a few times a second (or when a
+           repaint detached it); measure just that one node every frame. */
+        if(v&&(!node||!node.isConnected||now-lastPick>300)){
+          var k0=node&&node.getAttribute('data-lv-key');
+          var a=(!node||node.isConnected)?anchorSnap(v):null;
+          node=(a?jrFind(v,a.k):null)||(k0?jrFind(v,k0):null);lastPick=now;
+        }
+        if(now-lastBAt>250){lastB=jrBlocks();lastBAt=now;}
+        if(node){
+          var k=node.getAttribute('data-lv-key'),top=node.getBoundingClientRect().top,y=W.scrollY,H=document.documentElement.scrollHeight;
+          if(JR.prev&&JR.prev.k===k){
+            var quiet=(now-JR.lastInput)>400;
+            /* Two different events. LAYOUT shift: the element's DOCUMENT position
+               moved (something above it changed height) — counter it on the spot,
+               i.e. the scroll anchoring Safari doesn't do natively. SCROLL jump:
+               the page scrolled with no reader input — can't be undone safely
+               (could be deliberate), so it's only recorded. */
+            var dy=y-JR.prev.y,dTop=top-JR.prev.top;
+            var kind=null,mag=0;
+            /* Scroll unchanged but the element moved on screen = layout above it
+               changed height: scroll by the same amount so it stays put. (A move
+               of the scroll position with the element held in place is our own
+               anchor restore doing its job — nothing to do.) */
+            if(quiet&&Math.abs(dy)<1&&Math.abs(dTop)>=2){kind='layout';mag=dTop;try{W.scrollBy(0,dTop);}catch(e){}y=W.scrollY;top=node.getBoundingClientRect().top;}
+            else if(quiet&&Math.abs(dy)>=1&&Math.abs(dTop)>=6){kind='scroll';mag=dTop;}
+            if(kind&&Math.abs(mag)>=6&&JR.sent<25){
+              JR.sent++;
+              var info={kind:kind,d:Math.round(mag),dy:Math.round(W.scrollY-JR.prev.y),dH:H-JR.prev.H,y:Math.round(W.scrollY),H:H,k:String(k).slice(0,80),
+                msSinceRender:JR.lastRender?(now-JR.lastRender):null,anchorDy:JR.lastRenderDy,
+                before:JR.prev.b,after:jrBlocks(),vw:W.innerWidth,vh:W.innerHeight};
+              try{if(typeof cfTrack==='function'&&adminOk())cfTrack('lv_jump',info);}catch(e){}
+              try{(W.__lvJumpLog=W.__lvJumpLog||[]).push(info);}catch(e){}
+            }
+          }
+          JR.prev={k:k,top:top,y:y,H:H,b:lastB};
+        }else JR.prev=null;
+      }catch(e){}
+      requestAnimationFrame(tick);
+    })();
   }
   function renderInner(v){
     var empty=document.getElementById('lv-empty'),ds=document.getElementById('lv-div-sec'),db=document.getElementById('lv-div-body'),ls=document.getElementById('lv-ls-sec'),lb=document.getElementById('lv-ls-body');
@@ -24138,7 +24259,12 @@ if(typeof window.cfRegisterView==='function'){
     try{
       ls.hidden=false;
       if(typeof W.cfRenderLeagueScores==='function')W.cfRenderLeagueScores(data.contexts||[],{host:lb});
-      Array.prototype.forEach.call(lb.querySelectorAll('.cf-ls-league'),function(el){el.setAttribute('data-lv-key','ls:'+(el.getAttribute('data-league')||''));});
+      Array.prototype.forEach.call(lb.querySelectorAll('.cf-ls-league'),function(el){
+        var ln=el.getAttribute('data-league')||'';
+        var hb=el.querySelector('.cf-ls-hbtn');if(hb)hb.setAttribute('data-lv-key','ls:'+ln);
+        var hd=el.querySelector('.cf-ls-colhd');if(hd)hd.setAttribute('data-lv-key','ls:'+ln+':hd');
+        Array.prototype.forEach.call(el.querySelectorAll('.cf-ls-row'),function(r,i){r.setAttribute('data-lv-key','ls:'+ln+':'+i);});
+      });
     }catch(e){}
   }
   W.__cfRenderLeagues=render;
@@ -24148,12 +24274,17 @@ if(typeof window.cfRegisterView==='function'){
   function showLeagues(){
     if(!adminOk())return;
     if(typeof W.hideAll==='function')W.hideAll();
+    /* Every open starts with ALL Division Watch cards collapsed (Matt, 2026-09-24);
+       manual expands survive refreshes only for the rest of this visit. */
+    Object.keys(OPEN).forEach(function(k){delete OPEN[k];});
+    Object.keys(TGOPEN).forEach(function(k){delete TGOPEN[k];}); /* Root-for groups too */
     var v=ensureView();v.style.display='block';
     W.__cfLeaguesOpen=true;
     if(typeof W.cfShowPeriodBar==='function')W.cfShowPeriodBar();
     showLive();
     render();
     try{W.scrollTo(0,0);}catch(e){}
+    JR.prev=null; /* the open's own scroll-to-top isn't a jump */
     try{if(typeof cfTrack==='function')cfTrack('leagues_view_opened',{});}catch(e){}
   }
   W.showLeagues=showLeagues;
