@@ -23659,9 +23659,9 @@ if(typeof window.cfRegisterView==='function'){
 #view-leagues .lv-proj b{font-weight:700;color:var(--ink-900);}
 #view-leagues .lv-body{border-top:1px solid var(--tile-line);background:var(--paper-soft);padding:4px 10px 10px;}
 #view-leagues .lv-card[data-open="false"] .lv-body{display:none;}
-#view-leagues .lv-colhd{display:grid;grid-template-columns:18px minmax(0,1fr) auto;column-gap:8px;padding:9px 2px 6px;font:600 9px/1 var(--font-sans);letter-spacing:.08em;color:var(--ink-500);border-bottom:1px solid var(--line-soft);}
-#view-leagues .lv-colhd span:last-child{text-align:right;}
-#view-leagues .lv-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto;column-gap:8px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line-soft);}
+#view-leagues .lv-colhd{display:grid;grid-template-columns:18px minmax(0,1fr) 86px;column-gap:8px;padding:9px 2px 6px;font:600 9px/1 var(--font-sans);letter-spacing:.08em;color:var(--ink-500);border-bottom:1px solid var(--line-soft);}
+#view-leagues .lv-colhd span:last-child{text-align:center;} /* centered over the pill column */
+#view-leagues .lv-row{display:grid;grid-template-columns:18px minmax(0,1fr) 86px;column-gap:8px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line-soft);}
 #view-leagues .lv-row:last-child{border-bottom:0;}
 #view-leagues .lv-row.is-tap{cursor:pointer;border-radius:8px;}
 #view-leagues .lv-row.is-tap:hover{background:rgba(255,255,255,.03);}
@@ -23675,7 +23675,7 @@ if(typeof window.cfRegisterView==='function'){
 #view-leagues .lv-sub{font:500 11px/15px var(--font-sans);color:var(--ink-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #view-leagues .lv-sub .m{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-700);}
 #view-leagues .lv-sub .rv{color:var(--split);font-weight:600;}
-#view-leagues .lv-pill{justify-self:end;font:700 11px/1 var(--font-mono);border-radius:var(--radius-pill);padding:5px 8px;white-space:nowrap;border:1px solid var(--line);color:var(--ink-500);}
+#view-leagues .lv-pill{justify-self:center;font:700 11px/1 var(--font-mono);border-radius:var(--radius-pill);padding:5px 8px;white-space:nowrap;border:1px solid var(--line);color:var(--ink-500);}
 #view-leagues .lv-pill.good{color:var(--cheer);background:var(--cheer-soft);border-color:color-mix(in oklab,var(--cheer) 40%,transparent);}
 #view-leagues .lv-pill.bad{color:var(--enemy);background:var(--enemy-soft);border-color:color-mix(in oklab,var(--enemy) 40%,transparent);}
 #view-leagues .lv-pill.toss{background:transparent;}
@@ -24072,7 +24072,7 @@ if(typeof window.cfRegisterView==='function'){
       var rvName=esc(mT(t.rival.T.name));
       var tk=M.c.leagueName+'|'+t.id,tOpen=!!TGOPEN[tk];
       return '<div class="lv-tg" data-open="'+tOpen+'" data-lv-tg="'+esc(tk)+'" data-lv-key="dv:'+esc(M.c.leagueName)+':tg:'+esc(t.id)+'">'
-        +'<div class="lv-tg-h" role="button" tabindex="0" data-lv-tgtog aria-expanded="'+tOpen+'"><div style="min-width:0"><div class="lv-tg-nm">'+esc(mT(name))+'</div><div class="lv-tg-vs">vs '+rvName+(t.rvr?' · rival vs rival':'')+'</div></div><span class="lv-tg-wp">'+(wp?wp+' to win':'')+'</span><span class="lv-tg-chev">'+CHEV+'</span></div>'
+        +'<div class="lv-tg-h" role="button" tabindex="0" data-lv-tgtog aria-expanded="'+tOpen+'"><div style="min-width:0"><div class="lv-tg-nm">'+esc(mT(name))+'</div><div class="lv-tg-vs">vs '+rvName+'</div></div><span class="lv-tg-wp">'+(wp?wp+' to win':'')+'</span><span class="lv-tg-chev">'+CHEV+'</span></div>'
         +'<div class="lv-tg-b">'+inner+'</div></div>';
     }).join('');
     return '<div class="lv-root"><div class="lv-root-h" data-lv-key="dv:'+esc(M.c.leagueName)+':root">Root for</div><div class="lv-root-s">Guilt-free: none of these players work against you in any league.</div>'+html+'</div>';
@@ -24100,7 +24100,7 @@ if(typeof window.cfRegisterView==='function'){
       if(g){
         var vs=(g.opp===M.D.myId)?'you':esc(mT(g.oppName));
         var rvr=!r.isMe&&g.opp!==M.D.myId&&M.D.teams[g.opp]&&M.D.teams[g.opp].div===M.me.div;
-        sub+='vs '+vs+(rvr?' · <span class="rv">rival vs rival</span>':'');
+        sub+='vs '+vs;
         if(g.fin){
           sub2='<div class="lv-sub">Final · <span class="m">'+g.my.toFixed(2)+'–'+g.op.toFixed(2)+'</span></div>';
           var res=(g.my>g.op)?'W':((g.my<g.op)?'L':'T');
@@ -24121,7 +24121,7 @@ if(typeof window.cfRegisterView==='function'){
     return '<div class="lv-card" data-open="'+open+'" data-lv-lg="'+esc(name)+'" data-lv-key="dv:'+esc(name)+'">'
       +'<button type="button" class="lv-hd" data-lv-tog aria-expanded="'+open+'"><span class="lv-ttl"><span class="lv-lg">'+esc(mL(name))+'</span><span class="lv-dv">'+esc(M.divName)+(/division/i.test(M.divName)?'':' division')+'</span></span><span class="lv-chev">'+CHEV+'</span></button>'
       +'<div class="lv-top" data-lv-tog data-lv-key="dv:'+esc(name)+':hero"><div class="lv-hero">'+hero+'</div></div>'
-      +'<div class="lv-body"><div class="lv-colhd" data-lv-key="dv:'+esc(name)+':hd"><span style="grid-column:1 / 3">STANDINGS</span><span>'+head+'</span></div>'+rows+note+root+'</div></div>';
+      +'<div class="lv-body"><div class="lv-colhd" data-lv-key="dv:'+esc(name)+':hd"><span style="grid-column:2">STANDINGS</span><span>'+head+'</span></div>'+rows+note+root+'</div></div>';
   }
   function ensureView(){
     var v=document.getElementById('view-leagues');if(v)return v;
