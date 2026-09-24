@@ -24099,7 +24099,7 @@ if(typeof window.cfRegisterView==='function'){
         +'<div class="lv-tg-h" role="button" tabindex="0" data-lv-tgtog aria-expanded="'+tOpen+'"><div style="min-width:0"><div class="lv-tg-nm">'+esc(mT(name))+'</div><div class="lv-tg-vs">vs <span class="lv-rival">'+rvName+'</span></div></div><span class="lv-tg-wp">'+(wp?wp+' to win':'')+'</span><span class="lv-tg-chev">'+CHEV+'</span></div>'
         +'<div class="lv-tg-b">'+inner+'</div></div>';
     }).join('');
-    return '<div class="lv-root"><div class="lv-root-h" data-lv-key="dv:'+esc(M.c.leagueName)+':root">Root against your rivals</div><div class="lv-root-s">All upside. None of these players work against you. The enemy of my enemy is my friend. Cheer for your rival\'s opponent without cheering against yourself. None of these players can hurt your chances elsewhere.</div>'+html+'</div>';
+    return '<div class="lv-root"><div class="lv-root-h" data-lv-key="dv:'+esc(M.c.leagueName)+':root">Root against your rivals</div><div class="lv-root-s">The enemy of my enemy is my friend. Cheer for your rival\'s opponent without cheering against yourself. None of these players can hurt your chances elsewhere.</div>'+html+'</div>';
   }
 
   /* ══ Render ══ */
@@ -24161,18 +24161,16 @@ if(typeof window.cfRegisterView==='function'){
     if(anchor&&anchor.parentNode)anchor.parentNode.insertBefore(v,anchor.nextSibling);else document.body.appendChild(v);
     v.addEventListener('click',function(e){
       var sb=e.target.closest('[data-lv-sec]');
-      if(sb){var id=sb.getAttribute('data-lv-sec'),now=SEC[id]===false;SEC[id]=now;sb.setAttribute('aria-expanded',now?'true':'false');var bd=document.getElementById(id==='div'?'lv-div-body':'lv-ls-body');if(bd){bd.hidden=!now;slide(bd,now);}return;}
-      /* League Scores league rows: the shared module's own button listener has
-         already flipped panel.hidden by the time this bubbles up — just animate
-         to the new state. (Home's copy of League Scores is untouched.) */
-      var lsb=e.target.closest('.cf-ls-hbtn');
-      if(lsb){var lsl=lsb.closest('.cf-ls-league'),pn=lsl&&lsl.querySelector('.cf-ls-panel');if(pn)slide(pn,!pn.hidden);return;}
+      if(sb){var id=sb.getAttribute('data-lv-sec'),now=SEC[id]===false;SEC[id]=now;sb.setAttribute('aria-expanded',now?'true':'false');var bd=document.getElementById(id==='div'?'lv-div-body':'lv-ls-body');if(bd)bd.hidden=!now;return;}
+      /* League Scores league rows: the shared module's own button listener
+         flips panel.hidden — nothing to do here. */
+      if(e.target.closest('.cf-ls-hbtn'))return;
       var pr=e.target.closest('[data-lv-pl]');
       if(pr){openPlayer(pr.getAttribute('data-lv-pl'));return;}
       var tt=e.target.closest('[data-lv-tgtog]');
       if(tt){toggleTg(tt);return;}
       var t=e.target.closest('[data-lv-tog]');
-      if(t){var card=t.closest('.lv-card');if(card){var nm=card.getAttribute('data-lv-lg'),now=card.getAttribute('data-open')!=='true';OPEN[nm]=now;card.setAttribute('data-open',now?'true':'false');var b=card.querySelector('.lv-hd');if(b)b.setAttribute('aria-expanded',now?'true':'false');slide(card.querySelector('.lv-body'),now);}return;}
+      if(t){var card=t.closest('.lv-card');if(card){var nm=card.getAttribute('data-lv-lg'),now=card.getAttribute('data-open')!=='true';OPEN[nm]=now;card.setAttribute('data-open',now?'true':'false');var b=card.querySelector('.lv-hd');if(b)b.setAttribute('aria-expanded',now?'true':'false');}return;}
       var rw=e.target.closest('[data-lv-row]');if(rw)openRow(rw);
     });
     v.addEventListener('keydown',function(e){if(e.key!=='Enter'&&e.key!==' ')return;var pr=e.target.closest&&e.target.closest('[data-lv-pl]');if(pr){e.preventDefault();openPlayer(pr.getAttribute('data-lv-pl'));return;}var tg=e.target.closest&&e.target.closest('[data-lv-tgtog]');if(tg){e.preventDefault();toggleTg(tg);return;}var rw=e.target.closest&&e.target.closest('[data-lv-row]');if(rw){e.preventDefault();openRow(rw);}});
@@ -24182,37 +24180,10 @@ if(typeof window.cfRegisterView==='function'){
     var g=h.closest('.lv-tg');if(!g)return;
     var k=g.getAttribute('data-lv-tg'),now=g.getAttribute('data-open')!=='true';
     TGOPEN[k]=now;g.setAttribute('data-open',now?'true':'false');h.setAttribute('aria-expanded',now?'true':'false');
-    slide(g.querySelector('.lv-tg-b'),now);
   }
-  /* ── Open/close animation for every collapsible on this page (v261) ──
-     v260 animated HEIGHT, which re-lays-out the whole page on every frame —
-     choppy on iPhone. This version touches only opacity + transform (the same
-     GPU-only properties the Rooting Card slide on Home uses), so WebKit runs it
-     on the compositor with no per-frame layout:
-       open  - the body is laid out at once, then glides down 10px into place
-               while fading in (280ms);
-       close - the body lifts 6px and fades out (170ms), then collapses.
-     The open/closed STATE still flips instantly (chevrons turn at once; a
-     refresh mid-animation just lands on the final state). An inline
-     display:block holds a closing body visible for its fade. Reduced-motion
-     users get the instant toggle. */
-  function slide(el,open){
-    if(!el||typeof el.animate!=='function')return;
-    try{if(W.matchMedia&&W.matchMedia('(prefers-reduced-motion: reduce)').matches)return;}catch(e){}
-    try{if(el.__lvAnim){el.__lvAnim.cancel();el.__lvAnim=null;}}catch(e){}
-    var ease='cubic-bezier(.2,.8,.2,1)',an;
-    if(open){
-      el.style.display='';
-      an=el.animate([{opacity:0,transform:'translateY(-10px)'},{opacity:1,transform:'none'}],{duration:280,easing:ease});
-      an.onfinish=an.oncancel=function(){el.__lvAnim=null;};
-    }else{
-      el.style.display='block';
-      an=el.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translateY(-6px)'}],{duration:170,easing:'ease-in',fill:'forwards'});
-      var done=function(){el.__lvAnim=null;el.style.display='';try{an.cancel();}catch(e){}};
-      an.onfinish=done;
-    }
-    el.__lvAnim=an;
-  }
+  /* Open/close is an INSTANT toggle, same as Home (v263). v260 animated height
+     (page re-layout every frame - choppy on iPhone); v261 faded opacity+transform
+     but content below still snapped. Removed per Matt, 2026-09-24. */
   function openRow(el){
     try{
       var a=String(el.getAttribute('data-lv-row')).split(':'),M=MODELS[+a[0]],r=M&&M.rows[+a[1]],g=r&&r.g;
