@@ -2367,11 +2367,10 @@
     .cbnav-schedule           { order: 1; }
     [data-exp-tab="snapshot"] { order: 2; }
     [data-exp-tab="dashboard"]{ order: 3; }
-    .cbnav-conflict           { order: 4; }
-    /* Owner-only swap (2026-09-24): Leagues takes slot 4, Conflict → …More. */
-    .cbnav-leagues            { display: none; order: 4; }
-    body.is-admin .cbnav-leagues  { display: flex; }
-    body.is-admin .cbnav-conflict { display: none; }
+    /* Leagues released to ALL users (2026-09-24, Matt): Leagues owns slot 4.
+       Conflict Card is off the bar for everyone — admin-only tile in …More. */
+    .cbnav-conflict           { display: none; }    /* Conflict → …More (admin only) */
+    .cbnav-leagues            { order: 4; }
     [data-exp-tab="more"]     { order: 5; }
     .cbnav-tab.is-on .cbnav-ico {
       background: color-mix(in oklab, var(--navy-700) 14%, transparent);
@@ -4637,7 +4636,7 @@
         <span>Leaders</span>
       </button>
     </li>
-    <li role="none" class="menu-app-only exp-only menu-signedin-only">
+    <li role="none" class="menu-app-only exp-only menu-signedin-only admin-only">
       <button class="menu-drawer__item" data-menu-action="conflict" role="menuitem" type="button">
         <span>Conflict Card</span>
       </button>
@@ -4748,7 +4747,6 @@
        redundant tiles from the …More sheet on desktop (mobile keeps them). */
     body:not(.nav-landing) .cbmore-tile[data-more-action="exposure"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="leaders"],
-    body:not(.nav-landing) .cbmore-tile[data-more-action="conflict"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="blog"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="contact"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="account"] { display: none; }
@@ -4758,8 +4756,8 @@
        Partners/Experiment still populate the sheet for the owner. */
     body:not(.nav-landing) #cf-side-rail [data-rail-tab="more"] { display: none; }
     body:not(.nav-landing).is-admin #cf-side-rail [data-rail-tab="more"] { display: flex; }
-    /* Leagues rail tab: owner only while it's built out (2026-09-24). */
-    body:not(.is-admin) #cf-side-rail [data-rail-tab="leagues"] { display: none !important; }
+    /* Conflict Card is admin-only in …More (2026-09-24) — no rail tab for anyone. */
+    body:not(.nav-landing) #cf-side-rail [data-rail-tab="conflict"] { display: none !important; }
   }
   .cfrail-mark { display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
   .cfrail-mark img { width: 36px; height: 36px; display: block; border-radius: 10px; }
@@ -4867,9 +4865,8 @@
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg></span>
     <span>Conflict</span>
   </button>
-  <!-- Leagues (2026-09-24): takes Conflict's bar slot for the OWNER only
-       (body.is-admin) while it's built out; Conflict moves to …More for him.
-       Everyone else never sees this button (.cbnav-leagues display:none). -->
+  <!-- Leagues (2026-09-24): owns bar slot 4 for ALL users; Conflict Card is
+       off the bar (button kept hidden in DOM) and is an admin-only …More tile. -->
   <button class="cbnav-tab cbnav-leagues" type="button" data-exp-tab="leagues" aria-label="Leagues">
     <span class="cbnav-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="4.2" rx="1.4"/><rect x="3.5" y="9.9" width="17" height="4.2" rx="1.4"/><rect x="3.5" y="15.8" width="17" height="4.2" rx="1.4"/></svg></span>
     <span>Leagues</span>
@@ -4933,13 +4930,17 @@
          type-code → sign-back-in dance. Client-side email gate is purely a
          convenience filter (the TestMode code path still exists); it is NOT
          a security boundary and mustn't guard anything sensitive. */
-      /* Conflict moved off the bar for the OWNER only (Leagues took its slot,
-         2026-09-24) — so its tile is adminOnly: everyone else still has it on the
-         bar. Two-ring art is 11u tall centered at 12, normalized to the flask body. */
+      /* Conflict moved off the bar for EVERYONE (Leagues took its slot,
+         2026-09-24) and is admin-only: this tile is the only way in. Two-ring art is 11u tall centered at 12, normalized to the flask body. */
       { key: 'conflict', label: 'Conflict', soon: false, adminOnly: true, svg: '<g transform="translate(12,12) scale(1.0909) translate(-12,-12)"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></g>' },
       { key: 'experiment', label: 'Experiment', soon: false, adminOnly: true, svg: '<path d="M10 3h4"/><path d="M10 3v6l-5.2 9.2A2 2 0 0 0 6.5 21h11a2 2 0 0 0 1.7-2.8L14 9V3"/><path d="M7.3 15h9.4"/>' }
     ];
     var ADMIN_EMAILS = ['fryerm@net.elmhurst.edu'];
+    /* Leagues view preview list (2026-09-24): owner + Jeremy Ried. Leagues-only —
+       these users do NOT get the other admin tiles/links. */
+    /* Released to ALL users 2026-09-24 (Matt) — gate kept as a stub so callers don't change. */
+    function canLeaguesUser() { return true; }
+    window.cfCanLeagues = canLeaguesUser;
     function isAdminUser() {
       try {
         var a = window.__account;
@@ -4953,14 +4954,14 @@
        .nav-signedin / the experiment ribbon rather than once at boot. */
     window.cfIsAdmin = isAdminUser;
     function syncAdminClass() {
-      try { document.body.classList.toggle('is-admin', isAdminUser()); } catch (e) {}
+      try { document.body.classList.toggle('is-admin', isAdminUser()); document.body.classList.toggle('can-leagues', canLeaguesUser()); } catch (e) {}
     }
     syncAdminClass();
     try { setInterval(syncAdminClass, 400); } catch (e) {}
     function renderMoreSheet() {
       var expOn = !!(window.experimentEnabled && window.experimentEnabled());
-      var adminOk = isAdminUser();
-      var tiles = ITEMS.filter(function(it){ return (!it.expOnly || expOn) && (!it.adminOnly || adminOk); }).map(function(it) {
+      var adminOk = isAdminUser(), leaguesOk = canLeaguesUser();
+      var tiles = ITEMS.filter(function(it){ return (!it.expOnly || expOn) && (!it.adminOnly || adminOk) && (!it.leaguesOnly || leaguesOk); }).map(function(it) {
         var cls = 'cbmore-tile' + (it.soon ? ' is-soon' : '');
         var attrs = it.soon ? 'aria-disabled="true"' : 'data-more-action="' + it.key + '"';
         var label = (it.key === 'experiment' && expOn) ? 'Exit Exp.' : it.label;
@@ -8964,7 +8965,7 @@ function renderScoresStrip(contexts){
        points in place — no re-render, no scroll jump, no flash. */
     updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt);
   });
-  try{if(typeof cfRenderLeagueScores==='function'&&typeof cfIsLSUser==='function'&&cfIsLSUser())cfRenderLeagueScores(contexts);}catch(e){}
+  /* League Scores no longer renders on Home (2026-09-24, Matt) — it lives on the Leagues page only. */
 }
 
 /* Self-heal hook for the Sleeper name race. A matchup drawer opened during the
@@ -18702,7 +18703,7 @@ loadExperimentState();
       var onConflict = visible('view-conflict');
       var onLeaders = visible('view-leaders');
       var onLeagues = visible('view-leagues');
-      var isOwner = document.body.classList.contains('is-admin');
+      var isOwner = true; // Conflict lives in …More (admin-only) for everyone since 2026-09-24
       var onAccount = visible('view-account');
       // Bar layout: Leaders has the far-left tab (2026-07-14); Exposure joined
       // Schedule (watch) + Account in the …More sheet, so their views light More.
@@ -18856,7 +18857,7 @@ loadExperimentState();
           onLeaders = visible('view-leaders'), onAccount = visible('view-account'),
           onBoard = visible('board');
       var onContact = visible('view-contact');
-      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about');
+      var onMore = visible('view-settings') || visible('view-connections') || visible('view-about') || onConflict;
       setOn('dashboard', onBoard && !onSnap && !onExpo && !onWatch && !onConflict && !onLeaders && !onAccount && !visible('view-leagues'));
       setOn('leagues', visible('view-leagues'));
       setOn('snapshot', onSnap);
@@ -21026,6 +21027,8 @@ function cfcSaveFile(file){
 }
 
 function showConflictCard(){
+  /* Admin-only (2026-09-24, Matt): hidden from every other user. */
+  if(!(typeof window.cfIsAdmin==='function'&&window.cfIsAdmin()))return;
   if(typeof window.hideAll==='function')window.hideAll();
   var v=document.getElementById('view-conflict'); if(v)v.style.display='block';
   window.__cfConflictOpen=true;
@@ -24404,8 +24407,9 @@ if(typeof window.cfRegisterView==='function'){
   /* LIVE button in the header's top-right, exactly as Home shows it (hideAll
      hides it on every view switch; showBoard re-shows it the same way). */
   function showLive(){try{var rb=document.getElementById('refresh-btn');if(rb)rb.style.display='inline-flex';}catch(e){}}
+  function leaguesOk(){try{return typeof W.cfCanLeagues==='function'&&!!W.cfCanLeagues();}catch(e){return false;}}
   function showLeagues(){
-    if(!adminOk())return;
+    if(!leaguesOk())return;
     if(typeof W.hideAll==='function')W.hideAll();
     /* Every open starts with ALL Division Watch cards collapsed (Matt, 2026-09-24);
        manual expands survive refreshes only for the rest of this visit. */
