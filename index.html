@@ -3119,6 +3119,27 @@
     .card-ledger__hd { grid-row: 1; align-self: end; margin-bottom: 6px; text-align: right; font: 600 9px/1 var(--font-sans); letter-spacing: .08em; color: var(--ink-500); }
     .card-ledger__hd--proj { grid-column: 3; }
     .card-ledger__hd--pts  { grid-column: 4; }
+    /* POINTS PENDING (admin-only, sw v277, Matt 2026-09-25 — mocks/points-pending-mock.html
+       option C). When a displayed, point-bearing stat has moved in Sleeper's /stats
+       but the platform's points haven't caught up, the PROJ/PTS labels are replaced
+       by a line that BREATHES between the stat ("+32 REC YDS") and "PENDING POINTS",
+       and the PTS values tint ice until they update. Lives on the header row, so it
+       costs zero name width and zero card height at any phone size. Same 5s rhythm
+       as the live frame. Logic: cfPendingFor(). */
+    .card-ledger__hd--pend{grid-column: 2 / 5; min-width: 0; display: grid; justify-items: end;
+      color: var(--live-ice); font: 600 9px/1 var(--font-mono); letter-spacing: .06em;
+      text-transform: uppercase; white-space: nowrap; animation: cfPendIn .25s both;}
+    .cf-pend-cyc{grid-area: 1 / 1;}
+    .cf-pend-cyc--stat{animation: cfPendStat var(--live-halo-period) ease-in-out infinite;}
+    .cf-pend-cyc--note{opacity: 0; animation: cfPendNote var(--live-halo-period) ease-in-out infinite;}
+    .card-ledger--pend .league-pts-val{color: var(--live-ice);}
+    @keyframes cfPendIn{from{opacity: 0;}to{opacity: 1;}}
+    @keyframes cfPendStat{0%,38%{opacity: 1;}50%,88%{opacity: 0;}100%{opacity: 1;}}
+    @keyframes cfPendNote{0%,38%{opacity: 0;}50%,88%{opacity: 1;}100%{opacity: 0;}}
+    @media (prefers-reduced-motion: reduce){
+      .cf-pend-cyc--stat{animation: none; opacity: 1;}
+      .cf-pend-cyc--note{animation: none; opacity: 0;}
+    }
     .card-ledger__rule { grid-column: 1 / -1; height: 1px; background: var(--tile-line); margin: 4px 0 2px; }
     .league-pts-dot  { width: 5px; height: 5px; border-radius: 50%; }
     .league-pts-name { font: 400 12.5px/1.35 var(--font-sans); color: var(--ink-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -7195,10 +7216,18 @@ async function fetchSeasonStats(season){
    corrections keep flowing after a platform finalizes its points — by design,
    the line is never frozen before the official lock. */
 const WEEK_STATS_TTL = 60*1000;
+/* Same game-window gate as the board poll (REFRESH_MS_LIVE) and NFL-state TTL:
+   30s while football is on the field, 60s otherwise. */
+const WEEK_STATS_TTL_LIVE = 30*1000;
 let __wkStats={}, __wkStatsKey='', __wkStatsAt=0, __wkStatsInflight=null;
-function fetchWeekStats(season,week){
+/* opts.fresh skips the TTL (in-flight coalescing still applies). The board sync
+   uses it so the box score and the card's points are pulled in the SAME cycle
+   instead of on two independent clocks — see cfPlayerDrawerPrefetch. */
+function fetchWeekStats(season,week,opts){
   const key=`${season}-${week}`;
-  if(key===__wkStatsKey && __wkStatsAt && Date.now()-__wkStatsAt<WEEK_STATS_TTL){
+  const fresh=!!(opts&&opts.fresh);
+  const ttl=(typeof anyGameInProgress==='function'&&anyGameInProgress())?WEEK_STATS_TTL_LIVE:WEEK_STATS_TTL;
+  if(!fresh && key===__wkStatsKey && __wkStatsAt && Date.now()-__wkStatsAt<ttl){
     return Promise.resolve(__wkStats);
   }
   if(__wkStatsInflight && __wkStatsInflight.key===key) return __wkStatsInflight.p;
@@ -9763,6 +9792,105 @@ function updatePillCounts(){
   });
 }
 
+/* ══ POINTS PENDING (admin-only, sw v277) ═════════════════════════════════
+   Sleeper's /stats leads the platforms' points by 60–90s, so the box-score drawer
+   can show a catch the card's points don't reflect yet. This flags that window on
+   the card WITHOUT computing any points: it diffs the stat line, never scores it.
+
+   Per player (keyed season|week|playerId, same as cfPtsPrev) we keep a BASELINE:
+   the card's per-league points + the tracked stats at the moment points last
+   moved. Each render:
+     - any league's points changed  → re-baseline, nothing pending
+     - tracked stats differ from base → pending, labeled from the diff
+     - pending longer than 150s      → re-baseline silently (the stat didn't
+       score in this league's format, e.g. yards in a whole-point league)
+   TRACKED = stats the drawer DISPLAYS that also carry points (Matt, 2026-09-25).
+   Targets, attempts, completions, Y/A, Long and points allowed are deliberately
+   out: they move without points being owed, so they'd show a pending that never
+   clears. Receptions are out too — a catch moves rec_yd anyway.
+   Idempotent: calling it twice in one render (a player on two lists) is safe.
+   Fails quiet: no stats snapshot, no Sleeper id, pre-kickoff, historic, demo or
+   non-admin → '' (no tag). */
+const CF_PEND_TRACK=['pass_yd','pass_td','pass_int','rush_yd','rush_td','rec_yd','rec_td','fum_lost',
+  'fgm','fgmiss','xpm','xpmiss','def_sack','def_int','def_fum_rec','def_td','def_st_td'];
+const CF_PEND_TIMEOUT=150*1000;
+const cfPendState=new Map();
+function cfPendingEnabled(){
+  try{ return typeof window.cfIsAdmin==='function' && !!window.cfIsAdmin(); }catch(e){ return false; }
+}
+/* Should this sync pull /stats for pending? The week file is every NFL player
+   (measured 2026-09-25: ~560KB raw / ~70KB gzipped for a full week, growing
+   through the slate), so pull ONLY when it can matter:
+     - admin, live week, not demo
+     - the Loyalties board is actually on screen (Home), not Snapshot/Leagues/etc.
+       (the poll itself already idles when the app is backgrounded)
+     - at least one of YOUR Loyalties players is in a live game right now — so a
+       primetime game with none of your guys costs nothing
+     - OR a tag is still showing, so the last one can clear after its final. */
+function cfPendingActive(){
+  if(!cfPendingEnabled()||isDemoMode) return false;
+  try{ if(isHistoricalWeek()) return false; }catch(e){ return false; }
+  for(const v of cfPendState.values()){ if(v.label) return true; }
+  if(!anyGameInProgress()) return false;
+  try{ if(!isDashboardVisible()) return false; }catch(e){ return false; }
+  try{ return !!document.querySelector('#columns .player-card[data-live="1"]'); }catch(e){ return false; }
+}
+function cfPendStatKey(player){
+  const pos=String((player&&player.position)||'').toUpperCase();
+  if(pos==='DEF'||pos==='DST'){ try{ return cfNormTeam(player.team||'')||''; }catch(e){ return ''; } }
+  try{ return resolveSleeperId(player)||''; }catch(e){ return ''; }
+}
+function cfPendLabel(d){
+  const r=v=>Math.round(v||0);
+  const yd=v=>(v>0?'+':'−')+Math.abs(v)+(Math.abs(v)===1?' yd':' yds');
+  const cnt=['pass_td','rush_td','rec_td','pass_int','fum_lost','fgm','fgmiss','xpm','xpmiss','def_sack','def_int','def_fum_rec','def_td','def_st_td'];
+  if(cnt.some(k=>d[k]<0)) return 'Stat correction';
+  const td=(n,y,word)=>n>1?(n+' '+word+' TDs'):((r(y)>0?r(y)+' yd ':'')+word+' TD');
+  if(d.pass_td>0) return td(d.pass_td,d.pass_yd,'pass');
+  if(d.rush_td>0) return td(d.rush_td,d.rush_yd,'rush');
+  if(d.rec_td>0)  return td(d.rec_td,d.rec_yd,'rec');
+  if(d.def_td>0||d.def_st_td>0) return 'Defensive TD';
+  if(d.pass_int>0) return 'INT';
+  if(d.fum_lost>0) return 'Fumble lost';
+  if(d.def_int>0) return 'Def INT';
+  if(d.def_fum_rec>0) return 'Fumble rec';
+  if(d.def_sack>0) return d.def_sack===1?'Sack':(d.def_sack+' sacks');
+  if(d.fgm>0) return 'FG good';
+  if(d.fgmiss>0) return 'FG missed';
+  if(d.xpm>0) return 'XP good';
+  if(d.xpmiss>0) return 'XP missed';
+  const ys=[['pass_yd','pass'],['rush_yd','rush'],['rec_yd','rec']].filter(a=>r(d[a[0]])!==0);
+  if(ys.length===1) return yd(r(d[ys[0][0]])).replace(/ yds?$/,m=>' '+ys[0][1]+m);
+  if(ys.length>1){ const t=r(ys.reduce((a,b)=>a+d[b[0]],0)); return t?yd(t):'Stat change'; }
+  return 'Stat change';
+}
+function cfPendingFor(player,isHist){
+  if(isHist||!player||!cfPendingEnabled()||isDemoMode) return '';
+  try{ if(typeof window.inDemoMode==='function'&&window.inDemoMode()) return ''; }catch(e){}
+  if(!(isPlayerLive(player)||isPlayerDone(player))) return '';
+  if(__wkStatsKey!==(activeSeason+'-'+activeWeek)||!__wkStatsAt) return '';
+  const sid=cfPendStatKey(player); if(!sid) return '';
+  /* No row yet on a kicked-off game = no stats yet = zeros, so the FIRST play
+     can go pending too. A name-resolution miss never gets here (sid==''). */
+  const row=(__wkStats&&__wkStats[sid])||{};
+  const lpd=player.leaguePoints||{},pts={};
+  for(const n in lpd){ const v=lpd[n]&&lpd[n].pts; if(typeof v==='number') pts[n]=v; }
+  const st={}; CF_PEND_TRACK.forEach(k=>{ const v=Number(row[k]); st[k]=isFinite(v)?v:0; });
+  const key=activeSeason+'|'+activeWeek+'|'+String(player.id), now=Date.now();
+  let s=cfPendState.get(key);
+  const reset=()=>{ s.pts=pts; s.st=st; s.label=''; s.sig=''; s.since=0; return ''; };
+  if(!s){ s={}; cfPendState.set(key,s); return reset(); }
+  for(const n in pts){ if(typeof s.pts[n]==='number' && Math.abs(pts[n]-s.pts[n])>0.001) return reset(); }
+  s.pts=pts;
+  const d={}; let any=false;
+  CF_PEND_TRACK.forEach(k=>{ d[k]=st[k]-s.st[k]; if(Math.abs(d[k])>1e-9) any=true; });
+  if(!any){ s.label=''; s.sig=''; s.since=0; return ''; }
+  const sig=CF_PEND_TRACK.map(k=>d[k]).join(',');
+  if(sig!==s.sig){ s.sig=sig; s.since=now; s.label=cfPendLabel(d); }
+  if(now-s.since>CF_PEND_TIMEOUT){ s.st=st; s.label=''; s.sig=''; s.since=0; return ''; }
+  return s.label;
+}
+
 function buildCardInner(player,isHist){
   const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
   /* ALL loyalty cards use rooting-direction dots on their league rows:
@@ -9822,10 +9950,15 @@ function buildCardInner(player,isHist){
   const sub = (logoUrl ? `<img class="pd__logo" src="${logoUrl}" alt="" decoding="async" onerror="this.remove();">` : '')
             + (metaTeam ? `<span class="pd__team">${metaTeam}</span>` : '')
             + `<span class="pd__pos">${(player.position||'—').toUpperCase()}</span>`;
-  const hd = hasAnyPts
+  /* Points Pending (admin-only): the PROJ/PTS labels give way to the breathing
+     stat / "Pending points" line while a scored stat waits on the platform. */
+  const pend = hasAnyPts ? cfPendingFor(player,isHist) : '';
+  const hd = pend
+    ? `<span class="card-ledger__hd card-ledger__hd--pend" role="status" aria-label="${pend}, points pending"><span class="cf-pend-cyc cf-pend-cyc--stat" aria-hidden="true">${pend}</span><span class="cf-pend-cyc cf-pend-cyc--note" aria-hidden="true">Pending points</span></span>`
+    : hasAnyPts
     ? `<span class="card-ledger__hd card-ledger__hd--proj">${showProjHd?'PROJ':''}</span><span class="card-ledger__hd card-ledger__hd--pts">PTS</span>`
     : '';
-  return `<div class="card-ledger">`+
+  return `<div class="card-ledger${pend?' card-ledger--pend':''}">`+
       `<div class="card-head">`+
         `<div class="card-shot">${avatarInnerHtml(player, initials)}</div>`+
         `<div class="card-id"><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="card-sub">${sub}</span></div>`+
@@ -11202,7 +11335,11 @@ function resetRenderIndexes(){
 }
 async function run(){
   try{
-    renderBoard(await loadData(),getPrimaryDisplayName());
+    const _sp=cfDrawerPrefetch();
+    const _d=await loadData();
+    await cfAwaitStats(_sp);
+    renderBoard(_d,getPrimaryDisplayName());
+    cfDrawerSync();
     lastFetchTime=Date.now();
     startAutoRefresh();
     return true;
@@ -11280,6 +11417,24 @@ const REFRESH_MS=60*1000;const REFRESH_MS_LIVE=30*1000;let refreshTimer=null;let
 /* 30s while a game is live (anyGameInProgress), 60s otherwise — the setInterval tick
    stays 10s, only this threshold moves. Same game-window gate as the NFL-state TTL. */
 function currentRefreshMs(){ return anyGameInProgress()?REFRESH_MS_LIVE:REFRESH_MS; }
+/* Box-score drawer rides the BOARD's clock. Prefetch kicks the /stats pull in
+   parallel with loadData (so stats and players_points are requested in the same
+   instant); sync repaints the open drawer right after renderBoard, so the card's
+   points and the drawer's stat line change together. Both are no-ops unless the
+   player drawer is open on a live week. Sleeper's own /stats → players_points
+   materialization lag (60–90s) is upstream and untouched by this. */
+function cfDrawerPrefetch(){
+  /* Points Pending (admin-only) also rides this pull: same /stats request, same
+     instant as the points. Returns its promise so the sync can let it land. */
+  let p=null;
+  try{ if(cfPendingActive()) p=fetchWeekStats(activeSeason,activeWeek,{fresh:true}); }catch(e){}
+  try{ if(typeof window.cfPlayerDrawerPrefetch==='function') window.cfPlayerDrawerPrefetch(); }catch(e){}
+  return p;
+}
+/* Give a pending-stats pull up to 2.5s past loadData so the cards diff against
+   stats from THIS sync. Non-admin: p is null, zero wait. */
+async function cfAwaitStats(p){ if(!p) return; try{ await Promise.race([p,new Promise(r=>setTimeout(r,2500))]); }catch(e){} }
+function cfDrawerSync(){ try{ if(typeof window.cfPlayerDrawerSync==='function') window.cfPlayerDrawerSync(); }catch(e){} }
 function shouldAutoRefresh(){return !isDemoMode && isAnyProviderConnected() && !isHistoricalWeek();}
 function isDashboardVisible(){const b=document.getElementById('board');if(!b)return false;const d=b.style.display;return !(d==='none'||d==='');}
 /* Keep the live poll alive on the dashboard AND on any registered, data-driven
@@ -11299,7 +11454,8 @@ function startAutoRefresh(){
     if(!isLiveDataViewVisible())return; // poll on dashboard + registered live views; idle on static views
     if(Date.now()-lastFetchTime>=currentRefreshMs()){
       lastFetchTime=Date.now(); // claim the slot before awaiting so the next tick won't fire
-      try{renderBoard(await loadData(),getPrimaryDisplayName());}
+      const _sp=cfDrawerPrefetch();
+      try{const _d=await loadData();await cfAwaitStats(_sp);renderBoard(_d,getPrimaryDisplayName());cfDrawerSync();}
       catch(e){console.warn('Auto-refresh failed silently:',e.message);}
     }
   },10000);
@@ -11310,7 +11466,8 @@ document.addEventListener('visibilitychange',async()=>{
   if(!isLiveDataViewVisible())return; // refresh in place on dashboard + registered live views
   if(Date.now()-lastFetchTime>=currentRefreshMs()){
     lastFetchTime=Date.now(); // claim the slot before awaiting
-    try{renderBoard(await loadData(),getPrimaryDisplayName());}
+    const _sp=cfDrawerPrefetch();
+    try{const _d=await loadData();await cfAwaitStats(_sp);renderBoard(_d,getPrimaryDisplayName());cfDrawerSync();}
     catch(e){console.warn('Tab-return refresh failed:',e.message);}
   }
 });
@@ -15101,6 +15258,26 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 
   function stop(){ if(timer){ clearInterval(timer); timer=null; } current=null; }
 
+  /* Board-driven refresh (see cfDrawerPrefetch/cfDrawerSync at REFRESH_MS). The
+     drawer no longer runs its own clock: it repaints on the same tick that
+     repaints the card, from a /stats pull issued alongside that tick's
+     loadData. lastSync feeds the watchdog below. */
+  var lastSync=0;
+  function liveOpen(){ return mine() && !!current && !isHistoric(); }
+  window.cfPlayerDrawerPrefetch=function(){
+    if(!liveOpen()||typeof window.__cfWeekStats!=='function') return;
+    var season,week;
+    try{ season=window.getActiveSeason?window.getActiveSeason():null; }catch(e){}
+    try{ week=window.getActiveWeek?window.getActiveWeek():null; }catch(e){}
+    if(!season||!week) return;
+    try{ window.__cfWeekStats(season,week,{fresh:true}); }catch(e){}
+  };
+  window.cfPlayerDrawerSync=function(){
+    if(!liveOpen()) return;
+    lastSync=Date.now();
+    fill(current);
+  };
+
   window.cfOpenPlayerDrawer=function(player){
     if(!player||!window.BottomSheet) return;
     /* Tapping the open player's card again dismisses — same toggle the matchup
@@ -15110,15 +15287,19 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     var week=1; try{ week=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
     window.BottomSheet.open(loadingHTML(player,week),{owner:OWNER,onClose:stop});
     fill(player);
-    /* Live refresh while the sheet is open — matches the 60s stat-cache floor
-       and the NFL-state TTL, so a tick costs at most one request. Skipped on
-       historic weeks: those numbers are settled, polling them is pure waste. */
+    /* Live refresh rides the board poll (cfPlayerDrawerSync). This interval is
+       only a WATCHDOG for when the board poll isn't driving it (e.g. it failed
+       or idled): if no board sync has landed in 75s, refill on our own. Skipped
+       on historic weeks: those numbers are settled, polling them is waste. */
     if(timer) clearInterval(timer);
+    lastSync=Date.now();
     if(!isHistoric()){
       timer=setInterval(function(){
         if(!mine()){ stop(); return; }
+        if(Date.now()-lastSync<75*1000) return;
+        lastSync=Date.now();
         fill(current);
-      },60*1000);
+      },15*1000);
     }
     try{ cfTrack('player_box_open',{pos:String(player.position||''),team:String(player.team||'')}); }catch(e){}
   };
