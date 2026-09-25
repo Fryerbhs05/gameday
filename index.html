@@ -3110,6 +3110,10 @@
        drawer's .pd__logo / .pd__team / .pd__pos classes so the card and the
        drawer it opens can never drift apart. */
     .card-sub { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+    /* On the navy card the drawer's --line chip border vanished into --tile-bg;
+       on the card only, the chip border matches the header/league divider
+       (.card-ledger__rule: 1px --tile-line). The drawer keeps --line. */
+    .card-sub .pd__pos { border: 1px solid var(--tile-line); }
     .card-ledger { display: grid; grid-template-columns: 5px minmax(0, 1fr) 44px 48px; column-gap: 8px; row-gap: 5px; align-items: center; }
     .card-ledger > .card-head { grid-column: 1 / -1; grid-row: 1; }
     .card-ledger__hd { grid-row: 1; align-self: end; margin-bottom: 6px; text-align: right; font: 600 9px/1 var(--font-sans); letter-spacing: .08em; color: var(--ink-500); }
