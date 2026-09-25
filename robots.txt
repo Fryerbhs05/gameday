@@ -1,0 +1,7 @@
+# Conflicted — https://www.conflictedapp.com
+# All crawlers (search engines and AI assistants) welcome on public pages.
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://www.conflictedapp.com/sitemap.xml
