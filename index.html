@@ -3105,7 +3105,11 @@
        ellipsizes before it instead of running under it ("QUESTIONABLE" is
        ~90px). Top-aligned, so it clears the PROJ/PTS labels on the bottom edge. */
     .card-head .inj-badge { align-self: flex-start; flex-shrink: 0; }
-    .card-sub { font: 500 10px/1 var(--font-mono); letter-spacing: .08em; color: var(--ink-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    /* Identity line mirrors the box-score drawer header EXACTLY (2026-09-25,
+       Matt): team logo, team abbrev, bordered position chip — it reuses the
+       drawer's .pd__logo / .pd__team / .pd__pos classes so the card and the
+       drawer it opens can never drift apart. */
+    .card-sub { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
     .card-ledger { display: grid; grid-template-columns: 5px minmax(0, 1fr) 44px 48px; column-gap: 8px; row-gap: 5px; align-items: center; }
     .card-ledger > .card-head { grid-column: 1 / -1; grid-row: 1; }
     .card-ledger__hd { grid-row: 1; align-self: end; margin-bottom: 6px; text-align: right; font: 600 9px/1 var(--font-sans); letter-spacing: .08em; color: var(--ink-500); }
@@ -9810,7 +9814,10 @@ function buildCardInner(player,isHist){
      per league. LIVE is not rendered in here — it's the card frame, off
      [data-live]. */
   const initials = (player.full_name||'?').split(/\s+/).map(s=>s[0]||'').join('').slice(0,2).toUpperCase();
-  const sub = (player.position||'—') + (metaTeam ? ' · ' + metaTeam : '');
+  let logoUrl=''; try{ logoUrl=metaTeam?dstLogoUrl(metaTeam):''; }catch(e){}
+  const sub = (logoUrl ? `<img class="pd__logo" src="${logoUrl}" alt="" decoding="async" onerror="this.remove();">` : '')
+            + (metaTeam ? `<span class="pd__team">${metaTeam}</span>` : '')
+            + `<span class="pd__pos">${(player.position||'—').toUpperCase()}</span>`;
   const hd = hasAnyPts
     ? `<span class="card-ledger__hd card-ledger__hd--proj">${showProjHd?'PROJ':''}</span><span class="card-ledger__hd card-ledger__hd--pts">PTS</span>`
     : '';
