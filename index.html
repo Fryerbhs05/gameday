@@ -3040,7 +3040,6 @@
       padding: 6px 0; border-top: 1px solid var(--line-soft); }
     .lu-lrow:first-of-type { border-top: none; }
 
-    .card-top { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
     .pos-badge {
       font: 500 10px/1 var(--font-mono); padding: 3px 6px;
       border-radius: var(--radius-sm); letter-spacing: 0.06em;
@@ -3060,12 +3059,11 @@
     }
     .player-team { font: 400 11px/1 var(--font-mono); color: var(--ink-500); margin-left: auto; flex-shrink: 0; }
 
-    /* Bucket-card header: two columns. Left (.card-media) is a fixed-width
-       identity stack — headshot with a position-colored ring, position + team
-       side by side beneath it. Right (.card-main) flexes to fill the rest of
-       the card width (independent of its content) and holds the name row plus
-       the scoring/roster rows. */
-    .card-media { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    /* Loyalties card header (2026-09-25, "ledger" layout): headshot + name +
+       "POS · TEAM" on one row across the top; the per-league rows run the FULL
+       card width underneath (see .card-ledger). Replaced the old two-column
+       card (headshot/pos/team stacked left, rows squeezed right) because the
+       right column left league names ~110px and they wrapped. */
     .card-shot {
       width: 44px; height: 44px; border-radius: 50%; box-sizing: border-box;
       flex-shrink: 0; position: relative; overflow: hidden;
@@ -3080,35 +3078,48 @@
     .card-shot.ring-K   { border-color: var(--neutral); }
     .card-shot.ring-DEF { border-color: var(--enemy); }
     .card-shot.ring-FLEX{ border-color: var(--ink-300); }
-    .card-media__meta { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
-    .card-media__pos {
-      font: 500 9px/1 var(--font-mono); letter-spacing: .1em; color: var(--ink-500);
-      border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px 5px;
-    }
-    .card-media__team { font: 400 11px/1 var(--font-sans); color: var(--ink-500); }
-    .card-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
-    .card-id-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
-    /* The name has this row to itself — the live chip that used to sit beside it
-       is now the card halo. The injury tag is pinned to the card's top-right
-       corner (out of the name flow). */
-    .card-id-line .player-name { flex: 0 1 auto; }
-    .card-id-line .inj-badge { position: absolute; top: 13px; right: 15px; flex-shrink: 0; }
 
     /* The LIVE pill on player cards is GONE (2026-09-11) — the breathing card
        halo above replaced it. livePulse SURVIVES: .btn-live.syncing .dot-live
        still animates on it. Don't delete it with the pill's other leftovers. */
     @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
-    .league-pts-row { font: 400 12px/1.4 var(--font-mono); display: flex; align-items: center; gap: 6px; color: var(--ink-500); }
-    .league-pts-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-    .league-pts-name { flex: 1; font-family: var(--font-sans); font-size: 12px; }
-    .league-pts-val  { color: var(--ink-900); font-weight: 500; }
-    .league-pts-fmt  { opacity: 0.6; font-size: 10px; }
-    .league-pts-proj { color: var(--ink-500); font-size: 11px; }
+    /* ===== Loyalties card ledger (2026-09-25, Matt picked "Option A" from
+       mocks/player-card-ledger-mock.html) =====
+       One grid for the card body: dot | league | PROJ | PTS.
+       - Header (.card-head) spans every column so the PLAYER name gets the full
+         width; the PROJ/PTS labels share grid row 1 but sit on its bottom edge,
+         level with the "POS · TEAM" line, so labeling costs zero height and
+         never collides with the name.
+       - League names are ONE line + ellipsis, never wrapped. minmax(0,1fr) +
+         min-width:0 are both load-bearing (see min-content overflow pattern).
+       - Projection FIRST, actual LAST (right edge) — same order as League
+         Scores (PROJ | PTS) and the matchup drawer. Fixed tracks mean the
+         actual score never moves when a game goes final and PROJ becomes FINAL.
+       - Scoring format (PPR/Std/Half) deliberately NOT shown: it is a property
+         of the league, not the player, and cost ~26px of league-name room. */
+    .card-head { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .card-id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+    .card-id .player-name { display: block; }
+    /* Injury chip sits IN FLOW at the head's top-right, so a long name
+       ellipsizes before it instead of running under it ("QUESTIONABLE" is
+       ~90px). Top-aligned, so it clears the PROJ/PTS labels on the bottom edge. */
+    .card-head .inj-badge { align-self: flex-start; flex-shrink: 0; }
+    .card-sub { font: 500 10px/1 var(--font-mono); letter-spacing: .08em; color: var(--ink-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-ledger { display: grid; grid-template-columns: 5px minmax(0, 1fr) 44px 48px; column-gap: 8px; row-gap: 5px; align-items: center; }
+    .card-ledger > .card-head { grid-column: 1 / -1; grid-row: 1; }
+    .card-ledger__hd { grid-row: 1; align-self: end; margin-bottom: 6px; text-align: right; font: 600 9px/1 var(--font-sans); letter-spacing: .08em; color: var(--ink-500); }
+    .card-ledger__hd--proj { grid-column: 3; }
+    .card-ledger__hd--pts  { grid-column: 4; }
+    .card-ledger__rule { grid-column: 1 / -1; height: 1px; background: var(--tile-line); margin: 4px 0 2px; }
+    .league-pts-dot  { width: 5px; height: 5px; border-radius: 50%; }
+    .league-pts-name { font: 400 12.5px/1.35 var(--font-sans); color: var(--ink-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .league-pts-name--opp { color: var(--ink-500); }
+    .league-pts-name--span { grid-column: 2 / -1; }
+    .league-pts-proj { font: 400 12px/1 var(--font-mono); color: var(--ink-500); text-align: right; font-variant-numeric: tabular-nums; }
+    .league-pts-proj--final { font: 600 9px/1 var(--font-sans); letter-spacing: .08em; color: var(--ink-300); }
+    .league-pts-val  { font: 600 13px/1 var(--font-mono); color: var(--ink-900); text-align: right; font-variant-numeric: tabular-nums; }
 
-    .league-context { display: flex; flex-direction: column; gap: 3px; }
-    .league-line { font: 400 12px/1.3 var(--font-sans); display: flex; align-items: center; gap: 6px; color: var(--ink-500); }
-    .league-line .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 
     .empty-state {
       font: 400 13px/1.5 var(--font-sans); color: var(--ink-500);
@@ -9754,25 +9765,26 @@ function buildCardInner(player,isHist){
      of green/red rows is the per-league rooting guide (2026-07-20, replaced
      the old league-color dots). */
   const dotColor=n=>player.myLeagues.includes(n)?'var(--cheer)':player.againstLeagues.includes(n)?'var(--enemy)':lc(n);
-  let ptsHTML='';
+  let rowsHTML='',showProjHd=false;
   if(hasAnyPts){
     /* Projections are a forecast of what is still to come, so they stop being
-       information the moment the player's game goes final -- the actual total is
-       then the whole story and "18.40 / 12.10 proj" just invites re-litigating a
-       settled number. Hoisted out of the row map: the game state is a property of
-       the PLAYER, identical for every league row. Historic weeks already suppress
-       projections via isHist. */
+       information the moment the player's game goes final -- the PROJ cell then
+       reads FINAL (same as League Scores) and the actual total is the whole
+       story. Hoisted out of the row map: the game state is a property of the
+       PLAYER, identical for every league row. Historic weeks suppress the
+       column entirely via isHist. Projection first, actual last (right edge). */
     const projDone=!isHist&&isPlayerDone(player);
-    const rows=Object.entries(lpd).map(([n,d])=>{const color=dotColor(n);const proj=(!isHist&&!projDone&&d.proj!=null)?`<span class="league-pts-proj">/ ${d.proj.toFixed(2)} proj</span>`:'';return`<div class="league-pts-row"><span class="league-pts-dot" style="background:${color}"></span><span class="league-pts-name" style="color:var(--ink-700)">${cfMaskLeague(n)}</span><span class="league-pts-fmt">${d.fmt}</span><span class="league-pts-val">${d.pts.toFixed(2)}</span>${proj}</div>`;}).join('');
-    ptsHTML=`<div style="display:flex;flex-direction:column;gap:4px">${rows}</div>`;
-  }
-  let rosterHTML='';
-  if(!hasAnyPts){
-    const myL=player.myLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${dotColor(n)}"></span><span style="color:var(--ink-700)">${cfMaskLeague(n)}</span></div>`).join('');
-    /* No 0.5 dim on opponent-row dots anymore — the red IS the signal, so it
-       reads full-strength everywhere (label stays ink-500). */
-    const opL=player.againstLeagues.map(n=>`<div class="league-line"><span class="dot" style="background:${dotColor(n)}"></span><span style="color:var(--ink-500)">${cfMaskLeague(n)}</span></div>`).join('');
-    rosterHTML=`<div class="league-context">${myL}${opL}</div>`;
+    rowsHTML=Object.entries(lpd).map(([n,d])=>{
+      let proj='<span class="league-pts-proj"></span>';
+      if(!isHist&&projDone){proj='<span class="league-pts-proj league-pts-proj--final">FINAL</span>';showProjHd=true;}
+      else if(!isHist&&d.proj!=null){proj=`<span class="league-pts-proj">${d.proj.toFixed(2)}</span>`;showProjHd=true;}
+      return`<span class="league-pts-dot" style="background:${dotColor(n)}"></span><span class="league-pts-name">${cfMaskLeague(n)}</span>${proj}<span class="league-pts-val">${d.pts.toFixed(2)}</span>`;
+    }).join('');
+  }else{
+    /* No scoring yet (preseason / pre-lineup): league rows only, name spans the
+       number columns. Opponent rows keep the dimmer ink-500 label. */
+    const line=(n,opp)=>`<span class="league-pts-dot" style="background:${dotColor(n)}"></span><span class="league-pts-name league-pts-name--span${opp?' league-pts-name--opp':''}">${cfMaskLeague(n)}</span>`;
+    rowsHTML=player.myLeagues.map(n=>line(n,false)).join('')+player.againstLeagues.map(n=>line(n,true)).join('');
   }
 
   let injBadge='';
@@ -9782,29 +9794,33 @@ function buildCardInner(player,isHist){
   if(player.injuryStatus && !isPriorSeason()){
     const inj=player.injuryStatus;
     const cls=inj==='Questionable'?'inj-Q':inj==='Doubtful'?'inj-D':(inj==='Out'||inj==='IR'||inj==='Injured Reserve')?'inj-O':'inj-SUS';
-    const lbl=inj==='Injured Reserve'?'IR':inj;
-    injBadge=`<span class="inj-badge ${cls}">${lbl}</span>`;
+    /* Short labels (2026-09-25, Matt): the player's name matters more than the
+       chip, so the chip is 1-3 letters (Q / D / O / IR / SUS) and the full status
+       rides in title/aria-label. No chip at all when healthy — the chip is in
+       flex flow, so nothing reserves space for it and the name gets the width. */
+    const lbl=({Questionable:'Q',Doubtful:'D',Out:'O',IR:'IR','Injured Reserve':'IR',Suspended:'SUS'})[inj]||String(inj).slice(0,3).toUpperCase();
+    injBadge=`<span class="inj-badge ${cls}" title="${inj}" aria-label="${inj}">${lbl}</span>`;
   }
 
   /* On prior seasons, the team chip would reflect current rosters not the
      player's team at the time — suppress to avoid misleading data. */
-  const metaTeam = isPriorSeason() ? '' : (player.team ? `<span class="card-media__team">${player.team}</span>` : '');
-  /* Two-column header: left identity stack (headshot w/ position-colored ring,
-     position + team side by side beneath) and right main column (name row with
-     the injury chip, then the scoring/roster rows). Ring class maps
-     eligibility/flex to one of the position colors. LIVE is no longer rendered
-     in here at all — it's the card halo, off [data-live]. */
-  const ringCls = 'ring-' + ({QB:'QB',RB:'RB',WR:'WR',TE:'TE',K:'K',DEF:'DEF'}[(player.position||'').toUpperCase()] || 'FLEX');
+  const metaTeam = isPriorSeason() ? '' : (player.team || '');
+  /* Ledger layout: header row (headshot, name, "POS · TEAM") spanning the card,
+     PROJ/PTS labels on the header's bottom edge, a hairline, then one grid row
+     per league. LIVE is not rendered in here — it's the card frame, off
+     [data-live]. */
   const initials = (player.full_name||'?').split(/\s+/).map(s=>s[0]||'').join('').slice(0,2).toUpperCase();
-  return `<div class="card-top">`+
-      `<div class="card-media">`+
+  const sub = (player.position||'—') + (metaTeam ? ' · ' + metaTeam : '');
+  const hd = hasAnyPts
+    ? `<span class="card-ledger__hd card-ledger__hd--proj">${showProjHd?'PROJ':''}</span><span class="card-ledger__hd card-ledger__hd--pts">PTS</span>`
+    : '';
+  return `<div class="card-ledger">`+
+      `<div class="card-head">`+
         `<div class="card-shot">${avatarInnerHtml(player, initials)}</div>`+
-        `<div class="card-media__meta"><span class="card-media__pos">${player.position||'—'}</span>${metaTeam}</div>`+
+        `<div class="card-id"><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="card-sub">${sub}</span></div>`+
+        `${injBadge}`+
       `</div>`+
-      `<div class="card-main">`+
-        `<div class="card-id-line"><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${injBadge}</div>`+
-        `${ptsHTML}${rosterHTML}`+
-      `</div>`+
+      `${hd}<div class="card-ledger__rule"></div>${rowsHTML}`+
     `</div>`;
 }
 
