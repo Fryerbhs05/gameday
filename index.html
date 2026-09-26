@@ -4901,7 +4901,11 @@
       { key: 'account',  label: 'Account',  soon: false, svg: '<g transform="translate(12,12) scale(0.7742) translate(-12,-12.25)"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></g>' },
       /* Conflict moved off the bar for EVERYONE (Leagues took its slot,
          2026-09-24) and is admin-only: this tile is the only way in. Two-ring art is 11u tall centered at 12, normalized to the flask body. */
-      { key: 'conflict', label: 'Conflict', soon: false, adminOnly: true, svg: '<g transform="translate(12,12) scale(1.0909) translate(-12,-12)"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></g>' }
+      { key: 'conflict', label: 'Conflict', soon: false, adminOnly: true, svg: '<g transform="translate(12,12) scale(1.0909) translate(-12,-12)"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></g>' },
+      /* Lineup Check-In on demand (admin, 2026-09-25). Opens the same sheet the
+         first-open-of-the-day trigger shows, ignoring the day window + seen flag.
+         Clipboard art is 17u tall centered at 12.5, normalized to the flask body. */
+      { key: 'checkin', label: 'Check-In', soon: false, adminOnly: true, svg: '<g transform="translate(12,12) scale(0.7059) translate(-12,-12.5)"><rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8.5 13l2.5 2.5 4.5-5"/></g>' }
     ];
     var ADMIN_EMAILS = ['fryerm@net.elmhurst.edu'];
     /* Leagues view preview list (2026-09-24): owner + Jeremy Ried. Leagues-only —
@@ -4971,6 +4975,7 @@
       /* Leagues left this sheet for the bar (2026-09-24); branch kept for a cached shell. */
       else if (action === 'leagues' && typeof window.showLeagues === 'function') { window.showLeagues(); window.scrollTo(0, 0); }
       else if (action === 'conflict' && typeof window.showConflictCard === 'function') { window.showConflictCard(); window.scrollTo(0, 0); }
+      else if (action === 'checkin' && typeof window.cfShowLineupCheckIn === 'function') { window.cfShowLineupCheckIn(); }
       /* Kept as a harmless no-op path: Schedule left the sheet 2026-09-11, but a
          cached shell may still render its tile for one load. */
       else if (action === 'schedule' && typeof window.showWatch === 'function') { window.showWatch(); window.scrollTo(0, 0); }
@@ -15369,7 +15374,13 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     if(isOpenMine())return true;
     if(window.BottomSheet&&window.BottomSheet.isOpen())window.BottomSheet.close();
     openState={}; var r=render(Date.now());
-    if(!r.model.leagues.length)return false;
+    if(!r.model.ready||!r.model.leagues.length){
+      /* Leagues or game times haven't landed yet — say so instead of a dead tap
+         (without kickoffs every player would read as a bye). */
+      var msg=!r.model.leagues.length?'No lineups to check yet — your leagues are still loading.':'Game times are still loading — try again in a moment.';
+      window.BottomSheet.open('<div class="ci"><div class="ci-hd"><div class="ci-title">Lineup Check-In</div><div class="ci-sub">'+msg+'</div></div><button class="ci-done" data-ci-close>Close</button></div>',{owner:OWNER});
+      return false;
+    }
     window.BottomSheet.open(r.html,{owner:OWNER}); return true;
   };
 
