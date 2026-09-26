@@ -15134,6 +15134,8 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 .ci-lg-hd{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:11px 12px 10px;text-align:left;background:none;border:0;color:inherit;cursor:pointer;font:inherit}
 .ci-lg-top{display:grid;grid-template-columns:62px minmax(0,1fr);column-gap:10px;row-gap:4px;align-items:center;min-width:0}
 .ci-lg-nmrow{display:flex;align-items:center;gap:7px;min-width:0}
+.ci-plat.ci-plat--logo{border:0;padding:0;height:22px;display:flex;align-items:center;justify-content:center}
+.ci-plat--logo img{width:22px;height:22px;border-radius:6px;display:block;box-shadow:0 0 0 1px var(--line)}
 .ci-plat{box-sizing:border-box;width:62px;text-align:center;font:700 8.5px/1 var(--font-sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-500);border:1px solid var(--line);border-radius:4px;padding:3px 0}
 .ci-lg-proj{grid-column:2;font:600 11px/1.2 var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ci-lg-proj b{font-family:var(--font-mono);font-weight:700}
@@ -15357,6 +15359,15 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     }
     return null;
   }
+  /* Platform tag in the header's first column. Sleeper uses its logo (Matt, 2026-09-26);
+     ESPN/Yahoo keep the text chip for now. Logo sits centered in the same 62px column
+     so league names stay aligned either way. */
+  var PLAT_LOGO={sleeper:'/icons/Sleeper%20Logo.jpeg'};
+  function platTag(plat,label){
+    var src=PLAT_LOGO[plat];
+    if(src)return'<span class="ci-plat ci-plat--logo"><img src="'+src+'" alt="'+esc(label)+'" title="'+esc(label)+'" width="22" height="22" loading="lazy" decoding="async"></span>';
+    return'<span class="ci-plat">'+esc(label)+'</span>';
+  }
   function koLabel(k,today){return(dayStart(k)===today?'Today ':DOW[new Date(k).getDay()]+' ')+hm(k);}
 
   function rowHtml(r,bench,today){
@@ -15402,10 +15413,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
       var meta=L.next<Infinity?'Next lock <span class="nx">'+esc(DOW[new Date(L.next).getDay()]+' '+hm(L.next))+'</span>':'Everyone’s locked';
       var url=linkFor(L), pl=PLAT[L.plat]||L.plat;
       h+='<div class="ci-lg'+(none?' quiet':'')+'" data-ci-id="'+esc(L.id)+'" data-open="'+(open?1:0)+'" data-checked="'+(isChk?1:0)+'">'
-        +'<button class="ci-lg-hd" data-ci-tog="'+esc(L.id)+'"><div style="min-width:0"><div class="ci-lg-top"><span class="ci-plat">'+esc(pl)+'</span><span class="ci-lg-nmrow"><span class="ci-lg-nm">'+esc(L.name)+'</span><span class="ci-ok">'+CHECK+'</span></span>'
-        +(L.margin==null?'':(L.margin>0?'<span class="ci-lg-proj fav">Projected favorite by <b>+'+L.margin.toFixed(2)+'</b></span>'
-          :L.margin<0?'<span class="ci-lg-proj dog">Projected underdog by <b>'+L.margin.toFixed(2)+'</b></span>'
-          :'<span class="ci-lg-proj even">Projected even</span>'))
+        +'<button class="ci-lg-hd" data-ci-tog="'+esc(L.id)+'"><div style="min-width:0"><div class="ci-lg-top">'+platTag(L.plat,pl)+'<span class="ci-lg-nmrow"><span class="ci-lg-nm">'+esc(L.name)+'</span><span class="ci-ok">'+CHECK+'</span></span>'
         +'</div>'
         +'</div>'+CHEV+'</button>'
         +'<div class="ci-lg-body"><div class="ci-grp"><span>Starters</span><span>Proj / Pts</span></div>'
