@@ -15157,7 +15157,17 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 .ci-chev{color:var(--ink-500);display:inline-flex;transition:transform .15s}
 .ci-lg[data-open="1"] .ci-chev{transform:rotate(180deg)}
 .ci-lg-body{margin:0 8px 8px;background:var(--paper-deep);border:1px solid var(--line);border-radius:12px;padding:2px 8px 10px}
-.ci-lg[data-open="0"] .ci-lg-body{display:none}
+/* Smooth expand/collapse: animate the grid row 0fr ↔ 1fr (no display:none, no
+   re-render), so the section slides and nothing inside it is rebuilt. */
+.ci-lg-wrap{display:grid;grid-template-rows:1fr;transition:grid-template-rows .24s cubic-bezier(.2,.8,.2,1)}
+.ci-lg[data-open="0"] .ci-lg-wrap{grid-template-rows:0fr}
+.ci-lg-clip{overflow:hidden;min-height:0}
+.ci-lg-body{transition:opacity .2s ease,visibility 0s linear 0s}
+/* Collapsed content is also made non-interactive (visibility flips after the slide
+   finishes), so hidden buttons can't catch taps or keyboard focus. */
+.ci-lg[data-open="0"] .ci-lg-body{opacity:0;visibility:hidden;transition:opacity .2s ease,visibility 0s linear .24s}
+.ci-chev{transition:transform .24s cubic-bezier(.2,.8,.2,1)}
+@media (prefers-reduced-motion:reduce){.ci-lg-wrap,.ci-lg-body,.ci-chev{transition:none}}
 .ci-grp{display:flex;justify-content:space-between;align-items:center;padding:10px 2px 6px;font:600 9px/1 var(--font-sans);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-500);border-bottom:1px solid var(--line-soft)}
 .ci-pr{display:grid;grid-template-columns:38px minmax(0,1fr) 58px;column-gap:9px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--line-soft)}
 .ci-pr:last-child{border-bottom:0}
@@ -15379,7 +15389,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   function platTag(plat,label){
     if(plat==='yahoo')return'<span class="ci-plat ci-plat--wordmark" role="img" aria-label="'+esc(label)+'" title="'+esc(label)+'">'+YAHOO_MARK+'</span>';
     var src=PLAT_LOGO[plat];
-    if(src)return'<span class="ci-plat ci-plat--logo"><img src="'+src+'" alt="'+esc(label)+'" title="'+esc(label)+'" width="22" height="22" loading="lazy" decoding="async"></span>';
+    if(src)return'<span class="ci-plat ci-plat--logo"><img src="'+src+'" alt="'+esc(label)+'" title="'+esc(label)+'" width="22" height="22" decoding="async"></span>';
     return'<span class="ci-plat">'+esc(label)+'</span>';
   }
   /* Small platform mark at the front of the "Adjust lineup in …" button; the app name
@@ -15388,7 +15398,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   function btnLogo(plat){
     if(plat==='yahoo')return'<span class="ci-adj-wm" aria-hidden="true">'+YAHOO_MARK.replace('width="72" height="10"','width="54" height="8"')+'</span>';
     var src=PLAT_LOGO[plat];
-    return src?'<img class="ci-adj-logo" src="'+src+'" alt="" width="18" height="18" loading="lazy" decoding="async">':'';
+    return src?'<img class="ci-adj-logo" src="'+src+'" alt="" width="18" height="18" decoding="async">':'';
   }
   function koLabel(k,today){return(dayStart(k)===today?'Today ':DOW[new Date(k).getDay()]+' ')+hm(k);}
 
@@ -15425,7 +15435,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
       +'<div class="ci-hd"><div class="ci-title">Lineup Check-In</div><div class="ci-sub">'+sub+'</div>'
       +'<button class="ci-x" data-ci-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
       +'<div class="ci-stats">'
-      +'<div class="ci-st"><b>'+nChecked+'<span> / '+M.leagues.length+'</span></b><small>Checked</small></div>'
+      +'<div class="ci-st"><b class="ci-nchk">'+nChecked+'<span> / '+M.leagues.length+'</span></b><small>Checked</small></div>'
       +'<div class="ci-st"><b>'+M.playing+'</b><small>Playing '+esc(focusLbl)+'</small></div>'
       +'<div class="ci-st"><b class="sm">'+esc(nextLbl)+'</b><small>'+esc(nextSmall)+'</small></div>'
       +'</div></div><div class="ci-list'+(M.leagues.some(function(x){return x.plat==='yahoo';})?' has-wide':'')+'">';
@@ -15438,20 +15448,27 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
         +'<button class="ci-lg-hd" data-ci-tog="'+esc(L.id)+'"><div style="min-width:0"><div class="ci-lg-top">'+platTag(L.plat,pl)+'<span class="ci-lg-nmrow"><span class="ci-lg-nm">'+esc(L.name)+'</span><span class="ci-ok">'+CHECK+'</span></span>'
         +'</div>'
         +'</div>'+CHEV+'</button>'
-        +'<div class="ci-lg-body"><div class="ci-grp"><span>Starters</span><span>Proj / Pts</span></div>'
+        +'<div class="ci-lg-wrap"><div class="ci-lg-clip"><div class="ci-lg-body"><div class="ci-grp"><span>Starters</span><span>Proj / Pts</span></div>'
         +L.starters.map(function(r){return rowHtml(r,false,M.today);}).join('')
         +(L.bench.length?'<div class="ci-grp"><span>Bench</span><span></span></div>'+L.bench.map(function(r){return rowHtml(r,true,M.today);}).join(''):'')
         +'<div class="ci-acts">'
         +(url?'<button class="ci-adj" data-ci-go="'+esc(url)+'">'+btnLogo(L.plat)+'<span class="ci-adj-txt">Adjust lineup in '+esc(pl)+'</span></button>':'<span></span>')
         +'<button class="ci-chk" data-ci-chk="'+esc(L.id)+'">'+(isChk?CHECK+' Checked':'Looks good')+'</button>'
-        +'</div></div></div>';
+        +'</div></div></div></div></div>';
     });
     h+='</div><button class="ci-done" data-ci-close>Done</button></div>';
     return{html:h,model:M};
   }
 
   function isOpenMine(){try{return window.BottomSheet&&window.BottomSheet.isOpen()&&window.BottomSheet.getOwner()===OWNER;}catch(e){return false;}}
-  function repaint(){if(!isOpenMine())return;var body=null;try{body=window.BottomSheet.getSheetEl().querySelector('[data-sheet-body]');}catch(e){}var st=body?body.scrollTop:0;window.BottomSheet.setBody(render(Date.now()).html);if(body)body.scrollTop=st;}
+  /* lastHtml = the markup currently on screen. Data ticks rebuild only when something
+     actually changed, so the logos and rows aren't torn down every 30-60s. */
+  var lastHtml='';
+  function openSheet(html){lastHtml=html;window.BottomSheet.open(html,{owner:OWNER});}
+  function repaint(){if(!isOpenMine())return;var html=render(Date.now()).html;if(html===lastHtml)return;var body=null;try{body=window.BottomSheet.getSheetEl().querySelector('[data-sheet-body]');}catch(e){}var st=body?body.scrollTop:0;window.BottomSheet.setBody(html);lastHtml=html;if(body)body.scrollTop=st;}
+  /* After an in-place DOM change, re-sync lastHtml so the next data tick doesn't see a
+     phantom difference and rebuild. */
+  function syncHtml(){try{lastHtml=render(Date.now()).html;}catch(e){}}
 
   function eligible(){
     try{
@@ -15471,7 +15488,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     if(!r.model.ready||!r.model.leagues.length)return false;
     if(!force){ if(!inWindow(now))return false; if(lsGet(SEEN_KEY)===dayKey(now))return false; }
     lsSet(SEEN_KEY,dayKey(now)); shownThisLoad=true; openState={};
-    window.BottomSheet.open(r.html,{owner:OWNER});
+    openSheet(r.html);
     return true;
   }
   /* Manual entry (console / future tile): admin only, ignores the day window + seen flag. */
@@ -15487,14 +15504,14 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
       window.BottomSheet.open('<div class="ci"><div class="ci-hd"><div class="ci-title">Lineup Check-In</div><div class="ci-sub">'+msg+'</div></div><button class="ci-done" data-ci-close>Close</button></div>',{owner:OWNER});
       return false;
     }
-    window.BottomSheet.open(r.html,{owner:OWNER}); return true;
+    openSheet(r.html); return true;
   };
 
   function tick(){
     /* Fresh data landed while the sheet is open (timer tick or forced refresh) → repaint. */
     if(isOpenMine()&&window.__conflictedLastData&&window.__conflictedLastData!==lastDataRef){repaint();return;}
     /* Came back via a full reload after "Adjust lineup" → reopen on the fresh data. */
-    if(retFresh()&&!isOpenMine()&&eligible()){var rr=render(Date.now());if(rr.model.ready&&rr.model.leagues.length){clearRet();shownThisLoad=true;window.BottomSheet.open(rr.html,{owner:OWNER});}return;}
+    if(retFresh()&&!isOpenMine()&&eligible()){var rr=render(Date.now());if(rr.model.ready&&rr.model.leagues.length){clearRet();shownThisLoad=true;openSheet(rr.html);}return;}
     if(shownThisLoad&&!forced)return;
     if(forced&&shownThisLoad)return;
     if(!eligible())return;
@@ -15519,9 +15536,17 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     var t=e.target; if(!t||!t.closest)return;
     if(t.closest('[data-ci-close]')){window.BottomSheet.close();return;}
     var tog=t.closest('[data-ci-tog]');
-    if(tog){var card=tog.closest('.ci-lg');openState[tog.getAttribute('data-ci-tog')]=card.getAttribute('data-open')!=='1';repaint();return;}
+    if(tog){var card=tog.closest('.ci-lg'),nowOpen=card.getAttribute('data-open')!=='1';openState[tog.getAttribute('data-ci-tog')]=nowOpen;card.setAttribute('data-open',nowOpen?'1':'0');syncHtml();return;}
     var chk=t.closest('[data-ci-chk]');
-    if(chk){var id=chk.getAttribute('data-ci-chk'),now=Date.now(),c=loadChecked(now);if(c[id])delete c[id];else c[id]=1;saveChecked(now,c);openState[id]=!c[id];repaint();return;}
+    if(chk){
+      var id=chk.getAttribute('data-ci-chk'),now=Date.now(),c=loadChecked(now);
+      if(c[id])delete c[id];else c[id]=1;saveChecked(now,c);openState[id]=!c[id];
+      var card2=chk.closest('.ci-lg');
+      if(card2){card2.setAttribute('data-checked',c[id]?'1':'0');card2.setAttribute('data-open',c[id]?'0':'1');}
+      chk.innerHTML=c[id]?CHECK+' Checked':'Looks good';
+      try{var nb=window.BottomSheet.getSheetEl().querySelector('.ci-nchk');if(nb&&lastModel){var n=lastModel.leagues.filter(function(L){return c[L.id];}).length;nb.innerHTML=n+'<span> / '+lastModel.leagues.length+'</span>';}}catch(e){}
+      syncHtml();return;
+    }
     var go=t.closest('[data-ci-go]');
     if(go){var url=go.getAttribute('data-ci-go');lsSet(RET_KEY,String(Date.now()));if(window.cfOpenExternal)window.cfOpenExternal(url);else window.open(url,'_blank','noopener');return;}
   });
