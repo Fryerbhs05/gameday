@@ -6730,7 +6730,7 @@
 <script>
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#7AA8D1','#5790C0','#2B6FA8','#3F5E78','#9E988A','#6E8BA8','#B0BEC9','#4A5A6A'];
 const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
-let liveOnly=false,toFinishOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map(),nflKickoffs=new Map();
+let liveOnly=false,toFinishOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map(),nflKickoffs=new Map(),nflOpponents=new Map();
 /* GAME-WINDOW poll cadence (Matt, 2026-09-15): while any NFL game is in progress
    we tighten both the board refresh and the NFL-state re-fetch to 30s so a game's
    'post' flip (and the LOCKED/LOST verdict that rides on it) is caught within ~30s
@@ -6897,7 +6897,7 @@ async function fetchNflGameStates(season,week){
        the game clock, and a cached scoreboard freezes both. */
     const r=await fetch(url+'&_cb='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error(`ESPN HTTP ${r.status}`);
     const j=await r.json();
-    const m=new Map(),clk=new Map(),kck=new Map();
+    const m=new Map(),clk=new Map(),kck=new Map(),opp=new Map();
     (j.events||[]).forEach(ev=>{
       const comp=ev.competitions?.[0];if(!comp)return;
       const state=comp.status?.type?.state||'pre';
@@ -6918,13 +6918,19 @@ async function fetchNflGameStates(season,week){
          lookup for an aliased team missed and returned null, silently degrading
          `remaining`, `toGo` and the variance model in the Weekend Snapshot.
          cfNormTeam is a hoisted top-level declaration in this same script. */
-      (comp.competitors||[]).forEach(c=>{const abbr=c.team?.abbreviation;if(abbr){
+      /* Opponent + home/away for the Lineup Check-In row ("KC @ LV"). Opponent is
+         stored in the normalized spelling so it matches the platforms' team codes. */
+      const cps=comp.competitors||[];
+      cps.forEach(c=>{const abbr=c.team?.abbreviation;if(abbr){
         m.set(abbr,state);if(clock)clk.set(abbr,clock);if(kiso)kck.set(abbr,kiso);
         let alias;try{alias=cfNormTeam(abbr);}catch(e){alias=null;}
-        if(alias&&alias!==abbr){m.set(alias,state);if(clock)clk.set(alias,clock);if(kiso)kck.set(alias,kiso);}
+        const oc=cps.find(x=>x!==c),oa=oc&&oc.team?.abbreviation;
+        const ov=oa?{opp:(function(){try{return cfNormTeam(oa);}catch(e){return oa;}})(),home:c.homeAway==='home'}:null;
+        if(ov)opp.set(abbr,ov);
+        if(alias&&alias!==abbr){m.set(alias,state);if(clock)clk.set(alias,clock);if(kiso)kck.set(alias,kiso);if(ov)opp.set(alias,ov);}
       }});
     });
-    nflGameStates=m;nflGameClocks=clk;nflKickoffs=kck;nflGameStatesKey=key;nflGameStatesAt=Date.now();
+    nflGameStates=m;nflGameClocks=clk;nflKickoffs=kck;nflOpponents=opp;nflGameStatesKey=key;nflGameStatesAt=Date.now();
   }catch(e){console.warn('NFL game state fetch failed:',e.message);}
 }
 function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.team)==='in';}
@@ -6978,6 +6984,8 @@ window.__cfGameClock=function(team){try{if(!team)return'';return nflGameClocks.g
 /* Kickoff for a team's game this period, as an ISO string (or an epoch ms in
    replay). '' when the slate hasn't been fetched or the team isn't playing. */
 window.__cfKickoff=function(team){try{if(!team)return'';return nflKickoffs.get(team)||nflKickoffs.get(cfNormTeam(team))||'';}catch(e){return'';}};
+/* This period's opponent for a team: {opp:'LV', home:true} or null. */
+window.__cfOpponent=function(team){try{if(!team)return null;return nflOpponents.get(team)||nflOpponents.get(cfNormTeam(team))||null;}catch(e){return null;}};
 
 /* ── LIVE PROJECTED FINAL ──────────────────────────────────────────────────
    Every provider hands back a PREGAME, whole-game projection for the week.
@@ -15297,6 +15305,8 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   }
   function kick(team){try{var iso=window.__cfKickoff&&window.__cfKickoff(team);var t=iso?Date.parse(iso):NaN;return isFinite(t)?t:null;}catch(e){return null;}}
   function gstate(team){try{return window.__cfGameState?window.__cfGameState(team):null;}catch(e){return null;}}
+  /* "KC vs LV" (home) / "KC @ LV" (away); just "KC" when the slate has no opponent. */
+  function tmVs(team){try{var o=window.__cfOpponent?window.__cfOpponent(team):null;return o&&o.opp?team+(o.home?' vs ':' @ ')+o.opp:team;}catch(e){return team;}}
 
   /* Latest Sunday kickoff before 5pm local across the whole slate = the cutoff. */
   function sundayCutoff(now){
@@ -15481,8 +15491,8 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     var sub;
     if(r.noTeam)sub='Free agent';
     else if(r.bye)sub=esc(r.team)+' · Bye week';
-    else if(r.lk)sub='<span class="ci-lock">'+LOCK+'</span>'+esc(r.team)+' · Locked';
-    else sub=esc(r.team)+' · <span class="ko">'+esc(koLabel(r.k,today))+'</span>';
+    else if(r.lk)sub='<span class="ci-lock">'+LOCK+'</span>'+esc(tmVs(r.team))+' · Locked';
+    else sub=esc(tmVs(r.team))+' · <span class="ko">'+esc(koLabel(r.k,today))+'</span>';
     /* Locked (game kicked off) → actual points so far; otherwise the projection. */
     var val=(r.bye||r.noTeam)?'':(r.lk?(+(r.pts||0)).toFixed(2):(r.proj!=null?(+r.proj).toFixed(2):'—'));
     var slot=bench?'BN':(r.slot||r.pos||'');
