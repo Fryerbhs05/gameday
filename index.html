@@ -15132,8 +15132,14 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 .ci-lg.quiet{border-color:var(--line);background:var(--paper)}
 .ci-lg.quiet .ci-lg-nm{color:var(--ink-700)}
 .ci-lg-hd{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:11px 12px 10px;text-align:left;background:none;border:0;color:inherit;cursor:pointer;font:inherit}
-.ci-lg-top{display:flex;align-items:center;gap:7px;min-width:0}
-.ci-plat{flex:0 0 auto;font:700 8.5px/1 var(--font-sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-500);border:1px solid var(--line);border-radius:4px;padding:3px 5px}
+.ci-lg-top{display:grid;grid-template-columns:62px minmax(0,1fr);column-gap:10px;row-gap:4px;align-items:center;min-width:0}
+.ci-lg-nmrow{display:flex;align-items:center;gap:7px;min-width:0}
+.ci-plat{box-sizing:border-box;width:62px;text-align:center;font:700 8.5px/1 var(--font-sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-500);border:1px solid var(--line);border-radius:4px;padding:3px 0}
+.ci-lg-proj{grid-column:2;font:600 11px/1.2 var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-lg-proj b{font-family:var(--font-mono);font-weight:700}
+.ci-lg-proj.fav{color:var(--cheer)}
+.ci-lg-proj.dog{color:var(--enemy)}
+.ci-lg-proj.even{color:var(--ink-500)}
 .ci-lg-nm{font:700 14px/1.15 var(--font-sans);color:var(--ink-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .ci-ok{flex:0 0 auto;width:17px;height:17px;border-radius:50%;background:var(--cheer-soft);color:var(--cheer);display:none;align-items:center;justify-content:center;border:1px solid color-mix(in oklab,var(--cheer) 50%,transparent)}
 .ci-lg[data-checked="1"] .ci-ok{display:inline-flex}
@@ -15306,7 +15312,16 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
       var bn=(lg.ci.bench||[]).map(function(r){return mk(r,true);}).filter(function(x){
         return !x.empty&&!x.out&&!x.bye&&!x.lk&&canFill(x.pos,openSlots);
       });
-      out.push({id:lg.platform+':'+lg.leagueName,ix:ix,name:lg.leagueName,plat:lg.platform||'',link:lg.ci.link||null,starters:st,bench:bn});
+      /* Projected margin = the scoreboard's PROJECTED FINAL (ctx.myProjPts vs oppProjPts).
+         Null when there's no opponent or no projection data. */
+      var margin=null;
+      try{
+        if(ctx&&ctx.leagueState!=='NO_OPPONENT'){
+          var mp=+ctx.myProjPts, op=+ctx.oppProjPts;
+          if(isFinite(mp)&&isFinite(op)&&(mp>0||op>0))margin=+(mp-op).toFixed(2);
+        }
+      }catch(e){}
+      out.push({id:lg.platform+':'+lg.leagueName,ix:ix,name:lg.leagueName,plat:lg.platform||'',link:lg.ci.link||null,starters:st,bench:bn,margin:margin});
     });
     /* Focus day: today if any of your playable players play today, else the next day one does. */
     var today=dayStart(now), focus=null, days=[];
@@ -15387,7 +15402,11 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
       var meta=L.next<Infinity?'Next lock <span class="nx">'+esc(DOW[new Date(L.next).getDay()]+' '+hm(L.next))+'</span>':'Everyone’s locked';
       var url=linkFor(L), pl=PLAT[L.plat]||L.plat;
       h+='<div class="ci-lg'+(none?' quiet':'')+'" data-ci-id="'+esc(L.id)+'" data-open="'+(open?1:0)+'" data-checked="'+(isChk?1:0)+'">'
-        +'<button class="ci-lg-hd" data-ci-tog="'+esc(L.id)+'"><div style="min-width:0"><div class="ci-lg-top"><span class="ci-plat">'+esc(pl)+'</span><span class="ci-lg-nm">'+esc(L.name)+'</span><span class="ci-ok">'+CHECK+'</span></div>'
+        +'<button class="ci-lg-hd" data-ci-tog="'+esc(L.id)+'"><div style="min-width:0"><div class="ci-lg-top"><span class="ci-plat">'+esc(pl)+'</span><span class="ci-lg-nmrow"><span class="ci-lg-nm">'+esc(L.name)+'</span><span class="ci-ok">'+CHECK+'</span></span>'
+        +(L.margin==null?'':(L.margin>0?'<span class="ci-lg-proj fav">Projected favorite by <b>+'+L.margin.toFixed(2)+'</b></span>'
+          :L.margin<0?'<span class="ci-lg-proj dog">Projected underdog by <b>'+L.margin.toFixed(2)+'</b></span>'
+          :'<span class="ci-lg-proj even">Projected even</span>'))
+        +'</div>'
         +'</div>'+CHEV+'</button>'
         +'<div class="ci-lg-body"><div class="ci-grp"><span>Starters</span><span>Proj / Pts</span></div>'
         +L.starters.map(function(r){return rowHtml(r,false,M.today);}).join('')
