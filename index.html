@@ -4716,6 +4716,7 @@
     /* Exposure / Schedule / Account are first-class rail tabs now — drop their
        redundant tiles from the …More sheet on desktop (mobile keeps them). */
     body:not(.nav-landing) .cbmore-tile[data-more-action="exposure"],
+    body:not(.nav-landing) .cbmore-tile[data-more-action="checkin"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="leaders"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="blog"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="contact"],
@@ -4763,13 +4764,26 @@
   <a class="cfrail-mark" href="/" aria-label="Conflicted — home">
     <img src="/icons/export/icon-1a-night.png?v=78" alt="" width="36" height="36" />
   </a>
+  <!-- Rail order (Matt, 2026-09-26): Home, Check-In, Snapshot, Schedule, Leagues, (Leaders), Exposure, Blog, Contact, Account. -->
   <button class="cfrail-tab" type="button" data-rail-tab="dashboard" aria-label="Home">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
     <span>Home</span>
   </button>
+  <button class="cfrail-tab" type="button" data-rail-tab="checkin" aria-label="Lineup Check-In">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8.5 13l2.5 2.5 4.5-5"/></svg>
+    <span>Check-In</span>
+  </button>
   <button class="cfrail-tab" type="button" data-rail-tab="snapshot" aria-label="Weekend Snapshot">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.2"/><path d="M8 5l1.4-2h5.2L16 5"/></svg>
     <span>Snapshot</span>
+  </button>
+  <button class="cfrail-tab" type="button" data-rail-tab="schedule" aria-label="Schedule (watch priority)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></svg>
+    <span>Schedule</span>
+  </button>
+  <button class="cfrail-tab" type="button" data-rail-tab="leagues" aria-label="Leagues">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="4.2" rx="1.4"/><rect x="3.5" y="9.9" width="17" height="4.2" rx="1.4"/><rect x="3.5" y="15.8" width="17" height="4.2" rx="1.4"/></svg>
+    <span>Leagues</span>
   </button>
   <button class="cfrail-tab" type="button" data-rail-tab="leaders" aria-label="Leaders">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="6" height="12"/><rect x="3" y="13" width="6" height="8"/><rect x="15" y="15" width="6" height="6"/><path d="M12 2.5l1.1 2.2 2.4.35-1.75 1.7.4 2.4L12 8.05l-2.15 1.1.4-2.4-1.75-1.7 2.4-.35L12 2.5z"/></svg>
@@ -4779,17 +4793,9 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V3l-6 2.5L9 4z"/><path d="M9 4v13.5"/><path d="M15 7v13.5"/></svg>
     <span>Exposure</span>
   </button>
-  <button class="cfrail-tab" type="button" data-rail-tab="schedule" aria-label="Schedule (watch priority)">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/></svg>
-    <span>Schedule</span>
-  </button>
   <button class="cfrail-tab" type="button" data-rail-tab="conflict" aria-label="Conflict Card">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg>
     <span>Conflict</span>
-  </button>
-  <button class="cfrail-tab" type="button" data-rail-tab="leagues" aria-label="Leagues">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="4.2" rx="1.4"/><rect x="3.5" y="9.9" width="17" height="4.2" rx="1.4"/><rect x="3.5" y="15.8" width="17" height="4.2" rx="1.4"/></svg>
-    <span>Leagues</span>
   </button>
   <button class="cfrail-tab" type="button" data-rail-tab="blog" aria-label="Blog">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
@@ -4902,11 +4908,18 @@
       /* Conflict moved off the bar for EVERYONE (Leagues took its slot,
          2026-09-24) and is admin-only: this tile is the only way in. Two-ring art is 11u tall centered at 12, normalized to the flask body. */
       { key: 'conflict', label: 'Conflict', soon: false, adminOnly: true, svg: '<g transform="translate(12,12) scale(1.0909) translate(-12,-12)"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></g>' },
-      /* Lineup Check-In on demand (admin, 2026-09-25). Opens the same sheet the
-         first-open-of-the-day trigger shows, ignoring the day window + seen flag.
+      /* Lineup Check-In on demand — for everyone since 2026-09-26 (first tile).
+         Opens the same sheet the auto trigger shows, ignoring the schedule + seen flag.
          Clipboard art is 17u tall centered at 12.5, normalized to the flask body. */
-      { key: 'checkin', label: 'Check-In', soon: false, adminOnly: true, svg: '<g transform="translate(12,12) scale(0.7059) translate(-12,-12.5)"><rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8.5 13l2.5 2.5 4.5-5"/></g>' }
+      { key: 'checkin', label: 'Check-In', soon: false, svg: '<g transform="translate(12,12) scale(0.7059) translate(-12,-12.5)"><rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8.5 13l2.5 2.5 4.5-5"/></g>' }
     ];
+    /* Normal-user tile order (Matt, 2026-09-26): Check-In, Leaders, Exposure, Account,
+       Blog, Contact. Gated tiles keep their own bottom row regardless. */
+    (function(){var ORDER=['checkin','leaders','exposure','account','blog','contact'];
+      var rank=function(it){var i=ORDER.indexOf(it.key);return i<0?99:i;};
+      var idx=ITEMS.map(function(it,i){return[it,i];});
+      idx.sort(function(a,b){return(rank(a[0])-rank(b[0]))||(a[1]-b[1]);});
+      ITEMS.length=0;idx.forEach(function(x){ITEMS.push(x[0]);});})();
     var ADMIN_EMAILS = ['fryerm@net.elmhurst.edu'];
     /* Leagues view preview list (2026-09-24): owner + Jeremy Ried. Leagues-only —
        these users do NOT get the other admin tiles/links. */
@@ -4975,7 +4988,7 @@
       /* Leagues left this sheet for the bar (2026-09-24); branch kept for a cached shell. */
       else if (action === 'leagues' && typeof window.showLeagues === 'function') { window.showLeagues(); window.scrollTo(0, 0); }
       else if (action === 'conflict' && typeof window.showConflictCard === 'function') { window.showConflictCard(); window.scrollTo(0, 0); }
-      else if (action === 'checkin' && typeof window.cfShowLineupCheckIn === 'function') { window.cfShowLineupCheckIn(); }
+      else if (action === 'checkin' && typeof window.cfShowLineupCheckIn === 'function') { window.cfShowLineupCheckIn('more'); }
       /* Kept as a harmless no-op path: Schedule left the sheet 2026-09-11, but a
          cached shell may still render its tile for one load. */
       else if (action === 'schedule' && typeof window.showWatch === 'function') { window.showWatch(); window.scrollTo(0, 0); }
@@ -5865,6 +5878,16 @@
           <div class="settings-row-sub">When a player you're conflicted on scores, the update writes itself into your feed and shows what it did to you. Turn this off for a still feed.</div>
         </div>
         <button class="live-toggle" id="impact-anim-toggle" onclick="toggleImpactAnim()" type="button" aria-label="Toggle impact animations"></button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-meta">
+          <div class="settings-row-title">Display Lineup Check-In automatically</div>
+          <div class="settings-row-sub">Pops up on your first open of the day so you can confirm every lineup in one place. You can always open it from Check-In in the menu.</div>
+        </div>
+        <button class="live-toggle" id="ci-auto-toggle" onclick="cfCiToggleAuto()" type="button" aria-label="Display Lineup Check-In automatically"></button>
+      </div>
+      <div class="settings-row" id="ci-settings-row" style="display:block;">
+        <div id="ci-settings-opts"></div>
       </div>
     </div>
   </div>
@@ -15125,8 +15148,10 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 .ci-st{background:var(--paper-deep);border:1px solid var(--line);border-radius:10px;padding:8px 9px 7px;min-width:0}
 .ci-st b{display:block;font:800 17px/1 var(--font-sans);color:var(--ink-900);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ci-st b.sm{font:700 14px/17px var(--font-mono)}
+.ci-st-cd small{margin:0 0 5px}
+.ci-st-cd b.sm{text-overflow:clip}
 .ci-st b span{color:var(--ink-500);font-weight:600}
-.ci-st small{display:block;font:600 8.5px/1 var(--font-sans);letter-spacing:.11em;text-transform:uppercase;color:var(--ink-500);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-st small{display:block;font:600 8.5px/1 var(--font-sans);letter-spacing:.11em;text-transform:uppercase;color:var(--ink-500);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:clip}
 .ci-list{border-top:1px solid var(--line-soft);padding-top:10px;display:flex;flex-direction:column;gap:10px}
 .ci-lg{background:var(--paper-soft);border:1px solid var(--navy-300);border-radius:14px;overflow:hidden;flex-shrink:0}
 .ci-lg.quiet{border-color:var(--line);background:var(--paper)}
@@ -15200,23 +15225,31 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 .ci-adj-wm svg{color:inherit}
 .ci-chk{display:flex;align-items:center;gap:6px;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--ink-700);font:600 12.5px/1 var(--font-sans);white-space:nowrap;cursor:pointer}
 .ci-lg[data-checked="1"] .ci-chk{color:var(--cheer);border-color:color-mix(in oklab,var(--cheer) 45%,transparent);background:var(--cheer-soft)}
+.ci-set-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--paper-deep);border:1px solid var(--line);border-radius:10px;padding:3px;max-width:340px}
+.ci-set-seg button{border:0;background:none;color:var(--ink-500);font:600 12.5px/1 var(--font-sans);padding:9px 6px;border-radius:8px;cursor:pointer}
+.ci-set-seg button[aria-checked="true"]{background:var(--tile-bg);color:var(--ink-900);box-shadow:inset 0 0 0 1px var(--navy-300)}
+.ci-set-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-top:10px;max-width:420px}
+.ci-set-days button{min-width:0;padding:8px 0;border-radius:999px;border:1px solid var(--line);background:none;color:var(--ink-500);font:600 12px/1 var(--font-sans);cursor:pointer}
+.ci-set-days button[aria-pressed="true"]{border-color:var(--navy-300);background:var(--tile-bg);color:var(--ink-900)}
+.ci-set-help{font:500 12px/1.4 var(--font-sans);color:var(--ink-500);margin-top:9px}
 .ci-done{width:100%;margin-top:14px;padding:13px;border-radius:12px;background:var(--navy-300);color:#fff;border:0;font:700 14px/1 var(--font-sans);cursor:pointer}
 .ci-foot{font:500 10.5px/1.3 var(--font-sans);color:var(--ink-500);text-align:center;margin-top:8px}
 </style>
 <script>
 /* ══ LINEUP CHECK-IN ═════════════════════════════════════════════════════════
-   Admin-only (cfIsAdmin) confirmation sheet: every league's lineup in one place.
+   Confirmation sheet: every league's lineup in one place. Admin-only 2026-09-25 →
+   released to all users 2026-09-26 (auto-show schedule is a per-device setting).
    Decisions (Matt, 2026-09-25) — see project memory project_conflicted_lineup_checkin:
    - First app open each day, Wednesday → Sunday's late-afternoon kickoff. Per-device
      "seen today" flag. Force with ?checkin=1 (admin only), or window.cfShowLineupCheckIn().
-   - Per league. Leagues ordered by how many of your players play on the FOCUS DAY
+   - Per league. Leagues ordered by League priority, then by how many of your players play on the FOCUS DAY
      (today; or, if none of your players play today, the next day one does). Leagues
      with zero start collapsed at the bottom.
    - Starters in slot order, then bench. Out-type statuses (O/IR/PUP/NFI/SUS/NA/DNR/
      CEL/COV) and bye/no-team players are HIDDEN on the bench; in a STARTING slot they
      stay visible with a red outline, as does an empty slot.
    - Kicked-off players: dimmed + lock + "Locked". No live data, no points.
-   - Header: Checked (N/N), Playing <day>, Next lock. "Looks good" per league.
+   - Header: Checked (N/N), Playing <day>, Next lineup lock. "Looks good" per league.
    - "Adjust lineup in <platform>" → the user's team page (web URL for now).
    Reads only accessors: currentLeagues[].ci (built in the post-provider assembly),
    __cfKickoff, __cfGameState, cfIsAdmin, inDemoMode, getActiveWeek. */
@@ -15274,11 +15307,38 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     if(best==null){var f=new Date(start);f.setHours(15,0,0,0);best=f.getTime();}
     return best;
   }
+  /* ── Auto-show preferences (Settings → Lineup Check-In, per device) ──────────
+     Default (Matt, 2026-09-26): ON, specific days = Thursday + Sunday.
+     mode 'days'     → the chosen weekdays (Sunday stops at the late-afternoon kickoff)
+     mode 'gamedays' → any day with an NFL game, until that day's last kickoff
+                       (Sunday: the late-afternoon kickoff). */
+  var PREFS_KEY='cf_ci_prefs_v1';
+  var PREFS_DEFAULT={auto:true,mode:'days',days:[4,0]};
+  function loadPrefs(){
+    try{var o=JSON.parse(lsGet(PREFS_KEY)||'null');
+      if(o&&typeof o==='object')return{auto:o.auto!==false,mode:o.mode==='gamedays'?'gamedays':'days',days:Array.isArray(o.days)?o.days.filter(function(d){return d>=0&&d<=6;}):PREFS_DEFAULT.days.slice()};
+    }catch(e){}
+    return{auto:PREFS_DEFAULT.auto,mode:PREFS_DEFAULT.mode,days:PREFS_DEFAULT.days.slice()};
+  }
+  function savePrefs(p){lsSet(PREFS_KEY,JSON.stringify(p));}
+  function allTeams(){try{if(typeof ESPN_PRO_TEAMS!=='undefined')return Object.keys(ESPN_PRO_TEAMS).map(function(k){return ESPN_PRO_TEAMS[k];});}catch(e){}return[];}
+  /* Last kickoff on today's slate (null = no NFL game today). */
+  function lastKickToday(now){
+    var start=dayStart(now),best=null;
+    allTeams().forEach(function(t){var k=kick(t);if(k&&k>=start&&k<start+86400000&&(best==null||k>best))best=k;});
+    return best;
+  }
   function inWindow(now){
+    var p=loadPrefs(); if(!p.auto)return false;
     var dow=new Date(now).getDay();
-    if(dow>=3&&dow<=6)return true;
-    if(dow===0){var c=sundayCutoff(now);return now<c;}
-    return false;
+    if(p.mode==='gamedays'){
+      var last=lastKickToday(now); if(last==null)return false;
+      if(dow===0)return now<sundayCutoff(now);
+      return now<last;
+    }
+    if(p.days.indexOf(dow)<0)return false;
+    if(dow===0)return now<sundayCutoff(now);
+    return true;
   }
 
   /* "Looks good" checks live for the NFL week: they reset Tuesday 12:00 AM local
@@ -15358,7 +15418,18 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
       });
       if(L.next<next)next=L.next;
     });
-    out.sort(function(a,b){return(b.count-a.count)||(a.ix-b.ix);});
+    /* Order: the user's league priority first (Settings → League priority; tiers, so
+       leagues ranked equal tie), then players playing on the focus day, then feed order.
+       Priority applies only once the user has actually set it and hasn't marked all
+       leagues equal. */
+    var prio=function(){return 0;};
+    try{
+      if(typeof isPrioritySet==='function'&&isPrioritySet()&&!(typeof priorityEqual!=='undefined'&&priorityEqual)){
+        var pt=(typeof priorityTiers!=='undefined'&&priorityTiers)||{}, po=(typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder))?priorityOrder:[];
+        prio=function(n){if(typeof pt[n]==='number')return pt[n];var i=po.indexOf(n);return i<0?999:i+1;};
+      }
+    }catch(e){}
+    out.sort(function(a,b){return(prio(a.name)-prio(b.name))||(b.count-a.count)||(a.ix-b.ix);});
     return{leagues:out,ready:anyKick,focus:focus,today:today,playing:Object.keys(ids).length,next:next};
   }
 
@@ -15429,15 +15500,19 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     var wk=1;try{wk=window.getActiveWeek?window.getActiveWeek():1;}catch(e){}
     var sub='Week '+esc(wk)+' · '+DOWFULL[new Date(now).getDay()]+(refreshing?' · <b>Updating lineups…</b>':'');
     lastDataRef=window.__conflictedLastData||null;
-    var nextLbl='—', nextSmall='Next lock';
-    if(M.next<Infinity){nextLbl=(dayStart(M.next)===M.today)?hmFull(M.next):(DOW[new Date(M.next).getDay()]+' '+hm(M.next));if(M.next-now<12*3600000)nextSmall='Locks in '+until(M.next,now);}
+    var nextLbl='—', nextCd=false;
+    if(M.next<Infinity){nextLbl=(dayStart(M.next)===M.today)?hmFull(M.next):(DOW[new Date(M.next).getDay()]+' '+hm(M.next));nextCd=M.next>now&&M.next-now<12*3600000;}
+    /* Within 12h of the next lock the tile flips to a live countdown: "Next lineup lock" / "2h 15m". */
+    var nextTile=nextCd
+      ?'<div class="ci-st ci-st-cd"><small>Next lineup lock</small><b class="sm ci-cd" data-at="'+M.next+'">'+esc(until(M.next,now))+'</b></div>'
+      :'<div class="ci-st"><b class="sm">'+esc(nextLbl)+'</b><small>Next lineup lock</small></div>';
     var h='<div class="ci">'
       +'<div class="ci-hd"><div class="ci-title">Lineup Check-In</div><div class="ci-sub">'+sub+'</div>'
       +'<button class="ci-x" data-ci-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
       +'<div class="ci-stats">'
       +'<div class="ci-st"><b class="ci-nchk">'+nChecked+'<span> / '+M.leagues.length+'</span></b><small>Checked</small></div>'
       +'<div class="ci-st"><b>'+M.playing+'</b><small>Playing '+esc(focusLbl)+'</small></div>'
-      +'<div class="ci-st"><b class="sm">'+esc(nextLbl)+'</b><small>'+esc(nextSmall)+'</small></div>'
+      +nextTile
       +'</div></div><div class="ci-list'+(M.leagues.some(function(x){return x.plat==='yahoo';})?' has-wide':'')+'">';
     M.leagues.forEach(function(L){
       var none=L.count===0, isChk=!!checked[L.id];
@@ -15464,15 +15539,54 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   /* lastHtml = the markup currently on screen. Data ticks rebuild only when something
      actually changed, so the logos and rows aren't torn down every 30-60s. */
   var lastHtml='';
-  function openSheet(html){lastHtml=html;window.BottomSheet.open(html,{owner:OWNER});}
-  function repaint(){if(!isOpenMine())return;var html=render(Date.now()).html;if(html===lastHtml)return;var body=null;try{body=window.BottomSheet.getSheetEl().querySelector('[data-sheet-body]');}catch(e){}var st=body?body.scrollTop:0;window.BottomSheet.setBody(html);lastHtml=html;if(body)body.scrollTop=st;}
+  /* ── Usage tracking (cfTrack → /api/track) ──────────────────────────────────
+     lineup_checkin_open   {trigger, leagues, playing, focus_today, dow}
+     lineup_checkin_close  {secs, checked, total, adjusted, expanded}
+     lineup_checkin_adjust {platform}
+     lineup_checkin_check  {platform, on}
+     lineup_checkin_expand {open}
+     lineup_checkin_prefs  {auto, mode, days} */
+  function track(n,p){try{if(window.cfTrack)window.cfTrack(n,p||null);}catch(e){}}
+  var sess=null;
+  /* Stat-tile labels never wrap or ellipsize: shrink the label's font until it fits
+     its tile (floor 6px, letter-spacing tightened along with it). */
+  function fitStats(){
+    var run=function(){try{
+      var el=window.BottomSheet.getSheetEl();if(!el)return;
+      el.querySelectorAll('.ci-st small').forEach(function(sm){
+        sm.style.fontSize='';sm.style.letterSpacing='';
+        var fs=8.5,ls=.11;
+        while(sm.scrollWidth>sm.clientWidth+0.5&&fs>6){fs-=0.25;ls=Math.max(.02,ls-0.012);sm.style.fontSize=fs+'px';sm.style.letterSpacing=ls+'em';}
+      });
+      el.querySelectorAll('.ci-st b.ci-cd').forEach(function(b){
+        b.style.fontSize='';var fs=14;
+        while(b.scrollWidth>b.clientWidth+0.5&&fs>10){fs-=0.5;b.style.fontSize=fs+'px';}
+      });
+    }catch(e){}};
+    run();try{requestAnimationFrame(run);setTimeout(run,320);}catch(e){}
+  }
+  try{window.addEventListener('resize',function(){if(isOpenMine())fitStats();});}catch(e){}
+  function openSheet(html,trigger){
+    lastHtml=html;
+    var M=lastModel||{leagues:[]};
+    sess={t0:Date.now(),adjusted:0,expanded:0};
+    track('lineup_checkin_open',{trigger:trigger||'auto',leagues:M.leagues.length,playing:M.playing||0,focus_today:M.focus!=null&&M.focus===M.today,dow:new Date().getDay()});
+    window.BottomSheet.open(html,{owner:OWNER,onClose:function(){
+      try{
+        var c=loadChecked(Date.now()),M2=lastModel||{leagues:[]};
+        track('lineup_checkin_close',{secs:sess?Math.round((Date.now()-sess.t0)/1000):null,checked:M2.leagues.filter(function(L){return c[L.id];}).length,total:M2.leagues.length,adjusted:sess?sess.adjusted:0,expanded:sess?sess.expanded:0});
+      }catch(e){}
+      sess=null;
+    }});
+    fitStats();
+  }
+  function repaint(){if(!isOpenMine())return;var html=render(Date.now()).html;if(html===lastHtml)return;var body=null;try{body=window.BottomSheet.getSheetEl().querySelector('[data-sheet-body]');}catch(e){}var st=body?body.scrollTop:0;window.BottomSheet.setBody(html);lastHtml=html;if(body)body.scrollTop=st;fitStats();}
   /* After an in-place DOM change, re-sync lastHtml so the next data tick doesn't see a
      phantom difference and rebuild. */
   function syncHtml(){try{lastHtml=render(Date.now()).html;}catch(e){}}
 
   function eligible(){
     try{
-      if(!(window.cfIsAdmin&&window.cfIsAdmin()))return false;
       if(window.inDemoMode&&window.inDemoMode())return false;
       var d=window.__conflictedLastData; if(!d||d.noData||d.isHist||d.offseasonMode)return false;
       if(!Array.isArray(window.currentLeagues)||!window.currentLeagues.length)return false;
@@ -15488,12 +15602,13 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     if(!r.model.ready||!r.model.leagues.length)return false;
     if(!force){ if(!inWindow(now))return false; if(lsGet(SEEN_KEY)===dayKey(now))return false; }
     lsSet(SEEN_KEY,dayKey(now)); shownThisLoad=true; openState={};
-    openSheet(r.html);
+    openSheet(r.html,force?'link':'auto');
     return true;
   }
-  /* Manual entry (console / future tile): admin only, ignores the day window + seen flag. */
-  window.cfShowLineupCheckIn=function(){
-    if(!(window.cfIsAdmin&&window.cfIsAdmin()))return false;
+  /* Manual entry (…More tile, desktop rail tab, console): any signed-in user with
+     leagues; ignores the day window + seen flag. Un-gated 2026-09-26. */
+  window.cfShowLineupCheckIn=function(trigger){
+    if(window.inDemoMode&&window.inDemoMode())return false;
     if(isOpenMine())return true;
     if(window.BottomSheet&&window.BottomSheet.isOpen())window.BottomSheet.close();
     openState={}; var r=render(Date.now());
@@ -15504,19 +15619,29 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
       window.BottomSheet.open('<div class="ci"><div class="ci-hd"><div class="ci-title">Lineup Check-In</div><div class="ci-sub">'+msg+'</div></div><button class="ci-done" data-ci-close>Close</button></div>',{owner:OWNER});
       return false;
     }
-    openSheet(r.html); return true;
+    openSheet(r.html,trigger||'manual'); return true;
   };
 
   function tick(){
     /* Fresh data landed while the sheet is open (timer tick or forced refresh) → repaint. */
     if(isOpenMine()&&window.__conflictedLastData&&window.__conflictedLastData!==lastDataRef){repaint();return;}
+    if(isOpenMine())tickCountdown();
     /* Came back via a full reload after "Adjust lineup" → reopen on the fresh data. */
-    if(retFresh()&&!isOpenMine()&&eligible()){var rr=render(Date.now());if(rr.model.ready&&rr.model.leagues.length){clearRet();shownThisLoad=true;openSheet(rr.html);}return;}
+    if(retFresh()&&!isOpenMine()&&eligible()){var rr=render(Date.now());if(rr.model.ready&&rr.model.leagues.length){clearRet();shownThisLoad=true;openSheet(rr.html,'return');}return;}
     if(shownThisLoad&&!forced)return;
     if(forced&&shownThisLoad)return;
     if(!eligible())return;
     show(forced);
   }
+  /* Keep the next-lock countdown live while the sheet is open — updated in place (no
+     rebuild, so logos don't flash); a full repaint only when the 12h window opens or the
+     lock passes and the next one takes over. */
+  function tickCountdown(){try{
+    var now=Date.now(),el=window.BottomSheet.getSheetEl(),cd=el&&el.querySelector('.ci-cd');
+    if(cd){var at=+cd.getAttribute('data-at');if(!(at>now)){repaint();return;}
+      var t=until(at,now);if(cd.textContent!==t){cd.textContent=t;syncHtml();fitStats();}return;}
+    var M=lastModel;if(M&&M.next<Infinity&&M.next>now&&M.next-now<12*3600000)repaint();
+  }catch(e){}}
   try{setInterval(tick,2000);}catch(e){}
   /* Page resumed on a new day (PWA left open overnight) → allow a fresh check. */
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&lsGet(SEEN_KEY)!==dayKey(Date.now()))shownThisLoad=false;});
@@ -15531,24 +15656,77 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   window.addEventListener('focus',onReturn);
   window.addEventListener('pageshow',onReturn);
 
+  /* ── Settings → Lineup Check-In ────────────────────────────────────────────
+     Tier 1: auto-show toggle (on by default). Tier 2 (only while on): specific
+     days (multi-select) OR on game days. Stored per device (same as Scoring
+     animations). */
+  var DAY_ORDER=[1,2,3,4,5,6,0], DAY_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  function renderSettings(){
+    var tg=document.getElementById('ci-auto-toggle'), box=document.getElementById('ci-settings-opts');
+    if(!tg||!box)return;
+    var p=loadPrefs();
+    tg.classList.toggle('on',p.auto);
+    tg.setAttribute('aria-pressed',p.auto?'true':'false');
+    var row=document.getElementById('ci-settings-row'); if(row)row.style.display=p.auto?'block':'none';
+    var h='<div class="ci-set-seg" role="radiogroup" aria-label="When to show">'
+      +'<button type="button" role="radio" data-ci-mode="days" aria-checked="'+(p.mode==='days')+'">Specific days</button>'
+      +'<button type="button" role="radio" data-ci-mode="gamedays" aria-checked="'+(p.mode==='gamedays')+'">On game days</button></div>';
+    if(p.mode==='days'){
+      h+='<div class="ci-set-days" role="group" aria-label="Days">'+DAY_ORDER.map(function(d){
+        return'<button type="button" data-ci-day="'+d+'" aria-pressed="'+(p.days.indexOf(d)>=0)+'">'+DAY_SHORT[d]+'</button>';
+      }).join('')+'</div>'
+      +'<div class="ci-set-help">'+(p.days.length?'Shows on your first open on the selected days. On Sunday it stops after the late-afternoon kickoff.':'No days selected — the check-in won\u2019t appear automatically.')+'</div>';
+    }else{
+      h+='<div class="ci-set-help">Shows on your first open of any day with an NFL game, until that day\u2019s last kickoff (Sunday: the late-afternoon kickoff).</div>';
+    }
+    box.innerHTML=h;
+  }
+  window.cfCiToggleAuto=function(){var p=loadPrefs();p.auto=!p.auto;savePrefs(p);renderSettings();track('lineup_checkin_prefs',{auto:p.auto,mode:p.mode,days:p.days.join(',')});};
+  document.addEventListener('click',function(e){
+    var t=e.target; if(!t||!t.closest)return;
+    var m=t.closest('[data-ci-mode]'), d=t.closest('[data-ci-day]');
+    if(!m&&!d)return;
+    var p=loadPrefs();
+    if(m)p.mode=m.getAttribute('data-ci-mode');
+    if(d){var n=+d.getAttribute('data-ci-day'),i=p.days.indexOf(n);if(i>=0)p.days.splice(i,1);else p.days.push(n);}
+    savePrefs(p);renderSettings();
+    track('lineup_checkin_prefs',{auto:p.auto,mode:p.mode,days:p.days.join(',')});
+  });
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',renderSettings);else renderSettings();
+
+  /* "Looks good" collapses the league → glide the sheet so the next still-open league's
+     header sits at the top (the one below; if none below, the nearest open one above).
+     Runs alongside the collapse: the target is offset by the height being removed. */
+  function snapToOpen(card,goneH){try{
+    var body=window.BottomSheet.getSheetEl().querySelector('[data-sheet-body]');if(!body)return;
+    var cards=[].slice.call(body.querySelectorAll('.ci-lg')),i=cards.indexOf(card),tgt=null,k;
+    for(k=i+1;k<cards.length&&!tgt;k++)if(cards[k].getAttribute('data-open')==='1')tgt=cards[k];
+    for(k=i-1;k>=0&&!tgt;k--)if(cards[k].getAttribute('data-open')==='1')tgt=cards[k];
+    if(!tgt)return;
+    var top=body.scrollTop+tgt.getBoundingClientRect().top-body.getBoundingClientRect().top-(cards.indexOf(tgt)>i?goneH:0)-8;
+    try{body.scrollTo({top:Math.max(0,top),behavior:'smooth'});}catch(e){body.scrollTop=Math.max(0,top);}
+  }catch(e){}}
   document.addEventListener('click',function(e){
     if(!isOpenMine())return;
     var t=e.target; if(!t||!t.closest)return;
     if(t.closest('[data-ci-close]')){window.BottomSheet.close();return;}
     var tog=t.closest('[data-ci-tog]');
-    if(tog){var card=tog.closest('.ci-lg'),nowOpen=card.getAttribute('data-open')!=='1';openState[tog.getAttribute('data-ci-tog')]=nowOpen;card.setAttribute('data-open',nowOpen?'1':'0');syncHtml();return;}
+    if(tog){var card=tog.closest('.ci-lg'),nowOpen=card.getAttribute('data-open')!=='1';openState[tog.getAttribute('data-ci-tog')]=nowOpen;card.setAttribute('data-open',nowOpen?'1':'0');syncHtml();if(sess)sess.expanded++;track('lineup_checkin_expand',{open:nowOpen});return;}
     var chk=t.closest('[data-ci-chk]');
     if(chk){
       var id=chk.getAttribute('data-ci-chk'),now=Date.now(),c=loadChecked(now);
       if(c[id])delete c[id];else c[id]=1;saveChecked(now,c);openState[id]=!c[id];
-      var card2=chk.closest('.ci-lg');
+      var card2=chk.closest('.ci-lg'),goneH=0;
+      try{if(card2&&c[id]&&card2.getAttribute('data-open')==='1')goneH=card2.querySelector('.ci-lg-wrap').getBoundingClientRect().height;}catch(e){}
       if(card2){card2.setAttribute('data-checked',c[id]?'1':'0');card2.setAttribute('data-open',c[id]?'0':'1');}
+      if(card2&&c[id])snapToOpen(card2,goneH);
       chk.innerHTML=c[id]?CHECK+' Checked':'Looks good';
+      track('lineup_checkin_check',{platform:String(id).split(':')[0],on:!!c[id]});
       try{var nb=window.BottomSheet.getSheetEl().querySelector('.ci-nchk');if(nb&&lastModel){var n=lastModel.leagues.filter(function(L){return c[L.id];}).length;nb.innerHTML=n+'<span> / '+lastModel.leagues.length+'</span>';}}catch(e){}
       syncHtml();return;
     }
     var go=t.closest('[data-ci-go]');
-    if(go){var url=go.getAttribute('data-ci-go');lsSet(RET_KEY,String(Date.now()));if(window.cfOpenExternal)window.cfOpenExternal(url);else window.open(url,'_blank','noopener');return;}
+    if(go){var url=go.getAttribute('data-ci-go');lsSet(RET_KEY,String(Date.now()));if(sess)sess.adjusted++;try{var gc=go.closest('.ci-lg');track('lineup_checkin_adjust',{platform:gc?String(gc.getAttribute('data-ci-id')||'').split(':')[0]:null});}catch(e){}if(window.cfOpenExternal)window.cfOpenExternal(url);else window.open(url,'_blank','noopener');return;}
   });
 })();
 </script>
@@ -18834,6 +19012,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
         var tab = btn.getAttribute('data-rail-tab');
         // Blog + Contact are pinned rail tabs (2026-08-20) with no bottom-nav
         // twin - call their handlers directly instead of forwarding a click.
+        if (tab === 'checkin') { if (typeof window.cfShowLineupCheckIn === 'function') window.cfShowLineupCheckIn('rail'); return; }
         if (tab === 'blog') { if (typeof window.showBlog === 'function') window.showBlog(); return; }
         if (tab === 'contact') { if (typeof window.showContact === 'function') { window.showContact('more'); window.scrollTo(0, 0); } return; }
         var target = bottom.querySelector('[data-exp-tab="' + tab + '"]');
