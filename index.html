@@ -10948,16 +10948,21 @@ async function loadData(){
        live-decayed: the check-in is about lineup decisions, not the running score. */
     try{
       if(!isHist){
-        const ciSt=p=>{
-          if(typeof p==='string'){const i=(playerDB&&playerDB[p])||{};return i.injury_status||((i.status&&i.status!=='Active')?i.status:null)||null;}
-          return (p&&(p.rawInj||p.injuryStatus))||null;
+        const slSt=id=>{const i=(id&&playerDB&&playerDB[id])||{};return i.injury_status||((i.status&&i.status!=='Active')?i.status:null)||null;};
+        const ciSt=(p,e)=>{
+          if(typeof p==='string')return slSt(p);
+          const own=(p&&(p.rawInj||p.injuryStatus))||null;
+          if(own&&!/^(ACTIVE|NORMAL|HEALTHY)$/i.test(String(own)))return own;
+          /* ESPN/Yahoo sent nothing usable — use Sleeper's status for the same human
+             (canonical identity already resolved him to a Sleeper id). */
+          return (e&&e.sleeperId)?slSt(e.sleeperId):null;
         };
         const ciRow=(p,slot)=>{
           if(p==null)return{slot:slot||'',empty:true};
           const e=ensure(p);const k=ptsKey(p);
           let proj=(ctx&&ctx.myProjPP&&ctx.myProjPP[k]!=null)?ctx.myProjPP[k]:projForPlayer(p,projScoring);
           if(proj==null&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring);
-          return{slot:slot||e.position||'',name:e.full_name,team:e.team||'',pos:e.position||'',st:ciSt(p),proj:(proj!=null&&isFinite(+proj))?+(+proj).toFixed(2):null};
+          return{slot:slot||e.position||'',name:e.full_name,team:e.team||'',pos:e.position||'',st:ciSt(p,e),proj:(proj!=null&&isFinite(+proj))?+(+proj).toFixed(2):null};
         };
         const stList=Array.isArray(lg.ciStarters)?lg.ciStarters
           :(lg.myPlayers||[]).map((p,i)=>({slot:(lg.rosterPositions&&lg.rosterPositions[i])||(p&&typeof p==='object'&&p.slot)||null,p}));
@@ -12240,7 +12245,11 @@ function espnPlayerObj(entry){
   const team=ESPN_PRO_TEAMS[p.proTeamId]||'';
   const position=ESPN_POSITIONS[p.defaultPositionId]||'—';
   const inj=p.injuryStatus;
-  const rawInj=inj||null; /* unfiltered, for the Lineup Check-In's out-status test */
+  /* Unfiltered status for the Lineup Check-In. ESPN is inconsistent about WHERE
+     it puts this across views (player vs roster entry vs pool entry) and uses
+     ACTIVE/NORMAL as "healthy" — take the first real value from any of them. */
+  const rawInj=[inj,entry&&entry.injuryStatus,entry&&entry.playerPoolEntry&&entry.playerPoolEntry.injuryStatus]
+    .find(v=>v&&!/^(ACTIVE|NORMAL|HEALTHY)$/i.test(String(v)))||null;
   const unhealthy=['QUESTIONABLE','DOUBTFUL','OUT','INJURY_RESERVE','SUSPENSION','OUT_FOR_SEASON'];
   const injuryStatus=inj&&unhealthy.includes(inj)?inj.replace(/_/g,' '):null;
   /* Lineup slot the player occupies this week (FLEX, QB, etc.). Drives the
@@ -15313,7 +15322,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     var focusLbl=M.focus==null?'today':(isToday?'today':DOW[new Date(M.focus).getDay()]);
     var nChecked=M.leagues.filter(function(L){return checked[L.id];}).length;
     var wk=1;try{wk=window.getActiveWeek?window.getActiveWeek():1;}catch(e){}
-    var sub='Week '+esc(wk)+' · '+DOWFULL[new Date(now).getDay()]+((M.focus!=null&&!isToday)?' · No games today, showing <b>'+DOWFULL[new Date(M.focus).getDay()]+'</b>':'');
+    var sub='Week '+esc(wk)+' · '+DOWFULL[new Date(now).getDay()];
     var nextLbl='—', nextSmall='Next lock';
     if(M.next<Infinity){nextLbl=(dayStart(M.next)===M.today)?hmFull(M.next):(DOW[new Date(M.next).getDay()]+' '+hm(M.next));if(M.next-now<12*3600000)nextSmall='Locks in '+until(M.next,now);}
     var h='<div class="ci">'
