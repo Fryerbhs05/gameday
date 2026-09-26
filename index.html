@@ -10962,7 +10962,8 @@ async function loadData(){
           const e=ensure(p);const k=ptsKey(p);
           let proj=(ctx&&ctx.myProjPP&&ctx.myProjPP[k]!=null)?ctx.myProjPP[k]:projForPlayer(p,projScoring);
           if(proj==null&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring);
-          return{slot:slot||e.position||'',name:e.full_name,team:e.team||'',pos:e.position||'',st:ciSt(p,e),proj:(proj!=null&&isFinite(+proj))?+(+proj).toFixed(2):null};
+          const ptsV=(ctx&&ctx.myPP)?ctx.myPP[k]:null;
+          return{slot:slot||e.position||'',name:e.full_name,team:e.team||'',pos:e.position||'',st:ciSt(p,e),pts:(ptsV!=null&&isFinite(+ptsV))?+(+ptsV):null,proj:(proj!=null&&isFinite(+proj))?+(+proj).toFixed(2):null};
         };
         const stList=Array.isArray(lg.ciStarters)?lg.ciStarters
           :(lg.myPlayers||[]).map((p,i)=>({slot:(lg.rosterPositions&&lg.rosterPositions[i])||(p&&typeof p==='object'&&p.slot)||null,p}));
@@ -15256,7 +15257,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
         var bye=!k; /* resolved against a populated slate only — see `ready` */
         var gs=team?gstate(team):null;
         var lk=!bye&&((gs&&gs!=='pre')||now>=k);
-        return{slot:r.slot||r.pos||'',name:r.name,team:team,pos:r.pos,code:code,out:isOut,bye:bye,noTeam:!team,k:k,day:k?dayStart(k):null,lk:lk,proj:r.proj,flag:!bench&&(isOut||bye)};
+        return{slot:r.slot||r.pos||'',name:r.name,team:team,pos:r.pos,code:code,out:isOut,bye:bye,noTeam:!team,k:k,day:k?dayStart(k):null,lk:lk,proj:r.proj,pts:r.pts,flag:!bench&&(isOut||bye)};
       }
       var st=(lg.ci.starters||[]).map(function(r){return mk(r,false);});
       var bn=(lg.ci.bench||[]).map(function(r){return mk(r,true);}).filter(function(x){return !x.empty&&!x.out&&!x.bye;});
@@ -15308,7 +15309,8 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     else if(r.bye)sub=esc(r.team)+' · Bye week';
     else if(r.lk)sub='<span class="ci-lock">'+LOCK+'</span>'+esc(r.team)+' · Locked';
     else sub=esc(r.team)+' · <span class="ko">'+esc(koLabel(r.k,today))+'</span>';
-    var val=(r.bye||r.noTeam)?'':(r.proj!=null?(+r.proj).toFixed(2):'—');
+    /* Locked (game kicked off) → actual points so far; otherwise the projection. */
+    var val=(r.bye||r.noTeam)?'':(r.lk?(+(r.pts||0)).toFixed(2):(r.proj!=null?(+r.proj).toFixed(2):'—'));
     var slot=bench?'BN':(r.slot||r.pos||'');
     return'<div class="ci-pr'+(r.lk?' lk':'')+(r.flag?' flag':'')+'"><div class="ci-slot'+(bench?' bn':'')+'">'+esc(slot)+'</div>'
       +'<div class="ci-who"><div class="ci-nm"><span>'+esc(r.name)+'</span>'+chip+'</div><div class="ci-sub2">'+sub+'</div></div>'
@@ -15336,12 +15338,12 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     M.leagues.forEach(function(L){
       var none=L.count===0, isChk=!!checked[L.id];
       var open=(openState[L.id]!=null)?openState[L.id]:!(isChk||none);
-      var meta=none?'No players '+esc(focusLbl):'<b>'+L.count+'</b> playing '+esc(focusLbl)+(L.next<Infinity?' · next lock <span class="nx">'+esc(DOW[new Date(L.next).getDay()]+' '+hm(L.next))+'</span>':'');
+      var meta=L.next<Infinity?'Next lock <span class="nx">'+esc(DOW[new Date(L.next).getDay()]+' '+hm(L.next))+'</span>':'Everyone’s locked';
       var url=linkFor(L), pl=PLAT[L.plat]||L.plat;
       h+='<div class="ci-lg'+(none?' quiet':'')+'" data-ci-id="'+esc(L.id)+'" data-open="'+(open?1:0)+'" data-checked="'+(isChk?1:0)+'">'
         +'<button class="ci-lg-hd" data-ci-tog="'+esc(L.id)+'"><div style="min-width:0"><div class="ci-lg-top"><span class="ci-plat">'+esc(pl)+'</span><span class="ci-lg-nm">'+esc(L.name)+'</span><span class="ci-ok">'+CHECK+'</span></div>'
         +'<div class="ci-lg-meta">'+meta+'</div></div>'+CHEV+'</button>'
-        +'<div class="ci-lg-body"><div class="ci-grp"><span>Starters</span><span>Proj</span></div>'
+        +'<div class="ci-lg-body"><div class="ci-grp"><span>Starters</span><span>Proj / Pts</span></div>'
         +L.starters.map(function(r){return rowHtml(r,false,M.today);}).join('')
         +(L.bench.length?'<div class="ci-grp"><span>Bench</span><span></span></div>'+L.bench.map(function(r){return rowHtml(r,true,M.today);}).join(''):'')
         +'<div class="ci-acts">'
@@ -15349,7 +15351,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
         +'<button class="ci-chk" data-ci-chk="'+esc(L.id)+'">'+(isChk?CHECK+' Checked':'Looks good')+'</button>'
         +'</div></div></div>';
     });
-    h+='</div><button class="ci-done" data-ci-close>Done</button><div class="ci-foot">Shows on your first open each day, Wed through Sunday’s late kickoff.</div></div>';
+    h+='</div><button class="ci-done" data-ci-close>Done</button></div>';
     return{html:h,model:M};
   }
 
