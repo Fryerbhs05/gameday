@@ -15184,7 +15184,11 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 .ci-acts{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px}
 .ci-adj{display:flex;align-items:center;justify-content:center;gap:7px;padding:11px 10px;border-radius:10px;background:var(--tile-bg);border:1px solid var(--navy-300);color:var(--ink-900);font:700 12.5px/1 var(--font-sans);min-width:0;cursor:pointer}
 .ci-adj span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+a.ci-adj{text-decoration:none;-webkit-touch-callout:default}
 .ci-adj svg{flex:0 0 auto;color:var(--navy-700)}
+.ci-adj-logo{flex:0 0 auto;width:18px;height:18px;border-radius:4px;display:block;object-fit:cover}
+.ci-adj-wm{flex:0 0 auto;height:16px;padding:0 4px;border-radius:4px;background:#fff;display:flex;align-items:center}
+.ci-adj-wm svg{color:inherit}
 .ci-chk{display:flex;align-items:center;gap:6px;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--ink-700);font:600 12.5px/1 var(--font-sans);white-space:nowrap;cursor:pointer}
 .ci-lg[data-checked="1"] .ci-chk{color:var(--cheer);border-color:color-mix(in oklab,var(--cheer) 45%,transparent);background:var(--cheer-soft)}
 .ci-done{width:100%;margin-top:14px;padding:13px;border-radius:12px;background:var(--navy-300);color:#fff;border:0;font:700 14px/1 var(--font-sans);cursor:pointer}
@@ -15379,6 +15383,14 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     if(src)return'<span class="ci-plat ci-plat--logo"><img src="'+src+'" alt="'+esc(label)+'" title="'+esc(label)+'" width="22" height="22" loading="lazy" decoding="async"></span>';
     return'<span class="ci-plat">'+esc(label)+'</span>';
   }
+  /* Small platform mark at the front of the "Adjust lineup in …" button; the app name
+     stays in the label. The logo replaces the external-link arrow (the arrow made the
+     Yahoo label truncate on phones). */
+  function btnLogo(plat){
+    if(plat==='yahoo')return'<span class="ci-adj-wm" aria-hidden="true">'+YAHOO_MARK.replace('width="72" height="10"','width="54" height="8"')+'</span>';
+    var src=PLAT_LOGO[plat];
+    return src?'<img class="ci-adj-logo" src="'+src+'" alt="" width="18" height="18" loading="lazy" decoding="async">':'';
+  }
   function koLabel(k,today){return(dayStart(k)===today?'Today ':DOW[new Date(k).getDay()]+' ')+hm(k);}
 
   function rowHtml(r,bench,today){
@@ -15431,7 +15443,10 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
         +L.starters.map(function(r){return rowHtml(r,false,M.today);}).join('')
         +(L.bench.length?'<div class="ci-grp"><span>Bench</span><span></span></div>'+L.bench.map(function(r){return rowHtml(r,true,M.today);}).join(''):'')
         +'<div class="ci-acts">'
-        +(url?'<button class="ci-adj" data-ci-go="'+esc(url)+'">'+EXT+'<span>Adjust lineup in '+esc(pl)+'</span></button>':'<span></span>')
+        /* A real <a> (not a JS-opened URL): phones hand universal links off to the
+           installed app more reliably from a genuine tapped link, and a long-press
+           previews the exact address — proof of which league it points at. */
+        +(url?'<a class="ci-adj" href="'+esc(url)+'" target="_blank" rel="noopener" data-ci-go="1">'+btnLogo(L.plat)+'<span class="ci-adj-txt">Adjust lineup in '+esc(pl)+'</span></a>':'<span></span>')
         +'<button class="ci-chk" data-ci-chk="'+esc(L.id)+'">'+(isChk?CHECK+' Checked':'Looks good')+'</button>'
         +'</div></div></div>';
     });
@@ -15512,7 +15527,9 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     var chk=t.closest('[data-ci-chk]');
     if(chk){var id=chk.getAttribute('data-ci-chk'),now=Date.now(),c=loadChecked(now);if(c[id])delete c[id];else c[id]=1;saveChecked(now,c);openState[id]=!c[id];repaint();return;}
     var go=t.closest('[data-ci-go]');
-    if(go){var url=go.getAttribute('data-ci-go');lsSet(RET_KEY,String(Date.now()));if(window.cfOpenExternal)window.cfOpenExternal(url);else window.open(url,'_blank','noopener');return;}
+    /* Let the link navigate natively — just stamp the return marker so coming back
+       triggers the immediate roster refresh. */
+    if(go){lsSet(RET_KEY,String(Date.now()));return;}
   });
 })();
 </script>
