@@ -15135,7 +15135,13 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 .ci-lg-top{display:grid;grid-template-columns:62px minmax(0,1fr);column-gap:10px;row-gap:4px;align-items:center;min-width:0}
 .ci-lg-nmrow{display:flex;align-items:center;gap:7px;min-width:0}
 .ci-plat.ci-plat--logo{border:0;padding:0;height:22px;display:flex;align-items:center;justify-content:center}
-.ci-plat--logo img{width:22px;height:22px;border-radius:6px;display:block;box-shadow:0 0 0 1px var(--line)}
+.ci-plat--logo img{width:22px;height:22px;border-radius:6px;display:block;box-shadow:0 0 0 1px var(--line);object-fit:cover}
+.ci-plat.ci-plat--wordmark{width:80px;height:20px;padding:0;border:0;border-radius:5px;background:#fff;display:flex;align-items:center;justify-content:center}
+.ci-plat--wordmark svg{display:block}
+/* When a Yahoo league is present the wordmark needs a wider first column; widen it for
+   every card in the sheet so league names stay aligned. */
+.ci-list.has-wide .ci-lg-top{grid-template-columns:80px minmax(0,1fr)}
+.ci-list.has-wide .ci-plat{width:80px}
 .ci-plat{box-sizing:border-box;width:62px;text-align:center;font:700 8.5px/1 var(--font-sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-500);border:1px solid var(--line);border-radius:4px;padding:3px 0}
 .ci-lg-proj{grid-column:2;font:600 11px/1.2 var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ci-lg-proj b{font-family:var(--font-mono);font-weight:700}
@@ -15362,8 +15368,13 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   /* Platform tag in the header's first column. Sleeper uses its logo (Matt, 2026-09-26);
      ESPN/Yahoo keep the text chip for now. Logo sits centered in the same 62px column
      so league names stay aligned either way. */
-  var PLAT_LOGO={sleeper:'/icons/Sleeper%20Logo.jpeg'};
+  var PLAT_LOGO={sleeper:'/icons/Sleeper%20Logo.jpeg',espn:'/icons/ESPN%20Fantasy.jpeg'};
+  /* Yahoo's official attribution mark (icons/Yahoo_Fantasy.svg) is a wide wordmark, not a
+     square icon. Inlined with its viewBox cropped to the artwork (the file pads it in a
+     293x293 square), original colors untouched, on the white chip it was designed for. */
+  var YAHOO_MARK='<svg viewBox="61.5 134.5 170 24" width="72" height="10" aria-hidden="true" focusable="false"><path fill="#000" d="M148.4,140.9h3v3.6h-3v8.7h-4.5v-8.7h-1.7v-3.6h1.7v-.3c0-3.4,2-5.4,5.5-5.4s1.6.1,2.2.4v3.7c-.4-.2-.8-.3-1.3-.3-1.1,0-1.9.5-1.9,1.7v.2h0Z"/><path fill="#000" d="M186,137.4v3.5h2.9v3.6h-2.9v3.3c0,1.3.5,1.7,1.5,1.7s.9-.1,1.3-.4v3.8c-.6.3-1.5.6-2.9.6-2.8,0-4.5-1.7-4.5-4.6v-4.4h-1.7v-3.6h1.7v-3.5h4.5Z"/><path fill="#000" d="M174.8,140.7c-1.4,0-2.5.5-3.2,1.5v-1.2h-4.3v12.3h4.3v-6.6c0-1.3.6-2,1.6-2s1.5.7,1.5,1.9v6.7h4.3v-7.7c0-3-1.6-4.9-4.2-4.9h0Z"/><path fill="#000" d="M226.1,141l-2.8,7.2-2.8-7.2h-4.7l5.3,12.4-1.9,4.5h4.6l7-16.9h-4.6Z"/><path fill="#000" d="M158.6,149.7c-1.4,0-2.5-1.1-2.5-2.5s1.1-2.5,2.5-2.5,2.5,1.1,2.5,2.5-1.1,2.5-2.5,2.5ZM161.1,142.1c-.7-.9-1.9-1.4-3.3-1.4-3.4,0-5.9,3-5.9,6.5s2.5,6.5,5.9,6.5,2.6-.6,3.3-1.5v1.2h4.2v-12.3h-4.2v1.2Z"/><path fill="#000" d="M196.7,149.7c-1.4,0-2.5-1.1-2.5-2.5s1.1-2.5,2.5-2.5,2.5,1.1,2.5,2.5-1.1,2.5-2.5,2.5ZM199.1,142.1c-.7-.9-1.9-1.4-3.3-1.4-3.4,0-5.9,3-5.9,6.5s2.5,6.5,5.9,6.5,2.6-.6,3.3-1.5v1.2h4.2v-12.3h-4.2v1.2Z"/><path fill="#000" d="M209.8,153.6c-2.2,0-4.2-.6-5.7-1.7l1.8-3.1c1.2.8,3,1.3,4.2,1.3s1.1-.3,1.2-.6c0-.4-.1-.7-1.4-.9l-.9-.2c-2.9-.7-4.2-1.9-4.2-3.6,0-2.5,2.1-4.2,5.3-4.2s3.4.5,5.2,1.4l-1.5,3.2c-1.3-.7-2.8-1.1-3.8-1.1s-.9.2-.9.6.3.6,1.4.8l.9.2c2.9.8,4.1,1.9,4.1,3.6,0,2.7-2.2,4.3-5.5,4.3h0Z"/><path fill="#7d2eff" d="M83.1,149.6c-1.4,0-2.5-1.1-2.5-2.5s1.1-2.5,2.5-2.5,2.5,1.1,2.5,2.5-1.1,2.5-2.5,2.5ZM85.5,142.1c-.7-.9-1.9-1.4-3.3-1.4-3.4,0-5.9,3-5.9,6.5s2.5,6.5,5.9,6.5,2.6-.6,3.3-1.5v1.2h4.2v-12.3h-4.2v1.2Z"/><path fill="#7d2eff" d="M98.8,140.6c-1.4,0-2.5.5-3.2,1.5v-6.7h-4.3v17.8h4.3v-6.6c0-1.3.6-2,1.6-2s1.5.7,1.5,1.9v6.7h4.3v-7.7c0-3-1.6-4.9-4.2-4.9h0Z"/><path fill="#7d2eff" d="M124.4,149.6c-1.4,0-2.5-1.1-2.5-2.5s1-2.5,2.5-2.5,2.5,1.1,2.5,2.5-1,2.5-2.5,2.5ZM124.4,140.6c-3.8,0-6.6,2.8-6.6,6.5s2.8,6.5,6.6,6.5,6.6-2.8,6.6-6.5-2.8-6.5-6.6-6.5Z"/><path fill="#7d2eff" d="M110.5,149.6c-1.4,0-2.5-1.1-2.5-2.5s1-2.5,2.5-2.5,2.5,1.1,2.5,2.5-1,2.5-2.5,2.5ZM110.5,140.6c-3.8,0-6.6,2.8-6.6,6.5s2.8,6.5,6.6,6.5,6.6-2.8,6.6-6.5-2.8-6.5-6.6-6.5Z"/><path fill="#7d2eff" d="M72.7,140.9l-2.9,7.2-2.8-7.2h-4.7l5.3,12.4-1.9,4.5h4.6l7-16.9h-4.6Z"/><path fill="#7d2eff" d="M134.4,147.7c-1.7,0-2.9,1.3-2.9,2.9s1.2,2.8,2.8,2.8,2.9-1.3,2.9-2.9-1.2-2.8-2.8-2.8Z"/><path fill="#7d2eff" d="M137.7,135.5l-4.6,11.2h5.2l4.6-11.2h-5.2Z"/></svg>';
   function platTag(plat,label){
+    if(plat==='yahoo')return'<span class="ci-plat ci-plat--wordmark" role="img" aria-label="'+esc(label)+'" title="'+esc(label)+'">'+YAHOO_MARK+'</span>';
     var src=PLAT_LOGO[plat];
     if(src)return'<span class="ci-plat ci-plat--logo"><img src="'+src+'" alt="'+esc(label)+'" title="'+esc(label)+'" width="22" height="22" loading="lazy" decoding="async"></span>';
     return'<span class="ci-plat">'+esc(label)+'</span>';
@@ -15406,7 +15417,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
       +'<div class="ci-st"><b>'+nChecked+'<span> / '+M.leagues.length+'</span></b><small>Checked</small></div>'
       +'<div class="ci-st"><b>'+M.playing+'</b><small>Playing '+esc(focusLbl)+'</small></div>'
       +'<div class="ci-st"><b class="sm">'+esc(nextLbl)+'</b><small>'+esc(nextSmall)+'</small></div>'
-      +'</div></div><div class="ci-list">';
+      +'</div></div><div class="ci-list'+(M.leagues.some(function(x){return x.plat==='yahoo';})?' has-wide':'')+'">';
     M.leagues.forEach(function(L){
       var none=L.count===0, isChk=!!checked[L.id];
       var open=(openState[L.id]!=null)?openState[L.id]:!(isChk||none);
