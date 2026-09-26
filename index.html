@@ -11500,6 +11500,15 @@ function startAutoRefresh(){
   },10000);
 }
 function stopAutoRefresh(){if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}}
+/* Immediate refresh on request (Lineup Check-In: user just edited a lineup on the
+   platform and came back). Same pipeline as the timer tick, minus the 30/60s gate. */
+window.cfForceRefresh=async function(){
+  if(!shouldAutoRefresh())return false;
+  lastFetchTime=Date.now();
+  const _sp=cfDrawerPrefetch();
+  try{const _d=await loadData();await cfAwaitStats(_sp);renderBoard(_d,getPrimaryDisplayName());cfDrawerSync();return true;}
+  catch(e){console.warn('Forced refresh failed:',e.message);return false;}
+};
 document.addEventListener('visibilitychange',async()=>{
   if(document.hidden)return; if(!shouldAutoRefresh())return;
   if(!isLiveDataViewVisible())return; // refresh in place on dashboard + registered live views
@@ -12922,7 +12931,7 @@ const PROVIDERS={
       const perLeague=await Promise.all(ids.map(async(lid)=>{
         try{
           const url=`/api/espn/data?endpoint=boxscore&season=${encodeURIComponent(season)}&week=${encodeURIComponent(week)}&league_id=${encodeURIComponent(lid)}`;
-          const r=await fetch(url,{credentials:'include'});
+          const r=await fetch(url,{credentials:'include',cache:'no-store'});
           /* 401 here is AMBIGUOUS. It can mean the espn_s2 session is dead, but it
              also fires when this SWID simply has no access to THIS league in THIS
              historic season (e.g. a year before you joined, or an un-renewed
@@ -15190,6 +15199,12 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   var DOWFULL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   var shownThisLoad=false, forced=false, openState={}, lastModel=null;
+  /* Return-from-platform: tapping "Adjust lineup" stamps RET_KEY. When the user
+     comes back (same page, or a fresh load if the PWA navigated away) we pull fresh
+     rosters immediately and show them — no waiting on the 30/60s board clock. */
+  var RET_KEY='cf_ci_return_v1', refreshing=false, lastDataRef=null;
+  function retFresh(){var t=+(lsGet(RET_KEY)||0);return !!t&&Date.now()-t<30*60000;}
+  function clearRet(){lsSet(RET_KEY,'0');}
   try{ forced=/[?&]checkin=1\b/.test(location.search); }catch(e){}
 
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -15239,9 +15254,31 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     return false;
   }
 
-  function loadChecked(now){var raw=lsGet(CHK_KEY);try{var o=raw?JSON.parse(raw):null;if(o&&o.day===dayKey(now)&&o.ids)return o.ids;}catch(e){}return{};}
-  function saveChecked(now,ids){lsSet(CHK_KEY,JSON.stringify({day:dayKey(now),ids:ids}));}
+  /* "Looks good" checks live for the NFL week: they reset Tuesday 12:00 AM local
+     (Matt, 2026-09-26). weekKey = the date of the most recent Tuesday midnight. */
+  function weekKey(ms){var d=new Date(ms);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()-2+7)%7));return dayKey(d.getTime());}
+  function loadChecked(now){var raw=lsGet(CHK_KEY);try{var o=raw?JSON.parse(raw):null;if(o&&o.week===weekKey(now)&&o.ids)return o.ids;}catch(e){}return{};}
+  function saveChecked(now,ids){lsSet(CHK_KEY,JSON.stringify({week:weekKey(now),ids:ids}));}
 
+  /* Which player positions each lineup slot accepts. Slot labels arrive already run
+     through slotLabel() (Sleeper SUPER_FLEX → "SUPER FLEX", Yahoo W/R/T → "FLEX",
+     ESPN lineupSlotId → label). ESPN reports every flex flavor as "FLEX", so FLEX is
+     read as RB/WR/TE. Unknown slots accept anyone — never hide a player on a guess. */
+  var SLOT_OK={QB:['QB'],RB:['RB'],WR:['WR'],TE:['TE'],K:['K'],DEF:['DEF'],P:['P'],
+    FLEX:['RB','WR','TE'],'W/R':['WR','RB'],'W/T':['WR','TE'],'REC FLEX':['WR','TE'],
+    'SUPER FLEX':['QB','RB','WR','TE'],OP:['QB','RB','WR','TE'],
+    DL:['DL','DE','DT'],LB:['LB'],DB:['DB','CB','S'],IDP:['DL','DE','DT','LB','DB','CB','S']};
+  function normPos(p){p=String(p||'').toUpperCase().trim();return(p==='D/ST'||p==='DST'||p==='D')?'DEF':p;}
+  function canFill(pos,openSlots){
+    var mine=String(pos||'').split(/[,\/]\s*|\s+/).map(normPos).filter(Boolean);
+    if(!mine.length)return true;
+    for(var i=0;i<openSlots.length;i++){
+      var ok=SLOT_OK[String(openSlots[i]||'').toUpperCase()];
+      if(!ok)return true;
+      for(var j=0;j<mine.length;j++)if(ok.indexOf(mine[j])>=0)return true;
+    }
+    return false;
+  }
   function build(now){
     var leagues=window.currentLeagues||[], ctxs=window.currentContexts||[];
     var anyKick=false, out=[];
@@ -15260,7 +15297,15 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
         return{slot:r.slot||r.pos||'',name:r.name,team:team,pos:r.pos,code:code,out:isOut,bye:bye,noTeam:!team,k:k,day:k?dayStart(k):null,lk:lk,proj:r.proj,pts:r.pts,flag:!bench&&(isOut||bye)};
       }
       var st=(lg.ci.starters||[]).map(function(r){return mk(r,false);});
-      var bn=(lg.ci.bench||[]).map(function(r){return mk(r,true);}).filter(function(x){return !x.empty&&!x.out&&!x.bye;});
+      /* Bench players are shown only if they could actually be swapped in right now:
+         the player's own game hasn't locked, AND at least one starting slot he's
+         eligible for is still open (empty, or its current starter hasn't kicked off).
+         A locked QB with no superflex hides every bench QB; a kicker who has played
+         hides the bench kickers. (Matt, 2026-09-26) */
+      var openSlots=st.filter(function(r){return r.empty||!r.lk;}).map(function(r){return r.slot;});
+      var bn=(lg.ci.bench||[]).map(function(r){return mk(r,true);}).filter(function(x){
+        return !x.empty&&!x.out&&!x.bye&&!x.lk&&canFill(x.pos,openSlots);
+      });
       out.push({id:lg.platform+':'+lg.leagueName,ix:ix,name:lg.leagueName,plat:lg.platform||'',link:lg.ci.link||null,starters:st,bench:bn});
     });
     /* Focus day: today if any of your playable players play today, else the next day one does. */
@@ -15324,7 +15369,8 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     var focusLbl=M.focus==null?'today':(isToday?'today':DOW[new Date(M.focus).getDay()]);
     var nChecked=M.leagues.filter(function(L){return checked[L.id];}).length;
     var wk=1;try{wk=window.getActiveWeek?window.getActiveWeek():1;}catch(e){}
-    var sub='Week '+esc(wk)+' · '+DOWFULL[new Date(now).getDay()];
+    var sub='Week '+esc(wk)+' · '+DOWFULL[new Date(now).getDay()]+(refreshing?' · <b>Updating lineups…</b>':'');
+    lastDataRef=window.__conflictedLastData||null;
     var nextLbl='—', nextSmall='Next lock';
     if(M.next<Infinity){nextLbl=(dayStart(M.next)===M.today)?hmFull(M.next):(DOW[new Date(M.next).getDay()]+' '+hm(M.next));if(M.next-now<12*3600000)nextSmall='Locks in '+until(M.next,now);}
     var h='<div class="ci">'
@@ -15342,7 +15388,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
       var url=linkFor(L), pl=PLAT[L.plat]||L.plat;
       h+='<div class="ci-lg'+(none?' quiet':'')+'" data-ci-id="'+esc(L.id)+'" data-open="'+(open?1:0)+'" data-checked="'+(isChk?1:0)+'">'
         +'<button class="ci-lg-hd" data-ci-tog="'+esc(L.id)+'"><div style="min-width:0"><div class="ci-lg-top"><span class="ci-plat">'+esc(pl)+'</span><span class="ci-lg-nm">'+esc(L.name)+'</span><span class="ci-ok">'+CHECK+'</span></div>'
-        +'<div class="ci-lg-meta">'+meta+'</div></div>'+CHEV+'</button>'
+        +'</div>'+CHEV+'</button>'
         +'<div class="ci-lg-body"><div class="ci-grp"><span>Starters</span><span>Proj / Pts</span></div>'
         +L.starters.map(function(r){return rowHtml(r,false,M.today);}).join('')
         +(L.bench.length?'<div class="ci-grp"><span>Bench</span><span></span></div>'+L.bench.map(function(r){return rowHtml(r,true,M.today);}).join(''):'')
@@ -15396,6 +15442,10 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   };
 
   function tick(){
+    /* Fresh data landed while the sheet is open (timer tick or forced refresh) → repaint. */
+    if(isOpenMine()&&window.__conflictedLastData&&window.__conflictedLastData!==lastDataRef){repaint();return;}
+    /* Came back via a full reload after "Adjust lineup" → reopen on the fresh data. */
+    if(retFresh()&&!isOpenMine()&&eligible()){var rr=render(Date.now());if(rr.model.ready&&rr.model.leagues.length){clearRet();shownThisLoad=true;window.BottomSheet.open(rr.html,{owner:OWNER});}return;}
     if(shownThisLoad&&!forced)return;
     if(forced&&shownThisLoad)return;
     if(!eligible())return;
@@ -15404,6 +15454,16 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   try{setInterval(tick,2000);}catch(e){}
   /* Page resumed on a new day (PWA left open overnight) → allow a fresh check. */
   document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&lsGet(SEEN_KEY)!==dayKey(Date.now()))shownThisLoad=false;});
+  function onReturn(){
+    if(document.visibilityState&&document.visibilityState!=='visible')return;
+    if(!retFresh()||!isOpenMine())return; /* reload case is handled by tick() */
+    clearRet(); refreshing=true; repaint();
+    var done=function(){refreshing=false;repaint();};
+    try{var pr=window.cfForceRefresh?window.cfForceRefresh():null;if(pr&&pr.then)pr.then(done,done);else done();}catch(e){done();}
+  }
+  document.addEventListener('visibilitychange',onReturn);
+  window.addEventListener('focus',onReturn);
+  window.addEventListener('pageshow',onReturn);
 
   document.addEventListener('click',function(e){
     if(!isOpenMine())return;
@@ -15414,7 +15474,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     var chk=t.closest('[data-ci-chk]');
     if(chk){var id=chk.getAttribute('data-ci-chk'),now=Date.now(),c=loadChecked(now);if(c[id])delete c[id];else c[id]=1;saveChecked(now,c);openState[id]=!c[id];repaint();return;}
     var go=t.closest('[data-ci-go]');
-    if(go){var url=go.getAttribute('data-ci-go');if(window.cfOpenExternal)window.cfOpenExternal(url);else window.open(url,'_blank','noopener');return;}
+    if(go){var url=go.getAttribute('data-ci-go');lsSet(RET_KEY,String(Date.now()));if(window.cfOpenExternal)window.cfOpenExternal(url);else window.open(url,'_blank','noopener');return;}
   });
 })();
 </script>
