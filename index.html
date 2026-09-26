@@ -6810,6 +6810,9 @@ let espnDiscoverAttempted=false;
    Reading window.activeWeek directly returns undefined and silently pins the
    schedule fetch to week 1 (the "games repeat every week" bug). */
 window.getActiveWeek=function(){return activeWeek;};
+/* Viewed period vs the live NFL week: 'hist' | 'live' | 'future'. Lineup Check-In
+   is current-week only (Matt, 2026-09-26). */
+window.__cfPeriodRel=function(){try{const as=parseInt(activeSeason),ls=parseInt(liveSeason);if(as<ls||(as===ls&&activeWeek<liveWeek))return'hist';if(as>ls||(as===ls&&activeWeek>liveWeek))return'future';}catch(e){}return'live';};
 window.getActiveSeason=function(){return activeSeason;};
 window.getActiveSeason=function(){return activeSeason;};
 
@@ -15590,14 +15593,24 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     }});
     fitStats();
   }
-  function repaint(){if(!isOpenMine())return;var html=render(Date.now()).html;if(html===lastHtml)return;var body=null;try{body=window.BottomSheet.getSheetEl().querySelector('[data-sheet-body]');}catch(e){}var st=body?body.scrollTop:0;window.BottomSheet.setBody(html);lastHtml=html;if(body)body.scrollTop=st;fitStats();}
+  function repaint(){if(!isOpenMine())return;var pm=periodMsg();var html=pm?msgHtml(pm):render(Date.now()).html;if(html===lastHtml)return;var body=null;try{body=window.BottomSheet.getSheetEl().querySelector('[data-sheet-body]');}catch(e){}var st=body?body.scrollTop:0;window.BottomSheet.setBody(html);lastHtml=html;if(body)body.scrollTop=st;fitStats();}
   /* After an in-place DOM change, re-sync lastHtml so the next data tick doesn't see a
      phantom difference and rebuild. */
   function syncHtml(){try{lastHtml=render(Date.now()).html;}catch(e){}}
+  /* Current NFL week only (Matt, 2026-09-26): a historic or future week gets a
+     message instead of lineups. */
+  function periodMsg(){
+    var p='live';try{p=window.__cfPeriodRel?window.__cfPeriodRel():'live';}catch(e){}
+    if(p==='hist')return'Lineup Check-In is for current week only. You can\u2019t modify historic lineups.';
+    if(p==='future')return'Lineup Check-In is for current week matchups only.';
+    return null;
+  }
+  function msgHtml(msg){return'<div class="ci"><div class="ci-hd"><div class="ci-title">Lineup Check-In</div><div class="ci-sub">'+msg+'</div></div><button class="ci-done" data-ci-close>Close</button></div>';}
 
   function eligible(){
     try{
       if(window.inDemoMode&&window.inDemoMode())return false;
+      if(periodMsg())return false;
       var d=window.__conflictedLastData; if(!d||d.noData||d.isHist||d.offseasonMode)return false;
       if(!Array.isArray(window.currentLeagues)||!window.currentLeagues.length)return false;
       if(document.visibilityState&&document.visibilityState!=='visible')return false;
@@ -15621,6 +15634,8 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     if(window.inDemoMode&&window.inDemoMode())return false;
     if(isOpenMine())return true;
     if(window.BottomSheet&&window.BottomSheet.isOpen())window.BottomSheet.close();
+    var pm=periodMsg();
+    if(pm){window.BottomSheet.open(msgHtml(pm),{owner:OWNER});return false;}
     openState={}; var r=render(Date.now());
     if(!r.model.ready||!r.model.leagues.length){
       /* Leagues or game times haven't landed yet — say so instead of a dead tap
