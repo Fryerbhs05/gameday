@@ -10411,7 +10411,7 @@ function parseYahooRoster(json) {
        players) — used as the fallback when no lineup slot is known. The matchup
        drawer prefers `slot` (the actual lineup position that week) when available
        so flex starters render as "W/R/T" instead of comma-joined eligibility. */
-    out.push({ source: 'yahoo', player_key: meta.player_key, name, position: (meta.display_position || meta.primary_position || '').toUpperCase(), team: (meta.editorial_team_abbr || '').toUpperCase(), slot, isStarter, injuryStatus });
+    out.push({ source: 'yahoo', player_key: meta.player_key, name, position: (meta.display_position || meta.primary_position || '').toUpperCase(), team: (meta.editorial_team_abbr || '').toUpperCase(), slot, isStarter, injuryStatus, rawInj: status || null });
   });
   return out;
 }
@@ -10542,7 +10542,7 @@ async function loadYahooLeague(yLeague, week, isHist) {
      "you vs nobody" cards when the opponent roster fetch silently failed. */
   const matchupActuallyValid = hasMatchup && myPlayers.length > 0 && (!opponentTeamKey || oppPlayers.length > 0);
   return {
-    result: { leagueName: yLeague.name, myPlayers, oppPlayers, myBench, oppBench, hasMatchup: matchupActuallyValid, fmt, myTeamName, oppTeamName, source: 'yahoo' },
+    result: { leagueName: yLeague.name, myPlayers, oppPlayers, myBench, oppBench, hasMatchup: matchupActuallyValid, fmt, myTeamName, oppTeamName, source: 'yahoo', ciLink: { leagueKey: yLeague.league_key, teamKey: myTeamKey } },
     ctx:    { leagueName: yLeague.name, leagueState, myPoints, oppPoints, myProjPts, oppProjPts, myPP, oppPP, myToGo, oppToGo, fmt, myTeamName, oppTeamName, source: 'yahoo', div: ((typeof cfYahooDivInfo==='function')?cfYahooDivInfo(standingsJson,settingsJson,myTeamKey):null), allMatchups: allMatchupsY },
     debug:  { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: true, matchupFound: matchupActuallyValid, myCount: myPlayers.length, oppCount: oppPlayers.length, state: leagueState, scoringFmt: fmt, isCoMgr }
   };
@@ -10936,6 +10936,34 @@ async function loadData(){
       const e=ensure(p);
       if(!e.againstBenchLeagues.includes(lg.leagueName))e.againstBenchLeagues.push(lg.leagueName);
     });
+    /* ── LINEUP CHECK-IN snapshot (admin-only sheet, 2026-09-25) ──────────────
+       My starters in SLOT order (empty slots kept as {empty:true}) + my bench, each
+       with name/team/pos, the RAW platform status (injuryStatus above is pre-filtered
+       and drops CEL etc.) and a pre-game league-scored projection — deliberately NOT
+       live-decayed: the check-in is about lineup decisions, not the running score. */
+    try{
+      if(!isHist){
+        const ciSt=p=>{
+          if(typeof p==='string'){const i=(playerDB&&playerDB[p])||{};return i.injury_status||((i.status&&i.status!=='Active')?i.status:null)||null;}
+          return (p&&(p.rawInj||p.injuryStatus))||null;
+        };
+        const ciRow=(p,slot)=>{
+          if(p==null)return{slot:slot||'',empty:true};
+          const e=ensure(p);const k=ptsKey(p);
+          let proj=(ctx&&ctx.myProjPP&&ctx.myProjPP[k]!=null)?ctx.myProjPP[k]:projForPlayer(p,projScoring);
+          if(proj==null&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring);
+          return{slot:slot||e.position||'',name:e.full_name,team:e.team||'',pos:e.position||'',st:ciSt(p),proj:(proj!=null&&isFinite(+proj))?+(+proj).toFixed(2):null};
+        };
+        const stList=Array.isArray(lg.ciStarters)?lg.ciStarters
+          :(lg.myPlayers||[]).map((p,i)=>({slot:(lg.rosterPositions&&lg.rosterPositions[i])||(p&&typeof p==='object'&&p.slot)||null,p}));
+        const exc=new Set(lg.ciBenchExclude||[]);
+        lg.ci={
+          starters:stList.map(s=>ciRow(s.p,s.slot?(slotLabel(s.slot)||s.slot):null)),
+          bench:(lg.myBench||[]).filter(p=>!(typeof p==='string'&&exc.has(p))).map(p=>ciRow(p,'BN')),
+          link:lg.ciLink||null
+        };
+      }
+    }catch(e){}
   });
   /* ── LEAGUE SCORES PROJECTIONS (2026-09-23, Matt) ──────────────────────────
      Every League Scores row gets a projected final per side, built by the SAME
@@ -12207,6 +12235,7 @@ function espnPlayerObj(entry){
   const team=ESPN_PRO_TEAMS[p.proTeamId]||'';
   const position=ESPN_POSITIONS[p.defaultPositionId]||'—';
   const inj=p.injuryStatus;
+  const rawInj=inj||null; /* unfiltered, for the Lineup Check-In's out-status test */
   const unhealthy=['QUESTIONABLE','DOUBTFUL','OUT','INJURY_RESERVE','SUSPENSION','OUT_FOR_SEASON'];
   const injuryStatus=inj&&unhealthy.includes(inj)?inj.replace(/_/g,' '):null;
   /* Lineup slot the player occupies this week (FLEX, QB, etc.). Drives the
@@ -12214,7 +12243,7 @@ function espnPlayerObj(entry){
      non-lineup contexts. */
   const slot=ESPN_SLOT_LABELS[entry?.lineupSlotId]||null;
   return{
-    name, team, position, injuryStatus, slot,
+    name, team, position, injuryStatus, rawInj, slot,
     /* `player_key` is the field that ensure() and ptsKey() look at for non-string
        (object) players. Prefixing with 'espn:' guarantees no collisions with
        Yahoo's `nfl.p.12345` keys when both providers feed the same player map. */
@@ -12312,6 +12341,7 @@ function parseEspnLeague(data,season,week,isHist,lid){
   );
 
   let myPlayers=[],oppPlayers=[],myBench=[],oppBench=[],hasMatchup=false,myPoints=0,oppPoints=0;
+  let ciEntries=null; /* my roster entries this week, for the Lineup Check-In */
   let myPP={},oppPP={},leagueState='NO_MATCHUP',myProjPts=0,oppProjPts=0,oppTeamName=null;
   let myProjPP={},oppProjPP={},myToGo=0,oppToGo=0;   // per-player ESPN projections (statSourceId 1), for the Weekend Snapshot win-prob engine
 
@@ -12325,6 +12355,7 @@ function parseEspnLeague(data,season,week,isHist,lid){
     oppPoints=Number(oppEntry?.totalPoints||0);
 
     const myRosterEntries=myEntry?.rosterForCurrentScoringPeriod?.entries||[];
+    ciEntries=myRosterEntries;
     const oppRosterEntries=oppEntry?.rosterForCurrentScoringPeriod?.entries||[];
     /* Sort both lineups into the same canonical slot order so the drawer pairs
        YOU vs OPP slot-for-slot (QB↔QB, FLEX↔FLEX). ESPN returns entries in an
@@ -12411,14 +12442,31 @@ function parseEspnLeague(data,season,week,isHist,lid){
        Fall back to the team's roster snapshot so the user still sees their
        roster in player buckets even without head-to-head context. */
     const entries=myTeam.roster?.entries||[];
+    ciEntries=entries;
     const starters=entries.filter(e=>!ESPN_BENCH_SLOTS.has(e.lineupSlotId));
     const benchEntries=entries.filter(e=>ESPN_BENCH_SLOTS.has(e.lineupSlotId));
     myPlayers=(starters.length?starters:entries).map(espnPlayerObj).filter(Boolean);
     myBench=starters.length?benchEntries.map(espnPlayerObj).filter(Boolean):[];
   }
 
+  /* Lineup Check-In: expand the league's lineupSlotCounts into ordered slots and
+     fill them from my entries, so an EMPTY starting slot (ESPN sends no entry for
+     it) still shows up. Falls back to plain starters if the settings are absent. */
+  let ciStarters=null;
+  try{
+    const counts=data.settings&&data.settings.rosterSettings&&data.settings.rosterSettings.lineupSlotCounts;
+    if(counts&&Array.isArray(ciEntries)){
+      const bySlot={};ciEntries.forEach(e=>{if(!e||ESPN_BENCH_SLOTS.has(e.lineupSlotId))return;(bySlot[e.lineupSlotId]=bySlot[e.lineupSlotId]||[]).push(e);});
+      const ids=Object.keys(counts).map(Number).filter(id=>Number(counts[id])>0&&!ESPN_BENCH_SLOTS.has(id)).sort((a,b)=>espnSlotRank(a)-espnSlotRank(b));
+      ciStarters=[];
+      ids.forEach(id=>{const n=Number(counts[id]);const arr=bySlot[id]||[];for(let i=0;i<n;i++){const e=arr[i];ciStarters.push({slot:ESPN_SLOT_LABELS[id]||'FLEX',p:e?espnPlayerObj(e):null});}});
+      /* Anyone in a starting slot the counts didn't list (odd league configs) — never drop a starter. */
+      Object.keys(bySlot).forEach(id=>{if(ids.indexOf(Number(id))<0)bySlot[id].forEach(e=>ciStarters.push({slot:ESPN_SLOT_LABELS[id]||'FLEX',p:espnPlayerObj(e)}));});
+      if(!ciStarters.length)ciStarters=null;
+    }
+  }catch(e){ciStarters=null;}
   return{
-    lg:{leagueName,myPlayers,oppPlayers,myBench,oppBench,hasMatchup,fmt,myTeamName,oppTeamName},
+    lg:{leagueName,myPlayers,oppPlayers,myBench,oppBench,hasMatchup,fmt,myTeamName,oppTeamName,ciStarters,ciLink:{leagueId,teamId:myTeam.id,season}},
     ctx:{leagueName,leagueState,myPoints,oppPoints,myProjPts,oppProjPts,myPP,oppPP,myProjPP,oppProjPP,myToGo,oppToGo,fmt,myTeamName,oppTeamName,div:((typeof cfEspnDivInfo==='function')?cfEspnDivInfo(data,myTeam):null),allMatchups:((typeof cfIsLSUser==='function'&&cfIsLSUser()&&typeof cfEspnAllMatchups==='function')?cfEspnAllMatchups(data,week,myTeam,isHist,fmt,leagueName):null)},
     dbg:{name:leagueName,leagueId,rosterFound:true,matchupFound:hasMatchup,myCount:myPlayers.length,oppCount:oppPlayers.length,state:leagueState,scoringFmt:fmt,isCoMgr:false}
   };
@@ -12662,7 +12710,15 @@ const PROVIDERS={
            drawer can render slot-aware position pills ("FLEX" instead of stacked
            WR/TE for a flex slot filled by different positions on each side). */
         const rosterPositions=Array.isArray(lg.roster_positions)?lg.roster_positions.filter(s=>s&&s!=='BN'&&s!=='IR'&&s!=='TAXI'):null;
-        return{leagueName:lg.name,myPlayers,oppPlayers,myBench,oppBench,hasMatchup:matchupActuallyValid,fmt,myTeamName,oppTeamName,provider:'sleeper',rosterPositions};
+        /* Lineup Check-In: starters in SLOT order with empty slots ('0') kept, so an
+           unfilled slot can be flagged; taxi/IR-slot players never show as bench. */
+        let ciStarters=null;
+        try{
+          const rawSt=(myMatchup&&Array.isArray(myMatchup.starters)&&myMatchup.starters.length)?myMatchup.starters:(Array.isArray(myRoster.starters)?myRoster.starters:[]);
+          if(rosterPositions&&rosterPositions.length)ciStarters=rosterPositions.map((slot,i)=>({slot,p:(rawSt[i]&&rawSt[i]!=='0')?rawSt[i]:null}));
+        }catch(e){ciStarters=null;}
+        const ciBenchExclude=[...(myRoster.taxi||[]),...(myRoster.reserve||[])].filter(Boolean);
+        return{leagueName:lg.name,myPlayers,oppPlayers,myBench,oppBench,hasMatchup:matchupActuallyValid,fmt,myTeamName,oppTeamName,provider:'sleeper',rosterPositions,ciStarters,ciBenchExclude,ciLink:{leagueId:lg.league_id}};
       }));
       const valid=results.filter(Boolean);
       if(leagues?.length&&!valid.length)throw new Error('Found Sleeper leagues but could not read roster data.');
@@ -15027,6 +15083,317 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     getOwner: getOwner,
     getSheetEl: getSheetEl
   };
+})();
+</script>
+
+<!-- ============ Lineup Check-In (admin-only, 2026-09-25) ============ -->
+<style>
+/* Lineup Check-In sheet. Mock: mocks/lineup-checkin-mock.html. Rides the shared
+   BottomSheet shell (owner 'lineup-checkin'); everything here is .ci-* scoped. */
+.ci{padding:0 0 4px}
+.ci-hd{position:relative;padding:4px 2px 10px}
+.ci-title{font:800 16px/1 var(--font-sans);letter-spacing:.06em;color:var(--ink-900);display:flex;align-items:center;text-transform:uppercase}
+.ci-title::before{content:'';width:3px;height:13px;border-radius:2px;background:var(--coral-500);margin-right:8px}
+.ci-sub{font:500 12px/1.35 var(--font-sans);color:var(--ink-500);margin-top:6px}
+.ci-sub b{color:var(--ink-900);font-weight:600}
+.ci-x{position:absolute;right:-6px;top:-6px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--ink-500);border-radius:50%;background:none;border:0;cursor:pointer}
+.ci-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:12px}
+.ci-st{background:var(--paper-deep);border:1px solid var(--line);border-radius:10px;padding:8px 9px 7px;min-width:0}
+.ci-st b{display:block;font:800 17px/1 var(--font-sans);color:var(--ink-900);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-st b.sm{font:700 14px/17px var(--font-mono)}
+.ci-st b span{color:var(--ink-500);font-weight:600}
+.ci-st small{display:block;font:600 8.5px/1 var(--font-sans);letter-spacing:.11em;text-transform:uppercase;color:var(--ink-500);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-list{border-top:1px solid var(--line-soft);padding-top:10px;display:flex;flex-direction:column;gap:10px}
+.ci-lg{background:var(--paper-soft);border:1px solid var(--navy-300);border-radius:14px;overflow:hidden;flex-shrink:0}
+.ci-lg.quiet{border-color:var(--line);background:var(--paper)}
+.ci-lg.quiet .ci-lg-nm{color:var(--ink-700)}
+.ci-lg-hd{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:11px 12px 10px;text-align:left;background:none;border:0;color:inherit;cursor:pointer;font:inherit}
+.ci-lg-top{display:flex;align-items:center;gap:7px;min-width:0}
+.ci-plat{flex:0 0 auto;font:700 8.5px/1 var(--font-sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-500);border:1px solid var(--line);border-radius:4px;padding:3px 5px}
+.ci-lg-nm{font:700 14px/1.15 var(--font-sans);color:var(--ink-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ci-ok{flex:0 0 auto;width:17px;height:17px;border-radius:50%;background:var(--cheer-soft);color:var(--cheer);display:none;align-items:center;justify-content:center;border:1px solid color-mix(in oklab,var(--cheer) 50%,transparent)}
+.ci-lg[data-checked="1"] .ci-ok{display:inline-flex}
+.ci-lg-meta{font:500 11px/1.3 var(--font-sans);color:var(--ink-500);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-lg-meta b{color:var(--ink-700);font-weight:600}
+.ci-lg-meta .nx{color:var(--ink-900);font-family:var(--font-mono);font-size:10.5px;font-weight:600}
+.ci-chev{color:var(--ink-500);display:inline-flex;transition:transform .15s}
+.ci-lg[data-open="1"] .ci-chev{transform:rotate(180deg)}
+.ci-lg-body{margin:0 8px 8px;background:var(--paper-deep);border:1px solid var(--line);border-radius:12px;padding:2px 8px 10px}
+.ci-lg[data-open="0"] .ci-lg-body{display:none}
+.ci-grp{display:flex;justify-content:space-between;align-items:center;padding:10px 2px 6px;font:600 9px/1 var(--font-sans);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-500);border-bottom:1px solid var(--line-soft)}
+.ci-pr{display:grid;grid-template-columns:38px minmax(0,1fr) 58px;column-gap:9px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--line-soft)}
+.ci-pr:last-child{border-bottom:0}
+.ci-slot{font:700 9.5px/1 var(--font-mono);color:var(--ink-500);text-align:center;border:1px solid var(--line);border-radius:6px;padding:5px 0;letter-spacing:.02em;white-space:nowrap;overflow:hidden}
+.ci-slot.bn{border-style:dashed;color:var(--ink-300)}
+.ci-who{min-width:0}
+.ci-nm{font:700 13.5px/18px var(--font-sans);color:var(--ink-900);display:flex;align-items:center;gap:6px;min-width:0}
+.ci-nm span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ci-inj{flex:0 0 auto;font:600 9.5px/1 var(--font-mono);padding:2px 5px;border-radius:4px;border:1px solid;letter-spacing:.04em;font-style:normal}
+.ci-inj.Q{background:var(--split-soft);color:var(--split);border-color:var(--split)}
+.ci-inj.D{background:var(--coral-200);color:var(--coral-700);border-color:var(--coral-500)}
+.ci-inj.X{background:var(--enemy-soft);color:var(--enemy);border-color:var(--enemy)}
+.ci-sub2{font:500 11px/15px var(--font-sans);color:var(--ink-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:5px}
+.ci-sub2 .ko{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-500)}
+.ci-val{text-align:right;font:600 13px/16px var(--font-mono);color:var(--ink-700);white-space:nowrap}
+.ci-pr.lk .ci-slot{opacity:.45}
+.ci-pr.lk .ci-nm{color:var(--ink-500);font-weight:600}
+.ci-pr.lk .ci-inj{opacity:.5}
+.ci-pr.lk .ci-val{color:var(--ink-500);font-weight:500}
+.ci-lock{flex:0 0 auto;display:inline-flex;color:var(--ink-300)}
+.ci-pr.empty .ci-nm{color:var(--ink-500);font-weight:500;font-style:italic}
+.ci-pr.flag{box-shadow:inset 0 0 0 1.5px var(--enemy);border-radius:8px;border-bottom-color:transparent;background:color-mix(in oklab,var(--enemy) 7%,transparent);padding-left:6px;padding-right:6px;margin:3px 0}
+.ci-pr.flag .ci-slot{border-color:color-mix(in oklab,var(--enemy) 55%,transparent);color:var(--enemy)}
+.ci-acts{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px}
+.ci-adj{display:flex;align-items:center;justify-content:center;gap:7px;padding:11px 10px;border-radius:10px;background:var(--tile-bg);border:1px solid var(--navy-300);color:var(--ink-900);font:700 12.5px/1 var(--font-sans);min-width:0;cursor:pointer}
+.ci-adj span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci-adj svg{flex:0 0 auto;color:var(--navy-700)}
+.ci-chk{display:flex;align-items:center;gap:6px;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--ink-700);font:600 12.5px/1 var(--font-sans);white-space:nowrap;cursor:pointer}
+.ci-lg[data-checked="1"] .ci-chk{color:var(--cheer);border-color:color-mix(in oklab,var(--cheer) 45%,transparent);background:var(--cheer-soft)}
+.ci-done{width:100%;margin-top:14px;padding:13px;border-radius:12px;background:var(--navy-300);color:#fff;border:0;font:700 14px/1 var(--font-sans);cursor:pointer}
+.ci-foot{font:500 10.5px/1.3 var(--font-sans);color:var(--ink-500);text-align:center;margin-top:8px}
+</style>
+<script>
+/* ══ LINEUP CHECK-IN ═════════════════════════════════════════════════════════
+   Admin-only (cfIsAdmin) confirmation sheet: every league's lineup in one place.
+   Decisions (Matt, 2026-09-25) — see project memory project_conflicted_lineup_checkin:
+   - First app open each day, Wednesday → Sunday's late-afternoon kickoff. Per-device
+     "seen today" flag. Force with ?checkin=1 (admin only), or window.cfShowLineupCheckIn().
+   - Per league. Leagues ordered by how many of your players play on the FOCUS DAY
+     (today; or, if none of your players play today, the next day one does). Leagues
+     with zero start collapsed at the bottom.
+   - Starters in slot order, then bench. Out-type statuses (O/IR/PUP/NFI/SUS/NA/DNR/
+     CEL/COV) and bye/no-team players are HIDDEN on the bench; in a STARTING slot they
+     stay visible with a red outline, as does an empty slot.
+   - Kicked-off players: dimmed + lock + "Locked". No live data, no points.
+   - Header: Checked (N/N), Playing <day>, Next lock. "Looks good" per league.
+   - "Adjust lineup in <platform>" → the user's team page (web URL for now).
+   Reads only accessors: currentLeagues[].ci (built in the post-provider assembly),
+   __cfKickoff, __cfGameState, cfIsAdmin, inDemoMode, getActiveWeek. */
+(function(){
+  var OWNER='lineup-checkin', SEEN_KEY='cf_ci_seen_v1', CHK_KEY='cf_ci_checked_v1';
+  var OUT={O:1,IR:1,PUP:1,NFI:1,SUS:1,NA:1,DNR:1,CEL:1,COV:1};
+  var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var DOWFULL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var shownThisLoad=false, forced=false, openState={}, lastModel=null;
+  try{ forced=/[?&]checkin=1\b/.test(location.search); }catch(e){}
+
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+  function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+  function dayStart(ms){var d=new Date(ms);d.setHours(0,0,0,0);return d.getTime();}
+  function dayKey(ms){var d=new Date(ms);return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+  function hm(ms){var d=new Date(ms),h=d.getHours(),m=d.getMinutes();var ap=h>=12?'p':'a';h=h%12||12;return h+':'+(m<10?'0':'')+m+ap;}
+  function hmFull(ms){var d=new Date(ms),h=d.getHours(),m=d.getMinutes();var ap=h>=12?' PM':' AM';h=h%12||12;return h+':'+(m<10?'0':'')+m+ap;}
+  function until(ms,now){var d=Math.max(0,Math.round((ms-now)/60000));if(d<60)return d+'m';var h=Math.floor(d/60),m=d%60;return h+'h'+(m?' '+m+'m':'');}
+
+  /* Normalize any platform's status string to a short code. Sleeper: injury_status
+     ("Out","IR","PUP","Sus","NA","DNR","COV") or status; ESPN: OUT, INJURY_RESERVE,
+     SUSPENSION…; Yahoo: O, IR, PUP-R, NFI-R, SUSP… Unknown/healthy → null. */
+  function stCode(raw){
+    var s=String(raw||'').trim().toUpperCase().replace(/[_]+/g,' ');
+    if(!s||s==='ACTIVE'||s==='NORMAL'||s==='HEALTHY')return null;
+    if(s==='Q'||s==='QUESTIONABLE')return'Q';
+    if(s==='D'||s==='DOUBTFUL')return'D';
+    if(s==='O'||s==='OUT'||s==='OUT FOR SEASON')return'O';
+    if(s==='IR'||/RESERVE/.test(s))return'IR';
+    if(/^PUP/.test(s)||/UNABLE/.test(s))return'PUP';
+    if(/^NFI/.test(s)||/NON.?FOOTBALL/.test(s))return'NFI';
+    if(/^SUS/.test(s))return'SUS';
+    if(s==='CEL'||/EXEMPT/.test(s))return'CEL';
+    if(s==='NA'||s==='N/A'||s==='NOT ACTIVE')return'NA';
+    if(s==='DNR')return'DNR';
+    if(s==='COV'||/COVID/.test(s))return'COV';
+    return null;
+  }
+  function kick(team){try{var iso=window.__cfKickoff&&window.__cfKickoff(team);var t=iso?Date.parse(iso):NaN;return isFinite(t)?t:null;}catch(e){return null;}}
+  function gstate(team){try{return window.__cfGameState?window.__cfGameState(team):null;}catch(e){return null;}}
+
+  /* Latest Sunday kickoff before 5pm local across the whole slate = the cutoff. */
+  function sundayCutoff(now){
+    var d=new Date(now); if(d.getDay()!==0)return null;
+    var start=dayStart(now), best=null, teams=[];
+    try{ if(typeof ESPN_PRO_TEAMS!=='undefined')teams=Object.keys(ESPN_PRO_TEAMS).map(function(k){return ESPN_PRO_TEAMS[k];}); }catch(e){}
+    teams.forEach(function(t){var k=kick(t);if(k&&k>=start&&k<start+86400000&&new Date(k).getHours()<17&&(best==null||k>best))best=k;});
+    if(best==null){var f=new Date(start);f.setHours(15,0,0,0);best=f.getTime();}
+    return best;
+  }
+  function inWindow(now){
+    var dow=new Date(now).getDay();
+    if(dow>=3&&dow<=6)return true;
+    if(dow===0){var c=sundayCutoff(now);return now<c;}
+    return false;
+  }
+
+  function loadChecked(now){var raw=lsGet(CHK_KEY);try{var o=raw?JSON.parse(raw):null;if(o&&o.day===dayKey(now)&&o.ids)return o.ids;}catch(e){}return{};}
+  function saveChecked(now,ids){lsSet(CHK_KEY,JSON.stringify({day:dayKey(now),ids:ids}));}
+
+  function build(now){
+    var leagues=window.currentLeagues||[], ctxs=window.currentContexts||[];
+    var anyKick=false, out=[];
+    leagues.forEach(function(lg,ix){
+      if(!lg||!lg.ci)return;
+      var ctx=null;for(var i=0;i<ctxs.length;i++){if(ctxs[i]&&ctxs[i].leagueName===lg.leagueName){ctx=ctxs[i];break;}}
+      if(ctx&&ctx.leagueState==='NO_MATCHUP')return;
+      function mk(r,bench){
+        if(!r||r.empty)return{slot:(r&&r.slot)||'',empty:true,flag:!bench};
+        var code=stCode(r.st), isOut=!!(code&&OUT[code]);
+        var team=(r.team&&r.team!=='FA')?r.team:'';
+        var k=team?kick(team):null; if(k)anyKick=true;
+        var bye=!k; /* resolved against a populated slate only — see `ready` */
+        var gs=team?gstate(team):null;
+        var lk=!bye&&((gs&&gs!=='pre')||now>=k);
+        return{slot:r.slot||r.pos||'',name:r.name,team:team,pos:r.pos,code:code,out:isOut,bye:bye,noTeam:!team,k:k,day:k?dayStart(k):null,lk:lk,proj:r.proj,flag:!bench&&(isOut||bye)};
+      }
+      var st=(lg.ci.starters||[]).map(function(r){return mk(r,false);});
+      var bn=(lg.ci.bench||[]).map(function(r){return mk(r,true);}).filter(function(x){return !x.empty&&!x.out&&!x.bye;});
+      out.push({id:lg.platform+':'+lg.leagueName,ix:ix,name:lg.leagueName,plat:lg.platform||'',link:lg.ci.link||null,starters:st,bench:bn});
+    });
+    /* Focus day: today if any of your playable players play today, else the next day one does. */
+    var today=dayStart(now), focus=null, days=[];
+    out.forEach(function(L){L.starters.concat(L.bench).forEach(function(r){if(!r.empty&&!r.out&&!r.bye&&r.day!=null&&r.day>=today)days.push(r.day);});});
+    if(days.indexOf(today)>=0)focus=today;else if(days.length)focus=Math.min.apply(null,days);
+    var ids={}, next=Infinity;
+    out.forEach(function(L){
+      L.count=0;L.next=Infinity;
+      L.starters.concat(L.bench).forEach(function(r){
+        if(r.empty||r.out||r.bye)return;
+        if(focus!=null&&r.day===focus){L.count++;ids[r.name+'|'+r.team]=1;}
+        if(!r.lk&&r.k&&r.k>now&&r.k<L.next)L.next=r.k;
+      });
+      if(L.next<next)next=L.next;
+    });
+    out.sort(function(a,b){return(b.count-a.count)||(a.ix-b.ix);});
+    return{leagues:out,ready:anyKick,focus:focus,today:today,playing:Object.keys(ids).length,next:next};
+  }
+
+  var LOCK='<svg width="10" height="11" viewBox="0 0 24 26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><rect x="4" y="11" width="16" height="12" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+  var EXT='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>';
+  var CHEV='<span class="ci-chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>';
+  var CHECK='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  var PLAT={sleeper:'Sleeper',espn:'ESPN',yahoo:'Yahoo'};
+
+  function linkFor(L){
+    var l=L.link||{};
+    if(L.plat==='sleeper'&&l.leagueId)return'https://sleeper.com/leagues/'+encodeURIComponent(l.leagueId)+'/team';
+    if(L.plat==='espn'&&l.leagueId)return'https://fantasy.espn.com/football/team?leagueId='+encodeURIComponent(l.leagueId)+(l.teamId!=null?'&teamId='+encodeURIComponent(l.teamId):'')+(l.season?'&seasonId='+encodeURIComponent(l.season):'');
+    if(L.plat==='yahoo'&&l.leagueKey){
+      var lid=(String(l.leagueKey).match(/\.l\.(\d+)/)||[])[1], tid=(String(l.teamKey||'').match(/\.t\.(\d+)/)||[])[1];
+      if(lid)return'https://football.fantasysports.yahoo.com/f1/'+lid+(tid?'/'+tid:'');
+    }
+    return null;
+  }
+  function koLabel(k,today){return(dayStart(k)===today?'Today ':DOW[new Date(k).getDay()]+' ')+hm(k);}
+
+  function rowHtml(r,bench,today){
+    if(r.empty)return'<div class="ci-pr empty flag"><div class="ci-slot">'+esc(r.slot||'—')+'</div><div class="ci-who"><div class="ci-nm"><span>Empty</span></div></div><div class="ci-val"></div></div>';
+    var chip='';
+    if(r.code==='Q'||r.code==='D')chip='<i class="ci-inj '+r.code+'">'+r.code+'</i>';
+    else if(r.out)chip='<i class="ci-inj X">'+esc(r.code)+'</i>';
+    var sub;
+    if(r.noTeam)sub='Free agent';
+    else if(r.bye)sub=esc(r.team)+' · Bye week';
+    else if(r.lk)sub='<span class="ci-lock">'+LOCK+'</span>'+esc(r.team)+' · Locked';
+    else sub=esc(r.team)+' · <span class="ko">'+esc(koLabel(r.k,today))+'</span>';
+    var val=(r.bye||r.noTeam)?'':(r.proj!=null?(+r.proj).toFixed(2):'—');
+    var slot=bench?'BN':(r.slot||r.pos||'');
+    return'<div class="ci-pr'+(r.lk?' lk':'')+(r.flag?' flag':'')+'"><div class="ci-slot'+(bench?' bn':'')+'">'+esc(slot)+'</div>'
+      +'<div class="ci-who"><div class="ci-nm"><span>'+esc(r.name)+'</span>'+chip+'</div><div class="ci-sub2">'+sub+'</div></div>'
+      +'<div class="ci-val">'+val+'</div></div>';
+  }
+
+  function render(now){
+    var M=build(now); lastModel=M;
+    var checked=loadChecked(now);
+    var isToday=M.focus===M.today;
+    var focusLbl=M.focus==null?'today':(isToday?'today':DOW[new Date(M.focus).getDay()]);
+    var nChecked=M.leagues.filter(function(L){return checked[L.id];}).length;
+    var wk=1;try{wk=window.getActiveWeek?window.getActiveWeek():1;}catch(e){}
+    var sub='Week '+esc(wk)+' · '+DOWFULL[new Date(now).getDay()]+((M.focus!=null&&!isToday)?' · No games today, showing <b>'+DOWFULL[new Date(M.focus).getDay()]+'</b>':'');
+    var nextLbl='—', nextSmall='Next lock';
+    if(M.next<Infinity){nextLbl=(dayStart(M.next)===M.today)?hmFull(M.next):(DOW[new Date(M.next).getDay()]+' '+hm(M.next));if(M.next-now<12*3600000)nextSmall='Locks in '+until(M.next,now);}
+    var h='<div class="ci">'
+      +'<div class="ci-hd"><div class="ci-title">Lineup Check-In</div><div class="ci-sub">'+sub+'</div>'
+      +'<button class="ci-x" data-ci-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
+      +'<div class="ci-stats">'
+      +'<div class="ci-st"><b>'+nChecked+'<span> / '+M.leagues.length+'</span></b><small>Checked</small></div>'
+      +'<div class="ci-st"><b>'+M.playing+'</b><small>Playing '+esc(focusLbl)+'</small></div>'
+      +'<div class="ci-st"><b class="sm">'+esc(nextLbl)+'</b><small>'+esc(nextSmall)+'</small></div>'
+      +'</div></div><div class="ci-list">';
+    M.leagues.forEach(function(L){
+      var none=L.count===0, isChk=!!checked[L.id];
+      var open=(openState[L.id]!=null)?openState[L.id]:!(isChk||none);
+      var meta=none?'No players '+esc(focusLbl):'<b>'+L.count+'</b> playing '+esc(focusLbl)+(L.next<Infinity?' · next lock <span class="nx">'+esc(DOW[new Date(L.next).getDay()]+' '+hm(L.next))+'</span>':'');
+      var url=linkFor(L), pl=PLAT[L.plat]||L.plat;
+      h+='<div class="ci-lg'+(none?' quiet':'')+'" data-ci-id="'+esc(L.id)+'" data-open="'+(open?1:0)+'" data-checked="'+(isChk?1:0)+'">'
+        +'<button class="ci-lg-hd" data-ci-tog="'+esc(L.id)+'"><div style="min-width:0"><div class="ci-lg-top"><span class="ci-plat">'+esc(pl)+'</span><span class="ci-lg-nm">'+esc(L.name)+'</span><span class="ci-ok">'+CHECK+'</span></div>'
+        +'<div class="ci-lg-meta">'+meta+'</div></div>'+CHEV+'</button>'
+        +'<div class="ci-lg-body"><div class="ci-grp"><span>Starters</span><span>Proj</span></div>'
+        +L.starters.map(function(r){return rowHtml(r,false,M.today);}).join('')
+        +(L.bench.length?'<div class="ci-grp"><span>Bench</span><span></span></div>'+L.bench.map(function(r){return rowHtml(r,true,M.today);}).join(''):'')
+        +'<div class="ci-acts">'
+        +(url?'<button class="ci-adj" data-ci-go="'+esc(url)+'">'+EXT+'<span>Adjust lineup in '+esc(pl)+'</span></button>':'<span></span>')
+        +'<button class="ci-chk" data-ci-chk="'+esc(L.id)+'">'+(isChk?CHECK+' Checked':'Looks good')+'</button>'
+        +'</div></div></div>';
+    });
+    h+='</div><button class="ci-done" data-ci-close>Done</button><div class="ci-foot">Shows on your first open each day, Wed through Sunday’s late kickoff.</div></div>';
+    return{html:h,model:M};
+  }
+
+  function isOpenMine(){try{return window.BottomSheet&&window.BottomSheet.isOpen()&&window.BottomSheet.getOwner()===OWNER;}catch(e){return false;}}
+  function repaint(){if(!isOpenMine())return;var body=null;try{body=window.BottomSheet.getSheetEl().querySelector('[data-sheet-body]');}catch(e){}var st=body?body.scrollTop:0;window.BottomSheet.setBody(render(Date.now()).html);if(body)body.scrollTop=st;}
+
+  function eligible(){
+    try{
+      if(!(window.cfIsAdmin&&window.cfIsAdmin()))return false;
+      if(window.inDemoMode&&window.inDemoMode())return false;
+      var d=window.__conflictedLastData; if(!d||d.noData||d.isHist||d.offseasonMode)return false;
+      if(!Array.isArray(window.currentLeagues)||!window.currentLeagues.length)return false;
+      if(document.visibilityState&&document.visibilityState!=='visible')return false;
+      if(document.documentElement.classList.contains('booting'))return false;
+      if(window.BottomSheet&&window.BottomSheet.isOpen())return false;
+      return true;
+    }catch(e){return false;}
+  }
+  function show(force){
+    if(!window.BottomSheet)return false;
+    var now=Date.now(), r=render(now);
+    if(!r.model.ready||!r.model.leagues.length)return false;
+    if(!force){ if(!inWindow(now))return false; if(lsGet(SEEN_KEY)===dayKey(now))return false; }
+    lsSet(SEEN_KEY,dayKey(now)); shownThisLoad=true; openState={};
+    window.BottomSheet.open(r.html,{owner:OWNER});
+    return true;
+  }
+  /* Manual entry (console / future tile): admin only, ignores the day window + seen flag. */
+  window.cfShowLineupCheckIn=function(){
+    if(!(window.cfIsAdmin&&window.cfIsAdmin()))return false;
+    if(isOpenMine())return true;
+    if(window.BottomSheet&&window.BottomSheet.isOpen())window.BottomSheet.close();
+    openState={}; var r=render(Date.now());
+    if(!r.model.leagues.length)return false;
+    window.BottomSheet.open(r.html,{owner:OWNER}); return true;
+  };
+
+  function tick(){
+    if(shownThisLoad&&!forced)return;
+    if(forced&&shownThisLoad)return;
+    if(!eligible())return;
+    show(forced);
+  }
+  try{setInterval(tick,2000);}catch(e){}
+  /* Page resumed on a new day (PWA left open overnight) → allow a fresh check. */
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&lsGet(SEEN_KEY)!==dayKey(Date.now()))shownThisLoad=false;});
+
+  document.addEventListener('click',function(e){
+    if(!isOpenMine())return;
+    var t=e.target; if(!t||!t.closest)return;
+    if(t.closest('[data-ci-close]')){window.BottomSheet.close();return;}
+    var tog=t.closest('[data-ci-tog]');
+    if(tog){var card=tog.closest('.ci-lg');openState[tog.getAttribute('data-ci-tog')]=card.getAttribute('data-open')!=='1';repaint();return;}
+    var chk=t.closest('[data-ci-chk]');
+    if(chk){var id=chk.getAttribute('data-ci-chk'),now=Date.now(),c=loadChecked(now);if(c[id])delete c[id];else c[id]=1;saveChecked(now,c);openState[id]=!c[id];repaint();return;}
+    var go=t.closest('[data-ci-go]');
+    if(go){var url=go.getAttribute('data-ci-go');if(window.cfOpenExternal)window.cfOpenExternal(url);else window.open(url,'_blank','noopener');return;}
+  });
 })();
 </script>
 
