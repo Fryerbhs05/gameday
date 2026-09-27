@@ -9951,16 +9951,21 @@ function cfPendingFor(player,isHist){
   const st={}; CF_PEND_TRACK.forEach(k=>{ const v=Number(row[k]); st[k]=isFinite(v)?v:0; });
   const key=activeSeason+'|'+activeWeek+'|'+String(player.id), now=Date.now();
   let s=cfPendState.get(key);
-  const reset=()=>{ s.pts=pts; s.st=st; s.label=''; s.sig=''; s.since=0; return ''; };
+  const reset=()=>{ s.pts=pts; s.st=st; s.label=''; s.sig=''; s.since=0; s.first=0; return ''; };
   if(!s){ s={}; cfPendState.set(key,s); return reset(); }
   for(const n in pts){ if(typeof s.pts[n]==='number' && Math.abs(pts[n]-s.pts[n])>0.001) return reset(); }
   s.pts=pts;
   const d={}; let any=false;
   CF_PEND_TRACK.forEach(k=>{ d[k]=st[k]-s.st[k]; if(Math.abs(d[k])>1e-9) any=true; });
-  if(!any){ s.label=''; s.sig=''; s.since=0; return ''; }
+  if(!any){ s.label=''; s.sig=''; s.since=0; s.first=0; return ''; }
   const sig=CF_PEND_TRACK.map(k=>d[k]).join(',');
+  /* Timeout runs from when the tag FIRST appeared (sw v307, 2026-09-27), not from
+     the last stat change: measured from the last change, every new play restarted
+     the 150s clock, so a player still producing kept a stale tag for minutes on a
+     long-lived desktop tab (the iOS PWA hid it by reloading on resume). */
+  if(!s.first) s.first=now;
   if(sig!==s.sig){ s.sig=sig; s.since=now; s.label=cfPendLabel(d); }
-  if(now-s.since>CF_PEND_TIMEOUT){ s.st=st; s.label=''; s.sig=''; s.since=0; return ''; }
+  if(now-s.first>CF_PEND_TIMEOUT){ s.st=st; s.label=''; s.sig=''; s.since=0; s.first=0; return ''; }
   return s.label;
 }
 
