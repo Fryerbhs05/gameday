@@ -23912,12 +23912,16 @@ if(typeof window.cfRegisterView==='function'){
       if(!data||!Array.isArray(data.teams))return null;
       var ss=(data.settings&&data.settings.scheduleSettings)||{},divs={};
       (Array.isArray(ss.divisions)?ss.divisions:[]).forEach(function(d){if(d&&d.id!=null)divs[String(d.id)]=d.name||('Division '+(+d.id+1));});
+      /* Guard (v304): when the league's division list came back, a team's
+         divisionId must be on it — a leftover id would invent a phantom race
+         (the Sleeper v303 bug). No list = can't judge, so trust the team tag. */
+      var hasList=Object.keys(divs).length>0;
       var teams={};
       data.teams.forEach(function(t){
         if(!t||t.id==null)return;
         var o=(t.record&&t.record.overall)||{};
         var nm=t.name||[t.location,t.nickname].filter(Boolean).join(' ').trim()||t.abbrev||('Team '+t.id);
-        teams[String(t.id)]={name:nm,div:(t.divisionId!=null)?String(t.divisionId):null,w:num(o.wins),l:num(o.losses),t:num(o.ties),pf:num(o.pointsFor),rank:(+t.playoffSeed>0)?+t.playoffSeed:null};
+        teams[String(t.id)]={name:nm,div:(t.divisionId!=null&&(!hasList||divs.hasOwnProperty(String(t.divisionId))))?String(t.divisionId):null,w:num(o.wins),l:num(o.losses),t:num(o.ties),pf:num(o.pointsFor),rank:(+t.playoffSeed>0)?+t.playoffSeed:null};
       });
       var reg=parseInt(ss.matchupPeriodCount,10)||0;
       return {src:'espn',myId:(myTeam&&myTeam.id!=null)?String(myTeam.id):null,divs:divs,teams:teams,regEnd:reg>0?reg:null};
@@ -23949,6 +23953,10 @@ if(typeof window.cfRegisterView==='function'){
       var sd=Array.isArray(la2)&&la2[1]?la2[1].standings:null;
       var st=sd?((sd[0]&&sd[0].teams)||sd.teams):null;
       if(!st)return null;
+      /* Guard (v304): same rule as ESPN — reject a team's division_id only when
+         /settings' division list loaded and doesn't contain it. A failed or
+         reshaped /settings read leaves divs empty, and then we trust the tag. */
+      var hasList=Object.keys(divs).length>0;
       var teams={};
       each(st,function(tw){
         var tArr=tw&&tw.team;if(!Array.isArray(tArr))return;
@@ -23960,7 +23968,7 @@ if(typeof window.cfRegisterView==='function'){
         }
         ts=ts||{};var ot=ts.outcome_totals||{};
         if(meta.team_key==null)return;
-        teams[String(meta.team_key)]={name:meta.name||String(meta.team_key),div:(meta.division_id!=null&&meta.division_id!=='')?String(meta.division_id):null,w:num(ot.wins),l:num(ot.losses),t:num(ot.ties),pf:num(ts.points_for),rank:(+ts.rank>0)?+ts.rank:null};
+        teams[String(meta.team_key)]={name:meta.name||String(meta.team_key),div:(meta.division_id!=null&&meta.division_id!==''&&(!hasList||divs.hasOwnProperty(String(meta.division_id))))?String(meta.division_id):null,w:num(ot.wins),l:num(ot.losses),t:num(ot.ties),pf:num(ts.points_for),rank:(+ts.rank>0)?+ts.rank:null};
       });
       return {src:'yahoo',myId:myTeamKey?String(myTeamKey):null,divs:divs,teams:teams,regEnd:regEnd};
     }catch(e){return null;}
