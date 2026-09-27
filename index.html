@@ -23890,13 +23890,18 @@ if(typeof window.cfRegisterView==='function'){
       if(!lg||!Array.isArray(rosters))return null;
       var st=lg.settings||{},md=lg.metadata||{};
       var n=parseInt(st.divisions,10)||0,divs={};
+      /* Sleeper leaves a stale settings.division on every roster after a commish
+         turns divisions OFF (or a renewed league inherits last year's), so the
+         roster tag alone is NOT proof of divisions. Only the league-level
+         settings.divisions (>=2) is; below that, no team gets a division. */
+      var hasDivs=n>=2;
       for(var i=1;i<=n;i++){var dn=md['division_'+i];divs[String(i)]=(dn&&String(dn).trim())||('Division '+i);}
       var teams={};
       rosters.forEach(function(r){
         if(!r||r.roster_id==null)return;
         var s=r.settings||{};
         var nm=(nameByUser&&r.owner_id!=null&&nameByUser[r.owner_id])||('Team '+r.roster_id);
-        teams[String(r.roster_id)]={name:nm,div:(s.division!=null&&s.division!==''&&+s.division>0)?String(s.division):null,w:num(s.wins),l:num(s.losses),t:num(s.ties),pf:num(s.fpts)+num(s.fpts_decimal)/100,rank:null};
+        teams[String(r.roster_id)]={name:nm,div:(hasDivs&&s.division!=null&&s.division!==''&&+s.division>0&&+s.division<=n)?String(s.division):null,w:num(s.wins),l:num(s.losses),t:num(s.ties),pf:num(s.fpts)+num(s.fpts_decimal)/100,rank:null};
       });
       var pws=parseInt(st.playoff_week_start,10)||0;
       return {src:'sleeper',myId:myRid!=null?String(myRid):null,divs:divs,teams:teams,regEnd:pws>1?pws-1:null};
