@@ -6968,6 +6968,26 @@ function mpGameNotStarted(team){
     return window.__cfGameState(team)==='pre';
   }catch(e){return false;}
 }
+/* Pre-kickoff PROJECTION in the matchup drawer (Matt, 2026-09-27). Before a
+   player's game kicks off his points cell shows his pregame projection instead
+   of 0.00 -- still greyed by --pts--pre, so grey keeps meaning exactly one thing:
+   "hasn't kicked off". From kickoff on the cell is his real points, as before.
+   preMap = ctx.myPreProj / ctx.oppPreProj (pid -> pregame, league-scored,
+   NOT live-decayed projection). Falls back to the real points when there's no
+   projection, when the game isn't positively 'pre' (mpGameNotStarted's historic
+   guard applies), or when points have somehow already posted. Returns
+   {txt, proj:boolean}. Shared by the render and BOTH live-patch loops. */
+function mpPtsCell(pts, preMap, pid, team){
+  const f=v=>(v==null||isNaN(+v))?'\u2014':(+v).toFixed(2);
+  try{
+    const pr=preMap&&pid!=null?preMap[pid]:null;
+    const hasPr=pr!=null&&pr!==''&&isFinite(+pr);
+    const banked=pts!=null&&isFinite(+pts)&&+pts!==0;
+    if(hasPr&&!banked&&mpGameNotStarted(team))return {txt:f(pr),proj:true};
+  }catch(e){}
+  return {txt:f(pts),proj:false};
+}
+window.mpPtsCell=mpPtsCell;
 /* Is this player's game in progress right now? Parallel to mpGameNotStarted --
    same historic guard (a past week's stale slate must not paint live dots) and
    the same __cfGameState alias fallback, which plain isPlayerLive lacks. Drives
@@ -9046,12 +9066,18 @@ function updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt){
   /* Per-player points. ctx.myPP / oppPP are the up-to-date per-player point maps. */
   const myPP = ctx.myPP || {};
   const oppPP = ctx.oppPP || {};
+  const myPre = ctx.myPreProj || {};
+  const oppPre = ctx.oppPreProj || {};
   drawer.querySelectorAll('[data-mp-pid]').forEach(span => {
     const side = span.getAttribute('data-mp-side');
     const pid = span.getAttribute('data-mp-pid');
     const map = side === 'my' ? myPP : oppPP;
     const pts = map[pid] != null ? +map[pid] : 0;
-    span.textContent = fmtPts(pts);
+    /* Pre-kickoff shows the projection (greyed); flips to real points at kickoff. */
+    const cell = mpPtsCell(pts, side === 'my' ? myPre : oppPre, pid, span.getAttribute('data-mp-team') || '');
+    span.textContent = cell.txt;
+    span.classList.toggle('matchup-drawer__player-pts--proj', cell.proj);
+    if (cell.proj) span.setAttribute('title', 'Projected'); else span.removeAttribute('title');
     /* Kickoff is the ONLY thing that un-greys a number, and it flips DURING an
        open drawer (1pm slate kicks off while the user is staring at it), so it
        has to be re-evaluated on every patch -- not just at render. data-mp-team
@@ -9113,6 +9139,9 @@ function renderMatchupDrawer(ctx, lg){
   /* Per-player points come from ctx.myPP / ctx.oppPP (Sleeper/Yahoo/ESPN all normalize to this shape). */
   const myPP = ctx.myPP || {};
   const oppPP = ctx.oppPP || {};
+  /* Pregame per-player projections, shown greyed until kickoff (mpPtsCell). */
+  const myPre = ctx.myPreProj || {};
+  const oppPre = ctx.oppPreProj || {};
   function fmtPts(v){
     if (v == null || isNaN(+v)) return '—';
     const n = +v;
@@ -9183,7 +9212,11 @@ function renderMatchupDrawer(ctx, lg){
     const p = normalizePlayer(raw);
     const pid = p.pid;
     const pts = ppMap[pid] != null ? +ppMap[pid] : 0;
-    const ptsStr = fmtPts(pts);
+    /* Before kickoff: the pregame projection (greyed by --pre) instead of 0.00. */
+    const cell = mpPtsCell(pts, side === 'my' ? myPre : oppPre, pid, p.team);
+    const ptsStr = cell.txt;
+    const projCls = cell.proj ? ' matchup-drawer__player-pts--proj' : '';
+    const projTitle = cell.proj ? ' title="Projected"' : '';
     /* Dim ONLY before kickoff -- see the CSS note. A 0.00 after kickoff is a
        real, earned zero and stays white. */
     const preCls = mpGameNotStarted(p.team) ? ' matchup-drawer__player-pts--pre' : '';
@@ -9197,7 +9230,7 @@ function renderMatchupDrawer(ctx, lg){
       ? '<span class="matchup-drawer__player-skel skel" role="img" aria-label="Loading player name"></span>'
       : escHtml(p.full_name);
     const nameSpan = '<span class="matchup-drawer__player-name matchup-drawer__player-name--' + side + '">' + nameHtml + '</span>';
-    const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + preCls + liveCls + '" data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '" data-mp-team="' + escHtml(p.team || '') + '">' + ptsStr + '</span>';
+    const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + preCls + liveCls + projCls + '"' + projTitle + ' data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '" data-mp-team="' + escHtml(p.team || '') + '">' + ptsStr + '</span>';
     /* Visual order: my side reads outward→inward (name then pts), opp side reads
        inward→outward (pts then name) so the points cluster around the center POS. */
     return side === 'my' ? (nameSpan + ptsSpan) : (ptsSpan + nameSpan);
@@ -10933,12 +10966,18 @@ async function loadData(){
        there is no clock to decay against. */
     const liveOn = !isHist && lg.platform!=='yahoo';
     let lpMy=0, lpOpp=0, lpAnyProj=false;
+    /* Drawer pregame projections (pid -> league-scored, NOT live-decayed), shown
+       greyed in the matchup drawer until that player's game kicks off. */
+    const preMy={}, preOpp={};
+    const prePut=(m,k,v)=>{if(k!=null&&v!=null&&isFinite(+v))m[k]=+(+v).toFixed(2);};
+    if(ctx){ctx.myPreProj=preMy;ctx.oppPreProj=preOpp;}
     lg.myPlayers.forEach(p=>{
       const e=ensure(p);
       if(!e.myLeagues.includes(lg.leagueName))e.myLeagues.push(lg.leagueName);
       const k=ptsKey(p);const pts=ctx?.myPP[k]??null;
       let proj=(ctx&&ctx.myProjPP&&ctx.myProjPP[k]!=null)?ctx.myProjPP[k]:projForPlayer(p,projScoring);
       if(proj==null&&!isHist&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring); // Yahoo/ESPN fill-in via Sleeper
+      if(!isHist)prePut(preMy,k,proj);
       if(liveOn){const lv=cfLiveProj(e.team,proj,pts);if(lv!=null)proj=lv;}
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
       if(proj!=null)lpAnyProj=true;
@@ -10953,6 +10992,7 @@ async function loadData(){
       const k=ptsKey(p);const pts=ctx?.oppPP[k]??null;
       let proj=(ctx&&ctx.oppProjPP&&ctx.oppProjPP[k]!=null)?ctx.oppProjPP[k]:projForPlayer(p,projScoring);
       if(proj==null&&!isHist&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring); // Yahoo/ESPN fill-in via Sleeper
+      if(!isHist)prePut(preOpp,k,proj);
       if(liveOn){const lv=cfLiveProj(e.team,proj,pts);if(lv!=null)proj=lv;}
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
       if(proj!=null)lpAnyProj=true;
@@ -10967,13 +11007,23 @@ async function loadData(){
       ctx.myProjPts=+lpMy.toFixed(2);
       ctx.oppProjPts=+lpOpp.toFixed(2);
     }
+    /* Bench pregame projection for the drawer: same source order as starters. */
+    const benchPre=(p,e,ppm,out)=>{
+      if(isHist)return;
+      const k=ptsKey(p);
+      let proj=(ppm&&ppm[k]!=null)?ppm[k]:projForPlayer(p,projScoring);
+      if(proj==null&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring);
+      prePut(out,k,proj);
+    };
     (lg.myBench||[]).forEach(p=>{
       const e=ensure(p);
       if(!e.myBenchLeagues.includes(lg.leagueName))e.myBenchLeagues.push(lg.leagueName);
+      try{benchPre(p,e,ctx&&ctx.myProjPP,preMy);}catch(_){}
     });
     (lg.oppBench||[]).forEach(p=>{
       const e=ensure(p);
       if(!e.againstBenchLeagues.includes(lg.leagueName))e.againstBenchLeagues.push(lg.leagueName);
+      try{benchPre(p,e,ctx&&ctx.oppProjPP,preOpp);}catch(_){}
     });
     /* ── LINEUP CHECK-IN snapshot (admin-only sheet, 2026-09-25) ──────────────
        My starters in SLOT order (empty slots kept as {empty:true}) + my bench, each
@@ -11027,18 +11077,34 @@ async function loadData(){
       const am=ctx&&ctx.allMatchups;if(!am||!Array.isArray(am.matchups))return;
       const lsScoring=normalizeScoringForContext(ctx);
       const lsLive=!isHist&&ctx.source!=='yahoo';
+      /* Pregame (NOT live-decayed) projection for one input row; also used for
+         the League Scores drawer's greyed pre-kickoff numbers. */
+      const preProjOf=p=>{
+        let proj=(p.proj!=null&&isFinite(+p.proj))?+p.proj:null;
+        if(proj==null&&hasProj){
+          let sid=p.sid||null;
+          if(!sid&&p.name){try{const ck=canonicalPlayerKey(p.name,p.team,p.pos,null)||'';const m=/^sl:(\d+)$/.exec(ck);if(m)sid=m[1];else if(/^DST\|/.test(ck))sid=ck.slice(4);}catch(e){}}
+          if(sid)proj=projScoreP(sid,lsScoring);
+        }
+        return proj;
+      };
+      const preMapOf=(starters,bench)=>{
+        const out={};if(isHist)return out;
+        [starters,bench].forEach(list=>{(Array.isArray(list)?list:[]).forEach(p=>{
+          if(!p||p.key==null)return;
+          const v=(p.pre!==undefined)?p.pre:preProjOf(p);
+          if(v!=null&&isFinite(+v))out[p.key]=+(+v).toFixed(2);
+        });});
+        return out;
+      };
       const sideProj=list=>{
         if(isHist||!Array.isArray(list)||!list.length)return null;
         let sum=0,any=false;
         list.forEach(p=>{
           if(!p)return;
           const pts=(p.pts!=null&&isFinite(+p.pts))?+p.pts:null;
-          let proj=(p.proj!=null&&isFinite(+p.proj))?+p.proj:null;
-          if(proj==null&&hasProj){
-            let sid=p.sid||null;
-            if(!sid&&p.name){try{const ck=canonicalPlayerKey(p.name,p.team,p.pos,null)||'';const m=/^sl:(\d+)$/.exec(ck);if(m)sid=m[1];else if(/^DST\|/.test(ck))sid=ck.slice(4);}catch(e){}}
-            if(sid)proj=projScoreP(sid,lsScoring);
-          }
+          let proj=preProjOf(p);
+          p.pre=proj;
           if(lsLive&&proj!=null){const lv=cfLiveProj(p.team,proj,pts);if(lv!=null)proj=lv;}
           p.lp=(proj!=null)?+(+proj).toFixed(2):null; /* per-player projected final, read by Division Watch's Root-for list */
           if(proj!=null)any=true;
@@ -11061,6 +11127,13 @@ async function loadData(){
           const fl=(r.mineSide==='away');
           r.drawer.ctx.myProjPts=fl?r.awayProj:r.homeProj;
           r.drawer.ctx.oppProjPts=fl?r.homeProj:r.awayProj;
+          /* Per-player pregame projections, greyed in the drawer until kickoff. */
+          try{
+            const ps=r.projSides||{},bs=r.benchProjSides||{};
+            const hm=preMapOf(ps.home,bs.home),aw=preMapOf(ps.away,bs.away);
+            r.drawer.ctx.myPreProj=fl?aw:hm;
+            r.drawer.ctx.oppPreProj=fl?hm:aw;
+          }catch(_){}
         }
       });
     });
@@ -11279,6 +11352,8 @@ function getDemoData(){
       myPoints:+sum(lg.my,'pts').toFixed(2),oppPoints:+sum(lg.opp,'pts').toFixed(2),
       myProjPts:projSum(lg.my),oppProjPts:projSum(lg.opp),
       myPP,oppPP,
+      myPreProj:Object.fromEntries(lg.my.concat(lg.myBench||[]).filter(x=>x.proj!=null).map(x=>[x.id,+(+x.proj).toFixed(2)])),
+      oppPreProj:Object.fromEntries(lg.opp.concat(lg.oppBench||[]).filter(x=>x.proj!=null).map(x=>[x.id,+(+x.proj).toFixed(2)])),
       myTeamName:(lg.ls&&lg.ls.me)||null,oppTeamName:(lg.ls&&lg.ls.opp)||null
     };
     /* League Scores sample: the whole league's slate for this week, built by the
@@ -23287,23 +23362,26 @@ if(typeof window.cfRegisterView==='function'){
         if(typeof espnSlotRank==='function'){
           entries=entries.slice().sort(function(a,b){return espnSlotRank(a&&a.lineupSlotId)-espnSlotRank(b&&b.lineupSlotId);});
         }
-        var starters=[],bench=[],pp={},teams=[],pj=[],sum=0,hasSum=false;
+        var starters=[],bench=[],pp={},teams=[],pj=[],bpj=[],sum=0,hasSum=false;
         entries.forEach(function(e){
           var o=(typeof espnPlayerObj==='function')?espnPlayerObj(e):null;if(!o)return;
           var pts=(typeof espnPlayerStat==='function')?espnPlayerStat(e,week,0):null;
           if(pts!=null)pp[o.player_key]=pts;
-          if(BENCH&&BENCH.has(e.lineupSlotId)){bench.push(o);}
+          if(BENCH&&BENCH.has(e.lineupSlotId)){bench.push(o);
+            /* Bench pregame projection -- drawer display only, never summed. */
+            var bpr=(!isHist&&typeof espnPlayerStat==='function')?espnPlayerStat(e,week,1):null;
+            bpj.push({team:o.team||'',pts:pts,proj:bpr,name:o.name,pos:o.position,key:o.player_key});}
           else{
             starters.push(o);if(o.team)teams.push(o.team);if(pts!=null){sum+=(+pts||0);hasSum=true;}
             /* Raw PREGAME inputs for the League Scores projection (statSourceId 1 =
                ESPN's own projection). Converted to a live projected final in the
                shared loadData post-pass, never here. */
             var pr=(!isHist&&typeof espnPlayerStat==='function')?espnPlayerStat(e,week,1):null;
-            pj.push({team:o.team||'',pts:pts,proj:pr,name:o.name,pos:o.position});
+            pj.push({team:o.team||'',pts:pts,proj:pr,name:o.name,pos:o.position,key:o.player_key});
           }
         });
         var score=(isHist||!hasSum)?Number((side&&side.totalPoints)||0):+sum.toFixed(2);
-        return {starters:starters,bench:bench,pp:pp,teams:teams,pj:pj,score:score};
+        return {starters:starters,bench:bench,pp:pp,teams:teams,pj:pj,bpj:bpj,score:score};
       };
       var rows=[];
       data.schedule.forEach(function(sc){
@@ -23318,7 +23396,7 @@ if(typeof window.cfRegisterView==='function'){
         var mine=flip?{name:awayName,score:a.score,players:a.starters,bench:a.bench,pp:a.pp}:{name:homeName,score:h.score,players:h.starters,bench:h.bench,pp:h.pp};
         var opp=flip?{name:homeName,score:h.score,players:h.starters,bench:h.bench,pp:h.pp}:{name:awayName,score:a.score,players:a.starters,bench:a.bench,pp:a.pp};
         var mkE='e|'+(leagueName||'')+'|'+[sc.home.teamId,sc.away.teamId].sort(function(x,y){return x-y;}).join('-');
-        rows.push({homeName:homeName,awayName:awayName,homeId:sc.home.teamId,awayId:sc.away.teamId,homeScore:h.score,awayScore:a.score,isMine:(homeMine||awayMine),mineSide:(homeMine?'home':(awayMine?'away':null)),projSides:{home:h.pj,away:a.pj},homeProj:null,awayProj:null,isFinal:isFin,teams:allTeams,mkey:mkE,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',null,isFin)});
+        rows.push({homeName:homeName,awayName:awayName,homeId:sc.home.teamId,awayId:sc.away.teamId,homeScore:h.score,awayScore:a.score,isMine:(homeMine||awayMine),mineSide:(homeMine?'home':(awayMine?'away':null)),projSides:{home:h.pj,away:a.pj},benchProjSides:{home:h.bpj,away:a.bpj},homeProj:null,awayProj:null,isFinal:isFin,teams:allTeams,mkey:mkE,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',null,isFin)});
       });
       if(!rows.length)return null;
       return {matchups:rows,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
@@ -23344,8 +23422,9 @@ if(typeof window.cfRegisterView==='function'){
         var ppS=(entry&&entry.players_points)||{};
         /* Raw inputs for the League Scores projection; the league-scored Sleeper
            projection is looked up by id in the loadData post-pass. */
-        var pj=starters.map(function(id){var p=db[id];return {team:(p&&p.team)||'',pts:(ppS[id]!=null?ppS[id]:null),proj:null,sid:id};});
-        return {starters:starters,bench:bench,pp:ppS,teams:teams,pj:pj,score:+((entry&&entry.points)||0)};
+        var pj=starters.map(function(id){var p=db[id];return {team:(p&&p.team)||'',pts:(ppS[id]!=null?ppS[id]:null),proj:null,sid:id,key:id};});
+        var bpj=bench.map(function(id){var p=db[id];return {team:(p&&p.team)||'',pts:(ppS[id]!=null?ppS[id]:null),proj:null,sid:id,key:id};});
+        return {starters:starters,bench:bench,pp:ppS,teams:teams,pj:pj,bpj:bpj,score:+((entry&&entry.points)||0)};
       };
       var groups={};
       matchups.forEach(function(m){if(m&&m.matchup_id!=null){(groups[m.matchup_id]=groups[m.matchup_id]||[]).push(m);}});
@@ -23362,7 +23441,7 @@ if(typeof window.cfRegisterView==='function'){
         var mine=flip?{name:bn,score:B.score,players:B.starters,bench:B.bench,pp:B.pp}:{name:an,score:A.score,players:A.starters,bench:A.bench,pp:A.pp};
         var opp=flip?{name:an,score:A.score,players:A.starters,bench:A.bench,pp:A.pp}:{name:bn,score:B.score,players:B.starters,bench:B.bench,pp:B.pp};
         var mkS='s|'+(leagueName||'')+'|'+[a.roster_id,b.roster_id].sort(function(x,y){return x-y;}).join('-');
-        rows.push({homeName:an,awayName:bn,homeId:a.roster_id,awayId:b.roster_id,homeScore:A.score,awayScore:B.score,isMine:(aMine||bMine),mineSide:(aMine?'home':(bMine?'away':null)),projSides:{home:A.pj,away:B.pj},homeProj:null,awayProj:null,isFinal:isFin,teams:allTeams,mkey:mkS,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',rosterPositions||null,isFin)});
+        rows.push({homeName:an,awayName:bn,homeId:a.roster_id,awayId:b.roster_id,homeScore:A.score,awayScore:B.score,isMine:(aMine||bMine),mineSide:(aMine?'home':(bMine?'away':null)),projSides:{home:A.pj,away:B.pj},benchProjSides:{home:A.bpj,away:B.bpj},homeProj:null,awayProj:null,isFinal:isFin,teams:allTeams,mkey:mkS,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',rosterPositions||null,isFin)});
       });
       if(!rows.length)return null;
       return {matchups:rows,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
@@ -23502,11 +23581,14 @@ if(typeof window.cfRegisterView==='function'){
       if(marginEl){marginEl.className='matchup-drawer__hdr-margin '+disp.stCls+' '+(hdr.subNum?'is-num':'is-tag');if(hdr.sub){marginEl.hidden=false;marginEl.textContent=hdr.sub;}else{marginEl.hidden=true;marginEl.textContent='';}}
       drawer.setAttribute('data-status',disp.dataStatus);
       if(typeof window.mpApplyProj==='function')window.mpApplyProj(drawer,ctx);
-      var myPP=ctx.myPP||{},oppPP=ctx.oppPP||{};
+      var myPP=ctx.myPP||{},oppPP=ctx.oppPP||{},myPre=ctx.myPreProj||{},oppPre=ctx.oppPreProj||{};
       drawer.querySelectorAll('[data-mp-pid]').forEach(function(span){
         var side=span.getAttribute('data-mp-side'),pid=span.getAttribute('data-mp-pid');
         var map=side==='my'?myPP:oppPP;var pts=map[pid]!=null?+map[pid]:0;
-        span.textContent=fmtPts(pts);
+        var cell=(typeof mpPtsCell==='function')?mpPtsCell(pts,side==='my'?myPre:oppPre,pid,span.getAttribute('data-mp-team')||''):{txt:fmtPts(pts),proj:false};
+        span.textContent=cell.txt;
+        span.classList.toggle('matchup-drawer__player-pts--proj',cell.proj);
+        if(cell.proj)span.setAttribute('title','Projected');else span.removeAttribute('title');
         span.classList.toggle('matchup-drawer__player-pts--pre',(typeof mpGameNotStarted==='function')&&mpGameNotStarted(span.getAttribute('data-mp-team')||''));
         span.classList.toggle('matchup-drawer__player-pts--live',(typeof mpGameLive==='function')&&mpGameLive(span.getAttribute('data-mp-team')||''));
       });
