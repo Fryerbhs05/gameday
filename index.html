@@ -3124,18 +3124,20 @@
        but the platform's points haven't caught up, the PROJ/PTS labels are replaced
        by a line that BREATHES between the stat ("+32 REC YDS") and "PENDING POINTS",
        and the PTS values tint ice until they update. Lives on the header row, so it
-       costs zero name width and zero card height at any phone size. Same 5s rhythm
-       as the live frame. Logic: cfPendingFor(). */
+       costs zero name width and zero card height at any phone size. Own 10s rhythm
+       (sw v305, Matt 2026-09-27): each line holds ~3s, then a 1s fade out and a 1s
+       fade in, sequential (never both half-visible at once). Logic: cfPendingFor(). */
     .card-ledger__hd--pend{grid-column: 2 / 5; min-width: 0; display: grid; justify-items: end;
       color: var(--live-ice); font: 600 9px/1 var(--font-mono); letter-spacing: .06em;
-      text-transform: uppercase; white-space: nowrap; animation: cfPendIn .25s both;}
+      text-transform: uppercase; white-space: nowrap; animation: cfPendIn .6s ease-out both;
+      --pend-cyc-period: 10s;}
     .cf-pend-cyc{grid-area: 1 / 1;}
-    .cf-pend-cyc--stat{animation: cfPendStat var(--live-halo-period) ease-in-out infinite;}
-    .cf-pend-cyc--note{opacity: 0; animation: cfPendNote var(--live-halo-period) ease-in-out infinite;}
+    .cf-pend-cyc--stat{animation: cfPendStat var(--pend-cyc-period) ease-in-out infinite;}
+    .cf-pend-cyc--note{opacity: 0; animation: cfPendNote var(--pend-cyc-period) ease-in-out infinite;}
     .card-ledger--pend .league-pts-val{color: var(--live-ice);}
     @keyframes cfPendIn{from{opacity: 0;}to{opacity: 1;}}
-    @keyframes cfPendStat{0%,38%{opacity: 1;}50%,88%{opacity: 0;}100%{opacity: 1;}}
-    @keyframes cfPendNote{0%,38%{opacity: 0;}50%,88%{opacity: 1;}100%{opacity: 0;}}
+    @keyframes cfPendStat{0%,30%{opacity: 1;}40%,90%{opacity: 0;}100%{opacity: 1;}}
+    @keyframes cfPendNote{0%,40%{opacity: 0;}50%,80%{opacity: 1;}90%,100%{opacity: 0;}}
     @media (prefers-reduced-motion: reduce){
       .cf-pend-cyc--stat{animation: none; opacity: 1;}
       .cf-pend-cyc--note{animation: none; opacity: 0;}
