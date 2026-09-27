@@ -3119,7 +3119,7 @@
     .card-ledger__hd { grid-row: 1; align-self: end; margin-bottom: 6px; text-align: right; font: 600 9px/1 var(--font-sans); letter-spacing: .08em; color: var(--ink-500); }
     .card-ledger__hd--proj { grid-column: 3; }
     .card-ledger__hd--pts  { grid-column: 4; }
-    /* POINTS PENDING (admin-only, sw v277, Matt 2026-09-25 — mocks/points-pending-mock.html
+    /* POINTS PENDING (all users since sw v306; built admin-only in sw v277, Matt 2026-09-25 — mocks/points-pending-mock.html
        option C). When a displayed, point-bearing stat has moved in Sleeper's /stats
        but the platform's points haven't caught up, the PROJ/PTS labels are replaced
        by a line that BREATHES between the stat ("+32 REC YDS") and "PENDING POINTS",
@@ -9883,19 +9883,18 @@ function updatePillCounts(){
    out: they move without points being owed, so they'd show a pending that never
    clears. Receptions are out too — a catch moves rec_yd anyway.
    Idempotent: calling it twice in one render (a player on two lists) is safe.
-   Fails quiet: no stats snapshot, no Sleeper id, pre-kickoff, historic, demo or
-   non-admin → '' (no tag). */
+   Fails quiet: no stats snapshot, no Sleeper id, pre-kickoff, historic or
+   demo → '' (no tag). */
 const CF_PEND_TRACK=['pass_yd','pass_td','pass_int','rush_yd','rush_td','rec_yd','rec_td','fum_lost',
   'fgm','fgmiss','xpm','xpmiss','def_sack','def_int','def_fum_rec','def_td','def_st_td'];
 const CF_PEND_TIMEOUT=150*1000;
 const cfPendState=new Map();
-function cfPendingEnabled(){
-  try{ return typeof window.cfIsAdmin==='function' && !!window.cfIsAdmin(); }catch(e){ return false; }
-}
+/* Released to ALL users (sw v306, Matt 2026-09-27) — was admin-only since v277. */
+function cfPendingEnabled(){ return true; }
 /* Should this sync pull /stats for pending? The week file is every NFL player
    (measured 2026-09-25: ~560KB raw / ~70KB gzipped for a full week, growing
    through the slate), so pull ONLY when it can matter:
-     - admin, live week, not demo
+     - live week, not demo
      - the Loyalties board is actually on screen (Home), not Snapshot/Leagues/etc.
        (the poll itself already idles when the app is backgrounded)
      - at least one of YOUR Loyalties players is in a live game right now — so a
