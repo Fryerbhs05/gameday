@@ -7294,6 +7294,10 @@ function fetchWeekStats(season,week,opts){
   if(__wkStatsInflight && __wkStatsInflight.key===key) return __wkStatsInflight.p;
   const p=apiFetch(`${BASE}/stats/nfl/regular/${season}/${week}`).then(function(data){
     __wkStats=data||{}; __wkStatsKey=key; __wkStatsAt=Date.now(); __wkStatsInflight=null;
+    /* Points Pending: re-check the cards the moment ANY pull lands (drawer open,
+       drawer tick, board tick) — otherwise the drawer can show a play the card
+       won't tag until the next 30s sync (sw v309). */
+    try{ setTimeout(cfPendRepaint,0); }catch(e){}
     return __wkStats;
   }).catch(function(e){
     console.warn('Week stats fetch failed:',e.message);
@@ -9892,6 +9896,42 @@ const CF_PEND_TRACK=['pass_yd','pass_td','pass_int','rush_yd','rush_td','rec_yd'
 const CF_PEND_TIMEOUT=150*1000;
 const CF_PEND_MINLAG=45*1000;
 const cfPendState=new Map();
+/* Survive a reload (sw v309): the iOS PWA reloads on resume, which used to wipe
+   every baseline — so a play made while the app was closed became the NEW
+   baseline and never tagged. Saved per device, dropped after 10 minutes. */
+const CF_PEND_LS='cf_pend_v1';
+try{
+  const raw=JSON.parse(localStorage.getItem(CF_PEND_LS)||'null');
+  if(raw&&raw.at&&Date.now()-raw.at<10*60*1000&&raw.m){
+    for(const k in raw.m){ const v=raw.m[k]; if(!v||!v.pts||!v.last) continue;
+      cfPendState.set(k,{pts:v.pts,last:v.last,label:v.label||'',ev:(v.ev||[]).map(e=>({t:e.t,d:e.d,lg:new Set(e.lg||[])}))}); }
+  }
+}catch(e){}
+let cfPendSaveT=null;
+function cfPendSave(){
+  if(cfPendSaveT) return;
+  cfPendSaveT=setTimeout(function(){
+    cfPendSaveT=null;
+    try{
+      const m={}; cfPendState.forEach((v,k)=>{ m[k]={pts:v.pts,last:v.last,label:v.label,ev:v.ev.map(e=>({t:e.t,d:e.d,lg:[...e.lg]}))}; });
+      localStorage.setItem(CF_PEND_LS,JSON.stringify({at:Date.now(),m:m}));
+    }catch(e){}
+  },500);
+}
+/* Re-run the pending check on the cards already on screen, without a data load.
+   Rebuilds a card's inner only when its HTML changed (same hash as updateCard). */
+function cfPendRepaint(){
+  try{
+    if(!cfPendingEnabled()||isDemoMode) return;
+    let isHist=false; try{ isHist=isHistoricalWeek(); }catch(e){}
+    if(isHist) return;
+    document.querySelectorAll('#columns .player-card').forEach(function(node){
+      const p=node._cfPlayer; if(!p) return;
+      const inner=buildCardInner(p,false);
+      if(node._cardHash!==inner){ node.innerHTML=inner; node._cardHash=inner; }
+    });
+  }catch(e){}
+}
 /* Released to ALL users (sw v306, Matt 2026-09-27) — was admin-only since v277. */
 function cfPendingEnabled(){ return true; }
 /* Should this sync pull /stats for pending? The week file is every NFL player
@@ -9954,7 +9994,8 @@ function cfPendingFor(player,isHist){
   const st={}; CF_PEND_TRACK.forEach(k=>{ const v=Number(row[k]); st[k]=isFinite(v)?v:0; });
   const key=activeSeason+'|'+activeWeek+'|'+String(player.id), now=Date.now();
   let s=cfPendState.get(key);
-  if(!s){ cfPendState.set(key,{pts:pts,last:st,ev:[],label:''}); return ''; }
+  if(!s){ cfPendState.set(key,{pts:pts,last:st,ev:[],label:''}); cfPendSave(); return ''; }
+  cfPendSave();
   /* 1. New stats since the last render → one EVENT, owed by every league on the card. */
   const d={}; let any=false;
   CF_PEND_TRACK.forEach(k=>{ d[k]=st[k]-s.last[k]; if(Math.abs(d[k])>1e-9) any=true; });
