@@ -9871,13 +9871,15 @@ function updatePillCounts(){
    can show a catch the card's points don't reflect yet. This flags that window on
    the card WITHOUT computing any points: it diffs the stat line, never scores it.
 
-   Per player (keyed season|week|playerId, same as cfPtsPrev) we keep a BASELINE:
-   the card's per-league points + the tracked stats at the moment points last
-   moved. Each render:
-     - any league's points changed  → re-baseline, nothing pending
-     - tracked stats differ from base → pending, labeled from the diff
-     - pending longer than 150s      → re-baseline silently (the stat didn't
-       score in this league's format, e.g. yards in a whole-point league)
+   Per player (keyed season|week|playerId, same as cfPtsPrev) we keep a list of
+   stat EVENTS (sw v308, 2026-09-27 — replaced a single baseline that let an older
+   play's points landing swallow a newer play's tag). Each render:
+     - tracked stats moved since last render → new event, owed by every league
+     - a league's points moved → that league pays events ≥45s old (or, if none
+       are, the oldest one — points landed in the same sync as the stat)
+     - an event is gone once every league has paid, or 150s after it appeared
+       (the stat didn't score in some format, e.g. yards in a whole-point league)
+     - tag = sum of the events still owed
    TRACKED = stats the drawer DISPLAYS that also carry points (Matt, 2026-09-25).
    Targets, attempts, completions, Y/A, Long and points allowed are deliberately
    out: they move without points being owed, so they'd show a pending that never
@@ -9888,6 +9890,7 @@ function updatePillCounts(){
 const CF_PEND_TRACK=['pass_yd','pass_td','pass_int','rush_yd','rush_td','rec_yd','rec_td','fum_lost',
   'fgm','fgmiss','xpm','xpmiss','def_sack','def_int','def_fum_rec','def_td','def_st_td'];
 const CF_PEND_TIMEOUT=150*1000;
+const CF_PEND_MINLAG=45*1000;
 const cfPendState=new Map();
 /* Released to ALL users (sw v306, Matt 2026-09-27) — was admin-only since v277. */
 function cfPendingEnabled(){ return true; }
@@ -9951,21 +9954,29 @@ function cfPendingFor(player,isHist){
   const st={}; CF_PEND_TRACK.forEach(k=>{ const v=Number(row[k]); st[k]=isFinite(v)?v:0; });
   const key=activeSeason+'|'+activeWeek+'|'+String(player.id), now=Date.now();
   let s=cfPendState.get(key);
-  const reset=()=>{ s.pts=pts; s.st=st; s.label=''; s.sig=''; s.since=0; s.first=0; return ''; };
-  if(!s){ s={}; cfPendState.set(key,s); return reset(); }
-  for(const n in pts){ if(typeof s.pts[n]==='number' && Math.abs(pts[n]-s.pts[n])>0.001) return reset(); }
-  s.pts=pts;
+  if(!s){ cfPendState.set(key,{pts:pts,last:st,ev:[],label:''}); return ''; }
+  /* 1. New stats since the last render → one EVENT, owed by every league on the card. */
   const d={}; let any=false;
-  CF_PEND_TRACK.forEach(k=>{ d[k]=st[k]-s.st[k]; if(Math.abs(d[k])>1e-9) any=true; });
-  if(!any){ s.label=''; s.sig=''; s.since=0; s.first=0; return ''; }
-  const sig=CF_PEND_TRACK.map(k=>d[k]).join(',');
-  /* Timeout runs from when the tag FIRST appeared (sw v307, 2026-09-27), not from
-     the last stat change: measured from the last change, every new play restarted
-     the 150s clock, so a player still producing kept a stale tag for minutes on a
-     long-lived desktop tab (the iOS PWA hid it by reloading on resume). */
-  if(!s.first) s.first=now;
-  if(sig!==s.sig){ s.sig=sig; s.since=now; s.label=cfPendLabel(d); }
-  if(now-s.first>CF_PEND_TIMEOUT){ s.st=st; s.label=''; s.sig=''; s.since=0; s.first=0; return ''; }
+  CF_PEND_TRACK.forEach(k=>{ d[k]=st[k]-s.last[k]; if(Math.abs(d[k])>1e-9) any=true; });
+  if(any) s.ev.push({t:now,d:d,lg:new Set(Object.keys(pts))});
+  s.last=st;
+  /* 2. A league's points moved → it has paid what it owed for events old enough to
+     have cleared the 60–90s lag. Only if none are that old (points landed in the
+     same sync as the stat) does it pay the OLDEST event instead. A newer play keeps
+     its own tag instead of being swallowed by an older play's points landing. */
+  for(const n in pts){
+    if(typeof s.pts[n]!=='number'||Math.abs(pts[n]-s.pts[n])<=0.001) continue;
+    const owed=s.ev.filter(e=>e.lg.has(n));
+    const aged=owed.filter(e=>now-e.t>=CF_PEND_MINLAG);
+    (aged.length?aged:owed.slice(0,1)).forEach(e=>e.lg.delete(n));
+  }
+  s.pts=pts;
+  /* 3. Drop paid events, and any event older than 150s (a stat that doesn't score
+     in some league's format, e.g. yards in a whole-point league). */
+  s.ev=s.ev.filter(e=>e.lg.size>0&&now-e.t<=CF_PEND_TIMEOUT);
+  if(!s.ev.length){ s.label=''; return ''; }
+  const sum={}; CF_PEND_TRACK.forEach(k=>{ sum[k]=s.ev.reduce((a,e)=>a+e.d[k],0); });
+  s.label=cfPendLabel(sum);
   return s.label;
 }
 
