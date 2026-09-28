@@ -6289,17 +6289,6 @@
     .cf-snap-frame-d .cf-snap-content-d::-webkit-scrollbar{width:6px;}
     .cf-snap-frame-d .cf-snap-content-d::-webkit-scrollbar-thumb{background:var(--cs-navy-line);border-radius:3px;}
     .cf-snap-frame-d .cf-snap-content-d::-webkit-scrollbar-track{background:transparent;}
-    /* nudge (now inside the copy column) */
-    .cf-snap-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
-      padding:9px 10px 9px 16px;border:1px solid var(--cs-navy-line);border-radius:999px;background:var(--cs-navy-800);}
-    .cf-snap-nudge-label{display:inline-flex;align-items:center;gap:8px;font:500 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--cs-ink-500);}
-    .cf-snap-nudge-label svg{stroke:var(--cs-blue);fill:none;}
-    .cf-snap-nudge-sep{width:1px;height:18px;background:var(--cs-navy-line);}
-    .cf-snap-nudge-btn{border:none;cursor:pointer;padding:6px 14px;border-radius:999px;
-      font:700 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--cs-blue);background:rgba(43,111,168,.18);transition:color .15s;}
-    .cf-snap-nudge-btn:hover{color:var(--cs-coral);}
-    .cf-snap-nudge-btn[disabled]{opacity:.6;cursor:default;}
-    .cf-snap-hint{margin:12px 0 0;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:var(--cs-ink-400);}
   }
   /* 900–1199px: copy stacks on top (centered); the two phones sit side by side */
   @media (min-width:900px) and (max-width:1199px){
@@ -6347,20 +6336,16 @@
          painted by render()/paintSnapDesktop() from the same rows as mobile. -->
     <div id="cf-snap-desktop">
       <div class="cf-snap-layout">
-        <div class="cf-snap-copy">
+        <div class="cf-snap-copy cfd-copy">
           <div class="cf-snap-eyebrow">Weekend Snapshot</div>
-          <h2>Your weekend at a glance.</h2>
-          <p>Every league you're managing, together on <span class="hl">one screen</span> — who's cruising, who's sweating, and who's already out.</p>
-          <p>Snapshot is built for your phone, where you check and manage your leagues. This is a preview of both layouts — open it on your phone for the live, tappable version.</p>
-          <div class="cf-snap-nudge" id="cf-snap-nudge">
-            <span class="cf-snap-nudge-label">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-              Built for mobile
-            </span>
-            <span class="cf-snap-nudge-sep" id="cf-snap-nudge-sep"></span>
-            <button class="cf-snap-nudge-btn" id="cf-snap-email-btn" type="button" onclick="cfSnapEmailLink()">Email me the link</button>
+          <h2>Who's <span class="g">cruising</span>.<br>Who's <span class="r">sweating</span>.</h2>
+          <p>Every matchup across <span class="hl">every league</span> on one board, with live win odds for each — in a grid or a list, your call.</p>
+          <p class="cfd-closer">Up in three, sweating one. Screenshot it before it changes.</p>
+          <div class="cfd-nudge" id="cf-snap-nudge">
+            <div class="cfd-nudge-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg> Built for your phone</div>
+            <button class="cfd-nudge-btn" id="cf-snap-email-btn" type="button" onclick="cfSnapEmailLink()">Send it to my phone <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            <p class="cfd-hint" id="cf-snap-hint">We'll email a one-tap sign-in link.</p>
           </div>
-          <p class="cf-snap-hint" id="cf-snap-hint">We'll email you a one-tap sign-in link — open it on your phone.</p>
         </div>
         <div class="cf-snap-deskcols" id="cf-snap-deskcols"></div>
       </div>
@@ -6392,8 +6377,6 @@
   .exp-copy h2{font:900 30px/1.14 var(--font-sans),'Inter',sans-serif;letter-spacing:-.02em;color:#F5EFE4;margin:0 0 16px;}
   .exp-copy p{font:400 15px/1.6 var(--font-sans),'Inter',sans-serif;color:#8CA0B4;margin:0 0 14px;}
   .exp-copy p .hl{color:#F5EFE4;font-weight:600;}
-  .exp-switch-hint{margin-top:16px;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:#6E8296;}
-  .exp-switch-hint strong{color:#8CA0B4;font-weight:600;}
 
   .exp-deskcols{display:flex;justify-content:center;align-items:flex-start;gap:40px;flex:none;}
   .exp-deskcol{display:flex;flex-direction:column;align-items:center;}
@@ -6440,16 +6423,6 @@
      above the two labelled phones, so hide them (they return in Desktop View). */
   body.exp-desk-preview #cf-period-bar.pb-exposure .pb-view-head{display:none;}
 
-  .exp-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
-    padding:9px 10px 9px 16px;border:1px solid rgba(43,111,168,.35);border-radius:999px;background:#15293E;}
-  .exp-nudge-label{display:inline-flex;align-items:center;gap:8px;font:500 13px/1 var(--font-sans),'Inter',sans-serif;color:#8CA0B4;}
-  .exp-nudge-label svg{stroke:#7AA8D1;fill:none;}
-  .exp-nudge-sep{width:1px;height:18px;background:rgba(43,111,168,.35);}
-  .exp-nudge-btn{border:none;cursor:pointer;padding:6px 14px;border-radius:999px;
-    font:700 13px/1 var(--font-sans),'Inter',sans-serif;color:#7AA8D1;background:rgba(43,111,168,.18);transition:color .15s;}
-  .exp-nudge-btn:hover{color:#E88761;}
-  .exp-nudge-btn[disabled]{opacity:.6;cursor:default;}
-  .exp-hint{margin:12px 0 0;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:#6E8296;}
 }
 /* 900–1199px: copy stacks on top (centered); the two phones sit side by side */
 @media (min-width:900px) and (max-width:1199px){
@@ -6480,21 +6453,17 @@
        Desktop View hides this and shows the functional leaderboard above. -->
   <div id="exp-desktop">
     <div class="exp-layout">
-      <div class="exp-copy">
+      <div class="exp-copy cfd-copy">
         <div class="exp-eyebrow">Exposure</div>
-        <h2>Who you're rooting for. And against.</h2>
-        <p>Every player you're starting across <span class="hl">all your leagues</span> — and every player your opponents are starting against you this week. See your whole footprint at a glance.</p>
-        <p>Exposure is built for your phone, where you check and manage your leagues. This is a preview of both sides — open it on your phone for the full, tappable version.</p>
-        <div class="exp-nudge" id="exp-nudge">
-          <span class="exp-nudge-label">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-            Built for mobile
-          </span>
-          <span class="exp-nudge-sep" id="exp-nudge-sep"></span>
-          <button class="exp-nudge-btn" id="exp-email-btn" type="button" onclick="expEmailLink()">Email me the link</button>
+        <h2>Who you're<br><span class="me">rooting&nbsp;for</span>.<br>And <span class="opp">against</span>.</h2>
+        <p>Every player you're starting across <span class="hl">all your leagues</span>, and every player lined up against you this week — your whole footprint on one board.</p>
+        <p class="cfd-closer">A gold edge means he's on both lists. That's the Conflicted part.</p>
+        <div class="cfd-nudge" id="exp-nudge">
+          <div class="cfd-nudge-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg> Built for your phone</div>
+          <button class="cfd-nudge-btn" id="exp-email-btn" type="button" onclick="expEmailLink()">Send it to my phone <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          <p class="cfd-hint" id="exp-hint">We'll email a one-tap sign-in link.</p>
         </div>
-        <p class="exp-hint" id="exp-hint">We'll email you a one-tap sign-in link — open it on your phone.</p>
-        <p class="exp-switch-hint">Want the full interactive leaderboard? Open <strong>Filters → Layout → Desktop view</strong>.</p>
+        <p class="exp-switch-hint cfd-switch">Want the full interactive leaderboard? Open <strong>Filters → Layout → Desktop view</strong>.</p>
       </div>
       <div class="exp-deskcols" id="exp-deskcols"></div>
     </div>
@@ -6534,8 +6503,6 @@
   .wp-copy h2{font:900 30px/1.14 var(--font-sans),'Inter',sans-serif;letter-spacing:-.02em;color:#F5EFE4;margin:0 0 16px;}
   .wp-copy p{font:400 15px/1.6 var(--font-sans),'Inter',sans-serif;color:#8CA0B4;margin:0 0 14px;}
   .wp-copy p .hl{color:#F5EFE4;font-weight:600;}
-  .wp-switch-hint{margin-top:16px;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:#6E8296;}
-  .wp-switch-hint strong{color:#8CA0B4;font-weight:600;}
 
   .wp-deskcols{display:flex;justify-content:center;align-items:flex-start;gap:40px;flex:none;}
   .wp-deskcol{display:flex;flex-direction:column;align-items:center;}
@@ -6570,16 +6537,6 @@
   .wpd-list::-webkit-scrollbar-thumb{background:rgba(122,168,209,.3);border-radius:3px;}
   .wpd-list::-webkit-scrollbar-track{background:transparent;}
 
-  .wp-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
-    padding:9px 10px 9px 16px;border:1px solid rgba(43,111,168,.35);border-radius:999px;background:#15293E;}
-  .wp-nudge-label{display:inline-flex;align-items:center;gap:8px;font:500 13px/1 var(--font-sans),'Inter',sans-serif;color:#8CA0B4;}
-  .wp-nudge-label svg{stroke:#7AA8D1;fill:none;}
-  .wp-nudge-sep{width:1px;height:18px;background:rgba(43,111,168,.35);}
-  .wp-nudge-btn{border:none;cursor:pointer;padding:6px 14px;border-radius:999px;
-    font:700 13px/1 var(--font-sans),'Inter',sans-serif;color:#7AA8D1;background:rgba(43,111,168,.18);transition:color .15s;}
-  .wp-nudge-btn:hover{color:#E88761;}
-  .wp-nudge-btn[disabled]{opacity:.6;cursor:default;}
-  .wp-hint{margin:12px 0 0;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:#6E8296;}
 }
 /* 900–1319px: not enough room for the 3-column row (copy + two 340px phones ≈
    1240px), so copy stacks on top (centered) and the two phones sit side by side.
@@ -6627,21 +6584,17 @@
        shows the functional list above. Hate Watch is not previewed here. -->
   <div id="wp-desktop">
     <div class="wp-layout">
-      <div class="wp-copy">
-        <div class="wp-eyebrow">Watch priority</div>
-        <h2>Know which screen matters.</h2>
-        <p>Every NFL game ranked by how many of your players are on the field — so on a crowded Sunday you always know <span class="hl">which game to put front and center</span> and which to leave on mute.</p>
-        <p>Watch priority is built for your phone, where you actually manage game day across <span class="hl">all your leagues</span>. This is a preview — open it on your phone for the full, tappable version.</p>
-        <div class="wp-nudge" id="wp-nudge">
-          <span class="wp-nudge-label">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-            Built for mobile
-          </span>
-          <span class="wp-nudge-sep" id="wp-nudge-sep"></span>
-          <button class="wp-nudge-btn" id="wp-email-btn" type="button" onclick="wpEmailLink()">Email me the link</button>
+      <div class="wp-copy cfd-copy">
+        <div class="wp-eyebrow">Schedule</div>
+        <h2>Put the <span class="c">right game</span><br>on the big screen.</h2>
+        <p>Every NFL game this week, ranked by how many of your players are on the field across <span class="hl">all your leagues</span> — so on a crowded Sunday you know what goes front and center and what stays on mute.</p>
+        <p class="cfd-closer">Seven of your guys in the 4:25 window. Clear the couch.</p>
+        <div class="cfd-nudge" id="wp-nudge">
+          <div class="cfd-nudge-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg> Built for your phone</div>
+          <button class="cfd-nudge-btn" id="wp-email-btn" type="button" onclick="wpEmailLink()">Send it to my phone <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          <p class="cfd-hint" id="wp-hint">We'll email a one-tap sign-in link.</p>
         </div>
-        <p class="wp-hint" id="wp-hint">We'll email you a one-tap sign-in link — open it on your phone.</p>
-        <p class="wp-switch-hint">Want the full interactive list with all three views? Open <strong>Filters → Layout → Desktop view</strong>.</p>
+        <p class="wp-switch-hint cfd-switch">Want the full interactive list with all three views? Open <strong>Filters → Layout → Desktop view</strong>.</p>
       </div>
       <div class="wp-deskcols" id="wp-deskcols"></div>
     </div>
@@ -16539,12 +16492,12 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   function expEmailLink(){
     var email = (window.__account && window.__account.email) || window.__onboardEmail || '';
     if (!email){ if (window.showYahooToast) showYahooToast('Sign in first to email yourself a sign-in link.', true); return; }
-    var btn = document.getElementById('exp-email-btn'), orig = btn ? btn.textContent : '';
+    var btn = document.getElementById('exp-email-btn'), orig = btn ? btn.innerHTML : '';
     if (btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
     fetch('/api/auth/magic/request', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email: email }) })
-      .then(function(r){ if (btn) btn.textContent = r.ok ? '✓ Link sent' : 'Try again'; if (window.showYahooToast) showYahooToast(r.ok ? ('We emailed a sign-in link to ' + email + ' — open it on your phone.') : 'Could not send the link right now.', !r.ok); try { if (r.ok && window.cfTrack) cfTrack('exposure_mobile_link_sent', null); } catch(e){} })
+      .then(function(r){ if (btn){ btn.textContent = r.ok ? '✓ Link sent — check your inbox' : 'Try again'; if (r.ok) btn.classList.add('sent'); } if (window.showYahooToast) showYahooToast(r.ok ? ('We emailed a sign-in link to ' + email + ' — open it on your phone.') : 'Could not send the link right now.', !r.ok); try { if (r.ok && window.cfTrack) cfTrack('exposure_mobile_link_sent', null); } catch(e){} })
       .catch(function(){ if (btn) btn.textContent = 'Try again'; if (window.showYahooToast) showYahooToast('Could not send the link right now.', true); })
-      .finally(function(){ setTimeout(function(){ if (btn){ btn.disabled = false; btn.textContent = orig; } }, 2400); });
+      .finally(function(){ setTimeout(function(){ if (btn){ btn.disabled = false; btn.classList.remove('sent'); btn.innerHTML = orig; } }, 2400); });
   }
   window.expEmailLink = expEmailLink;
 
@@ -18056,12 +18009,12 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   function wpEmailLink(){
     var email = (window.__account && window.__account.email) || window.__onboardEmail || '';
     if (!email){ if (window.showYahooToast) showYahooToast('Sign in first to email yourself a sign-in link.', true); return; }
-    var btn = document.getElementById('wp-email-btn'), orig = btn ? btn.textContent : '';
+    var btn = document.getElementById('wp-email-btn'), orig = btn ? btn.innerHTML : '';
     if (btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
     fetch('/api/auth/magic/request', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email: email }) })
-      .then(function(r){ if (btn) btn.textContent = r.ok ? '✓ Link sent' : 'Try again'; if (window.showYahooToast) showYahooToast(r.ok ? ('We emailed a sign-in link to ' + email + ' — open it on your phone.') : 'Could not send the link right now.', !r.ok); try { if (r.ok && window.cfTrack) cfTrack('watch_mobile_link_sent', null); } catch(e){} })
+      .then(function(r){ if (btn){ btn.textContent = r.ok ? '✓ Link sent — check your inbox' : 'Try again'; if (r.ok) btn.classList.add('sent'); } if (window.showYahooToast) showYahooToast(r.ok ? ('We emailed a sign-in link to ' + email + ' — open it on your phone.') : 'Could not send the link right now.', !r.ok); try { if (r.ok && window.cfTrack) cfTrack('watch_mobile_link_sent', null); } catch(e){} })
       .catch(function(){ if (btn) btn.textContent = 'Try again'; if (window.showYahooToast) showYahooToast('Could not send the link right now.', true); })
-      .finally(function(){ setTimeout(function(){ if (btn){ btn.disabled = false; btn.textContent = orig; } }, 2400); });
+      .finally(function(){ setTimeout(function(){ if (btn){ btn.disabled = false; btn.classList.remove('sent'); btn.innerHTML = orig; } }, 2400); });
   }
   window.wpEmailLink = wpEmailLink;
 
@@ -20537,12 +20490,12 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   function cfSnapEmailLink(){
     var email=(window.__account&&window.__account.email)||window.__onboardEmail||'';
     if(!email){ if(window.showYahooToast)showYahooToast('Sign in first to email yourself a sign-in link.',true); return; }
-    var btn=document.getElementById('cf-snap-email-btn'), orig=btn?btn.textContent:'';
+    var btn=document.getElementById('cf-snap-email-btn'), orig=btn?btn.innerHTML:'';
     if(btn){btn.disabled=true;btn.textContent='Sending…';}
     fetch('/api/auth/magic/request',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
-      .then(function(r){ if(btn)btn.textContent=r.ok?'✓ Link sent':'Try again'; if(window.showYahooToast)showYahooToast(r.ok?('We emailed a sign-in link to '+email+' — open it on your phone.'):'Could not send the link right now.',!r.ok); try{if(r.ok&&window.cfTrack)cfTrack('snapshot_mobile_link_sent',null);}catch(e){} })
+      .then(function(r){ if(btn){btn.textContent=r.ok?'✓ Link sent — check your inbox':'Try again'; if(r.ok)btn.classList.add('sent');} if(window.showYahooToast)showYahooToast(r.ok?('We emailed a sign-in link to '+email+' — open it on your phone.'):'Could not send the link right now.',!r.ok); try{if(r.ok&&window.cfTrack)cfTrack('snapshot_mobile_link_sent',null);}catch(e){} })
       .catch(function(){ if(btn)btn.textContent='Try again'; if(window.showYahooToast)showYahooToast('Could not send the link right now.',true); })
-      .finally(function(){ setTimeout(function(){ if(btn){btn.disabled=false;btn.textContent=orig;} },2400); });
+      .finally(function(){ setTimeout(function(){ if(btn){btn.disabled=false;btn.classList.remove('sent');btn.innerHTML=orig;} },2400); });
   }
   window.cfSnapEmailLink=cfSnapEmailLink;
 
@@ -23995,6 +23948,64 @@ if(typeof window.cfRegisterView==='function'){
 #view-leagues .lv-empty{font:500 13px/1.45 var(--font-sans);color:var(--ink-500);text-align:center;padding:28px 12px;}
 #view-leagues .cf-ls-empty{font:500 12.5px/1.4 var(--font-sans);color:var(--ink-500);text-align:center;padding:14px 8px;}
 #view-leagues .cf-ls-body{margin-top:0;}
+/* ── Shared desktop copy-panel system (.cfd-*) — Snapshot, Exposure, Schedule,
+   Leagues (Leaders keeps its own .ldr-* twin of the same spec). One-sentence body,
+   an optional closer, then a stacked CTA under a hairline: label, full-width
+   brand-blue "Send it to my phone" button, one centered sub-line. Selectors are
+   .cfd-copy p.x (0,2,1) so the per-view ".<v>-copy p" rule can't override them. */
+#lv-desk-copy{display:none;}
+@media (min-width:900px){
+  .cfd-copy h2{font:900 32px/1.1 var(--font-sans),'Inter',sans-serif;letter-spacing:-.025em;color:#F5EFE4;margin:0 0 18px;}
+  .cfd-copy h2 .g{color:#5DCAA5;}
+  .cfd-copy h2 .r{color:#E07A6E;}
+  .cfd-copy h2 .me{color:var(--side-me,#5DCAA5);}
+  .cfd-copy h2 .opp{color:var(--side-opp,#E07A6E);}
+  .cfd-copy h2 .c{color:#E88761;}
+  .cfd-copy h2 .b{color:#7AA8D1;}
+  .cfd-copy p{font:400 16px/1.6 var(--font-sans),'Inter',sans-serif;color:#B9B3A6;margin:0;}
+  .cfd-copy p .hl{color:#F5EFE4;font-weight:600;}
+  .cfd-copy p.cfd-closer{margin:16px 0 0;padding:2px 0 2px 12px;border-left:2px solid #27425F;font:600 14px/1.5 var(--font-sans),'Inter',sans-serif;color:#F5EFE4;}
+  .cfd-nudge{margin-top:24px;padding-top:22px;border-top:1px solid #27425F;}
+  .cfd-nudge-label{display:flex;align-items:center;gap:8px;margin-bottom:12px;
+    font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#7C8694;}
+  .cfd-nudge-label svg{stroke:#7AA8D1;fill:none;}
+  .cfd-nudge-btn{box-sizing:border-box;width:100%;height:48px;display:flex;align-items:center;justify-content:center;gap:10px;
+    border:none;cursor:pointer;border-radius:12px;background:#2B6FA8;color:#F5EFE4;
+    font:700 15px/1 var(--font-sans),'Inter',sans-serif;box-shadow:0 8px 20px -10px rgba(43,111,168,.8);
+    transition:background .15s,transform .1s;}
+  .cfd-nudge-btn:hover{background:#3580BF;}
+  .cfd-nudge-btn:active{transform:scale(.985);}
+  .cfd-nudge-btn:focus-visible{outline:2px solid #7AA8D1;outline-offset:3px;}
+  .cfd-nudge-btn[disabled]{cursor:default;}
+  .cfd-nudge-btn.sent{background:#1F3329;color:#5DCAA5;box-shadow:none;}
+  .cfd-copy p.cfd-hint{margin:10px 0 0;font:400 12.5px/1.5 var(--font-sans),'Inter',sans-serif;color:#7C8694;text-align:center;}
+  .cfd-copy p.cfd-switch{margin:16px 0 0;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:#6E8296;}
+  .cfd-copy p.cfd-switch strong{color:#8CA0B4;font-weight:600;}
+  /* Leagues: the page is the real (functional) column, so the copy panel sits
+     beside it rather than beside phone previews. */
+  #lv-desk-copy{display:block;box-sizing:border-box;padding:28px 26px;text-align:left;
+    border:1px solid rgba(43,111,168,.35);border-radius:18px;background:rgba(43,111,168,.06);}
+  #lv-desk-copy .cfd-eyebrow{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8CA0B4;margin-bottom:14px;}
+  body.demo-active #lv-email-btn,body.demo-active #lv-hint{display:none;}
+}
+/* Stacked (copy above the previews, centered) — 900–1199 for Snapshot/Exposure/
+   Leagues, 900–1319 for Schedule (its own wider breakpoint). */
+@media (min-width:900px) and (max-width:1199px){
+  .cfd-copy p.cfd-closer{border-left:none;padding:0;}
+  .cfd-nudge-label{justify-content:center;}
+  .cfd-nudge-btn{max-width:360px;margin:0 auto;}
+  #lv-desk-copy{max-width:560px;margin:0 auto 18px;text-align:center;}
+}
+@media (min-width:1200px) and (max-width:1319px){
+  .wp-copy.cfd-copy p.cfd-closer{border-left:none;padding:0;}
+  .wp-copy .cfd-nudge-label{justify-content:center;}
+  .wp-copy .cfd-nudge-btn{max-width:360px;margin:0 auto;}
+}
+/* ≥1200: Leagues copy panel pinned left of the 560px leagues column. */
+@media (min-width:1200px){
+  #view-leagues{max-width:1004px;position:relative;min-height:540px;padding-left:calc(var(--gutter,16px) + 412px);}
+  #lv-desk-copy{position:absolute;left:var(--gutter,16px);top:0;width:360px;}
+}
 
 /* Division Watch card — one per league */
 #view-leagues .lv-card{background:var(--tile-bg);border:1px solid var(--tile-line);border-radius:var(--radius-lg);overflow:hidden;}
@@ -24731,7 +24742,8 @@ if(typeof window.cfRegisterView==='function'){
        (.cf-ls-modhead: centered wordmark + chevron) and collapse the same way -
        tap to fold to the title bar. In-memory only, never persisted. */
     var sh=function(id,label){return '<button type="button" class="cf-ls-modhead lv-sec-hd" data-lv-sec="'+id+'" aria-expanded="'+(SEC[id]!==false)+'"><span class="cf-ls-modwm">'+label+'</span><span class="cf-ls-modchev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span></button>';};
-    v.innerHTML='<div class="lv-empty" id="lv-empty" hidden></div>'
+    v.innerHTML='<aside class="lv-desk-copy cfd-copy" id="lv-desk-copy">'+'<div class="cfd-eyebrow">Leagues</div>'+'<h2>Every league.<br><span class="b">Every race.</span></h2>'+'<p>Live scores for every matchup, standings for every league, and the division races you\'re actually in — all on one page, no matter which app it lives on.</p>'+'<p class="cfd-closer">Clinching one division, clawing for a wild card in another. Same Sunday.</p>'+'<div class="cfd-nudge" id="lv-nudge"><div class="cfd-nudge-label"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"7\" y=\"2\" width=\"10\" height=\"20\" rx=\"2.2\"/><line x1=\"11\" y1=\"18\" x2=\"13\" y2=\"18\"/></svg> Built for your phone</div>'+'<button class="cfd-nudge-btn" id="lv-email-btn" type="button" onclick="lvEmailLink()">Send it to my phone <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14M13 6l6 6-6 6\"/></svg></button>'+'<p class="cfd-hint" id="lv-hint">We\'ll email a one-tap sign-in link.</p></div>'+'</aside>'
+      +'<div class="lv-empty" id="lv-empty" hidden></div>'
       +'<section class="lv-sec" id="lv-div-sec" hidden>'+sh('div','Division Watch')+'<div class="lv-sec-body" id="lv-div-body"'+(SEC.div===false?' hidden':'')+'></div></section>'
       +'<section class="lv-sec" id="lv-ls-sec" hidden>'+sh('ls','League Scores')+'<div class="lv-sec-body" id="lv-ls-body"'+(SEC.ls===false?' hidden':'')+'></div></section>'
       +'<section class="lv-sec" id="lv-st-sec" hidden>'+sh('st','Standings')+'<div class="lv-sec-body" id="lv-st-body"'+(SEC.st===false?' hidden':'')+'></div></section>';
@@ -24974,7 +24986,7 @@ if(typeof window.cfRegisterView==='function'){
         h=document.createElement('div');h.id='lv-skel';h.setAttribute('aria-hidden','true');
         h.innerHTML='<section class="lv-sec"><div class="skel lv-skt"></div>'+card+card+'</section>'
           +'<section class="lv-sec"><div class="skel lv-skt"></div>'+bar+bar+bar+bar+'</section>';
-        v.insertBefore(h,v.firstChild);
+        var dc=document.getElementById('lv-desk-copy');v.insertBefore(h,dc?dc.nextSibling:v.firstChild);
       }
       h.style.display='block';v.classList.add('lv-loading');
     }else{
@@ -25006,6 +25018,18 @@ if(typeof window.cfRegisterView==='function'){
     try{if(typeof cfTrack==='function')cfTrack('leagues_view_opened',{});}catch(e){}
   }
   W.showLeagues=showLeagues;
+  /* Desktop copy panel's "Send it to my phone" — same magic-link request as the
+     Leaders/Snapshot/Exposure/Schedule panels. Hidden in demo via body.demo-active. */
+  W.lvEmailLink=function(){
+    var email=(W.__account&&W.__account.email)||W.__onboardEmail||'';
+    if(!email){if(W.showYahooToast)W.showYahooToast('Sign in first to email yourself a sign-in link.',true);return;}
+    var btn=document.getElementById('lv-email-btn'),orig=btn?btn.innerHTML:'';
+    if(btn){btn.disabled=true;btn.textContent='Sending…';}
+    fetch('/api/auth/magic/request',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
+      .then(function(r){if(btn){btn.textContent=r.ok?'✓ Link sent — check your inbox':'Try again';if(r.ok)btn.classList.add('sent');}if(W.showYahooToast)W.showYahooToast(r.ok?('We emailed a sign-in link to '+email+' — open it on your phone.'):'Could not send the link right now.',!r.ok);try{if(r.ok&&typeof cfTrack==='function')cfTrack('leagues_mobile_link_sent',null);}catch(e){}})
+      .catch(function(){if(btn)btn.textContent='Try again';if(W.showYahooToast)W.showYahooToast('Could not send the link right now.',true);})
+      .finally(function(){setTimeout(function(){if(btn){btn.disabled=false;btn.classList.remove('sent');btn.innerHTML=orig;}},2400);});
+  };
   if(typeof W.cfRegisterView==='function')W.cfRegisterView({
     id:'view-leagues',
     isOpen:function(){return !!W.__cfLeaguesOpen;},
