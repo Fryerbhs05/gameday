@@ -24032,7 +24032,13 @@ if(typeof window.cfRegisterView==='function'){
 #view-leagues .lv-note{font:500 11px/1.4 var(--font-sans);color:var(--ink-500);margin-top:8px;text-align:center;}
 
 /* STANDINGS section (2026-09-27) — full table per league; place is plain white, smaller than Division Watch's hero */
-#view-leagues .lv-hero .k.lv-st-k{font:800 19px/1 var(--font-sans);letter-spacing:-0.02em;color:var(--ink-900);}
+/* Place = same size as Division Watch's 'X of Y' hero; color = playoff race (stPlayoff): .good in, .meh bubble, .bad out. No class = white. */
+#view-leagues .lv-hero .k.lv-st-k{color:var(--ink-900);}
+#view-leagues .lv-hero .k.lv-st-k.good{color:var(--cheer);}
+#view-leagues .lv-hero .k.lv-st-k.meh{color:var(--navy-700);}
+#view-leagues .lv-hero .k.lv-st-k.bad{color:var(--enemy);}
+/* League Scores league names use the same title type as Division Watch + Standings cards. */
+#view-leagues .cf-ls-lname{font:800 17px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);}
 #view-leagues .lv-st-colhd,#view-leagues .lv-st-row{display:grid;grid-template-columns:24px minmax(0,1fr) 42px 54px 54px;column-gap:6px;align-items:center;}
 #view-leagues .lv-st-colhd{padding:9px 2px 6px;font:600 9px/1 var(--font-sans);letter-spacing:.08em;color:var(--ink-500);border-bottom:1px solid var(--line-soft);}
 #view-leagues .lv-st-colhd span:nth-child(1){text-align:center;}
@@ -24154,8 +24160,8 @@ if(typeof window.cfRegisterView==='function'){
         var nm=(nameByUser&&r.owner_id!=null&&nameByUser[r.owner_id])||('Team '+r.roster_id);
         teams[String(r.roster_id)]={name:nm,div:(hasDivs&&s.division!=null&&s.division!==''&&+s.division>0&&+s.division<=n)?String(s.division):null,w:num(s.wins),l:num(s.losses),t:num(s.ties),pf:num(s.fpts)+num(s.fpts_decimal)/100,pa:num(s.fpts_against)+num(s.fpts_against_decimal)/100,rank:null};
       });
-      var pws=parseInt(st.playoff_week_start,10)||0;
-      return {src:'sleeper',myId:myRid!=null?String(myRid):null,divs:divs,teams:teams,regEnd:pws>1?pws-1:null};
+      var pws=parseInt(st.playoff_week_start,10)||0,pT=parseInt(st.playoff_teams,10)||0;
+      return {src:'sleeper',myId:myRid!=null?String(myRid):null,divs:divs,teams:teams,regEnd:pws>1?pws-1:null,poTeams:pT>0?pT:null};
     }catch(e){return null;}
   };
   W.cfEspnDivInfo=function(data,myTeam){
@@ -24174,8 +24180,8 @@ if(typeof window.cfRegisterView==='function'){
         var nm=t.name||[t.location,t.nickname].filter(Boolean).join(' ').trim()||t.abbrev||('Team '+t.id);
         teams[String(t.id)]={name:nm,div:(t.divisionId!=null&&(!hasList||divs.hasOwnProperty(String(t.divisionId))))?String(t.divisionId):null,w:num(o.wins),l:num(o.losses),t:num(o.ties),pf:num(o.pointsFor),pa:num(o.pointsAgainst),rank:(+t.playoffSeed>0)?+t.playoffSeed:null};
       });
-      var reg=parseInt(ss.matchupPeriodCount,10)||0;
-      return {src:'espn',myId:(myTeam&&myTeam.id!=null)?String(myTeam.id):null,divs:divs,teams:teams,regEnd:reg>0?reg:null};
+      var reg=parseInt(ss.matchupPeriodCount,10)||0,pT=parseInt(ss.playoffTeamCount,10)||0;
+      return {src:'espn',myId:(myTeam&&myTeam.id!=null)?String(myTeam.id):null,divs:divs,teams:teams,regEnd:reg>0?reg:null,poTeams:pT>0?pT:null};
     }catch(e){return null;}
   };
   /* Yahoo: division names + playoff start from /settings, each team's
@@ -24186,7 +24192,7 @@ if(typeof window.cfRegisterView==='function'){
     try{
       var flat=(typeof yhFlatten==='function')?yhFlatten:function(x){return x||{};};
       var each=(typeof yhEach==='function')?yhEach:function(){};
-      var divs={},regEnd=null;
+      var divs={},regEnd=null,poTeams=null;
       try{
         var la=settingsJson&&settingsJson.fantasy_content&&settingsJson.fantasy_content.league;
         var sn=Array.isArray(la)?(la[1]&&la[1].settings):null;
@@ -24198,6 +24204,7 @@ if(typeof window.cfRegisterView==='function'){
           else if(dv&&typeof dv==='object'){each(dv,addDiv);if(dv.division)addDiv(dv);}
           var ps=parseInt(s.playoff_start_week,10)||0,up=String(s.uses_playoff==null?'1':s.uses_playoff);
           if(ps>1&&up!=='0')regEnd=ps-1;
+          var npt=parseInt(s.num_playoff_teams,10)||0;if(npt>0&&up!=='0')poTeams=npt;
         }
       }catch(e){}
       var la2=standingsJson&&standingsJson.fantasy_content&&standingsJson.fantasy_content.league;
@@ -24221,7 +24228,7 @@ if(typeof window.cfRegisterView==='function'){
         if(meta.team_key==null)return;
         teams[String(meta.team_key)]={name:meta.name||String(meta.team_key),div:(meta.division_id!=null&&meta.division_id!==''&&(!hasList||divs.hasOwnProperty(String(meta.division_id))))?String(meta.division_id):null,w:num(ot.wins),l:num(ot.losses),t:num(ot.ties),pf:num(ts.points_for),pa:num(ts.points_against),rank:(+ts.rank>0)?+ts.rank:null};
       });
-      return {src:'yahoo',myId:myTeamKey?String(myTeamKey):null,divs:divs,teams:teams,regEnd:regEnd};
+      return {src:'yahoo',myId:myTeamKey?String(myTeamKey):null,divs:divs,teams:teams,regEnd:regEnd,poTeams:poTeams};
     }catch(e){return null;}
   };
 
@@ -24608,6 +24615,28 @@ if(typeof window.cfRegisterView==='function'){
     if(D.regEnd&&w>D.regEnd)w=D.regEnd;
     return w>=1?('Thru Wk '+w):null;
   }
+  /* Playoff race color for your place (Matt, 2026-09-28): green = in a playoff
+     spot, blue = on the bubble (outside, but 1 game or less behind the last
+     spot), red = more than 1 game back. Order = platform seed (ESPN/Yahoo,
+     already division-aware) or record > PF > PA; a sole division leader counts
+     as in (division winners qualify). Unknown playoff size = no color. */
+  function stPlayoff(D,G){
+    try{
+      var P=+D.poTeams||0,T=D.teams,me=D.myId!=null?String(D.myId):null;
+      if(!P||!me||!T[me])return '';
+      var ids=Object.keys(T);if(P>=ids.length)return 'good';
+      var ord=stSort(D,ids).list,pos=ord.indexOf(me);
+      if(pos<0)return '';
+      if(pos<P)return 'good';
+      if(G&&G.hasDivs&&D.src!=='espn'&&D.src!=='yahoo'){
+        var lead=false;G.groups.forEach(function(g){g.rows.forEach(function(r){if(r.id===me&&r.n===1&&!r.tied)lead=true;});});
+        if(lead)return 'good';
+      }
+      var cut=T[ord[P-1]],M=T[me];
+      var gb=((cut.w-M.w)+(M.l-cut.l))/2;
+      return gb<=1?'meh':'bad';
+    }catch(e){return '';}
+  }
   function buildStandings(data){
     var out=[];
     prioSort(data&&data.contexts).forEach(function(c){
@@ -24629,7 +24658,7 @@ if(typeof window.cfRegisterView==='function'){
     var name=S.c.leagueName,key='st:'+name,open=!!OPEN[key],D=S.D,hero='';
     if(S.myR){
       var me=D.teams[S.myR.id];
-      hero='<span class="k lv-st-k">'+(S.myR.tied?'T-':'')+stOrd(S.myR.n)+'</span><span class="t">'+esc(S.hasDivs?divWhere(S.myG.name):('of '+S.n))+' · '+esc(recTxt(me))+'</span>';
+      hero='<span class="k lv-st-k '+stPlayoff(D,{groups:S.groups,hasDivs:S.hasDivs})+'">'+(S.myR.tied?'T-':'')+stOrd(S.myR.n)+'</span><span class="t">'+esc(S.hasDivs?divWhere(S.myG.name):('of '+S.n))+' · '+esc(recTxt(me))+'</span>';
     }
     var body=S.groups.map(function(g,gi){
       var hd='<div class="lv-st-colhd" data-lv-key="'+esc(key)+':hd:'+gi+'"><span>#</span><span>TEAM</span><span>W-L'+(S.anyT?'-T':'')+'</span><span>PF</span><span>PA</span></div>';
@@ -24676,7 +24705,7 @@ if(typeof window.cfRegisterView==='function'){
         rot.unshift(rot.pop());
       }
       Object.keys(teams).forEach(function(k){teams[k].pf=Math.round(teams[k].pf*100)/100;teams[k].pa=Math.round(teams[k].pa*100)/100;});
-      return {src:'demo',myId:'0',divs:{},teams:teams,regEnd:null,thru:weeks};
+      return {src:'demo',myId:'0',divs:{},teams:teams,regEnd:null,thru:weeks,poTeams:names.length>=10?6:4};
     }catch(e){return null;}
   };
   function ensureView(){
