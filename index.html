@@ -11194,6 +11194,18 @@ async function loadData(){
           }catch(_){}
         }
       });
+      /* One-sided teams (League Scores Rank): same projection rules; your own
+         team pinned to ctx.myProjPts. */
+      (Array.isArray(am.solo)?am.solo:[]).forEach(s=>{
+        if(!s)return;
+        if(isHist){s.proj=null;return;}
+        if(s.projSide)s.proj=sideProj(s.projSide);
+        if(s.isMine&&myP>0)s.proj=+myP.toFixed(2);
+        if(s.drawer&&s.drawer.ctx){
+          s.drawer.ctx.myProjPts=s.proj;s.drawer.ctx.oppProjPts=null;
+          try{s.drawer.ctx.myPreProj=preMapOf(s.projSide,s.benchProjSide);s.drawer.ctx.oppPreProj={};}catch(_){}
+        }
+      });
     });
   }catch(e){}
   /* Flag matchups that have a STARTER currently in an in-progress NFL game.
@@ -23409,6 +23421,8 @@ if(typeof window.cfRegisterView==='function'){
   var cfGameStateOf=function(t){try{if(typeof window.__cfGameState==='function'){var s=window.__cfGameState(t);if(s)return s;}}catch(e){}try{if(typeof nflGameStates!=='undefined'&&nflGameStates){var s2=nflGameStates.get(t);if(s2===undefined&&typeof cfNormTeam==='function')s2=nflGameStates.get(cfNormTeam(t));return s2||null;}}catch(e){}return null;};
   var cfMatchupFinalFromTeams=function(teams){try{if(typeof nflGameStates==='undefined'||!nflGameStates||!nflGameStates.size)return false;var post=false,pending=false;(teams||[]).forEach(function(t){if(!t)return;var st=cfGameStateOf(t);if(st==='post')post=true;else if(st==='in'||st==='pre')pending=true;});return post&&!pending;}catch(e){return false;}};
 
+  /* Empty opponent for a one-sided (NO_OPPONENT) League Scores drawer. */
+  var LS_NOOPP={name:null,score:0,players:[],bench:[],pp:{}};
   var cfBuildDrawer=function(mine,opp,leagueName,fmt,rosterPositions,isFin){
     var state='LIVE';
     try{ if(isFin&&typeof calcHistoricalState==='function')state=calcHistoricalState(+mine.score||0,+opp.score||0); }catch(e){ state='LIVE'; }
@@ -23456,10 +23470,11 @@ if(typeof window.cfRegisterView==='function'){
         var score=(isHist||!hasSum)?Number((side&&side.totalPoints)||0):+sum.toFixed(2);
         return {starters:starters,bench:bench,pp:pp,teams:teams,pj:pj,bpj:bpj,score:score};
       };
-      var rows=[];
+      var rows=[],solo=[],loneE=[];
       data.schedule.forEach(function(sc){
         if(sc.matchupPeriodId!==week)return;
-        if(!sc.home||!sc.away)return;
+        /* One-sided entry (bye / knockout format): kept for League Scores Rank. */
+        if(!sc.home||!sc.away){var one=sc.home||sc.away;if(one)loneE.push(one);return;}
         var h=sideObj(sc.home),a=sideObj(sc.away);
         var homeName=nameOf(sc.home.teamId),awayName=nameOf(sc.away.teamId);
         var allTeams=h.teams.concat(a.teams);
@@ -23471,8 +23486,21 @@ if(typeof window.cfRegisterView==='function'){
         var mkE='e|'+(leagueName||'')+'|'+[sc.home.teamId,sc.away.teamId].sort(function(x,y){return x-y;}).join('-');
         rows.push({homeName:homeName,awayName:awayName,homeId:sc.home.teamId,awayId:sc.away.teamId,homeScore:h.score,awayScore:a.score,isMine:(homeMine||awayMine),mineSide:(homeMine?'home':(awayMine?'away':null)),projSides:{home:h.pj,away:a.pj},benchProjSides:{home:h.bpj,away:a.bpj},homeProj:null,awayProj:null,isFinal:isFin,teams:allTeams,mkey:mkE,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',null,isFin)});
       });
-      if(!rows.length)return null;
-      return {matchups:rows,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
+      /* Teams with no head-to-head opponent this week (bye in an odd-sized league,
+         or a no-matchup format). They appear in League Scores RANK only, and tap
+         into the one-sided --solo drawer. A team with no lineup and no points
+         (eliminated) is dropped. */
+      loneE.forEach(function(side){
+        var S=sideObj(side);
+        if(!S.starters.length&&!(+S.score))return;
+        var nm=nameOf(side.teamId),mn=!!(myTeam&&side.teamId===myTeam.id);
+        var isFin=(!!isHist)||cfMatchupFinalFromTeams(S.teams);
+        var d=cfBuildDrawer({name:nm,score:S.score,players:S.starters,bench:S.bench,pp:S.pp},LS_NOOPP,leagueName||'',fmt||'',null,isFin);
+        if(d&&d.ctx)d.ctx.leagueState='NO_OPPONENT';
+        solo.push({id:side.teamId,name:nm,score:S.score,proj:null,projSide:S.pj,benchProjSide:S.bpj,isFinal:isFin,isMine:mn,teams:S.teams,mkey:'e|'+(leagueName||'')+'|solo-'+side.teamId,drawer:d});
+      });
+      if(!rows.length&&!solo.length)return null;
+      return {matchups:rows,solo:solo,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
     }catch(e){return null;}
   };
 
@@ -23499,11 +23527,13 @@ if(typeof window.cfRegisterView==='function'){
         var bpj=bench.map(function(id){var p=db[id];return {team:(p&&p.team)||'',pts:(ppS[id]!=null?ppS[id]:null),proj:null,sid:id,key:id};});
         return {starters:starters,bench:bench,pp:ppS,teams:teams,pj:pj,bpj:bpj,score:+((entry&&entry.points)||0)};
       };
-      var groups={};
-      matchups.forEach(function(m){if(m&&m.matchup_id!=null){(groups[m.matchup_id]=groups[m.matchup_id]||[]).push(m);}});
-      var rows=[];
+      var groups={},loose=[];
+      matchups.forEach(function(m){if(!m)return;if(m.matchup_id!=null){(groups[m.matchup_id]=groups[m.matchup_id]||[]).push(m);}else loose.push(m);});
+      var rows=[],solo=[];
       Object.keys(groups).forEach(function(k){
-        var g=groups[k];if(g.length<2)return;
+        /* Only a true pair is a matchup; a lone roster (chop/no-matchup format,
+           bye, non-playoff team) goes to the one-sided list for Rank. */
+        var g=groups[k];if(g.length!==2){g.forEach(function(e){loose.push(e);});return;}
         var a=g[0],b=g[1];
         var A=sideObj(a),B=sideObj(b);
         var an=nameOf(a.roster_id),bn=nameOf(b.roster_id);
@@ -23516,17 +23546,30 @@ if(typeof window.cfRegisterView==='function'){
         var mkS='s|'+(leagueName||'')+'|'+[a.roster_id,b.roster_id].sort(function(x,y){return x-y;}).join('-');
         rows.push({homeName:an,awayName:bn,homeId:a.roster_id,awayId:b.roster_id,homeScore:A.score,awayScore:B.score,isMine:(aMine||bMine),mineSide:(aMine?'home':(bMine?'away':null)),projSides:{home:A.pj,away:B.pj},benchProjSides:{home:A.bpj,away:B.bpj},homeProj:null,awayProj:null,isFinal:isFin,teams:allTeams,mkey:mkS,drawer:cfBuildDrawer(mine,opp,leagueName||'',fmt||'',rosterPositions||null,isFin)});
       });
-      if(!rows.length)return null;
-      return {matchups:rows,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
+      loose.forEach(function(e){
+        var S=sideObj(e);
+        if(!S.starters.length&&!(+e.points))return; /* eliminated: no lineup, no points */
+        var nm=nameOf(e.roster_id),mn=(e.roster_id===myRosterId);
+        var isFin=(!!isHist)||cfMatchupFinalFromTeams(S.teams);
+        var d=cfBuildDrawer({name:nm,score:S.score,players:S.starters,bench:S.bench,pp:S.pp},LS_NOOPP,leagueName||'',fmt||'',rosterPositions||null,isFin);
+        if(d&&d.ctx)d.ctx.leagueState='NO_OPPONENT';
+        solo.push({id:e.roster_id,name:nm,score:S.score,proj:null,projSide:S.pj,benchProjSide:S.bpj,isFinal:isFin,isMine:mn,teams:S.teams,mkey:'s|'+(leagueName||'')+'|solo-'+e.roster_id,drawer:d});
+      });
+      if(!rows.length&&!solo.length)return null;
+      return {matchups:rows,solo:solo,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
     }catch(e){return null;}
   };
 
   window.cfYahooAllMatchups=function(matchups,myTeamKey,isHist){
     try{
       if(!Array.isArray(matchups)||!matchups.length)return null;
-      var rows=[];
+      var rows=[],solo=[];
       matchups.forEach(function(mm){
-        var ts=(mm&&mm.teams)||[];if(ts.length<2)return;
+        var ts=(mm&&mm.teams)||[];
+        if(ts.length<2){
+          if(ts.length===1){var t0=ts[0];solo.push({id:t0.team_key||null,name:t0.name||null,score:+(t0.points||0),proj:(!isHist&&(+t0.projPoints||0)>0)?+(+t0.projPoints).toFixed(2):null,isFinal:!!(mm&&mm.status==='postevent'),isMine:(t0.team_key===myTeamKey)});}
+          return;
+        }
         var a=ts[0],b=ts[1];
         var aM=(a.team_key===myTeamKey),bM=(b.team_key===myTeamKey);
         /* Yahoo's own team projection, used as-is (same exemption My Matchups makes).
@@ -23534,8 +23577,11 @@ if(typeof window.cfRegisterView==='function'){
         var yp=(!isHist&&((+a.projPoints||0)+(+b.projPoints||0))>0);
         rows.push({homeName:a.name||null,awayName:b.name||null,homeId:a.team_key||null,awayId:b.team_key||null,homeScore:+(a.points||0),awayScore:+(b.points||0),isMine:(aM||bM),mineSide:(aM?'home':(bM?'away':null)),homeProj:yp?+(+a.projPoints).toFixed(2):null,awayProj:yp?+(+b.projPoints).toFixed(2):null,isFinal:!!(mm&&mm.status==='postevent')});
       });
-      if(!rows.length)return null;
-      return {matchups:rows,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
+      /* Death leagues: Yahoo pairs every team against the SAME opponent. That
+         shows up as one team_key in several matchups; cfLSTeams() detects the
+         duplicate and renders the league as Rank only. */
+      if(!rows.length&&!solo.length)return null;
+      return {matchups:rows,solo:solo,isFinal:(!!isHist||(typeof isHistoricalWeek==='function'&&isHistoricalWeek()))};
     }catch(e){return null;}
   };
 
@@ -23668,13 +23714,38 @@ if(typeof window.cfRegisterView==='function'){
     }catch(e){}
   };
 
+  /* Rank-mode state per league: {mode:'rank'|'match', sort:null|'proj'|'pts'}.
+     In-memory only (never localStorage); the Leagues view clears it on open. */
+  var lsState=function(name){var M=(window.__cfLSMode=window.__cfLSMode||{});return M[name]||(M[name]={mode:'rank',sort:null});};
+  var lsRerender=function(){try{var L=window.__cfLSLast;if(L&&typeof window.cfRenderLeagueScores==='function')window.cfRenderLeagueScores(L.c,L.o);}catch(e){}};
+  /* Every team in a league as one flat list for Rank: both sides of each
+     matchup plus one-sided teams. A team id seen twice (Yahoo Death: everyone
+     "paired" against the same team) or no matchups at all => Rank only. */
+  var cfLSTeams=function(am){
+    var list=[],seen={},dup=false,ms=Array.isArray(am&&am.matchups)?am.matchups:[];
+    var add=function(id,fb,name,score,proj,fin,mine,mk){
+      var k=(id!=null&&id!=='')?String(id):fb;
+      if(seen[k]){dup=true;return;}seen[k]=1;
+      list.push({id:k,name:name,score:+score||0,proj:(proj!=null&&isFinite(+proj))?+proj:null,fin:!!fin,mine:!!mine,mk:mk||null});
+    };
+    ms.forEach(function(r,i){
+      if(!r)return;
+      var rf=(r.isFinal!=null)?r.isFinal:(am.isFinal||cfMatchupFinalFromTeams(r.teams||[]));
+      add(r.homeId,'m'+i+'h',r.homeName,r.homeScore,r.homeProj,rf,r.mineSide==='home',r.mkey);
+      add(r.awayId,'m'+i+'a',r.awayName,r.awayScore,r.awayProj,rf,r.mineSide==='away',r.mkey);
+    });
+    (Array.isArray(am&&am.solo)?am.solo:[]).forEach(function(x,i){if(!x)return;add(x.id,'s'+i,x.name,x.score,x.proj,x.isFinal||am.isFinal,x.isMine,x.mkey);});
+    return {list:list,rankOnly:dup||!ms.length};
+  };
+
   window.cfRenderLeagueScores=function(contexts,opts){
     /* opts.host: render into that element instead of under the scoreboard
        (the Leagues view). A hosted render drops the collapsible LEAGUE SCORES
        module header — the host page supplies its own section title. */
     try{
       var strip=document.getElementById('scores-strip');var XH=(opts&&opts.host)||null;if(!strip&&!XH)return;
-      var leagues=(contexts||[]).filter(function(c){return c&&c.allMatchups&&c.allMatchups.matchups&&c.allMatchups.matchups.length;});
+      window.__cfLSLast={c:contexts,o:opts};
+      var leagues=(contexts||[]).filter(function(c){var a=c&&c.allMatchups;return !!a&&((Array.isArray(a.matchups)&&a.matchups.length)||(Array.isArray(a.solo)&&a.solo.length));});
       try{if(typeof hiddenLeagues!=='undefined')leagues=leagues.filter(function(c){return !hiddenLeagues.has(c.leagueName);});}catch(e){}
       /* PRIORITY order, everywhere League Scores renders (Home + Leagues view;
          Matt, 2026-09-24). contexts arrive in provider-resolution order, which
@@ -23696,37 +23767,90 @@ if(typeof window.cfRegisterView==='function'){
       var modOpen=XH?true:(window.__cfLSModOpen!==false);
       var body='';
       var keyMap={};
+      /* ── RANK mode (Matt, 2026-09-27) ─────────────────────────────────────
+         Each league opens in RANK: every team in the league ordered by PTS or by
+         live projected final (PROJ), re-sorted on every data refresh. The
+         Rank | Matchups toggle lives in the column-header row; PROJ / PTS headers
+         are the sort buttons (tapping one in Matchups jumps to Rank). A league
+         with no head-to-head matchups (or one team paired with everyone, Yahoo
+         Death) is Rank only, no toggle. Mode/sort/movement state is in-memory and
+         reset on every Leagues open. Movement markers (▲2/▼1) compare against the
+         previous DATA pull only — never against a sort change or re-render.
+         Default sort: PTS once anyone has points, PROJ before that; whole-week
+         final / historic = PTS only. Pregame PTS ranks read "—". */
+      var LSR=(window.__cfLSRank=window.__cfLSRank||{});
+      var wkSig='';try{wkSig=(typeof activeSeason!=='undefined'?activeSeason:'')+'-'+(typeof activeWeek!=='undefined'?activeWeek:'');}catch(e){}
+      var CHEVR='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>';
+      var CARET='<svg class="cf-ls-caret" width="7" height="7" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
+      var UPA='<svg width="7" height="7" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5L9 8H1z" fill="currentColor"></path></svg>';
+      var DNA='<svg width="7" height="7" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 8.5L1 2h8z" fill="currentColor"></path></svg>';
+      var fp=function(v){return (v==null||isNaN(+v))?'—':(+v).toFixed(2);};
+      var sortBtn=function(k,on){return '<button type="button" class="cf-ls-sort'+(on?' on':'')+'" data-ls-sort="'+k+'" aria-pressed="'+(on?'true':'false')+'" aria-label="Rank by '+(k==='proj'?'projected points':'points')+'">'+(k==='proj'?'PROJ':'PTS')+CARET+'</button>';};
+      var segHtml=function(mode){return '<span class="cf-ls-seg" role="group" aria-label="League Scores view"><button type="button" data-ls-mode="rank" aria-pressed="'+(mode==='rank'?'true':'false')+'">Rank</button><button type="button" data-ls-mode="match" aria-pressed="'+(mode==='match'?'true':'false')+'">Matchups</button></span>';};
       leagues.forEach(function(c){
-        var name=c.leagueName,open=!!OPEN[name],am=c.allMatchups,fin=am.isFinal;
-        var rows=am.matchups.map(function(m){
-          /* A tie (incl. every pregame 0.00-0.00) emphasizes NEITHER side: both
-             names + scores grey. Only a real lead earns white (Matt, 2026-09-23). */
-          var hsN=(+m.homeScore||0),asN=(+m.awayScore||0),tie=(hsN===asN),hw=hsN>asN;
-          var hc=(tie||!hw)?'l':'w',ac=(tie||hw)?'l':'w';
-          var rf=(m.isFinal!=null)?m.isFinal:(fin||cfMatchupFinalFromTeams(m.teams||[]));
-          var hn=mask(cfMaskTeam,m.homeName)||'—',an=mask(cfMaskTeam,m.awayName)||'—';
-          if(m.drawer&&m.mkey)keyMap[m.mkey]=m.drawer;
-          var tap=!!m.drawer;
-          /* Column 2: FINAL for a decided matchup, else the projected final per
-             side (right-justified against the score column), else empty. */
-          var fp=function(v){return (v==null||isNaN(+v))?'—':(+v).toFixed(2);};
-          var hasP=(m.homeProj!=null||m.awayProj!=null);
-          var col2=rf?'<span class="cf-ls-final">FINAL</span>'
-            :(hasP?'<div>'+fp(m.homeProj)+'</div><div>'+fp(m.awayProj)+'</div>':'');
-          return '<div class="cf-ls-row'+(tap?' is-tap':'')+'"'+(tap?' role="button" tabindex="0" aria-label="Open matchup detail"':'')+'>'
-            +'<div class="cf-ls-teams"><div class="cf-ls-team '+hc+'">'+cfEsc(hn)+'</div><div class="cf-ls-team '+ac+'">'+cfEsc(an)+'</div></div>'
-            +'<div class="cf-ls-proj"'+(hasP&&!rf?' aria-label="Projected final"':'')+'>'+col2+'</div>'
-            +'<div class="cf-ls-scores"><div class="'+hc+'">'+hsN.toFixed(2)+'</div><div class="'+ac+'">'+asN.toFixed(2)+'</div></div>'
-            +'<span class="cf-ls-chevr">'+(tap?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>':'')+'</span>'
-          +'</div>';
-        }).join('');
-        /* Column headers on the same grid tracks as the rows. NOT a .cf-ls-row --
-           the click binder maps .cf-ls-row by index to am.matchups. PROJ only
-           labels a column that actually holds a projection somewhere in this
-           league (historic / all-final leagues show just PTS). */
-        var anyP=am.matchups.some(function(m){var rf=(m.isFinal!=null)?m.isFinal:(fin||cfMatchupFinalFromTeams(m.teams||[]));return !rf&&(m.homeProj!=null||m.awayProj!=null);});
-        var colhd='<div class="cf-ls-colhd" aria-hidden="true"><span></span><span>'+(anyP?'PROJ':'')+'</span><span>PTS</span><span></span></div>';
-        body+='<div class="cf-ls-league" data-league="'+cfEsc(name)+'"><button type="button" class="cf-ls-hbtn" aria-expanded="'+(open?'true':'false')+'"><span class="cf-ls-chev'+(open?' open':'')+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span><span class="cf-ls-lname">'+cfEsc(mask(cfMaskLeague,name))+'</span></button><div class="cf-ls-panel"'+(open?'':' hidden')+'>'+colhd+rows+'</div></div>';
+        var name=c.leagueName,open=!!OPEN[name],am=c.allMatchups,fin=am.isFinal,ek=cfEsc(name);
+        var ms=Array.isArray(am.matchups)?am.matchups:[];
+        ms.forEach(function(m){if(m&&m.drawer&&m.mkey)keyMap[m.mkey]=m.drawer;});
+        (Array.isArray(am.solo)?am.solo:[]).forEach(function(s){if(s&&s.drawer&&s.mkey)keyMap[s.mkey]=s.drawer;});
+        var T=cfLSTeams(am),st=lsState(name),mode=T.rankOnly?'rank':st.mode;
+
+        /* Rank model — computed in BOTH modes so movement tracking stays current. */
+        var L=T.list;
+        var lgFinal=!!fin||(L.length>0&&L.every(function(t){return t.fin;}));
+        var anyP=!lgFinal&&L.some(function(t){return !t.fin&&t.proj!=null;});
+        var anyPts=L.some(function(t){return (+t.score||0)!==0;});
+        var key=(!anyP)?'pts':(st.sort||(anyPts?'pts':'proj'));
+        var byPts=(key==='pts'&&anyPts),noRank=(key==='pts'&&!anyPts);
+        var val=(noRank&&!anyP)?function(){return null;}:function(t){if(byPts||t.fin)return +t.score||0;return t.proj;};
+        var nmCmp=function(x,y){return String(x.name||'').localeCompare(String(y.name||''));};
+        var sorted=L.slice().sort(function(x,y){var a=val(x),b=val(y);if(a==null&&b==null)return nmCmp(x,y);if(a==null)return 1;if(b==null)return -1;return (b-a)||nmCmp(x,y);});
+        var sig=key+'|'+(byPts?1:0)+'|'+wkSig,now={};
+        sorted.forEach(function(t,i){now[t.id]=i+1;});
+        var rec=LSR[name];
+        if(!rec||rec.sig!==sig){rec=LSR[name]={sig:sig,ref:am,ranks:now,marks:{}};}
+        else if(rec.ref!==am){var mv0={};if(!noRank)Object.keys(now).forEach(function(id){var p=rec.ranks[id];if(p!=null&&p!==now[id])mv0[id]=p-now[id];});rec.ref=am;rec.ranks=now;rec.marks=mv0;}
+
+        var colhd,rows;
+        if(mode==='match'){
+          rows=ms.map(function(m,mi){
+            /* A tie (incl. every pregame 0.00-0.00) emphasizes NEITHER side: both
+               names + scores grey. Only a real lead earns white (Matt, 2026-09-23). */
+            var hsN=(+m.homeScore||0),asN=(+m.awayScore||0),tie=(hsN===asN),hw=hsN>asN;
+            var hc=(tie||!hw)?'l':'w',ac=(tie||hw)?'l':'w';
+            var rf=(m.isFinal!=null)?m.isFinal:(fin||cfMatchupFinalFromTeams(m.teams||[]));
+            var hn=mask(cfMaskTeam,m.homeName)||'—',an=mask(cfMaskTeam,m.awayName)||'—';
+            var tap=!!(m.drawer&&m.mkey);
+            /* Column 2: FINAL for a decided matchup, else the projected final per
+               side (right-justified against the score column), else empty. */
+            var hasP=(m.homeProj!=null||m.awayProj!=null);
+            var col2=rf?'<span class="cf-ls-final">FINAL</span>'
+              :(hasP?'<div>'+fp(m.homeProj)+'</div><div>'+fp(m.awayProj)+'</div>':'');
+            return '<div class="cf-ls-row'+(tap?' is-tap':'')+(m.isMine?' is-me':'')+'" data-lv-key="ls:'+ek+':m:'+cfEsc(m.mkey||String(mi))+'"'+(tap?' data-ls-mk="'+cfEsc(m.mkey)+'" role="button" tabindex="0" aria-label="Open matchup detail"':'')+'>'
+              +'<div class="cf-ls-teams"><div class="cf-ls-team '+hc+'">'+cfEsc(hn)+'</div><div class="cf-ls-team '+ac+'">'+cfEsc(an)+'</div></div>'
+              +'<div class="cf-ls-proj"'+(hasP&&!rf?' aria-label="Projected final"':'')+'>'+col2+'</div>'
+              +'<div class="cf-ls-scores"><div class="'+hc+'">'+hsN.toFixed(2)+'</div><div class="'+ac+'">'+asN.toFixed(2)+'</div></div>'
+              +'<span class="cf-ls-chevr">'+(tap?CHEVR:'')+'</span>'
+            +'</div>';
+          }).join('');
+          var anyPm=ms.some(function(m){var rf=(m.isFinal!=null)?m.isFinal:(fin||cfMatchupFinalFromTeams(m.teams||[]));return !rf&&(m.homeProj!=null||m.awayProj!=null);});
+          colhd='<div class="cf-ls-colhd" data-lv-key="ls:'+ek+':hd"><span class="cf-ls-hd1">'+segHtml('match')+'</span>'+(anyPm?sortBtn('proj',false):'<span></span>')+sortBtn('pts',false)+'<span></span></div>';
+        }else{
+          rows=sorted.map(function(t,i){
+            var rk=(noRank||(key==='proj'&&!t.fin&&t.proj==null))?'—':String(i+1);
+            var d=rec.marks[t.id],mv='';
+            if(d&&rk!=='—')mv='<span class="cf-ls-mv" aria-label="'+(d>0?'Up ':'Down ')+Math.abs(d)+'">'+(d>0?UPA:DNA)+Math.abs(d)+'</span>';
+            var col2=lgFinal?'':(t.fin?'<span class="cf-ls-final">FINAL</span>':(anyP?'<div>'+fp(t.proj)+'</div>':''));
+            var tap=!!(t.mk&&keyMap[t.mk]);
+            return '<div class="cf-ls-row cf-ls-rk'+(tap?' is-tap':'')+(t.mine?' is-me':'')+'" data-lv-key="ls:'+ek+':t:'+cfEsc(t.id)+'"'+(tap?' data-ls-mk="'+cfEsc(t.mk)+'" role="button" tabindex="0" aria-label="Open matchup detail"':'')+'>'
+              +'<div class="cf-ls-rkname"><span class="cf-ls-rkn">'+rk+'</span><span class="cf-ls-rktm">'+cfEsc(mask(cfMaskTeam,t.name)||'—')+'</span>'+mv+'</div>'
+              +'<div class="cf-ls-proj">'+col2+'</div>'
+              +'<div class="cf-ls-scores"><div'+(anyPts?'':' class="l"')+'>'+(+t.score||0).toFixed(2)+'</div></div>'
+              +'<span class="cf-ls-chevr">'+(tap?CHEVR:'')+'</span>'
+            +'</div>';
+          }).join('');
+          colhd='<div class="cf-ls-colhd" data-lv-key="ls:'+ek+':hd"><span class="cf-ls-hd1">'+(T.rankOnly?'':segHtml('rank'))+'</span>'+(anyP?sortBtn('proj',key==='proj'):'<span></span>')+sortBtn('pts',key==='pts')+'<span></span></div>';
+        }
+        body+='<div class="cf-ls-league" data-league="'+ek+'"><button type="button" class="cf-ls-hbtn" aria-expanded="'+(open?'true':'false')+'"><span class="cf-ls-chev'+(open?' open':'')+'"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span><span class="cf-ls-lname">'+cfEsc(mask(cfMaskLeague,name))+'</span></button><div class="cf-ls-panel"'+(open?'':' hidden')+'>'+colhd+rows+'</div></div>';
       });
       host.innerHTML=(XH?'':'<button type="button" class="cf-ls-modhead" aria-expanded="'+(modOpen?'true':'false')+'" aria-label="Collapse or expand League Scores"><span class="cf-ls-modwm">LEAGUE SCORES</span><span class="cf-ls-modchev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg></span></button>')+'<div class="cf-ls-body"'+(modOpen?'':' hidden')+'>'+body+'</div>';
       var mh=host.querySelector('.cf-ls-modhead'),mb=host.querySelector('.cf-ls-body');
@@ -23735,13 +23859,20 @@ if(typeof window.cfRegisterView==='function'){
         var c=leagues[li];
         var btn=el.querySelector('.cf-ls-hbtn'),panel=el.querySelector('.cf-ls-panel'),chev=el.querySelector('.cf-ls-chev');
         if(btn){var nm=el.getAttribute('data-league');btn.addEventListener('click',function(){var now=!OPEN[nm];OPEN[nm]=now;btn.setAttribute('aria-expanded',now?'true':'false');if(panel)panel.hidden=!now;if(chev)chev.classList.toggle('open',now);});}
-        var ms=(c&&c.allMatchups&&c.allMatchups.matchups)||[];
-        Array.prototype.forEach.call(el.querySelectorAll('.cf-ls-row'),function(rowEl,mi){
-          var d=ms[mi]&&ms[mi].drawer;if(!d)return;
-          var mk=(ms[mi]&&ms[mi].mkey)||((c.leagueName||'lg')+'#'+mi);
+        /* Rows carry their drawer key (data-ls-mk) -- Rank rows are per TEAM and
+           re-sort every refresh, so rows can't be mapped to matchups by index. */
+        Array.prototype.forEach.call(el.querySelectorAll('.cf-ls-row[data-ls-mk]'),function(rowEl){
+          var mk=rowEl.getAttribute('data-ls-mk'),d=keyMap[mk];if(!d)return;
           var openFn=function(){cfOpenLSDrawer(d,mk);};
           rowEl.addEventListener('click',openFn);
           rowEl.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();openFn();}});
+        });
+        var lnm=el.getAttribute('data-league');
+        Array.prototype.forEach.call(el.querySelectorAll('[data-ls-mode]'),function(b){
+          b.addEventListener('click',function(ev){ev.stopPropagation();var s2=lsState(lnm),m2=b.getAttribute('data-ls-mode');if(s2.mode===m2)return;s2.mode=m2;lsRerender();});
+        });
+        Array.prototype.forEach.call(el.querySelectorAll('[data-ls-sort]'),function(b){
+          b.addEventListener('click',function(ev){ev.stopPropagation();var s2=lsState(lnm);s2.mode='rank';s2.sort=b.getAttribute('data-ls-sort');lsRerender();});
         });
       });
       try{
@@ -23790,7 +23921,30 @@ if(typeof window.cfRegisterView==='function'){
       +'.cf-ls-scores{min-width:0;text-align:right;}'
       +'.cf-ls-scores>div{font:700 13px/16px var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-900,#F5EFE4);white-space:nowrap;}'
       +'.cf-ls-scores>div.l{font-weight:500;color:var(--ink-500,#9E988A);}'
-      +'.cf-ls-chevr{display:inline-flex;justify-content:flex-end;color:var(--ink-300,#5F5E5A);}';
+      +'.cf-ls-chevr{display:inline-flex;justify-content:flex-end;color:var(--ink-300,#5F5E5A);}'
+      /* Rank mode (2026-09-27) */
+      +'.cf-ls-colhd{align-items:center;}'
+      +'.cf-ls-colhd>.cf-ls-hd1{text-align:left;min-width:0;}'
+      +'.cf-ls-seg{display:inline-flex;border:1px solid var(--line,#2A3949);border-radius:999px;padding:2px;gap:2px;white-space:nowrap;vertical-align:middle;}'
+      +'.cf-ls-seg button{all:unset;box-sizing:border-box;cursor:pointer;font:700 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-500,#9E988A);padding:5px 9px;border-radius:999px;}'
+      +'.cf-ls-seg button[aria-pressed="true"]{background:var(--tile-bg,#16304A);color:var(--ink-900,#F5EFE4);}'
+      +'.cf-ls-seg button:focus-visible{outline:2px solid var(--navy-500,#5790C0);outline-offset:1px;}'
+      +'@media (max-width:350px){.cf-ls-seg button{padding:4px 6px;font-size:8.5px;letter-spacing:.05em;}}'
+      +'.cf-ls-sort{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;justify-content:flex-end;gap:3px;width:100%;padding:6px 0;font:600 9px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.08em;color:var(--ink-500,#9E988A);}'
+      +'.cf-ls-sort .cf-ls-caret{opacity:0;}'
+      +'.cf-ls-sort.on{color:var(--ink-900,#F5EFE4);}'
+      +'.cf-ls-sort.on .cf-ls-caret{opacity:1;}'
+      +'.cf-ls-sort:focus-visible{outline:2px solid var(--navy-500,#5790C0);outline-offset:2px;border-radius:4px;}'
+      +'.cf-ls-row.is-me{background:color-mix(in oklab,var(--navy-300,#2B6FA8) 18%,transparent);box-shadow:inset 2px 0 0 var(--navy-500,#5790C0);border-radius:6px;}'
+      +'.cf-ls-row.is-me.is-tap:hover{background:color-mix(in oklab,var(--navy-300,#2B6FA8) 24%,transparent);}'
+      +'.cf-ls-rkname{display:flex;align-items:center;gap:6px;min-width:0;}'
+      +'.cf-ls-rkn{flex:none;width:18px;font:600 10.5px/16px var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-500,#9E988A);}'
+      +'.cf-ls-row.is-me .cf-ls-rkn{color:var(--navy-700,#7AA8D1);}'
+      +'.cf-ls-rktm{min-width:0;font:600 12px/16px var(--font-sans,Inter,sans-serif);color:var(--ink-700,#E0DACA);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+      +'.cf-ls-row.is-me .cf-ls-rktm{color:var(--ink-900,#F5EFE4);font-weight:700;}'
+      +'.cf-ls-rk .cf-ls-proj{line-height:16px;}'
+      +'.cf-ls-mv{flex:none;display:inline-flex;align-items:center;gap:1px;font:600 9.5px/16px var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-500,#9E988A);}'
+      +'.cf-ls-mv svg{display:block;}';
       document.head.appendChild(st);
     }
   }catch(e){}
@@ -24526,8 +24680,9 @@ if(typeof window.cfRegisterView==='function'){
       Array.prototype.forEach.call(lb.querySelectorAll('.cf-ls-league'),function(el){
         var ln=el.getAttribute('data-league')||'';
         var hb=el.querySelector('.cf-ls-hbtn');if(hb)hb.setAttribute('data-lv-key','ls:'+ln);
-        var hd=el.querySelector('.cf-ls-colhd');if(hd)hd.setAttribute('data-lv-key','ls:'+ln+':hd');
-        Array.prototype.forEach.call(el.querySelectorAll('.cf-ls-row'),function(r,i){r.setAttribute('data-lv-key','ls:'+ln+':'+i);});
+        var hd=el.querySelector('.cf-ls-colhd');if(hd&&!hd.hasAttribute('data-lv-key'))hd.setAttribute('data-lv-key','ls:'+ln+':hd');
+        /* Rows now carry stable per-team / per-matchup keys from cfRenderLeagueScores. */
+        Array.prototype.forEach.call(el.querySelectorAll('.cf-ls-row'),function(r,i){if(!r.hasAttribute('data-lv-key'))r.setAttribute('data-lv-key','ls:'+ln+':'+i);});
       });
     }catch(e){}
   }
@@ -24615,6 +24770,8 @@ if(typeof window.cfRegisterView==='function'){
        manual expands survive refreshes only for the rest of this visit. */
     Object.keys(OPEN).forEach(function(k){delete OPEN[k];});
     Object.keys(TGOPEN).forEach(function(k){delete TGOPEN[k];}); /* Root-for groups too */
+    /* League Scores: every open starts in Rank, default sort, no movement markers. */
+    W.__cfLSMode={};W.__cfLSRank={};
     var v=ensureView();v.style.display='block';
     W.__cfLeaguesOpen=true;
     if(typeof W.cfShowPeriodBar==='function')W.cfShowPeriodBar();
