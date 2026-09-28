@@ -22600,9 +22600,12 @@ if(typeof window.cfRegisterView==='function'){
     .ldr-copy{max-width:360px;flex:none;margin-top:25px;padding:28px 26px;text-align:left;
       border:1px solid var(--ldr-line);border-radius:18px;background:rgba(43,111,168,.06);}
     .ldr-eyebrow{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--ldr-ink500);margin-bottom:14px;}
-    .ldr-copy h2{font:900 30px/1.14 var(--font-sans),'Inter',sans-serif;letter-spacing:-.02em;color:var(--ldr-cream);margin:0 0 16px;}
-    .ldr-copy p{font:400 15px/1.6 var(--font-sans),'Inter',sans-serif;color:var(--ldr-ink500);margin:0 0 14px;}
+    .ldr-copy h2{font:900 32px/1.1 var(--font-sans),'Inter',sans-serif;letter-spacing:-.025em;color:var(--ldr-cream);margin:0 0 18px;}
+    .ldr-copy h2 .g{color:var(--ldr-green);}
+    .ldr-copy h2 .r{color:var(--ldr-red);}
+    .ldr-copy p{font:400 16px/1.6 var(--font-sans),'Inter',sans-serif;color:#B9B3A6;margin:0;}
     .ldr-copy p .hl{color:var(--ldr-cream);font-weight:600;}
+    .ldr-copy p.ldr-closer{margin:16px 0 0;padding:2px 0 2px 12px;border-left:2px solid var(--ldr-line);font:600 14px/1.5 var(--font-sans),'Inter',sans-serif;color:var(--ldr-cream);}
     .ldr-deskcols{display:flex;justify-content:center;align-items:flex-start;gap:40px;flex:none;}
     .ldr-deskcol{display:flex;flex-direction:column;align-items:center;}
     .ldr-col-cap{font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.10em;text-transform:uppercase;color:var(--ldr-ink400);margin-bottom:14px;}
@@ -22627,21 +22630,30 @@ if(typeof window.cfRegisterView==='function'){
     .ldr-frame-d .ldr-rows::-webkit-scrollbar{width:6px;}
     .ldr-frame-d .ldr-rows::-webkit-scrollbar-thumb{background:var(--ldr-line);border-radius:3px;}
     .ldr-frame-d .ldr-rows::-webkit-scrollbar-track{background:transparent;}
-    .ldr-nudge{display:inline-flex;align-items:center;gap:14px;margin-top:8px;
-      padding:9px 10px 9px 16px;border:1px solid var(--ldr-line);border-radius:999px;background:#15293E;}
-    .ldr-nudge-label{display:inline-flex;align-items:center;gap:8px;font:500 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--ldr-ink500);}
+    /* Mobile nudge — stacked CTA block under a hairline: label, full-width
+       brand-blue button, one sub-line. (Was a split pill that wrapped.) */
+    .ldr-nudge{margin-top:24px;padding-top:22px;border-top:1px solid var(--ldr-line);}
+    .ldr-nudge-label{display:flex;align-items:center;gap:8px;margin-bottom:12px;
+      font:800 11px/1 var(--font-sans),'Inter',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--ldr-ink400);}
     .ldr-nudge-label svg{stroke:var(--ldr-blue);fill:none;}
-    .ldr-nudge-sep{width:1px;height:18px;background:var(--ldr-line);}
-    .ldr-nudge-btn{border:none;cursor:pointer;padding:6px 14px;border-radius:999px;
-      font:700 13px/1 var(--font-sans),'Inter',sans-serif;color:var(--ldr-blue);background:rgba(43,111,168,.18);transition:color .15s;}
-    .ldr-nudge-btn:hover{color:var(--ldr-coral);}
-    .ldr-nudge-btn[disabled]{opacity:.6;cursor:default;}
-    .ldr-hint{margin:12px 0 0;font:400 12px/1.5 var(--font-sans),'Inter',sans-serif;color:var(--ldr-ink400);}
+    .ldr-nudge-btn{box-sizing:border-box;width:100%;height:48px;display:flex;align-items:center;justify-content:center;gap:10px;
+      border:none;cursor:pointer;border-radius:12px;background:#2B6FA8;color:var(--ldr-cream);
+      font:700 15px/1 var(--font-sans),'Inter',sans-serif;box-shadow:0 8px 20px -10px rgba(43,111,168,.8);
+      transition:background .15s,transform .1s;}
+    .ldr-nudge-btn:hover{background:#3580BF;}
+    .ldr-nudge-btn:active{transform:scale(.985);}
+    .ldr-nudge-btn:focus-visible{outline:2px solid var(--ldr-blue);outline-offset:3px;}
+    .ldr-nudge-btn[disabled]{cursor:default;}
+    .ldr-nudge-btn.sent{background:var(--ldr-green-soft);color:var(--ldr-green);box-shadow:none;}
+    .ldr-copy p.ldr-hint{margin:10px 0 0;font:400 12.5px/1.5 var(--font-sans),'Inter',sans-serif;color:var(--ldr-ink400);text-align:center;}
   }
   /* 900–1199px: copy stacks on top (centered); the two boards sit side by side */
   @media (min-width:900px) and (max-width:1199px){
     .ldr-layout{flex-direction:column;align-items:center;gap:36px;}
     .ldr-copy{max-width:560px;text-align:center;margin-top:0;}
+    .ldr-copy p.ldr-closer{border-left:none;padding:0;}
+    .ldr-nudge-label{justify-content:center;}
+    .ldr-nudge-btn{max-width:360px;margin:0 auto;}
   }
 </style>
 
@@ -22678,18 +22690,17 @@ if(typeof window.cfRegisterView==='function'){
     <div class="ldr-layout">
       <div class="ldr-copy">
         <div class="ldr-eyebrow">Leaders</div>
-        <h2>Who carried you. Who crushed you.</h2>
-        <p>Your best and worst starters across <span class="hl">every league</span>, ranked — the players who won you weeks, and the ones who sank you.</p>
-        <p>Leaders is built for your phone, where you check and manage your leagues. This is a preview of both boards — open it on your phone for the full, tappable version.</p>
+        <h2>Who <span class="g">carried</span> you.<br>Who <span class="r">crushed</span> you.</h2>
+        <p>Every starter across <span class="hl">every league</span>, ranked on one board — the players who won you the week, and the ones who put up 30 against you.</p>
+        <p class="ldr-closer">Same player, two leagues, two rows. He earned both.</p>
         <div class="ldr-nudge" id="ldr-nudge">
-          <span class="ldr-nudge-label">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
-            Built for mobile
-          </span>
-          <span class="ldr-nudge-sep" id="ldr-nudge-sep"></span>
-          <button class="ldr-nudge-btn" id="ldr-email-btn" type="button" onclick="ldrEmailLink()">Email me the link</button>
+          <div class="ldr-nudge-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+            Built for your phone
+          </div>
+          <button class="ldr-nudge-btn" id="ldr-email-btn" type="button" onclick="ldrEmailLink()">Send it to my phone <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          <p class="ldr-hint" id="ldr-hint">We'll email a one-tap sign-in link.</p>
         </div>
-        <p class="ldr-hint" id="ldr-hint">We'll email you a one-tap sign-in link — open it on your phone.</p>
       </div>
       <div class="ldr-deskcols" id="ldr-deskcols"></div>
     </div>
@@ -23008,18 +23019,17 @@ if(typeof window.cfRegisterView==='function'){
     /* Demo has no account → drop the email action, divider and hint. */
     var demo=(typeof window.inDemoMode==='function')&&window.inDemoMode();
     var btn=document.getElementById('ldr-email-btn'); if(btn)btn.style.display=demo?'none':'';
-    var sep=document.getElementById('ldr-nudge-sep'); if(sep)sep.style.display=demo?'none':'';
     var hint=document.getElementById('ldr-hint'); if(hint)hint.style.display=demo?'none':'';
   }
   function ldrEmailLink(){
     var email=(window.__account&&window.__account.email)||window.__onboardEmail||'';
     if(!email){ if(window.showYahooToast)showYahooToast('Sign in first to email yourself a sign-in link.',true); return; }
-    var btn=document.getElementById('ldr-email-btn'),orig=btn?btn.textContent:'';
+    var btn=document.getElementById('ldr-email-btn'),orig=btn?btn.innerHTML:'';
     if(btn){btn.disabled=true;btn.textContent='Sending…';}
     fetch('/api/auth/magic/request',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
-      .then(function(r){ if(btn)btn.textContent=r.ok?'✓ Link sent':'Try again'; if(window.showYahooToast)showYahooToast(r.ok?('We emailed a sign-in link to '+email+' — open it on your phone.'):'Could not send the link right now.',!r.ok); try{if(r.ok&&window.cfTrack)cfTrack('leaders_mobile_link_sent',null);}catch(e){} })
+      .then(function(r){ if(btn){btn.textContent=r.ok?'✓ Link sent — check your inbox':'Try again'; if(r.ok)btn.classList.add('sent');} if(window.showYahooToast)showYahooToast(r.ok?('We emailed a sign-in link to '+email+' — open it on your phone.'):'Could not send the link right now.',!r.ok); try{if(r.ok&&window.cfTrack)cfTrack('leaders_mobile_link_sent',null);}catch(e){} })
       .catch(function(){ if(btn)btn.textContent='Try again'; if(window.showYahooToast)showYahooToast('Could not send the link right now.',true); })
-      .finally(function(){ setTimeout(function(){ if(btn){btn.disabled=false;btn.textContent=orig;} },2400); });
+      .finally(function(){ setTimeout(function(){ if(btn){btn.disabled=false;btn.classList.remove('sent');btn.innerHTML=orig;} },2400); });
   }
   window.ldrEmailLink=ldrEmailLink;
 
