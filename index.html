@@ -24545,7 +24545,8 @@ if(typeof window.cfRegisterView==='function'){
           sub2='<div class="lv-sub">Final · <span class="m">'+g.my.toFixed(2)+'–'+g.op.toFixed(2)+'</span></div>';
           var res=(g.my>g.op)?'W':((g.my<g.op)?'L':'T');
           var good=r.isMe?(res==='W'):(res==='L');
-          pill='<span class="lv-pill '+(res==='T'?'meh':(good?'good':'bad'))+'">'+(M.isHist?'FINAL ':'')+res+'</span>';
+          /* Final result spelled out (Matt, 2026-09-28): Win / Loss / Tie. Past weeks drop the old 'FINAL ' prefix — the column header already reads RESULT. */
+          pill='<span class="lv-pill '+(res==='T'?'meh':(good?'good':'bad'))+'">'+({W:'Win',L:'Loss',T:'Tie'}[res])+'</span>';
         }else if(g.p!=null){
           var win=g.p>=0.5,toss=g.p>=0.4&&g.p<=0.6,gd=r.isMe?win:!win;
           pill='<span class="lv-pill '+(gd?'good':'bad')+(toss?' toss':'')+'">'+(win?'W':'L')+' · '+pctTxt(g.p)+'</span>';
