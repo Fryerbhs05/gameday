@@ -23995,14 +23995,15 @@ if(typeof window.cfRegisterView==='function'){
    row 2 only when both can't fit (it never wraps mid-label). A league name too
    long for the row on its own ellipsizes. */
 #view-leagues .lv-ttl{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:10px;row-gap:4px;min-width:0;}
-#view-leagues .lv-lg{flex:0 1 auto;min-width:0;max-width:100%;font:800 17px/1.2 var(--font-sans);color:var(--ink-900);letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#view-leagues .lv-lg{flex:0 1 auto;min-width:0;max-width:100%;font:700 14px/1.2 var(--font-sans);color:var(--ink-900);letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #view-leagues .lv-dv{flex:0 0 auto;font:600 9.5px/1 var(--font-sans);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-500);white-space:nowrap;}
 #view-leagues .lv-chev{color:var(--ink-500);display:inline-flex;transition:transform .15s ease;}
 #view-leagues .lv-card[data-open="true"] .lv-chev{transform:rotate(180deg);}
 #view-leagues .lv-top{padding:10px 12px 12px;cursor:pointer;}
 #view-leagues .lv-hero{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;}
-#view-leagues .lv-hero .k{font:900 26px/1 var(--font-sans);letter-spacing:-0.03em;font-variant-numeric:tabular-nums;}
-#view-leagues .lv-hero .t{font:600 14px/1.25 var(--font-sans);color:var(--ink-900);}
+/* Type order on Leagues (Matt, 2026-09-28): section header > hero number > league name (14px, = scoreboard tiles). */
+#view-leagues .lv-hero .k{font:800 20px/1 var(--font-sans);letter-spacing:-0.03em;font-variant-numeric:tabular-nums;}
+#view-leagues .lv-hero .t{font:600 13px/1.25 var(--font-sans);color:var(--ink-900);}
 #view-leagues .good{color:var(--cheer);} #view-leagues .bad{color:var(--enemy);} #view-leagues .meh{color:var(--navy-700);}
 #view-leagues .lv-proj{font:500 12.5px/1.4 var(--font-sans);color:var(--ink-500);margin-top:7px;}
 #view-leagues .lv-proj b{font-weight:700;color:var(--ink-900);}
@@ -24038,7 +24039,11 @@ if(typeof window.cfRegisterView==='function'){
 #view-leagues .lv-hero .k.lv-st-k.meh{color:var(--navy-700);}
 #view-leagues .lv-hero .k.lv-st-k.bad{color:var(--enemy);}
 /* League Scores league names use the same title type as Division Watch + Standings cards. */
-#view-leagues .cf-ls-lname{font:800 17px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);}
+#view-leagues .cf-ls-lname{font:700 14px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);}
+/* League Scores arrow on the RIGHT like the Division Watch / Standings cards: same 14px chevron, down when closed, up when open. */
+#view-leagues .cf-ls-chev{order:2;transform:rotate(90deg);}
+#view-leagues .cf-ls-chev.open{transform:rotate(-90deg);}
+#view-leagues .cf-ls-chev svg{width:14px;height:14px;stroke-width:2.6;}
 #view-leagues .lv-st-colhd,#view-leagues .lv-st-row{display:grid;grid-template-columns:24px minmax(0,1fr) 42px 54px 54px;column-gap:6px;align-items:center;}
 #view-leagues .lv-st-colhd{padding:9px 2px 6px;font:600 9px/1 var(--font-sans);letter-spacing:.08em;color:var(--ink-500);border-bottom:1px solid var(--line-soft);}
 #view-leagues .lv-st-colhd span:nth-child(1){text-align:center;}
