@@ -2417,7 +2417,7 @@
     .cbmore-tile.is-soon { opacity: 0.5; cursor: default; }
     .cbmore-ico { display: flex; align-items: center; justify-content: center; width: 44px; height: 30px; }
     .cbmore-ico svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-    .cbmore-label { font: 700 10px/1 var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; }
+    .cbmore-label { font: 700 10px/1 var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; text-align: center; }
     /* Owner-only gated row at the bottom of the sheet (see renderMoreSheet). */
     .cbmore-admin { margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--line); }
     .cbmore-admin-head { font: 600 9px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-500); text-align: center; padding: 0 4px 10px; }
@@ -4658,7 +4658,7 @@
          Normal users never see a dead "Soon" row. -->
     <li role="none">
       <button class="menu-drawer__item" data-menu-action="blog" role="menuitem" type="button">
-        <span>Blog</span>
+        <span>Waiver Warrior</span>
       </button>
     </li>
     <li role="none" class="admin-only">
@@ -4804,9 +4804,9 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></svg>
     <span>Conflict</span>
   </button>
-  <button class="cfrail-tab" type="button" data-rail-tab="blog" aria-label="Blog">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
-    <span>Blog</span>
+  <button class="cfrail-tab" type="button" data-rail-tab="blog" aria-label="Waiver Warrior blog">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2L20.76 5.3V12.6C20.76 17.2 16.8 20.3 12 22C7.2 20.3 3.24 17.2 3.24 12.6V5.3Z" style="fill:#101a2e;stroke:#6dd3a0;stroke-width:1.3;stroke-linejoin:round"/><path d="M7.3 8.3L9.4 15.7L12 10.9L14.6 15.7L16.7 8.3" style="fill:none;stroke:#f3f5f4;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round"/></svg>
+    <span style="text-align:center">Waiver<br>Warrior</span>
   </button>
   <button class="cfrail-tab" type="button" data-rail-tab="contact" aria-label="Contact">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></svg>
@@ -4902,7 +4902,11 @@
       /* Blog is LIVE (2026-08-19): tile opens the Waiver Warrior blog inside the
          in-app browser overlay (#cf-blog-overlay) so PWA users stay in the app.
          See showBlog() below. Shop/Partners/Contact remain adminOnly "Soon". */
-      { key: 'blog',     label: 'Blog',     soon: false, svg: '<g transform="translate(12,12) scale(0.7500) translate(-12,-12)"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></g>' },
+      /* 2026-10-07 (Matt): Blog tile shows the Waiver Warrior shield logo (inline
+         SVG recreation, full color — inline styles beat the tile's currentColor
+         stroke) and the blog's name on two lines (one line overflows narrow phones).
+         Scaled a touch larger than the flask-normalized icons — it's a logo. */
+      { key: 'blog',     label: 'Waiver<br>Warrior', soon: false, svg: '<g transform="translate(12,12) scale(0.8200) translate(-12,-12)"><path d="M12 2L20.76 5.3V12.6C20.76 17.2 16.8 20.3 12 22C7.2 20.3 3.24 17.2 3.24 12.6V5.3Z" style="fill:#101a2e;stroke:#6dd3a0;stroke-width:1.3;stroke-linejoin:round"/><path d="M7.3 8.3L9.4 15.7L12 10.9L14.6 15.7L16.7 8.3" style="fill:none;stroke:#f3f5f4;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round"/></g>' },
       { key: 'partners', label: 'Partners', soon: true,  adminOnly: true, svg: '<g transform="translate(12,12) scale(0.9231) translate(-12,-12.5)"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M16 7.6a3 3 0 0 1 0 5.7"/><path d="M17 14.3c2.3.5 4 2.3 4 4.7"/></g>' },
       /* Contact is LIVE (2026-08-19): opens the in-app Contact view (Instagram /
          X / Email). Dropped the adminOnly + soon flags so every user sees it. */
