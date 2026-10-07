@@ -1947,6 +1947,11 @@
        unpaired roster slot, which is not a score at all. */
     .matchup-drawer__player-pts--pre,
     .matchup-drawer__player-pts--empty { color: var(--ink-300); }
+    /* BYE (Matt, 2026-10-07): a player whose team has no game this week shows
+       the word BYE instead of 0.00. WHITE (--ink-900), not grey -- Matt's call;
+       the word itself carries the state, and grey stays reserved for pre-kickoff.
+       Set by mpPtsCell via mpTeamOnBye; never shown once real points exist. */
+    .matchup-drawer__player-pts--bye { color: var(--ink-900); letter-spacing: .04em; }
     /* OPTION 2 -- live breathing dot (Matt, 2026-09-17). A single ice marker on a
        LIVE player's points: the only new state channel, layout unchanged, names
        still always --ink-900 and the point COLOR rules still exactly pre-dim /
@@ -4404,7 +4409,7 @@
 </style>
 <div id="cf-yahoo-outage" role="status" aria-live="polite" hidden>
   <span class="cf-outage-dot" aria-hidden="true"></span>
-  <span class="cf-outage-msg"><strong>Yahoo leagues are temporarily offline.</strong> <span class="cf-outage-sub">We're working with Yahoo to restore access. Yahoo confirmed access restoration approval on 9/13/26. Awaiting Yahoo-side final updates. Your ESPN and Sleeper leagues are unaffected.</span></span>
+  <span class="cf-outage-msg"><strong>Yahoo leagues are temporarily offline.</strong> <span class="cf-outage-sub">Conflicted's connection to Yahoo isn't loading league data right now. We're working to restore it, and your Yahoo leagues will come back automatically. Your ESPN and Sleeper leagues are unaffected.</span></span>
   <button class="cf-outage-close" type="button" aria-label="Dismiss">&times;</button>
 </div>
 <script>
@@ -4437,8 +4442,8 @@
        that reassurance reads like their sign-up failed. Only ever one banner —
        this swaps the text in place rather than adding a second element. */
     var MSG={
-      generic:'<strong>Yahoo leagues are temporarily offline.</strong> <span class="cf-outage-sub">We’re working with Yahoo to restore access. Yahoo confirmed access restoration approval on 9/13/26. Awaiting Yahoo-side final updates. Your ESPN and Sleeper leagues are unaffected.</span>',
-      linked:'<strong>Your Yahoo account is linked — leagues are temporarily offline.</strong> <span class="cf-outage-sub">Your sign-in worked and is saved. We’re working with Yahoo to restore access. Yahoo confirmed access restoration approval on 9/13/26. Awaiting Yahoo-side final updates. Your leagues will appear automatically once access is back. Your ESPN and Sleeper leagues are unaffected.</span>'
+      generic:'<strong>Yahoo leagues are temporarily offline.</strong> <span class="cf-outage-sub">Conflicted’s connection to Yahoo isn’t loading league data right now. We’re working to restore it, and your Yahoo leagues will come back automatically. Your ESPN and Sleeper leagues are unaffected.</span>',
+      linked:'<strong>Your Yahoo account is linked — leagues are temporarily offline.</strong> <span class="cf-outage-sub">Your sign-in worked and is saved. Conflicted’s connection to Yahoo isn’t loading league data right now — your leagues will appear automatically once it’s back. Your ESPN and Sleeper leagues are unaffected.</span>'
     };
     var mode='generic';
     window.cfYahooBannerMode=function(next){
@@ -6932,15 +6937,34 @@ function mpGameNotStarted(team){
    projection, when the game isn't positively 'pre' (mpGameNotStarted's historic
    guard applies), or when points have somehow already posted. Returns
    {txt, proj:boolean}. Shared by the render and BOTH live-patch loops. */
+/* Is this player's team on a BYE this week? (Matt, 2026-10-07.) Claims a bye
+   ONLY on positive knowledge: the live week's ESPN slate is loaded (its key
+   matches the active season-week and it has games in it) and the team -- under
+   either spelling, via __cfGameState's alias fallback -- has no game in it.
+   Historic weeks never say BYE: the slate maps describe TODAY's slate, not the
+   past week's (same isHist guard as mpGameNotStarted). No team / FA -> false. */
+function mpTeamOnBye(team){
+  if(!team||String(team).toUpperCase()==='FA')return false;
+  try{
+    const d=window.__conflictedLastData;
+    if(d&&d.isHist)return false;
+    if(!nflGameStates||nflGameStates.size<2)return false;
+    if(nflGameStatesKey!==`${activeSeason}-${activeWeek}`)return false;
+    return window.__cfGameState(team)==null;
+  }catch(e){return false;}
+}
+window.mpTeamOnBye=mpTeamOnBye;
 function mpPtsCell(pts, preMap, pid, team){
   const f=v=>(v==null||isNaN(+v))?'\u2014':(+v).toFixed(2);
   try{
     const pr=preMap&&pid!=null?preMap[pid]:null;
     const hasPr=pr!=null&&pr!==''&&isFinite(+pr);
     const banked=pts!=null&&isFinite(+pts)&&+pts!==0;
-    if(hasPr&&!banked&&mpGameNotStarted(team))return {txt:f(pr),proj:true};
+    if(hasPr&&!banked&&mpGameNotStarted(team))return {txt:f(pr),proj:true,bye:false};
+    /* Bye week: BYE instead of 0.00 -- unless points somehow exist, which win. */
+    if(!banked&&mpTeamOnBye(team))return {txt:'BYE',proj:false,bye:true};
   }catch(e){}
-  return {txt:f(pts),proj:false};
+  return {txt:f(pts),proj:false,bye:false};
 }
 window.mpPtsCell=mpPtsCell;
 /* Is this player's game in progress right now? Parallel to mpGameNotStarted --
@@ -9036,7 +9060,8 @@ function updateOpenMatchupDrawer(ctx, dataStatus, stCls, stTxt){
     const cell = mpPtsCell(pts, side === 'my' ? myPre : oppPre, pid, span.getAttribute('data-mp-team') || '');
     span.textContent = cell.txt;
     span.classList.toggle('matchup-drawer__player-pts--proj', cell.proj);
-    if (cell.proj) span.setAttribute('title', 'Projected'); else span.removeAttribute('title');
+    span.classList.toggle('matchup-drawer__player-pts--bye', !!cell.bye);
+    if (cell.proj) span.setAttribute('title', 'Projected'); else if (cell.bye) span.setAttribute('title', 'Bye week'); else span.removeAttribute('title');
     /* Kickoff is the ONLY thing that un-greys a number, and it flips DURING an
        open drawer (1pm slate kicks off while the user is staring at it), so it
        has to be re-evaluated on every patch -- not just at render. data-mp-team
@@ -9174,8 +9199,8 @@ function renderMatchupDrawer(ctx, lg){
     /* Before kickoff: the pregame projection (greyed by --pre) instead of 0.00. */
     const cell = mpPtsCell(pts, side === 'my' ? myPre : oppPre, pid, p.team);
     const ptsStr = cell.txt;
-    const projCls = cell.proj ? ' matchup-drawer__player-pts--proj' : '';
-    const projTitle = cell.proj ? ' title="Projected"' : '';
+    const projCls = (cell.proj ? ' matchup-drawer__player-pts--proj' : '') + (cell.bye ? ' matchup-drawer__player-pts--bye' : '');
+    const projTitle = cell.proj ? ' title="Projected"' : (cell.bye ? ' title="Bye week"' : '');
     /* Dim ONLY before kickoff -- see the CSS note. A 0.00 after kickoff is a
        real, earned zero and stays white. */
     const preCls = mpGameNotStarted(p.team) ? ' matchup-drawer__player-pts--pre' : '';
@@ -23723,7 +23748,8 @@ if(typeof window.cfRegisterView==='function'){
         var cell=(typeof mpPtsCell==='function')?mpPtsCell(pts,side==='my'?myPre:oppPre,pid,span.getAttribute('data-mp-team')||''):{txt:fmtPts(pts),proj:false};
         span.textContent=cell.txt;
         span.classList.toggle('matchup-drawer__player-pts--proj',cell.proj);
-        if(cell.proj)span.setAttribute('title','Projected');else span.removeAttribute('title');
+        span.classList.toggle('matchup-drawer__player-pts--bye',!!cell.bye);
+        if(cell.proj)span.setAttribute('title','Projected');else if(cell.bye)span.setAttribute('title','Bye week');else span.removeAttribute('title');
         span.classList.toggle('matchup-drawer__player-pts--pre',(typeof mpGameNotStarted==='function')&&mpGameNotStarted(span.getAttribute('data-mp-team')||''));
         span.classList.toggle('matchup-drawer__player-pts--live',(typeof mpGameLive==='function')&&mpGameLive(span.getAttribute('data-mp-team')||''));
       });
