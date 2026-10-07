@@ -10423,7 +10423,7 @@ function parseYahooLeagues(json, season) {
         if (lm.game_code && lm.game_code !== 'nfl') return;
         const lgSeason = String(lm.season || gameSeason);
         if (season && lgSeason !== String(season)) return;
-        out.push({ league_key: lm.league_key, name: lm.name, season: lgSeason, scoring_type: lm.scoring_type || '', current_week: parseInt(lm.current_week) || null, start_week: parseInt(lm.start_week) || 1, end_week: parseInt(lm.end_week) || 17, is_finished: lm.is_finished === 1 || lm.is_finished === '1', renew: lm.renew || '', renewed: lm.renewed || '' });
+        out.push({ league_key: lm.league_key, name: lm.name, season: lgSeason, scoring_type: lm.scoring_type || '', current_week: parseInt(lm.current_week) || null, start_week: parseInt(lm.start_week) || 1, end_week: parseInt(lm.end_week) || 17, is_finished: lm.is_finished === 1 || lm.is_finished === '1', renew: lm.renew || '', renewed: lm.renewed || '', draft_status: String(lm.draft_status || '').toLowerCase() });
       });
     });
   });
@@ -10583,9 +10583,11 @@ async function loadYahooLeague(yLeague, week, isHist) {
   let opponentTeamKey = null, myPoints = 0, oppPoints = 0, myProjPts = 0, oppProjPts = 0;
   let hasMatchup = false, leagueState = 'NO_MATCHUP', myTeamName = null, oppTeamName = null;
   let allMatchupsY = null;
+  let sbOk = false, sbCount = 0, myRosterOk = false, myRosterCount = 0;
   try {
     const sbJson = await yhFetch('endpoint=scoreboard&league_key=' + encodeURIComponent(yLeague.league_key) + '&week=' + week);
     const matchups = parseYahooScoreboard(sbJson);
+    sbOk = true; sbCount = matchups.length;
     allMatchupsY = ((typeof cfIsLSUser==='function'&&cfIsLSUser()&&typeof cfYahooAllMatchups==='function')?cfYahooAllMatchups(matchups,myTeamKey,isHist):null);
     const myMatchup = matchups.find(m => m.teams.some(t => t.team_key === myTeamKey));
     if (myMatchup) {
@@ -10605,6 +10607,7 @@ async function loadYahooLeague(yLeague, week, isHist) {
   try {
     const myRosterJson = await yhFetch('endpoint=roster_stats&team_key=' + encodeURIComponent(myTeamKey) + '&week=' + week);
     const myRoster = parseYahooRoster(myRosterJson); myPP = parseYahooRosterStats(myRosterJson);
+    myRosterOk = true; myRosterCount = myRoster.length;
     const starters = myRoster.filter(p => p.isStarter); myPlayers = starters.length ? starters : myRoster;
     myBench = starters.length ? myRoster.filter(p => !p.isStarter) : [];
   } catch (e) { console.warn('Yahoo my roster failed for', yLeague.name, e.message); }
@@ -10615,6 +10618,16 @@ async function loadYahooLeague(yLeague, week, isHist) {
       const starters = oppRoster.filter(p => p.isStarter); oppPlayers = starters.length ? starters : oppRoster;
       oppBench = starters.length ? oppRoster.filter(p => !p.isStarter) : [];
     } catch (e) { console.warn('Yahoo opp roster failed for', yLeague.name, e.message); }
+  }
+  /* EMPTY-SHELL GATE (2026-10-07) — backstop for the draft_status gate in
+     PROVIDERS.yahoo.loadLeagues, for a dead league Yahoo doesn't tag 'predraft'.
+     Drop ONLY when both fetches SUCCEEDED and came back empty (zero matchups on
+     the scoreboard AND zero players on my roster) during a live regular-season
+     week. A failed fetch never drops a league — a transient Yahoo blip must not
+     make a real league vanish. */
+  if (!isHist && !liveOffseason && String(yLeague.season) === String(liveSeason)
+      && sbOk && sbCount === 0 && myRosterOk && myRosterCount === 0) {
+    return { result: null, ctx: null, debug: { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: false, matchupFound: false, myCount: 0, oppCount: 0, state: 'DORMANT', scoringFmt: fmt, isCoMgr } };
   }
   /* STRICT LOCK (locked-state-spec.md). Unlike the projection test it replaced,
      this needs per-player game states and points, which only exist AFTER both
@@ -10716,6 +10729,22 @@ async function __settleSelfHeal(){
   const builtFor=p.__builtFor;
   if(builtFor!=null&&builtFor!==__reqSigNow())return loadData();
   return res;
+}
+function cfDisambiguateLeagueNames(results,contexts){
+  const plats=new Map(); // name -> Set(platform)
+  (results||[]).forEach(r=>{if(!r||!r.leagueName)return;if(!plats.has(r.leagueName))plats.set(r.leagueName,new Set());plats.get(r.leagueName).add(r.platform||'?');});
+  const dup=new Set();plats.forEach((set,nm)=>{if(set.size>1)dup.add(nm);});
+  if(!dup.size)return;
+  const lbl=pid=>{try{return (PROVIDERS[pid]&&PROVIDERS[pid].displayName)||pid;}catch(e){return pid;}};
+  const fix=o=>{
+    if(!o||!dup.has(o.leagueName))return;
+    const orig=o.leagueName,nn=orig+' ('+lbl(o.platform)+')';
+    o.originalLeagueName=orig;o.leagueName=nn;
+    /* League Scores drawers were built inside the provider with the original
+       name — carry the new name into their ctx/lg so drawer titles match. */
+    try{const am=o.allMatchups;if(am&&typeof am==='object')Object.keys(am).forEach(k=>{const arr=am[k];if(Array.isArray(arr))arr.forEach(it=>{const d=it&&it.drawer;if(!d)return;if(d.ctx&&d.ctx.leagueName===orig)d.ctx.leagueName=nn;if(d.lg&&d.lg.leagueName===orig)d.lg.leagueName=nn;});});}catch(e){}
+  };
+  (results||[]).forEach(fix);(contexts||[]).forEach(fix);
 }
 async function loadData(){
   if(!isAnyProviderConnected()){
@@ -10835,6 +10864,16 @@ async function loadData(){
       valid=valid.filter(r=>!__reqDisabled.has(leagueKey(r.platform,r.leagueName)));
       leagueContexts=leagueContexts.filter(c=>!__reqDisabled.has(leagueKey(c.platform,c.leagueName)));
     }
+    /* SAME-NAME LEAGUES ACROSS PLATFORMS (2026-10-07). Nearly every board
+       surface keys a league by its display name (score cells, contexts lookup,
+       matchup drawer, colors, hidden set, priority tiers), so a Sleeper league
+       and a Yahoo league both called "X" collapsed into ONE tile — the later
+       provider overwrote the earlier one. Suffix the platform onto the display
+       name of every cross-platform collision, on results AND contexts (both
+       carry .platform). Runs AFTER the global-exclude filter so account keys
+       (platform|originalName) are untouched; the Account view's league list
+       (seen, above) keeps original names with its own platform badge. */
+    cfDisambiguateLeagueNames(valid,leagueContexts);
     /* Leagues existed for this period but the global-exclude filtered them ALL
        out → the empty board is a user choice, not a missing-data situation. */
     const allDisabled=rawValidCount>0&&valid.length===0&&__reqDisabled.size>0;
@@ -12953,7 +12992,16 @@ const PROVIDERS={
       let leaguesJson;
       try{leaguesJson=await yhFetch('endpoint=leagues&season='+encodeURIComponent(season));}
       catch(e){console.warn('Yahoo leagues fetch failed:',e.message);return{results:[],contexts:[],debugLeagues:[]};}
-      const yLeagues=parseYahooLeagues(leaguesJson,season);
+      let yLeagues=parseYahooLeagues(leaguesJson,season);
+      /* DORMANT LEAGUE GATE (2026-10-07). A Yahoo league that was carried into
+         the new season but never drafted (e.g. the group moved to Sleeper) still
+         lists under this season with draft_status 'predraft' — no rosters, no
+         matchups. Once the NFL regular season is live it can never become
+         active, so drop it before any per-league fetch. Current season only;
+         preseason keeps it (the draft may still be ahead). */
+      if(!isHist&&String(season)===String(liveSeason)&&!liveOffseason){
+        yLeagues=yLeagues.filter(yl=>yl.draft_status!=='predraft');
+      }
       if(!yLeagues.length)return{results:[],contexts:[],debugLeagues:[]};
       const out=await Promise.all(yLeagues.map(yl=>loadYahooLeague(yl,week,isHist).catch(e=>{console.warn('Yahoo league failed:',yl.name,e.message);return null;})));
       const results=[],contexts=[],debugLeagues=[];
