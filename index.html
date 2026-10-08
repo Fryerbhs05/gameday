@@ -9938,6 +9938,7 @@ function cfPendRepaint(){
       if(node._cardHash!==inner){ node.innerHTML=inner; node._cardHash=inner; }
     });
   }catch(e){}
+  try{ if(window.__cfManiacOpen&&typeof window.__cfManiacPendRepaint==='function') window.__cfManiacPendRepaint(); }catch(e){}
 }
 /* Released to ALL users (sw v306, Matt 2026-09-27) — was admin-only since v277. */
 function cfPendingEnabled(){ return true; }
@@ -9955,6 +9956,9 @@ function cfPendingActive(){
   try{ if(isHistoricalWeek()) return false; }catch(e){ return false; }
   for(const v of cfPendState.values()){ if(v.label) return true; }
   if(!anyGameInProgress()) return false;
+  /* Maniac Mode shows Points Pending on its center rows + player drawer, so it
+     needs the pull whenever any rostered player is in a live game. */
+  if(window.__cfManiacOpen){ try{ const d=window.__conflictedLastData; return !!(d&&Array.isArray(d.allRostered)&&d.allRostered.some(isPlayerLive)); }catch(e){ return false; } }
   try{ if(!isDashboardVisible()) return false; }catch(e){ return false; }
   try{ return !!document.querySelector('#columns .player-card[data-live="1"]'); }catch(e){ return false; }
 }
@@ -10027,6 +10031,22 @@ function cfPendingFor(player,isHist){
   s.label=cfPendLabel(sum);
   return s.label;
 }
+
+/* Maniac Mode (2026-10-08): the SAME Points Pending engine as the Loyalties cards,
+   read per league. cfPendingFor runs first (idempotent) so the state machine
+   advances exactly as it does on the card; the label then covers only the plays
+   THIS league still owes, so a league whose points already landed shows nothing. */
+window.cfPendingForPlayer=function(p){ try{ return cfPendingFor(p,false); }catch(e){ return ''; } };
+window.cfPendingForLeague=function(player,lgName){
+  try{
+    if(!cfPendingFor(player,false)) return '';
+    const s=cfPendState.get(activeSeason+'|'+activeWeek+'|'+String(player.id));
+    if(!s||!s.ev) return '';
+    const owed=s.ev.filter(e=>e.lg.has(lgName)); if(!owed.length) return '';
+    const sum={}; CF_PEND_TRACK.forEach(k=>{ sum[k]=owed.reduce((a,e)=>a+e.d[k],0); });
+    return cfPendLabel(sum);
+  }catch(e){ return ''; }
+};
 
 function buildCardInner(player,isHist){
   const lpd=player.leaguePoints||{},hasAnyPts=Object.keys(lpd).length>0;
@@ -11702,6 +11722,8 @@ function cfDrawerPrefetch(){
      instant as the points. Returns its promise so the sync can let it land. */
   let p=null;
   try{ if(cfPendingActive()) p=fetchWeekStats(activeSeason,activeWeek,{fresh:true}); }catch(e){}
+  /* Maniac Mode's player drawer: pull with the points so its box score repaints on the same sync. */
+  try{ if(!p&&window.__cfManiacOpen&&typeof window.__cfManiacWantsStats==='function'&&window.__cfManiacWantsStats()&&!isHistoricalWeek()) p=fetchWeekStats(activeSeason,activeWeek,{fresh:true}); }catch(e){}
   try{ if(typeof window.cfPlayerDrawerPrefetch==='function') window.cfPlayerDrawerPrefetch(); }catch(e){}
   return p;
 }
@@ -25291,6 +25313,17 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .fl-up::after{border:2px solid var(--flash-up);background:color-mix(in oklab,var(--flash-up) 16%,transparent)}
 #cfm .fl-dn::after{border:2px solid var(--flash-down);background:color-mix(in oklab,var(--flash-down) 16%,transparent)}
 @keyframes cfmFlash{0%{opacity:1}100%{opacity:0}}
+#cfm .cfm-rc{position:relative}
+/* Grey slot alternates: +/- change badge, Points Pending line (Loyalties look) */
+#cfm .cfm-pc .pj .dl{font-weight:700}
+#cfm .cfm-pc .pj .dl.up{color:var(--flash-up)}#cfm .cfm-pc .pj .dl.dn{color:var(--flash-down)}
+#cfm.is-open .cfm-pc .pj.dlt{display:inline}
+#cfm .cfm-pc .pj.pend{--pend-cyc-period:10s;display:grid;justify-items:end;color:var(--live-ice);font:600 var(--t2xs) var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+#cfm .cfm-pc.opp .pj.pend{justify-items:start}
+#cfm .cfm-pc.pend .pt{color:var(--live-ice)}
+#cfm .cfm-pend-line{--pend-cyc-period:10s;margin-left:auto;display:grid;justify-items:end;color:var(--live-ice);font:600 var(--t2xs) var(--font-mono);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+#cfm .cfm-pl .r.pend b{color:var(--live-ice)}
+@container cfmhero (max-width:560px){#cfm .cfm-pc .pj.pend{display:none}}
 #cfm .cfm-key{display:flex;justify-content:center;gap:16px;margin-top:10px;font-size:var(--t2xs);color:var(--ink-500);font-weight:600;flex-wrap:wrap}
 #cfm .cfm-key span{display:inline-flex;align-items:center;gap:6px}
 #cfm .cfm-key .sw{width:22px;height:12px;border-radius:3px;background:var(--tile-bg);border:1px solid var(--tile-line)}
@@ -25442,7 +25475,12 @@ body.cf-maniac-lock{overflow:hidden}
      • __cfSnapshotRows      Weekend Snapshot win-% model (same numbers both screens)
      • __cfGameState         pre / in / post per NFL team
      • cfPlayerBoxHTML       the Loyalties box score, rendered into our side drawer
-   Repainted by renderBoard() on every poll (initial + 30s live). Settings are per
+     • cfPendingForLeague    Points Pending (same engine as the Loyalties cards)
+   Repainted by renderBoard() on every poll (initial + 30s live).
+   POINT CHANGES (2026-10-08): every poll diffs EVERY visible league's lineup,
+   not just the center one. A changed row flashes + shows a +/- badge the next
+   time its league is in the center (badge lives max(30s, rotate) once seen, or
+   3 min if never seen); the matchup card on the left flashes on the poll. Settings are per
    device (localStorage). "Yours"/"Theirs" never appear anywhere on this screen. */
 (function(){
   'use strict';
@@ -25450,7 +25488,8 @@ body.cf-maniac-lock{overflow:hidden}
   var root=null, ticker=null, wake=null, chromeT=null;
   var P=loadPrefs();                 // persisted per device
   var S={hero:null, heroAt:0, lastHero:null, sheet:null, rootF:'all', rootB:'all',
-         renderedAt:0, prevPts:{}, nextPts:{}, flashes:{}, cells:{}, boxAt:0};
+         renderedAt:0, wk:'', last:{}, chg:{}, railFl:{}, cells:{}};
+  var FLASH_MS=1600;
 
   function loadPrefs(){
     var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, panels:{rail:true,side:true}};
@@ -25569,7 +25608,50 @@ body.cf-maniac-lock{overflow:hidden}
     return {my:my, op:op, myP:myP, opP:opP, hasProj:hasProj, wpTxt:wpTxt, wpCls:wpCls, wpBar:wpBar, mt:mt, mc:mc, mq:mq};
   }
 
-  /* One player cell for the center lineup. side: 'me' | 'opp'. */
+  /* Point-change tracker. Runs on every poll render over EVERY visible league
+     (the old version only diffed the center matchup, so on rotate with 4+
+     leagues a change was never on screen when it landed). Keyed league|side|player.
+     A missing points entry is skipped, never read as 0, so a transient fetch
+     miss can't fake a drop and a rebound. */
+  function chgAlive(c,now){ return c.seen?(now-c.seen<Math.max(30,P.rotateSec)*1000):(now-c.t<180000); }
+  function trackChanges(){
+    if(!M||M.status!=='ok')return;
+    var wk=''; try{ wk=String((window.getActiveSeason&&window.getActiveSeason())||'')+'-'+String((window.getActiveWeek&&window.getActiveWeek())||''); }catch(e){}
+    if(wk!==S.wk){ S.wk=wk; S.last={}; S.chg={}; S.railFl={}; }
+    var now=Date.now();
+    M.vis.forEach(function(n){
+      var L=M.leagues[n], c=L.ctx, net=0, moved=false;
+      [['me',L.lg.myPlayers||[],c.myPP||{}],['opp',L.solo?[]:(L.lg.oppPlayers||[]),c.oppPP||{}]].forEach(function(sd){
+        sd[1].forEach(function(raw){
+          var nn=norm(raw); if(!nn||sd[2][nn.pid]==null)return;
+          var pts=+sd[2][nn.pid], fk=n+'|'+sd[0]+'|'+nn.key, last=S.last[fk];
+          S.last[fk]=pts;
+          if(last==null||Math.abs(pts-last)<=0.004)return;
+          var d=pts-last, ex=S.chg[fk];
+          net+=d*(sd[0]==='me'?1:-1); moved=true;
+          if(ex&&chgAlive(ex,now))d+=ex.d;           // two polls inside one window: show the combined move
+          if(Math.abs(d)<=0.004){ delete S.chg[fk]; return; }
+          S.chg[fk]={t:now,d:d,seen:0};
+        });
+      });
+      if(moved&&Math.abs(net)>0.004)S.railFl[n]={t0:now,up:net>0};
+    });
+    Object.keys(S.chg).forEach(function(k){ if(!chgAlive(S.chg[k],now))delete S.chg[k]; });
+    /* Points Pending: advance the shared engine for every player on the board each
+       sync, the same cadence the Loyalties cards get (idempotent per sync). */
+    if(typeof window.cfPendingForPlayer==='function')M.pool.forEach(function(p){
+      if(p&&((p.myLeagues||[]).length||(p.againstLeagues||[]).length))window.cfPendingForPlayer(p);
+    });
+  }
+  function pendCyc(label){
+    var ad=' style="animation-delay:-'+(Date.now()%10000)+'ms"';   // one shared 10s phase, survives re-renders
+    return '<span class="cf-pend-cyc cf-pend-cyc--stat"'+ad+'>'+esc(label)+'</span><span class="cf-pend-cyc cf-pend-cyc--note"'+ad+'>Pending points</span>';
+  }
+
+  /* One player cell for the center lineup. side: 'me' | 'opp'.
+     Grey slot priority: Points Pending line > +/- change badge > projection.
+     Projection = pregame projection until kickoff, then the live projected
+     final (same number as the Loyalties PROJ column); hidden once final / bye. */
   function cellHTML(raw,L,side,M){
     if(raw==null) return '<div class="cfm-pc '+side+' empty"></div>';
     var n=norm(raw), c=L.ctx, pp=(side==='me'?c.myPP:c.oppPP)||{};
@@ -25579,19 +25661,30 @@ body.cf-maniac-lock{overflow:hidden}
     var state=gs(team); var bye=!state&&onBye(team);
     var stCls=bye?'st-bye':(state==='in'?'st-in':state==='post'?'st-post':state==='pre'?'st-pre':'st-unk');
     var lp=rp&&rp.leaguePoints&&rp.leaguePoints[L.name];
-    var proj=(lp&&lp.proj!=null)?+lp.proj:null;
-    var pjTxt=(state==='post'||bye||proj==null)?'':f2(proj);
+    var preMap=(side==='me'?c.myPreProj:c.oppPreProj)||{}, proj=null;
+    if(state==='pre') proj=preMap[n.pid]!=null?+preMap[n.pid]:((lp&&lp.proj!=null)?+lp.proj:null);
+    else if(state!=='post'&&!bye) proj=(lp&&lp.proj!=null)?+lp.proj:null;
     var ptTxt=bye?'BYE':f2(pts);
-    /* Point-change flash: compare to the last render. Color = what it means for
-       the matchup's left side (a gain on the right side is bad news). */
-    var fk=L.name+'|'+side+'|'+n.key, prev=S.prevPts[fk], fl='';
-    if(prev!=null&&Math.abs(prev-pts)>0.004){ S.flashes[fk]={t0:Date.now(), d:(pts-prev)*(side==='me'?1:-1)}; }
-    S.nextPts[fk]=pts;
-    if(!rp)S.cells[n.key]={id:n.key,full_name:name,position:pos,team:team,myLeagues:[],againstLeagues:[],leaguePoints:{}};
-    var f=S.flashes[fk]; if(f){ var el=Date.now()-f.t0; if(el<1600)fl=' '+(f.d>0?'fl-up':'fl-dn')+'" style="--fd:-'+el+'ms'; else delete S.flashes[fk]; }
-    return '<button type="button" class="cfm-pc '+side+' '+stCls+fl+'" data-cfm-player="'+esc(n.key)+'">'
+    /* No rooting-pool match: keep a stub that still knows its league and side,
+       so the drawer labels it correctly instead of an empty "Enemy". */
+    if(!rp){
+      var sb=S.cells[n.key]||(S.cells[n.key]={id:n.key,full_name:name,position:pos,team:team,myLeagues:[],againstLeagues:[],leaguePoints:{}});
+      var ls=side==='me'?sb.myLeagues:sb.againstLeagues; if(ls.indexOf(L.name)<0)ls.push(L.name);
+      sb.leaguePoints[L.name]={pts:pts,proj:proj};
+    }
+    var pend=(rp&&(state==='in'||state==='post')&&typeof window.cfPendingForLeague==='function')?window.cfPendingForLeague(rp,L.name):'';
+    var fk=L.name+'|'+side+'|'+n.key, ch=S.chg[fk], now=Date.now(), fl='', sty='', pj='', pjCls='pj';
+    if(ch&&chgAlive(ch,now)){
+      if(!ch.seen)ch.seen=now;                        // first time this change is in the center
+      var good=ch.d*(side==='me'?1:-1)>0, el=now-ch.seen;
+      if(el<FLASH_MS){ fl=' '+(good?'fl-up':'fl-dn'); sty=' style="--fd:-'+el+'ms"'; }
+      pj='<span class="dl '+(good?'up':'dn')+'">'+(ch.d>0?'+':'−')+f2(Math.abs(ch.d))+'</span>'; pjCls='pj dlt';
+    }
+    if(pend){ pj=pendCyc(pend); pjCls='pj pend'; }
+    else if(!pj) pj=proj==null?'':f2(proj);
+    return '<button type="button" class="cfm-pc '+side+' '+stCls+(pend?' pend':'')+fl+'"'+sty+' data-cfm-player="'+esc(n.key)+'"'+(pend?' aria-label="'+esc(name+', '+pend+', points pending')+'"':'')+'>'
       +'<span class="nmw"><span class="fu">'+esc(name)+'</span><span class="ab">'+esc(shortName(name,pos,team))+'</span></span>'
-      +'<span class="pj" title="Projected">'+pjTxt+'</span>'
+      +'<span class="'+pjCls+'"'+(pjCls==='pj'?' title="Projected"':'')+'>'+pj+'</span>'
       +'<span class="pt">'+ptTxt+'</span></button>';
   }
 
@@ -25651,9 +25744,8 @@ body.cf-maniac-lock{overflow:hidden}
     root.style.setProperty('--cfm-breath',-(Date.now()%5000)+'ms');
     applyLayout();
     M=buildModel();
-    S.nextPts={};
+    trackChanges();
     renderTop(); renderRail(); renderHero(); renderRoot();
-    S.prevPts=S.nextPts;
     if(S.sheet&&S.sheet.indexOf('p:')===0)renderSheet(true);
     else if(S.sheet==='settings')renderSheet();
   }
@@ -25662,6 +25754,14 @@ body.cf-maniac-lock{overflow:hidden}
     var el=$('#cfm-fresh'); if(el){ el.classList.remove('synced-flash'); void el.offsetWidth; el.classList.add('synced-flash'); setTimeout(function(){ el.classList.remove('synced-flash'); },200); }
     render();
   };
+  /* A stats pull just landed (cfPendRepaint): re-check Points Pending on the
+     center rows and the open drawer's league rows without waiting for the poll. */
+  window.__cfManiacPendRepaint=function(){
+    if(!root||!window.__cfManiacOpen||!M||M.status!=='ok')return;
+    renderHero();
+    if(S.sheet&&S.sheet.indexOf('p:')===0){ var p=findPlayer(S.sheet.slice(2)), b=root.querySelector('#cfm-sheet .cfm-between'); if(p&&b)b.innerHTML=playerBetween(p); }
+  };
+  window.__cfManiacWantsStats=function(){ return !!(window.__cfManiacOpen&&S.sheet&&S.sheet.indexOf('p:')===0); };
 
   function renderTop(){
     var ok=M&&M.status==='ok', up=0, dn=0, onField=0, toPlay=0;
@@ -25696,8 +25796,9 @@ body.cf-maniac-lock{overflow:hidden}
     if(!M||M.status!=='ok'){ el.innerHTML=''; return; }
     if(M.vis.indexOf(S.hero)<0){ S.hero=M.vis[0]; S.heroAt=Date.now(); }
     el.innerHTML=M.vis.map(function(n){
-      var L=M.leagues[n], v=leagueView(L);
-      return '<button type="button" class="cfm-rc'+(n===S.hero?' on':'')+'" data-cfm-hero="'+esc(n)+'">'
+      var L=M.leagues[n], v=leagueView(L), rf=S.railFl[n], rfl='', rsty='';
+      if(rf){ var el=Date.now()-rf.t0; if(el<FLASH_MS){ rfl=' '+(rf.up?'fl-up':'fl-dn'); rsty=' style="--fd:-'+el+'ms"'; } else delete S.railFl[n]; }
+      return '<button type="button" class="cfm-rc'+(n===S.hero?' on':'')+rfl+'"'+rsty+' data-cfm-hero="'+esc(n)+'">'
         +'<span class="nm">'+esc(maskL(n))+'</span>'
         +'<span class="wp '+v.wpCls+'-c">'+esc(v.wpTxt)+'</span>'
         +'<span class="sc"><b>'+f2(v.my)+'</b>'+(L.solo?'':'<span class="dash">–</span><em>'+f2(v.op)+'</em>')+'</span></button>';
@@ -25805,11 +25906,18 @@ body.cf-maniac-lock{overflow:hidden}
     var mine=rows.some(function(r){return r[1]>0;}), theirs=rows.some(function(r){return r[1]<0;});
     var b=mine&&theirs?'x':mine?'c':'e';
     var pre=gs(p.team)==='pre';
-    return '<div class="cfm-bh '+b+' cfm-bk">'+(b==='x'?'Conflicted':b==='c'?'Cheer':'Enemy')+'</div>'
+    /* Points Pending, same as the Loyalties card: the breathing stat / PENDING
+       POINTS line, and the points still owed tint ice — per league, so a league
+       that already paid out reads normally. Rooting-pool players only. */
+    var real=!!(M&&M.byKey&&M.byKey[p.id]===p);
+    var pendAll=(real&&!pre&&typeof window.cfPendingForPlayer==='function')?window.cfPendingForPlayer(p):'';
+    return '<div class="cfm-bh '+b+' cfm-bk">'+(b==='x'?'Conflicted':b==='c'?'Cheer':'Enemy')
+      +(pendAll?'<span class="cfm-pend-line" role="status" aria-label="'+esc(pendAll)+', points pending">'+pendCyc(pendAll)+'</span>':'')+'</div>'
       +'<div class="cfm-pl">'+rows.map(function(r){
         var lp=p.leaguePoints&&p.leaguePoints[r[0]];
         var v=pre?'—':f2(lp?lp.pts:0);
-        return '<div class="r '+(r[1]>0?'me':'op')+'"><span class="nm">'+esc(maskL(r[0]))+'</span><b'+(pre?' class="pre"':'')+'>'+v+'</b></div>';
+        var pl=pendAll&&typeof window.cfPendingForLeague==='function'?window.cfPendingForLeague(p,r[0]):'';
+        return '<div class="r '+(r[1]>0?'me':'op')+(pl?' pend':'')+'"><span class="nm">'+esc(maskL(r[0]))+'</span><b'+(pre?' class="pre"':'')+'>'+v+'</b></div>';
       }).join('')+'</div>';
   }
   function findPlayer(key){
@@ -25824,14 +25932,16 @@ body.cf-maniac-lock{overflow:hidden}
       var p=findPlayer(S.sheet.slice(2));
       if(!p){ sh.innerHTML='<div class="cfm-pbox"><div class="cfm-empty">Player not found.</div></div>'; }
       else if(typeof window.cfPlayerBoxHTML==='function'){
-        var want=S.sheet, fresh=false;
-        if(refresh){ if(Date.now()-S.boxAt<25000&&sh.innerHTML)return; fresh=true; }
-        S.boxAt=Date.now();
-        window.cfPlayerBoxHTML(p,{between:playerBetween(p),fresh:fresh,noLoading:!!refresh},function(html){
+        /* Poll repaint: league rows update NOW from the data already on hand; the
+           box score uses the /stats pull that rode this same sync (cfDrawerPrefetch
+           pulls it whenever this drawer is open), so no second fetch and no throttle. */
+        var want=S.sheet, bw=refresh?sh.querySelector('.cfm-between'):null;
+        if(bw)bw.innerHTML=playerBetween(p);
+        window.cfPlayerBoxHTML(p,{between:'<div class="cfm-between">'+playerBetween(p)+'</div>',noLoading:!!refresh},function(html){
           if(S.sheet!==want)return;
           sh.innerHTML='<div class="cfm-pbox">'+html+'</div>';
         });
-      }else{ sh.innerHTML='<div class="cfm-pbox">'+playerBetween(p)+'</div>'; }
+      }else{ sh.innerHTML='<div class="cfm-pbox"><div class="cfm-between">'+playerBetween(p)+'</div></div>'; }
     }
     sh.classList.add('on'); if(scr)scr.classList.add('on');
   }
@@ -25882,7 +25992,7 @@ body.cf-maniac-lock{overflow:hidden}
     if(a==='next'){ step(1); return; }
     if(a==='pin'){ P.mode=P.mode==='pin'?'rotate':'pin'; S.heroAt=Date.now(); savePrefs(); renderHero(); if(S.sheet==='settings')renderSheet(); return; }
     var h=t.getAttribute('data-cfm-hero'); if(h!=null){ setHero(h); return; }
-    var pk=t.getAttribute('data-cfm-player'); if(pk!=null){ S.sheet=S.sheet==='p:'+pk?null:'p:'+pk; S.boxAt=0; renderSheet(); renderRoot(); try{cfTrack('maniac_player_open',{});}catch(_){} return; }
+    var pk=t.getAttribute('data-cfm-player'); if(pk!=null){ S.sheet=S.sheet==='p:'+pk?null:'p:'+pk; renderSheet(); renderRoot(); try{cfTrack('maniac_player_open',{});}catch(_){} return; }
     var rf=t.getAttribute('data-cfm-rootf'); if(rf){ S.rootF=rf; renderRoot(); return; }
     var rb=t.getAttribute('data-cfm-rootb'); if(rb){ S.rootB=rb; renderRoot(); return; }
     var sk=t.getAttribute('data-cfm-set');
@@ -25955,7 +26065,7 @@ body.cf-maniac-lock{overflow:hidden}
     try{ if(window.BottomSheet&&window.BottomSheet.isOpen())window.BottomSheet.close(); }catch(e){}
     window.__cfManiacOpen=true;
     P=loadPrefs();
-    S.sheet=null; S.heroAt=Date.now(); S.lastHero=null; S.prevPts={}; S.flashes={};
+    S.sheet=null; S.heroAt=Date.now(); S.lastHero=null; S.last={}; S.chg={}; S.railFl={}; S.wk='';
     root.classList.add('is-open');
     document.body.classList.add('cf-maniac-lock');
     try{ if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(function(){}); }catch(e){}
