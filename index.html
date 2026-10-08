@@ -25187,8 +25187,8 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
 
 /* Top bar */
-#cfm .cfm-top{display:flex;align-items:center;gap:10px;padding:10px var(--pad);border-bottom:1px solid var(--line-soft);flex:none}
-#cfm .cfm-wm{height:calc(var(--b)*1.35);width:auto;display:block;flex:none}
+#cfm .cfm-top{display:flex;align-items:center;gap:12px;padding:12px var(--pad);min-height:62px;border-bottom:1px solid var(--line-soft);flex:none}
+#cfm .cfm-wm{height:calc(var(--b)*1.6);width:auto;display:block;flex:none}
 #cfm .cfm-kick{font-size:var(--t2xs);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-500);font-weight:700;white-space:nowrap}
 #cfm .cfm-fresh{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-pill);border:1px solid var(--line);font-size:var(--txs);color:var(--ink-700);white-space:nowrap;transition:background 1.3s var(--ease-out),border-color 1.3s var(--ease-out)}
 #cfm .cfm-fresh.synced-flash{transition:none;background:color-mix(in oklab,var(--live-ice) 16%,transparent);border-color:var(--live-ice)}
@@ -25197,9 +25197,9 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-ledger b{font-family:var(--font-mono);font-weight:700;color:var(--ink-900)}
 #cfm .cfm-ledger .u{color:var(--cheer)}#cfm .cfm-ledger .d{color:var(--enemy)}
 #cfm .cfm-sp{flex:1}
-#cfm .cfm-ctrls{display:flex;align-items:center;gap:6px;transition:opacity .4s}
-#cfm .cfm-ib{height:32px;min-width:32px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius-pill);display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:var(--txs);font-weight:600;color:var(--ink-700)}
-#cfm .cfm-ib svg{width:16px;height:16px}
+#cfm .cfm-ctrls{display:flex;align-items:center;gap:8px;transition:opacity .4s}
+#cfm .cfm-ib{height:40px;min-width:40px;padding:0 12px;border:1px solid var(--line);border-radius:var(--radius-pill);display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:var(--txs);font-weight:600;color:var(--ink-700)}
+#cfm .cfm-ib svg{width:20px;height:20px}
 #cfm .cfm-live{color:var(--cheer);border-color:color-mix(in oklab,var(--cheer) 45%,transparent)}
 #cfm .cfm-live .ldot{width:6px;height:6px;border-radius:50%;background:var(--cheer)}
 #cfm .cfm-live.syncing{opacity:.55}
@@ -25306,6 +25306,12 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-bh{display:flex;align-items:center;gap:8px;margin:10px 2px 6px;font-size:var(--t2xs);font-weight:800;letter-spacing:.14em;text-transform:uppercase}
 #cfm .cfm-bh .n{font-family:var(--font-mono);color:var(--ink-500)}
 #cfm .cfm-bh.x{color:var(--split)}#cfm .cfm-bh.c{color:var(--cheer)}#cfm .cfm-bh.e{color:var(--enemy)}
+#cfm .cfm-pgrp{display:flex;flex-direction:column}
+#cfm .cfm-prow{display:grid;grid-template-columns:30px minmax(0,1fr);align-items:center;column-gap:6px}
+#cfm .cfm-prow.first:not(:first-child){margin-top:4px;padding-top:6px;border-top:1px solid var(--line-soft)}
+#cfm .cfm-pos{font:700 var(--t2xs) var(--font-mono);letter-spacing:.06em;color:var(--ink-500);text-align:left;align-self:center}
+#cfm.compact .cfm-prow{grid-template-columns:24px minmax(0,1fr);column-gap:4px}
+#cfm.compact .cfm-prow.first:not(:first-child){margin-top:2px;padding-top:4px}
 #cfm .cfm-rr{position:relative;display:block;width:100%;text-align:left;padding:6px 10px;margin-bottom:3px;border-radius:var(--radius-md);background:var(--tile-bg);border:1px solid var(--tile-line)}
 #cfm .cfm-rr.b-x{border-left:3px solid var(--split)}#cfm .cfm-rr.b-c{border-left:3px solid var(--cheer)}#cfm .cfm-rr.b-e{border-left:3px solid var(--enemy)}
 #cfm .cfm-rr .nm{display:block;font-weight:700;font-size:var(--tsm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -25322,6 +25328,8 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-pbox{padding:16px}
 #cfm .cfm-sh-h{display:flex;align-items:center;gap:8px;padding:14px 16px 6px;position:sticky;top:0;background:var(--paper-soft);z-index:1}
 #cfm .cfm-sh-h h3{margin:0;font-size:var(--tlg);font-weight:800;flex:1}
+#cfm .cfm-exit{width:100%;padding:10px 12px;border-radius:var(--radius-md);border:1px solid var(--line);font-size:var(--tsm);font-weight:700;color:var(--ink-900);text-align:center}
+#cfm .cfm-exit:hover{background:var(--tile-bg)}
 #cfm .cfm-grp{padding:16px 16px 6px;font-size:var(--tsm);font-weight:800;color:var(--navy-700)}
 #cfm .cfm-sec{padding:10px 16px;border-top:1px solid var(--line-soft)}
 #cfm .cfm-grp+.cfm-sec{border-top:0}
@@ -25372,10 +25380,11 @@ body.cf-maniac-lock{overflow:hidden}
 /* Compact tier: phones turned sideways (height is the constraint) */
 #cfm.compact{--b:13px;--pad:8px}
 #cfm.compact.tx-lg,#cfm.compact.wall{--b:14px}
-#cfm.compact .cfm-top{padding:5px var(--pad);gap:8px}
-#cfm.compact .cfm-wm{height:16px}
+#cfm.compact .cfm-top{padding:6px var(--pad);gap:8px;min-height:48px}
+#cfm.compact .cfm-wm{height:19px}
 #cfm.compact .cfm-kick,#cfm.compact .cfm-ledger .lf,#cfm.compact .cfm-ib .wl{display:none}
-#cfm.compact .cfm-ib{height:28px;min-width:28px;padding:0 8px}
+#cfm.compact .cfm-ib{height:36px;min-width:36px;padding:0 9px}
+#cfm.compact .cfm-ib svg{width:18px;height:18px}
 #cfm.compact .cfm-fresh{padding:3px 8px}
 #cfm.compact .cfm-rail{width:164px}
 #cfm.compact .cfm-ph{padding:7px 9px 5px}
@@ -25597,7 +25606,6 @@ body.cf-maniac-lock{overflow:hidden}
       +    '<button type="button" class="cfm-ib cfm-live" data-cfm="live" title="Refresh now"><span class="ldot"></span>LIVE</button>'
       +    '<button type="button" class="cfm-ib" data-cfm="wall" title="Wall mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span class="wl">Wall</span></button>'
       +    '<button type="button" class="cfm-ib" data-cfm="settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>'
-      +    '<button type="button" class="cfm-ib" data-cfm="exit" title="Exit Maniac Mode" aria-label="Exit Maniac Mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
       +  '</span>'
       +'</header>'
       +'<div class="cfm-main">'
@@ -25734,10 +25742,17 @@ body.cf-maniac-lock{overflow:hidden}
       var mine=(p.myLeagues||[]).filter(function(n){return vis[n];});
       var theirs=(p.againstLeagues||[]).filter(function(n){return vis[n];});
       if(!mine.length&&!theirs.length)return;
-      out.push({p:p, mine:mine, theirs:theirs, b:(mine.length&&theirs.length)?'x':mine.length?'c':'e', st:gs(p.team)});
+      out.push({p:p, mine:mine, theirs:theirs, b:(mine.length&&theirs.length)?'x':mine.length?'c':'e', st:gs(p.team), pos:posKey(p)});
     });
     return out;
   }
+  var POS_ORDER=['QB','RB','WR','TE','DEF','K'];
+  function posKey(p){
+    var x=String((p&&p.position)||'').toUpperCase().split(/[,\/]/)[0].trim();
+    if(x==='DST'||x==='D/ST')return 'DEF'; if(x==='PK')return 'K'; if(x==='FB')return 'RB';
+    return x||'—';
+  }
+  function posRank(x){ var i=POS_ORDER.indexOf(x); return i<0?POS_ORDER.length:i; }
   function renderRoot(){
     var ctl=$('#cfm-rootctl'), el=$('#cfm-root'); if(!el)return;
     if(ctl)ctl.innerHTML='<div class="cfm-seg">'+[['all','All'],['live','On the field'],['pre','Yet to play']].map(function(x){return '<button type="button" class="'+(S.rootF===x[0]?'on':'')+'" data-cfm-rootf="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div>'
@@ -25755,12 +25770,18 @@ body.cf-maniac-lock{overflow:hidden}
     function sec(b,title){
       if(S.rootB!=='all'&&S.rootB!==b)return '';
       var rows=list.filter(function(r){return r.b===b;}); if(!rows.length)return '';
-      return '<div class="cfm-bh '+b+'">'+title+' <span class="n">'+rows.length+'</span></div>'
-        +rows.map(function(r){
-          var open=S.sheet==='p:'+r.p.id?' open':'';
-          var st=r.st==='in'?'st-in':r.st==='post'?'st-post':r.st==='pre'?'st-pre':'st-unk';
-          return '<button type="button" class="cfm-rr b-'+b+' '+st+open+'" data-cfm-player="'+esc(r.p.id)+'"><span class="nm">'+esc(r.p.full_name||'Player')+'</span></button>';
-        }).join('');
+      /* Position runs (QB, RB, WR, TE, DEF, K): label shown once in the left
+         gutter, hairline between runs. Within a run: live, not started, final. */
+      rows.sort(function(x,y){ return (posRank(x.pos)-posRank(y.pos))||0; });
+      var html='<div class="cfm-bh '+b+'">'+title+' <span class="n">'+rows.length+'</span></div><div class="cfm-pgrp">', last=null;
+      rows.forEach(function(r){
+        var open=S.sheet==='p:'+r.p.id?' open':'';
+        var st=r.st==='in'?'st-in':r.st==='post'?'st-post':r.st==='pre'?'st-pre':'st-unk';
+        var first=r.pos!==last; last=r.pos;
+        html+='<div class="cfm-prow'+(first?' first':'')+'"><span class="cfm-pos">'+(first?esc(r.pos):'')+'</span>'
+          +'<button type="button" class="cfm-rr b-'+b+' '+st+open+'" data-cfm-player="'+esc(r.p.id)+'"><span class="nm">'+esc(r.p.full_name||'Player')+'</span></button></div>';
+      });
+      return html+'</div>';
     }
     var html=sec('x','Conflicted')+sec('c','Cheer')+sec('e','Enemy');
     el.innerHTML=html||'<div class="cfm-empty">No one matches.</div>';
@@ -25812,6 +25833,7 @@ body.cf-maniac-lock{overflow:hidden}
     var order=(M&&M.order)||P.order||[];
     var wall=root&&root.classList.contains('wall');
     return '<div class="cfm-sh-h"><h3>Settings</h3><button type="button" class="cfm-ib" data-cfm="close">Done</button></div>'
+      +'<div class="cfm-sec"><button type="button" class="cfm-exit" data-cfm="exit">Exit Maniac Mode</button></div>'
       +'<div class="cfm-grp">Layout</div>'
       +'<div class="cfm-sec"><h5>Show on screen</h5>'+tog('rail','Matchup list',P.panels.rail)+tog('side','Who to root for',P.panels.side)+'</div>'
       +'<div class="cfm-grp">Matchups</div>'
