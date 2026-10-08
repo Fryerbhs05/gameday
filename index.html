@@ -4737,6 +4737,9 @@
        Partners/Conflict still populate the sheet for the owner. */
     body:not(.nav-landing) #cf-side-rail [data-rail-tab="more"] { display: none; }
     body:not(.nav-landing).is-admin #cf-side-rail [data-rail-tab="more"] { display: flex; }
+    /* Maniac Mode lives only in …More, so its two preview accounts need the
+       desktop More button too (Jeremy is not an admin). */
+    body:not(.nav-landing).can-maniac #cf-side-rail [data-rail-tab="more"] { display: flex; }
     /* Conflict Card is admin-only in …More (2026-09-24) — no rail tab for anyone. */
     body:not(.nav-landing) #cf-side-rail [data-rail-tab="conflict"] { display: none !important; }
   }
@@ -4918,6 +4921,10 @@
       { key: 'account',  label: 'Account',  soon: false, svg: '<g transform="translate(12,12) scale(0.7742) translate(-12,-12.25)"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></g>' },
       /* Conflict moved off the bar for EVERYONE (Leagues took its slot,
          2026-09-24) and is admin-only: this tile is the only way in. Two-ring art is 11u tall centered at 12, normalized to the flask body. */
+      /* Maniac Mode (2026-10-08): full-screen landscape game-day board. Gated to
+         MANIAC_EMAILS (owner + Jeremy Ried) via maniacOnly, NOT adminOnly. Bolt
+         icon height-normalized to the flask body like every other tile. */
+      { key: 'maniac', label: 'Maniac Mode', soon: false, maniacOnly: true, svg: '<g transform="translate(12,12) scale(0.6) translate(-12,-12)"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2z"/></g>' },
       { key: 'conflict', label: 'Conflict', soon: false, adminOnly: true, svg: '<g transform="translate(12,12) scale(1.0909) translate(-12,-12)"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></g>' },
       /* Lineup Check-In on demand — for everyone since 2026-09-26 (first tile).
          Opens the same sheet the auto trigger shows, ignoring the schedule + seen flag.
@@ -4932,6 +4939,17 @@
       idx.sort(function(a,b){return(rank(a[0])-rank(b[0]))||(a[1]-b[1]);});
       ITEMS.length=0;idx.forEach(function(x){ITEMS.push(x[0]);});})();
     var ADMIN_EMAILS = ['fryerm@net.elmhurst.edu'];
+    /* Maniac Mode preview list (2026-10-08, Matt): owner + Jeremy Ried ONLY.
+       Maniac-only — these accounts do not get the other admin tiles. Client-side
+       gate = cosmetic filter, same as the admin check. */
+    var MANIAC_EMAILS = ['fryerm@net.elmhurst.edu', 'riedjeremy@yahoo.com'];
+    function canManiacUser() {
+      try {
+        var a = window.__account;
+        return !!(a && a.signedIn && a.email && MANIAC_EMAILS.indexOf(String(a.email).trim().toLowerCase()) >= 0);
+      } catch (e) { return false; }
+    }
+    window.cfCanManiac = canManiacUser;
     /* Leagues view preview list (2026-09-24): owner + Jeremy Ried. Leagues-only —
        these users do NOT get the other admin tiles/links. */
     /* Released to ALL users 2026-09-24 (Matt) — gate kept as a stub so callers don't change. */
@@ -4950,12 +4968,12 @@
        .nav-signedin / the experiment ribbon rather than once at boot. */
     window.cfIsAdmin = isAdminUser;
     function syncAdminClass() {
-      try { document.body.classList.toggle('is-admin', isAdminUser()); document.body.classList.toggle('can-leagues', canLeaguesUser()); } catch (e) {}
+      try { document.body.classList.toggle('is-admin', isAdminUser()); document.body.classList.toggle('can-leagues', canLeaguesUser()); document.body.classList.toggle('can-maniac', canManiacUser()); } catch (e) {}
     }
     syncAdminClass();
     try { setInterval(syncAdminClass, 400); } catch (e) {}
     function renderMoreSheet() {
-      var adminOk = isAdminUser(), leaguesOk = canLeaguesUser();
+      var adminOk = isAdminUser(), leaguesOk = canLeaguesUser(), maniacOk = canManiacUser();
       /* 2026-09-24 (Matt): the owner sees EXACTLY the normal-user grid first, then
          the gated / in-progress tiles on their own row at the bottom, behind a
          dashed divider — so the top of the sheet is a true read of what normal
@@ -4969,8 +4987,11 @@
                  '<span class="cbmore-label">' + label + '</span>' +
                '</button>';
       }
-      var regular = ITEMS.filter(function(it){ return !it.adminOnly && (!it.leaguesOnly || leaguesOk); });
-      var gated = adminOk ? ITEMS.filter(function(it){ return it.adminOnly && (!it.leaguesOnly || leaguesOk); }) : [];
+      var regular = ITEMS.filter(function(it){ return !it.adminOnly && !it.maniacOnly && (!it.leaguesOnly || leaguesOk); });
+      var gated = ITEMS.filter(function(it){
+        if (it.maniacOnly) return maniacOk;
+        return adminOk && it.adminOnly && (!it.leaguesOnly || leaguesOk);
+      });
       gated = gated.filter(function(it){ return !it.soon; }).concat(gated.filter(function(it){ return it.soon; }));
       var html = '<div class="cbmore-title">More</div><div class="cbmore-grid">' + regular.map(tileHtml).join('') + '</div>';
       if (gated.length) {
@@ -5000,6 +5021,7 @@
       else if (action === 'leagues' && typeof window.showLeagues === 'function') { window.showLeagues(); window.scrollTo(0, 0); }
       else if (action === 'conflict' && typeof window.showConflictCard === 'function') { window.showConflictCard(); window.scrollTo(0, 0); }
       else if (action === 'checkin' && typeof window.cfShowLineupCheckIn === 'function') { window.cfShowLineupCheckIn('more'); }
+      else if (action === 'maniac' && typeof window.showManiac === 'function') { window.showManiac(); }
       /* Kept as a harmless no-op path: Schedule left the sheet 2026-09-11, but a
          cached shell may still render its tile for one load. */
       else if (action === 'schedule' && typeof window.showWatch === 'function') { window.showWatch(); window.scrollTo(0, 0); }
@@ -10409,6 +10431,9 @@ function renderBoard(data,username){
       if(typeof _av.render==='function')_av.render();
     }catch(e){console.warn('active-view rerender failed',e);}
   }
+  /* Maniac Mode is a full-screen overlay outside hideAll()/the view registry, so
+     it repaints from here on every board render (initial + each live poll). */
+  try{if(window.__cfManiacOpen&&typeof window.__cfRenderManiac==='function')window.__cfRenderManiac();}catch(e){console.warn('maniac rerender failed',e);}
 }
 
 /* ── Yahoo data layer (unchanged from prior implementation) ── */
@@ -11688,6 +11713,7 @@ function isDashboardVisible(){const b=document.getElementById('board');if(!b)ret
    dashboard. Non-data views (settings/account/about) aren't in the registry, so
    they still let the poll idle. */
 function isLiveDataViewVisible(){
+  if(window.__cfManiacOpen)return true; /* Maniac Mode overlay: always a live view */
   if(isDashboardVisible())return true;
   try{return !!(typeof window.cfActiveView==='function' && window.cfActiveView());}catch(e){return false;}
 }
@@ -16090,23 +16116,23 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     return hasRow?'post':'none';
   }
 
-  function loadingHTML(player,week){
+  function loadingHTML(player,week,between){
     /* Status is known synchronously — only the numbers are pending — so the
        chip must not flash "Final" over a live game. */
     var st=resolveState(player,true);
-    return headHTML(player)+statusHTML(st==='none'?'post':st,week)
+    return headHTML(player)+statusHTML(st==='none'?'post':st,week)+(between||'')
       +'<div class="pd__grp"><div class="pd__grph"><h4>&nbsp;</h4></div>'
       +'<div class="pd__skel"><div class="skel"></div><div class="skel"></div>'
       +'<div class="skel"></div><div class="skel"></div></div></div>';
   }
 
-  function bodyHTML(player,row){
+  function bodyHTML(player,row,between){
     var pos=String(player.position||'').toUpperCase();
     var week=1; try{ week=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
     var hasRow=!!(row&&typeof row==='object');
     var state=resolveState(player,hasRow);
 
-    var out=headHTML(player)+statusHTML(state,week);
+    var out=headHTML(player)+statusHTML(state,week)+(between||'');
 
     if(state==='pre'){
       var k=kickoffLabel(player.team||'');
@@ -16187,6 +16213,23 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     if(!liveOpen()) return;
     lastSync=Date.now();
     fill(current);
+  };
+
+  /* Render the same box score into another host (Maniac Mode's side drawer).
+     cb(html, done) fires once with the loading state, then again with the stats.
+     opts.between = extra HTML placed under the status strip; opts.fresh = bypass
+     the 60s stats TTL (live repaint). Loyalties' bottom sheet is untouched. */
+  window.cfPlayerBoxHTML=function(player,opts,cb){
+    if(!player||typeof cb!=='function') return;
+    var between=(opts&&opts.between)||'';
+    var season,week;
+    try{ season=window.getActiveSeason?window.getActiveSeason():null; }catch(e){}
+    try{ week=window.getActiveWeek?window.getActiveWeek():null; }catch(e){}
+    if(!(opts&&opts.noLoading)) cb(loadingHTML(player,week||1,between),false);
+    if(!season||!week||typeof window.__cfWeekStats!=='function'){ cb(bodyHTML(player,null,between),true); return; }
+    window.__cfWeekStats(season,week,(opts&&opts.fresh)?{fresh:true}:undefined).then(function(all){
+      var sid=statKey(player); cb(bodyHTML(player,sid?(all&&all[sid]):null,between),true);
+    }).catch(function(){ cb(bodyHTML(player,null,between),true); });
   };
 
   window.cfOpenPlayerDrawer=function(player){
@@ -20183,7 +20226,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   function tierOf(name){ try{ return (window.__cfTier&&window.__cfTier(name))||1; }catch(e){ return 1; } }
 
   /* Build one row per league matchup from the live data object. */
-  function buildRows(){
+  function buildRows(opts){
     var data=window.__conflictedLastData||null;
     if(!data||data.noData||data.offseasonMode)return {rows:[],week:(data&&data.debugInfo&&data.debugInfo.week)||null,season:(data&&data.debugInfo&&data.debugInfo.season)||null,nodata:true};
     var contexts=Array.isArray(data.contexts)?data.contexts:[];
@@ -20196,7 +20239,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
       var name=ctx.leagueName, ls=ctx.leagueState||'';
       /* Respect the shared header's league-visibility Filters drawer (same
          hiddenLeagues set the dashboard uses; session-only by design). */
-      try{ if(typeof hiddenLeagues!=='undefined'&&hiddenLeagues&&hiddenLeagues.has(name))return; }catch(e){}
+      if(!(opts&&opts.ignoreHidden)){ try{ if(typeof hiddenLeagues!=='undefined'&&hiddenLeagues&&hiddenLeagues.has(name))return; }catch(e){} }
       var curMy=+ctx.myPoints||0, curOpp=+ctx.oppPoints||0;
       var projMy=+ctx.myProjPts||0, projOpp=+ctx.oppProjPts||0;
       var hasProj=(projMy>0||projOpp>0);
@@ -20647,6 +20690,9 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     startPulse();
   }
   window.__cfRenderSnapshot=render;
+  /* Maniac Mode reads the SAME win-% model so both screens always agree. It keeps
+     its own league switches, so it asks for every league (ignoreHidden). */
+  window.__cfSnapshotRows=function(opts){ try{ return buildRows(opts); }catch(e){ return {rows:[]}; } };
 
   function setView(v){ try{localStorage.setItem(VIEW_KEY,v);}catch(e){} render(); }
 
@@ -25114,6 +25160,802 @@ if(typeof window.cfRegisterView==='function'){
     render:render,
     onShow:function(){try{if(typeof W.cfShowPeriodBar==='function')W.cfShowPeriodBar();}catch(e){}showLive();}
   });
+})();
+</script>
+
+<!-- ============ MANIAC MODE (2026-10-08) ============
+     Full-screen, landscape-only game-day board. Gated to MANIAC_EMAILS (owner +
+     Jeremy Ried) via the …More sheet's maniacOnly tile. Design: mocks/sunday-mode-mock.html;
+     plan: Docs/maniac-mode-plan.md. Lives OUTSIDE hideAll()/the view registry as a
+     fixed overlay (like the blog overlay); renderBoard() repaints it on each poll.
+     Everything is #cfm-scoped. -->
+<style>
+#cfm{
+  --b:14px;
+  --t2xs:calc(var(--b)*.66);--txs:calc(var(--b)*.76);--tsm:calc(var(--b)*.88);--tmd:var(--b);
+  --tlg:calc(var(--b)*1.2);--txl:calc(var(--b)*1.6);--pad:12px;
+  position:fixed;inset:0;z-index:9500;display:none;flex-direction:column;
+  background:var(--paper);color:var(--ink-900);font-family:var(--font-sans);font-size:var(--tmd);overflow:hidden;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
+}
+#cfm.is-open{display:flex}
+body.cf-maniac-lock{overflow:hidden}
+#cfm button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+#cfm.tx-lg{--b:16px}
+#cfm.wall{--b:16px}
+#cfm.wall.tx-lg{--b:18px}
+#cfm .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* Top bar */
+#cfm .cfm-top{display:flex;align-items:center;gap:10px;padding:10px var(--pad);border-bottom:1px solid var(--line-soft);flex:none}
+#cfm .cfm-wm{height:calc(var(--b)*1.35);width:auto;display:block;flex:none}
+#cfm .cfm-kick{font-size:var(--t2xs);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-500);font-weight:700;white-space:nowrap}
+#cfm .cfm-fresh{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-pill);border:1px solid var(--line);font-size:var(--txs);color:var(--ink-700);white-space:nowrap;transition:background 1.3s var(--ease-out),border-color 1.3s var(--ease-out)}
+#cfm .cfm-fresh.synced-flash{transition:none;background:color-mix(in oklab,var(--live-ice) 16%,transparent);border-color:var(--live-ice)}
+#cfm .cfm-fresh .dot{width:7px;height:7px;border-radius:50%;background:var(--live-ice)}
+#cfm .cfm-ledger{display:flex;gap:10px;font-size:var(--txs);color:var(--ink-500);white-space:nowrap}
+#cfm .cfm-ledger b{font-family:var(--font-mono);font-weight:700;color:var(--ink-900)}
+#cfm .cfm-ledger .u{color:var(--cheer)}#cfm .cfm-ledger .d{color:var(--enemy)}
+#cfm .cfm-sp{flex:1}
+#cfm .cfm-ctrls{display:flex;align-items:center;gap:6px;transition:opacity .4s}
+#cfm .cfm-ib{height:32px;min-width:32px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius-pill);display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:var(--txs);font-weight:600;color:var(--ink-700)}
+#cfm .cfm-ib svg{width:16px;height:16px}
+#cfm .cfm-live{color:var(--cheer);border-color:color-mix(in oklab,var(--cheer) 45%,transparent)}
+#cfm .cfm-live .ldot{width:6px;height:6px;border-radius:50%;background:var(--cheer)}
+#cfm .cfm-live.syncing{opacity:.55}
+#cfm.wall .cfm-ctrls{opacity:0;pointer-events:none}
+#cfm.wall.chrome-on .cfm-ctrls{opacity:1;pointer-events:auto}
+
+/* Main three columns */
+#cfm .cfm-main{flex:1;min-height:0;display:flex;gap:var(--pad);padding:var(--pad);overflow:hidden}
+#cfm .cfm-pane{background:var(--paper-soft);border:1px solid var(--line-soft);border-radius:var(--radius-lg);min-width:0;min-height:0}
+#cfm .cfm-ph{display:flex;align-items:center;gap:8px;padding:10px 12px 8px;font-size:var(--t2xs);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-500);font-weight:800}
+#cfm .cfm-rail{width:220px;flex:none;display:flex;flex-direction:column}
+#cfm .cfm-rail-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:0;padding:0 10px 10px;scrollbar-width:none}
+#cfm .cfm-rail-list::-webkit-scrollbar{display:none}
+#cfm .cfm-hero-wrap{flex:1;min-width:0;min-height:0;display:flex}
+#cfm .cfm-hero{flex:1;min-height:0;overflow-y:auto;container:cfmhero/inline-size;position:relative}
+#cfm .cfm-side{width:320px;flex:none;display:flex;flex-direction:column}
+#cfm .cfm-side-body{flex:1;min-height:0;overflow-y:auto}
+#cfm.wide .cfm-rail{width:250px}#cfm.wide .cfm-side{width:380px}
+#cfm.xwide .cfm-rail{width:270px}#cfm.xwide .cfm-side{width:420px}
+#cfm.rail-off .cfm-rail{display:none}
+#cfm.side-off .cfm-side{display:none}
+#cfm:not(.wide) .cfm-side .cfm-ph{display:none}
+#cfm:not(.wide) .cfm-root-ctl{padding-top:10px}
+
+/* Matchup cards (condensed) */
+#cfm .cfm-rc{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"nm wp" "sc sc";gap:2px 8px;align-items:baseline;padding:7px 10px;text-align:left;border-radius:var(--radius-md);background:var(--tile-bg);border:1px solid var(--tile-line);flex:none}
+#cfm .cfm-rc.on{border-color:var(--ink-700);box-shadow:0 0 0 1px var(--ink-700)}
+#cfm .cfm-rc .nm{grid-area:nm;font-size:var(--txs);font-weight:700;color:var(--ink-700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#cfm .cfm-rc.on .nm{color:var(--ink-900)}
+#cfm .cfm-rc .wp{grid-area:wp;font:800 var(--tsm) var(--font-mono)}
+#cfm .cfm-rc .sc{grid-area:sc;display:flex;align-items:baseline;gap:6px;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+#cfm .cfm-rc .sc b{font-size:var(--tmd);font-weight:700}
+#cfm .cfm-rc .sc em{font-style:normal;color:var(--ink-500);font-size:var(--txs)}
+#cfm .cfm-rc .sc .dash{color:var(--ink-300)}
+#cfm .up-c{color:var(--cheer)}#cfm .dn-c{color:var(--enemy)}#cfm .ev-c{color:var(--ink-500)}
+#cfm .bg-up{background:var(--cheer)}#cfm .bg-dn{background:var(--enemy)}#cfm .bg-ev{background:var(--ink-500)}
+
+/* Center matchup */
+#cfm .cfm-hin{padding:14px 14px 12px}
+#cfm .cfm-hin.enter{animation:cfmSlide .55s var(--ease-out)}
+@keyframes cfmSlide{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+#cfm .cfm-htop{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+#cfm .cfm-hlg{font-weight:800;font-size:var(--tmd);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#cfm .cfm-hlg .plat{font:500 var(--t2xs) var(--font-mono);color:var(--ink-500);letter-spacing:.06em;margin-left:8px}
+#cfm .cfm-hnav{display:flex;align-items:center;gap:4px;font:600 var(--txs) var(--font-mono);color:var(--ink-500);flex:none}
+#cfm .cfm-hnav button{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);color:var(--ink-700);font-size:15px;line-height:1}
+#cfm .cfm-hnav .pin.on{color:var(--split);border-color:var(--split)}
+#cfm .cfm-rot{height:2px;background:var(--line-soft);margin:10px 0 0;border-radius:1px;overflow:hidden}
+#cfm .cfm-rot i{display:block;height:100%;background:var(--navy-500);transition:width 1s linear}
+#cfm .cfm-hs{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:10px;margin-top:12px}
+#cfm .cfm-hs .side{min-width:0}
+#cfm .cfm-hs .opp{text-align:right}
+#cfm .cfm-hs .team{font-size:var(--tsm);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:1.2em}
+#cfm .cfm-hs .opp .team{color:var(--ink-500);font-weight:600}
+#cfm .cfm-hs .pts{font:700 clamp(34px,10cqw,96px)/1 var(--font-mono);letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin-top:4px}
+#cfm .cfm-hs .opp .pts{color:var(--ink-500);font-weight:500}
+#cfm .cfm-hs .proj{font:500 var(--txs) var(--font-mono);color:var(--ink-500);margin-top:4px;min-height:1.2em}
+#cfm .cfm-hs .mid{text-align:center;padding-bottom:6px;min-width:0}
+#cfm .cfm-wp{font:800 clamp(18px,4.2cqw,38px)/1 var(--font-mono)}
+#cfm .cfm-wp small{font:700 var(--t2xs) var(--font-sans);letter-spacing:.12em;color:var(--ink-500);display:block;margin-bottom:4px}
+#cfm .cfm-wpbar{margin-top:10px;height:6px;border-radius:3px;background:var(--line);display:flex;overflow:hidden}
+#cfm .cfm-wpbar i{display:block;height:100%;transition:width .8s var(--ease-out)}
+#cfm .cfm-mg{margin-top:12px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;font-size:var(--tsm);font-weight:700}
+#cfm .cfm-mg .q{color:var(--ink-500);font-weight:500}
+#cfm .cfm-lineup{margin-top:14px;display:flex;flex-direction:column;gap:4px}
+#cfm .cfm-lr{display:grid;grid-template-columns:1fr 44px 1fr;gap:4px;align-items:stretch}
+#cfm .cfm-slot{display:flex;align-items:center;justify-content:center;font:700 var(--t2xs) var(--font-mono);color:var(--ink-500);letter-spacing:.04em}
+#cfm .cfm-pc{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"nm pj pts";align-items:center;column-gap:10px;padding:7px 10px;border-radius:var(--radius-md);background:var(--tile-bg);border:1px solid var(--tile-line);text-align:left;min-width:0;min-height:34px}
+#cfm .cfm-pc.opp{grid-template-columns:auto auto minmax(0,1fr);grid-template-areas:"pts pj nm";text-align:right}
+#cfm .cfm-pc.empty{background:transparent;border-style:dashed;border-color:var(--line-soft)}
+#cfm .cfm-pc .nmw{grid-area:nm;font-weight:700;font-size:var(--tsm);min-width:0;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#cfm .cfm-pc .pt{grid-area:pts;font:700 var(--tmd) var(--font-mono);font-variant-numeric:tabular-nums;color:var(--ink-900);white-space:nowrap}
+#cfm .cfm-pc .pj{grid-area:pj;font:500 var(--txs) var(--font-mono);color:var(--ink-500);white-space:nowrap}
+#cfm .cfm-pc .ab{display:none}
+/* Row states: NOT STARTED = grey points · LIVE = ice outline · FINAL = flat tile */
+#cfm .cfm-pc.st-pre .pt{color:var(--ink-300);font-weight:500}
+#cfm .cfm-pc.st-post{background:var(--paper-deep);border-color:var(--line-soft)}
+#cfm .cfm-pc.st-in::before{content:'';position:absolute;inset:-1px;border-radius:inherit;border:var(--live-frame-w,2px) solid var(--live-ice);pointer-events:none;animation:cfmBreath var(--live-halo-period,5s) ease-in-out infinite;animation-delay:var(--cfm-breath,0ms)}
+@keyframes cfmBreath{0%,100%{opacity:var(--live-halo-floor,.6)}50%{opacity:1}}
+#cfm .fl-up::after,#cfm .fl-dn::after{content:'';position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;animation:cfmFlash var(--pts-flash-dur,1.6s) ease-out forwards;animation-delay:var(--fd,0ms)}
+#cfm .fl-up::after{border:2px solid var(--flash-up);background:color-mix(in oklab,var(--flash-up) 16%,transparent)}
+#cfm .fl-dn::after{border:2px solid var(--flash-down);background:color-mix(in oklab,var(--flash-down) 16%,transparent)}
+@keyframes cfmFlash{0%{opacity:1}100%{opacity:0}}
+#cfm .cfm-key{display:flex;justify-content:center;gap:16px;margin-top:10px;font-size:var(--t2xs);color:var(--ink-500);font-weight:600;flex-wrap:wrap}
+#cfm .cfm-key span{display:inline-flex;align-items:center;gap:6px}
+#cfm .cfm-key .sw{width:22px;height:12px;border-radius:3px;background:var(--tile-bg);border:1px solid var(--tile-line)}
+#cfm .cfm-key .sw.live{border:2px solid var(--live-ice)}
+#cfm .cfm-key .sw.fin{background:var(--paper-deep);border-color:var(--line-soft)}
+#cfm .cfm-key .mono{color:var(--ink-300)}
+@container cfmhero (max-width:560px){#cfm .cfm-pc .pj{display:none}}
+@container cfmhero (max-width:520px){
+  #cfm .cfm-pc .fu{display:none}#cfm .cfm-pc .ab{display:inline}
+  #cfm .cfm-lr{grid-template-columns:1fr 30px 1fr}
+  #cfm .cfm-pc{padding:6px 7px;column-gap:6px}
+  #cfm .cfm-hs{gap:6px}
+}
+
+/* Who to root for */
+#cfm .cfm-seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--radius-pill);padding:2px;background:var(--paper-deep);max-width:100%;overflow-x:auto;scrollbar-width:none}
+#cfm .cfm-seg button{padding:5px 10px;border-radius:var(--radius-pill);font-size:var(--txs);font-weight:600;color:var(--ink-500);white-space:nowrap}
+#cfm .cfm-seg button.on{background:var(--tile-bg);color:var(--ink-900);box-shadow:inset 0 0 0 1px var(--tile-line)}
+#cfm .cfm-root-ctl{display:flex;gap:6px;padding:0 10px 8px;flex-wrap:wrap}
+#cfm .cfm-root-body{padding:0 10px 12px}
+#cfm .cfm-bh{display:flex;align-items:center;gap:8px;margin:10px 2px 6px;font-size:var(--t2xs);font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+#cfm .cfm-bh .n{font-family:var(--font-mono);color:var(--ink-500)}
+#cfm .cfm-bh.x{color:var(--split)}#cfm .cfm-bh.c{color:var(--cheer)}#cfm .cfm-bh.e{color:var(--enemy)}
+#cfm .cfm-rr{position:relative;display:block;width:100%;text-align:left;padding:6px 10px;margin-bottom:3px;border-radius:var(--radius-md);background:var(--tile-bg);border:1px solid var(--tile-line)}
+#cfm .cfm-rr.b-x{border-left:3px solid var(--split)}#cfm .cfm-rr.b-c{border-left:3px solid var(--cheer)}#cfm .cfm-rr.b-e{border-left:3px solid var(--enemy)}
+#cfm .cfm-rr .nm{display:block;font-weight:700;font-size:var(--tsm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#cfm .cfm-rr.st-pre .nm{color:var(--ink-500)}
+#cfm .cfm-rr.st-post{background:var(--paper-deep);border-top-color:var(--line-soft);border-right-color:var(--line-soft);border-bottom-color:var(--line-soft)}
+#cfm .cfm-rr.open{background:color-mix(in oklab,var(--tile-bg) 70%,var(--navy-300))}
+#cfm .cfm-empty{padding:22px 14px;text-align:center;color:var(--ink-500);font-size:var(--tsm);line-height:1.5}
+
+/* Side drawer (player + settings) — always slides in from the right */
+#cfm .cfm-scrim{position:absolute;inset:0;background:rgba(5,9,14,.55);z-index:20;opacity:0;pointer-events:none;transition:opacity .25s}
+#cfm .cfm-scrim.on{opacity:1;pointer-events:auto}
+#cfm .cfm-sheet{position:absolute;z-index:21;top:0;right:0;bottom:0;width:min(400px,72%);background:var(--paper-soft);border-left:1px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.6);overflow-y:auto;transform:translateX(105%);transition:transform .35s var(--ease-out);padding-bottom:env(safe-area-inset-bottom,0px)}
+#cfm .cfm-sheet.on{transform:none}
+#cfm .cfm-pbox{padding:16px}
+#cfm .cfm-sh-h{display:flex;align-items:center;gap:8px;padding:14px 16px 6px;position:sticky;top:0;background:var(--paper-soft);z-index:1}
+#cfm .cfm-sh-h h3{margin:0;font-size:var(--tlg);font-weight:800;flex:1}
+#cfm .cfm-grp{padding:16px 16px 6px;font-size:var(--tsm);font-weight:800;color:var(--navy-700)}
+#cfm .cfm-sec{padding:10px 16px;border-top:1px solid var(--line-soft)}
+#cfm .cfm-grp+.cfm-sec{border-top:0}
+#cfm .cfm-sec h5{margin:0 0 8px;font-size:var(--t2xs);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-500)}
+#cfm .cfm-hint{margin:6px 0 0;font-size:var(--txs);color:var(--ink-500);line-height:1.45}
+#cfm .cfm-opt{display:flex;flex-wrap:wrap;gap:6px}
+#cfm .cfm-opt button{padding:6px 11px;border-radius:var(--radius-pill);border:1px solid var(--line);font-size:var(--txs);font-weight:600;color:var(--ink-700)}
+#cfm .cfm-opt button.on{background:var(--navy-300);border-color:var(--navy-300);color:#fff}
+#cfm .cfm-tg{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:var(--tsm)}
+#cfm .cfm-tg span{flex:1}
+#cfm .cfm-sw{width:38px;height:22px;border-radius:11px;background:var(--line);position:relative;flex:none;transition:background .2s}
+#cfm .cfm-sw::after{content:'';position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:var(--ink-700);transition:transform .2s}
+#cfm .cfm-sw.on{background:var(--navy-300)}#cfm .cfm-sw.on::after{transform:translateX(16px);background:#fff}
+#cfm .cfm-lg{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:var(--tsm)}
+#cfm .cfm-lg .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#cfm .cfm-lg .plat{font:700 var(--t2xs) var(--font-mono);color:var(--ink-500);letter-spacing:.06em}
+#cfm .cfm-ordn{width:18px;text-align:right;font:700 var(--txs) var(--font-mono);color:var(--ink-500);flex:none}
+#cfm .cfm-ordb{width:28px;height:28px;border-radius:var(--radius-sm);border:1px solid var(--line);color:var(--ink-700);font-size:11px;flex:none}
+#cfm .cfm-ordb:disabled{opacity:.25;cursor:default}
+#cfm input[type=range]{width:100%;accent-color:var(--navy-500)}
+#cfm input[type=range]:disabled{opacity:.35}
+#cfm .cfm-rngv{font:700 var(--tsm) var(--font-mono);color:var(--ink-900)}
+/* Per-league rows inside the player drawer (between status strip and box score) */
+#cfm .cfm-bk{margin:14px 2px 8px}
+#cfm .cfm-pl{display:flex;flex-direction:column;gap:4px;margin-bottom:16px}
+#cfm .cfm-pl .r{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 12px;border-radius:var(--radius-md);background:var(--tile-bg);border:1px solid var(--tile-line);position:relative;font-size:var(--tsm)}
+#cfm .cfm-pl .r::before{content:'';position:absolute;left:-1px;top:6px;bottom:6px;width:3px;border-radius:2px}
+#cfm .cfm-pl .r.me::before{background:var(--cheer)}#cfm .cfm-pl .r.op::before{background:var(--enemy)}
+#cfm .cfm-pl .r .nm{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#cfm .cfm-pl .r b{font:700 var(--tmd) var(--font-mono);color:var(--ink-900)}
+#cfm .cfm-pl .r b.pre{color:var(--ink-300);font-weight:500}
+
+/* Rotate prompt (portrait is blocked) */
+#cfm .cfm-rot-msg{display:none}
+#cfm.portrait>*:not(.cfm-rot-msg){display:none!important}
+#cfm.portrait .cfm-rot-msg{display:flex;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:32px}
+#cfm .cfm-rot-msg .ph{width:46px;height:78px;border:3px solid var(--ink-700);border-radius:9px;position:relative;animation:cfmTurn 2.6s var(--ease-out) infinite}
+#cfm .cfm-rot-msg .ph::after{content:'';position:absolute;left:50%;bottom:5px;width:12px;height:3px;margin-left:-6px;border-radius:2px;background:var(--ink-500)}
+@keyframes cfmTurn{0%,20%{transform:rotate(0)}55%,85%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#cfm .cfm-rot-msg h2{margin:0;font-size:20px;font-weight:800}
+#cfm .cfm-rot-msg p{margin:0;max-width:280px;color:var(--ink-500);font-size:14px;line-height:1.5}
+
+/* Standard tier (iPads, small laptops) */
+#cfm:not(.wide):not(.compact) .cfm-hs .pts{font-size:clamp(34px,8cqw,64px)}
+#cfm:not(.wide):not(.compact) .cfm-mg,#cfm:not(.wide):not(.compact) .cfm-hs{margin-top:8px}
+#cfm:not(.wide):not(.compact) .cfm-lineup{margin-top:8px;gap:3px}
+
+/* Compact tier: phones turned sideways (height is the constraint) */
+#cfm.compact{--b:13px;--pad:8px}
+#cfm.compact.tx-lg,#cfm.compact.wall{--b:14px}
+#cfm.compact .cfm-top{padding:5px var(--pad);gap:8px}
+#cfm.compact .cfm-wm{height:16px}
+#cfm.compact .cfm-kick,#cfm.compact .cfm-ledger .lf,#cfm.compact .cfm-ib .wl{display:none}
+#cfm.compact .cfm-ib{height:28px;min-width:28px;padding:0 8px}
+#cfm.compact .cfm-fresh{padding:3px 8px}
+#cfm.compact .cfm-rail{width:164px}
+#cfm.compact .cfm-ph{padding:7px 9px 5px}
+#cfm.compact .cfm-rail-list{padding:0 6px 6px;gap:6px}
+#cfm.compact .cfm-rc{padding:5px 8px}
+#cfm.compact .cfm-rc .sc b{font-size:var(--tsm)}
+#cfm.compact .cfm-side{width:236px}
+#cfm.compact .cfm-root-ctl{padding:6px}
+#cfm.compact .cfm-root-body{padding-left:6px;padding-right:6px}
+#cfm.compact .cfm-hin{padding:4px 8px}
+#cfm.compact .cfm-hlg{font-size:var(--tsm)}
+#cfm.compact .cfm-hnav button{width:22px;height:22px;font-size:13px}
+#cfm.compact .cfm-rot{margin-top:4px}
+#cfm.compact .cfm-hs{margin-top:4px;align-items:center}
+#cfm.compact .cfm-hs .team,#cfm.compact .cfm-hs .proj,#cfm.compact .cfm-wp small,#cfm.compact .cfm-key{display:none}
+#cfm.compact .cfm-hs .pts{font-size:clamp(22px,7cqw,34px);margin:0}
+#cfm.compact .cfm-hs .mid{padding:0}
+#cfm.compact .cfm-wp{font-size:clamp(14px,4cqw,20px)}
+#cfm.compact .cfm-wpbar{margin-top:4px;height:3px}
+#cfm.compact .cfm-mg{margin-top:4px;font-size:var(--txs)}
+#cfm.compact .cfm-lineup{margin-top:3px;gap:2px}
+#cfm.compact .cfm-lr{grid-template-columns:1fr 26px 1fr;gap:3px}
+#cfm.compact .cfm-slot{font-size:calc(var(--b)*.6)}
+#cfm.compact .cfm-pc{padding:1px 7px;min-height:22px}
+#cfm.compact .cfm-seg button{padding:4px 7px}
+#cfm.compact .cfm-pc .pj,#cfm.compact .cfm-pc .fu{display:none}
+#cfm.compact .cfm-pc .ab{display:inline}
+#cfm.compact .cfm-pc .pt{font-size:var(--tsm)}
+#cfm.compact.tight .cfm-rail{width:150px}
+#cfm.compact.tight .cfm-side{width:206px}
+#cfm.compact.tight .cfm-lr{grid-template-columns:1fr 20px 1fr;gap:2px}
+#cfm.compact.tight .cfm-pc{padding:2px 5px;column-gap:4px}
+#cfm.compact.tight .cfm-pc .nmw{font-size:var(--txs)}
+#cfm.compact.tight .cfm-slot{font-size:calc(var(--b)*.52)}
+#cfm.compact.tight .cfm-hlg .plat,#cfm.compact.tight .cfm-hnav>span{display:none}
+@media (prefers-reduced-motion: reduce){
+  #cfm .cfm-pc.st-in::before{animation:none;opacity:1}
+  #cfm .cfm-hin.enter{animation:none}
+}
+</style>
+<script>
+/* ══ MANIAC MODE ═════════════════════════════════════════════════════════════
+   Reads only what the board already loaded (no new fetches beyond the shared
+   /stats pull the box score uses):
+     • __conflictedLastData  contexts (scores, projected finals, per-player pts),
+                             leagues (paired lineups), allRostered (rooting)
+     • __cfSnapshotRows      Weekend Snapshot win-% model (same numbers both screens)
+     • __cfGameState         pre / in / post per NFL team
+     • cfPlayerBoxHTML       the Loyalties box score, rendered into our side drawer
+   Repainted by renderBoard() on every poll (initial + 30s live). Settings are per
+   device (localStorage). "Yours"/"Theirs" never appear anywhere on this screen. */
+(function(){
+  'use strict';
+  var PREF_KEY='cf_maniac_prefs_v1';
+  var root=null, ticker=null, wake=null, chromeT=null;
+  var P=loadPrefs();                 // persisted per device
+  var S={hero:null, heroAt:0, lastHero:null, sheet:null, rootF:'all', rootB:'all',
+         renderedAt:0, prevPts:{}, nextPts:{}, flashes:{}, cells:{}, boxAt:0};
+
+  function loadPrefs(){
+    var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, panels:{rail:true,side:true}};
+    try{ var raw=localStorage.getItem(PREF_KEY); if(raw){ var o=JSON.parse(raw); if(o&&typeof o==='object'){
+      if(o.mode==='pin'||o.mode==='rotate')d.mode=o.mode;
+      if(+o.rotateSec>=5&&+o.rotateSec<=60)d.rotateSec=+o.rotateSec;
+      if(Array.isArray(o.order))d.order=o.order.filter(function(x){return typeof x==='string';});
+      if(o.hidden&&typeof o.hidden==='object')d.hidden=o.hidden;
+      d.txLg=!!o.txLg;
+      if(o.panels&&typeof o.panels==='object')d.panels={rail:o.panels.rail!==false,side:o.panels.side!==false};
+    }}}catch(e){}
+    return d;
+  }
+  function savePrefs(){ try{ localStorage.setItem(PREF_KEY,JSON.stringify(P)); }catch(e){} }
+
+  /* ---------- small helpers ---------- */
+  function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function f2(v){ return (Math.round((+v||0)*100)/100).toFixed(2); }
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  function $(sel){ return root?root.querySelector(sel):null; }
+  function maskL(n){ try{ return (typeof cfMaskLeague==='function')?cfMaskLeague(n):n; }catch(e){ return n; } }
+  function maskT(n,side){ try{ return (typeof cfMaskTeam==='function')?cfMaskTeam(n,side):n; }catch(e){ return n; } }
+  function gs(team){ try{ return team?((window.__cfGameState&&window.__cfGameState(team))||null):null; }catch(e){ return null; } }
+  function onBye(team){ try{ return typeof window.mpTeamOnBye==='function'&&window.mpTeamOnBye(team); }catch(e){ return false; } }
+  function shortName(name,pos,team){
+    var P0=String(pos||'').toUpperCase();
+    if(P0==='DEF'||P0==='DST') return (team?String(team).toUpperCase()+' D/ST':name);
+    var n=String(name||'').trim().replace(/ (Jr\.|Sr\.|II|III|IV|V)$/,''); var i=n.indexOf(' ');
+    if(i<0) return n; return n[0]+'. '+n.slice(i+1);
+  }
+  function slotTxt(raw,idx,rp){
+    var lbl='';
+    try{ if(rp&&idx<rp.length&&typeof slotLabel==='function')lbl=slotLabel(rp[idx])||''; }catch(e){}
+    if(!lbl&&raw&&typeof raw==='object'&&raw.slot){ try{ lbl=(typeof slotLabel==='function'?slotLabel(raw.slot):'')||String(raw.slot); }catch(e){ lbl=String(raw.slot); } }
+    if(!lbl&&raw!=null){ var n=norm(raw); lbl=n?n.pos:''; }
+    lbl=String(lbl||'').toUpperCase();
+    if(lbl==='DEF'||lbl==='DST')return 'D/ST';
+    if(lbl==='FLEX'||lbl==='W/R/T'||lbl==='RB/WR/TE')return 'FLX';
+    if(lbl.length>4)lbl=lbl.slice(0,4);
+    return lbl||'—';
+  }
+  /* Mirrors loadData's ensure(): same canonical key, so a lineup slot finds the
+     same rooting player object the Loyalties cards use. */
+  function norm(raw){
+    if(raw==null)return null;
+    var pid,name,pos,team,key;
+    try{
+      if(typeof raw==='string'){
+        var info=(window.playerDB&&window.playerDB[raw])||{};
+        name=info.full_name||info.last_name||('Player '+raw);
+        pos=info.position||(raw.length<=4?'DEF':'—');
+        team=info.team||'';
+        pid=raw;
+        key=(typeof canonicalPlayerKey==='function'?canonicalPlayerKey(name,team||raw,pos,raw):null)||('sl:'+raw);
+        if(!team&&pos==='DEF')team=raw;
+      }else{
+        pid=raw.player_key!=null?String(raw.player_key):(raw.id!=null?String(raw.id):'');
+        name=raw.full_name||raw.name||'Player';
+        pos=raw.position||'—'; team=raw.team||'';
+        key=(typeof canonicalPlayerKey==='function'?canonicalPlayerKey(name,team,pos,null):null)||('yh:'+raw.player_key);
+      }
+    }catch(e){ key=key||String(pid||name); }
+    return {pid:pid,name:name,pos:pos,team:team,key:key};
+  }
+  function teamFor(raw){ var n=norm(raw); return n?n.team:''; }
+
+  /* ---------- model ---------- */
+  function buildModel(){
+    var d=window.__conflictedLastData||null;
+    if(!d)return {status:'loading'};
+    if(d.isHist)return {status:'hist'};
+    if(d.noData)return {status:'nodata', reason:d.noDataReason||''};
+    if(d.offseasonMode)return {status:'offseason'};
+    var ctxs=Array.isArray(d.contexts)?d.contexts:[];
+    var lgs=Array.isArray(d.leagues)?d.leagues:(window.currentLeagues||[]);
+    var pool=Array.isArray(d.allRostered)?d.allRostered:[].concat(d.cheerFor||[],d.conflicted||[],d.enemies||[]);
+    var byKey={}; pool.forEach(function(p){ if(p&&p.id)byKey[p.id]=p; });
+    var snap={}; try{ var sr=(window.__cfSnapshotRows&&window.__cfSnapshotRows({ignoreHidden:true}))||{rows:[]}; (sr.rows||[]).forEach(function(r){ snap[r.name]=r; }); }catch(e){}
+    var leagues={}, names=[];
+    ctxs.forEach(function(ctx){
+      if(!ctx||!ctx.leagueName||ctx.leagueState==='NO_MATCHUP')return;
+      var lg=lgs.find(function(l){return l&&l.leagueName===ctx.leagueName;})||{};
+      leagues[ctx.leagueName]={name:ctx.leagueName, ctx:ctx, lg:lg, solo:ctx.leagueState==='NO_OPPONENT', snap:snap[ctx.leagueName]||null};
+      names.push(ctx.leagueName);
+    });
+    /* Order: saved Maniac order first, then anything new in League-priority order. */
+    var prio=[]; try{ if(typeof priorityOrder!=='undefined'&&Array.isArray(priorityOrder))prio=priorityOrder.slice(); }catch(e){}
+    var seed=prio.filter(function(n){return names.indexOf(n)>=0;}).concat(names.filter(function(n){return prio.indexOf(n)<0;}));
+    var order=(P.order||[]).filter(function(n){return names.indexOf(n)>=0;});
+    seed.forEach(function(n){ if(order.indexOf(n)<0)order.push(n); });
+    if(!P.order||P.order.join('\u0001')!==order.join('\u0001')){ P.order=order; savePrefs(); }
+    var vis=order.filter(function(n){ return !P.hidden[n]; });
+    return {status:vis.length?'ok':(order.length?'allhidden':'nodata'), leagues:leagues, order:order, vis:vis, pool:pool, byKey:byKey};
+  }
+
+  function leagueView(L){
+    var c=L.ctx, my=+c.myPoints||0, op=+c.oppPoints||0, sr=L.snap;
+    var myP=+c.myProjPts||0, opP=+c.oppProjPts||0, hasProj=myP>0||opP>0;
+    var st=sr?sr.state:null, prob=sr?sr.prob:null;
+    var decided=st==='cwin'||st==='closs';
+    var wpTxt='—', wpCls='ev';
+    if(L.solo){ wpTxt='—'; }
+    else if(st==='cwin'){ wpTxt='Won'; wpCls='up'; }
+    else if(st==='closs'){ wpTxt='Lost'; wpCls='dn'; }
+    else if(prob!=null){ var pc=clamp(Math.round(prob*100),1,99); wpTxt=pc+'%'; wpCls=pc>=50?'up':'dn'; }
+    var wpBar=st==='cwin'?100:st==='closs'?0:(prob!=null?clamp(Math.round(prob*100),1,99):50);
+    var m=my-op, mt, mc;
+    if(L.solo){ mt='No opponent this week'; mc='ev'; }
+    else if(st==='cwin'){ mt='Won by '+f2(Math.abs(m)); mc='up'; }
+    else if(st==='closs'){ mt=(m===0?'Lost on tiebreak':'Lost by '+f2(Math.abs(m))); mc='dn'; }
+    else if(m>0.004){ mt='Up '+f2(m); mc='up'; }
+    else if(m<-0.004){ mt='Down '+f2(-m); mc='dn'; }
+    else { mt='Tied'; mc='ev'; }
+    var mq='';
+    if(!L.solo&&!decided&&hasProj){ var pd=myP-opP; mq=Math.abs(pd)<0.005?'Projected tie':('Projected '+(pd>0?'win':'loss')+' by '+f2(Math.abs(pd))); }
+    return {my:my, op:op, myP:myP, opP:opP, hasProj:hasProj, wpTxt:wpTxt, wpCls:wpCls, wpBar:wpBar, mt:mt, mc:mc, mq:mq};
+  }
+
+  /* One player cell for the center lineup. side: 'me' | 'opp'. */
+  function cellHTML(raw,L,side,M){
+    if(raw==null) return '<div class="cfm-pc '+side+' empty"></div>';
+    var n=norm(raw), c=L.ctx, pp=(side==='me'?c.myPP:c.oppPP)||{};
+    var rp=M.byKey[n.key]||M.byKey[n.pid]||null;
+    var name=(rp&&rp.full_name)||n.name, pos=(rp&&rp.position)||n.pos, team=(rp&&rp.team)||n.team;
+    var pts=pp[n.pid]!=null?+pp[n.pid]:0;
+    var state=gs(team); var bye=!state&&onBye(team);
+    var stCls=bye?'st-bye':(state==='in'?'st-in':state==='post'?'st-post':state==='pre'?'st-pre':'st-unk');
+    var lp=rp&&rp.leaguePoints&&rp.leaguePoints[L.name];
+    var proj=(lp&&lp.proj!=null)?+lp.proj:null;
+    var pjTxt=(state==='post'||bye||proj==null)?'':f2(proj);
+    var ptTxt=bye?'BYE':f2(pts);
+    /* Point-change flash: compare to the last render. Color = what it means for
+       the matchup's left side (a gain on the right side is bad news). */
+    var fk=L.name+'|'+side+'|'+n.key, prev=S.prevPts[fk], fl='';
+    if(prev!=null&&Math.abs(prev-pts)>0.004){ S.flashes[fk]={t0:Date.now(), d:(pts-prev)*(side==='me'?1:-1)}; }
+    S.nextPts[fk]=pts;
+    if(!rp)S.cells[n.key]={id:n.key,full_name:name,position:pos,team:team,myLeagues:[],againstLeagues:[],leaguePoints:{}};
+    var f=S.flashes[fk]; if(f){ var el=Date.now()-f.t0; if(el<1600)fl=' '+(f.d>0?'fl-up':'fl-dn')+'" style="--fd:-'+el+'ms'; else delete S.flashes[fk]; }
+    return '<button type="button" class="cfm-pc '+side+' '+stCls+fl+'" data-cfm-player="'+esc(n.key)+'">'
+      +'<span class="nmw"><span class="fu">'+esc(name)+'</span><span class="ab">'+esc(shortName(name,pos,team))+'</span></span>'
+      +'<span class="pj" title="Projected">'+pjTxt+'</span>'
+      +'<span class="pt">'+ptTxt+'</span></button>';
+  }
+
+  /* ---------- render ---------- */
+  function ensureRoot(){
+    if(root)return root;
+    root=document.createElement('div');
+    root.id='cfm'; root.setAttribute('role','dialog'); root.setAttribute('aria-modal','true'); root.setAttribute('aria-label','Maniac Mode');
+    root.innerHTML=''
+      +'<header class="cfm-top">'
+      +  '<svg class="cfm-wm" viewBox="0 0 480 78" role="img" aria-label="Conflicted"><defs><clipPath id="cfmWmL"><rect x="0" y="0" width="240" height="78"/></clipPath><clipPath id="cfmWmR"><rect x="240" y="0" width="240" height="78"/></clipPath></defs>'
+      +    '<text x="240" y="54" text-anchor="middle" clip-path="url(#cfmWmL)" style="font-family:Inter,system-ui,sans-serif;font-weight:900;font-size:50px;letter-spacing:-0.04em;fill:var(--navy-700,#7AA8D1)">CONFLICTED</text>'
+      +    '<text x="240" y="54" text-anchor="middle" clip-path="url(#cfmWmR)" style="font-family:Inter,system-ui,sans-serif;font-weight:900;font-size:50px;letter-spacing:-0.04em;fill:var(--coral-500,#E88761)">CONFLICTED</text>'
+      +    '<line x1="240" y1="12" x2="240" y2="66" style="stroke:var(--ink-900,#F5EFE4);stroke-width:1.2"/></svg>'
+      +  '<span class="cfm-kick" id="cfm-kick">Maniac Mode</span>'
+      +  '<span class="cfm-fresh" id="cfm-fresh"><span class="dot"></span><span id="cfm-fresh-t">Synced</span></span>'
+      +  '<span class="cfm-ledger" id="cfm-ledger"></span>'
+      +  '<span class="cfm-sp"></span>'
+      +  '<span class="cfm-ctrls">'
+      +    '<button type="button" class="cfm-ib cfm-live" data-cfm="live" title="Refresh now"><span class="ldot"></span>LIVE</button>'
+      +    '<button type="button" class="cfm-ib" data-cfm="wall" title="Wall mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span class="wl">Wall</span></button>'
+      +    '<button type="button" class="cfm-ib" data-cfm="settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>'
+      +    '<button type="button" class="cfm-ib" data-cfm="exit" title="Exit Maniac Mode" aria-label="Exit Maniac Mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
+      +  '</span>'
+      +'</header>'
+      +'<div class="cfm-main">'
+      +  '<section class="cfm-pane cfm-rail"><div class="cfm-ph">Your matchups</div><div class="cfm-rail-list" id="cfm-rail"></div></section>'
+      +  '<div class="cfm-hero-wrap"><section class="cfm-pane cfm-hero" id="cfm-hero"></section></div>'
+      +  '<aside class="cfm-pane cfm-side"><div class="cfm-side-body"><div class="cfm-ph">Who to root for</div><div class="cfm-root-ctl" id="cfm-rootctl"></div><div class="cfm-root-body" id="cfm-root"></div></div></aside>'
+      +'</div>'
+      +'<div class="cfm-rot-msg"><div class="ph" aria-hidden="true"></div><h2>Turn it sideways</h2><p>Maniac Mode is built for landscape. Rotate your phone or iPad and the whole board fits on one screen.</p><button type="button" class="cfm-ib" data-cfm="exit">Back</button></div>'
+      +'<div class="cfm-scrim" id="cfm-scrim"></div>'
+      +'<div class="cfm-sheet" id="cfm-sheet"></div>';
+    document.body.appendChild(root);
+    root.addEventListener('click',onClick);
+    root.addEventListener('input',onInput);
+    root.addEventListener('pointermove',function(){ if(root.classList.contains('wall'))showChrome(); });
+    root.addEventListener('pointerdown',function(){ if(root.classList.contains('wall'))showChrome(); },true);
+    try{ new ResizeObserver(function(){ applyLayout(); }).observe(root); }catch(e){ window.addEventListener('resize',applyLayout); }
+    return root;
+  }
+
+  function applyLayout(){
+    if(!root)return;
+    var W=root.clientWidth, H=root.clientHeight;
+    if(!W||!H)return;
+    var portrait=H>W, compact=!portrait&&H<560, wide=!portrait&&!compact&&W>=1180&&H>=880;
+    var cl=root.classList;
+    cl.toggle('portrait',portrait); cl.toggle('compact',compact); cl.toggle('tight',compact&&W<760);
+    cl.toggle('wide',wide); cl.toggle('xwide',wide&&W>=1500);
+    cl.toggle('tx-lg',!!P.txLg);
+    cl.toggle('rail-off',!P.panels.rail); cl.toggle('side-off',!P.panels.side);
+  }
+
+  var M=null;
+  function render(){
+    if(!root||!window.__cfManiacOpen)return;
+    root.style.setProperty('--cfm-breath',-(Date.now()%5000)+'ms');
+    applyLayout();
+    M=buildModel();
+    S.nextPts={};
+    renderTop(); renderRail(); renderHero(); renderRoot();
+    S.prevPts=S.nextPts;
+    if(S.sheet&&S.sheet.indexOf('p:')===0)renderSheet(true);
+    else if(S.sheet==='settings')renderSheet();
+  }
+  window.__cfRenderManiac=function(){
+    S.renderedAt=Date.now();
+    var el=$('#cfm-fresh'); if(el){ el.classList.remove('synced-flash'); void el.offsetWidth; el.classList.add('synced-flash'); setTimeout(function(){ el.classList.remove('synced-flash'); },200); }
+    render();
+  };
+
+  function renderTop(){
+    var ok=M&&M.status==='ok', up=0, dn=0, onField=0, toPlay=0;
+    if(ok){
+      M.vis.forEach(function(n){ var L=M.leagues[n]; if(L.solo)return; var v=leagueView(L); if(v.my-v.op>0.004)up++; else if(v.my-v.op<-0.004)dn++; });
+      var seen={};
+      M.vis.forEach(function(n){ var L=M.leagues[n]; (L.lg.myPlayers||[]).forEach(function(r){ var t=teamFor(r), s=gs(t), k=n+'|'+(norm(r)||{}).key; if(seen[k])return; seen[k]=1; if(s==='in')onField++; else if(s==='pre')toPlay++; }); });
+    }
+    var lg=$('#cfm-ledger');
+    if(lg)lg.innerHTML=ok?('<span>Up in <b class="u">'+up+'</b></span><span>Down in <b class="d">'+dn+'</b></span><span class="lf">On the field <b>'+onField+'</b></span><span class="lf">Yet to play <b>'+toPlay+'</b></span>'):'';
+    var k=$('#cfm-kick'); if(k){ var wk=''; try{ wk=(window.getActiveWeek&&window.getActiveWeek())||''; }catch(e){} k.textContent='Maniac Mode'+(wk?' · Week '+wk:''); }
+    updateFresh();
+  }
+  function updateFresh(){
+    var t=$('#cfm-fresh-t'); if(!t)return;
+    var s=S.renderedAt?Math.max(0,Math.round((Date.now()-S.renderedAt)/1000)):null;
+    t.textContent=s==null?'Syncing…':('Synced '+(s<60?s+'s':Math.floor(s/60)+'m')+' ago');
+  }
+
+  function emptyHTML(){
+    var st=M?M.status:'loading';
+    var msg=st==='hist'?'Switching to this week…'
+      :st==='offseason'?'No games this week. Maniac Mode comes alive when the season does.'
+      :st==='allhidden'?'Every league is switched off. Turn one back on in Settings.'
+      :st==='nodata'?'No live matchups to show yet. Connect a league, or check back when the games begin.'
+      :'Loading your leagues…';
+    return '<div class="cfm-empty">'+esc(msg)+'</div>';
+  }
+
+  function renderRail(){
+    var el=$('#cfm-rail'); if(!el)return;
+    if(!M||M.status!=='ok'){ el.innerHTML=''; return; }
+    if(M.vis.indexOf(S.hero)<0){ S.hero=M.vis[0]; S.heroAt=Date.now(); }
+    el.innerHTML=M.vis.map(function(n){
+      var L=M.leagues[n], v=leagueView(L);
+      return '<button type="button" class="cfm-rc'+(n===S.hero?' on':'')+'" data-cfm-hero="'+esc(n)+'">'
+        +'<span class="nm">'+esc(maskL(n))+'</span>'
+        +'<span class="wp '+v.wpCls+'-c">'+esc(v.wpTxt)+'</span>'
+        +'<span class="sc"><b>'+f2(v.my)+'</b>'+(L.solo?'':'<span class="dash">–</span><em>'+f2(v.op)+'</em>')+'</span></button>';
+    }).join('');
+  }
+
+  function renderHero(){
+    var el=$('#cfm-hero'); if(!el)return;
+    if(!M||M.status!=='ok'){ el.innerHTML=emptyHTML(); S.lastHero=null; return; }
+    var L=M.leagues[S.hero]; if(!L){ el.innerHTML=emptyHTML(); return; }
+    var c=L.ctx, v=leagueView(L), idx=M.vis.indexOf(S.hero)+1;
+    var entering=S.lastHero!==S.hero; S.lastHero=S.hero;
+    var rotPct=P.mode==='rotate'?clamp((Date.now()-S.heroAt)/(P.rotateSec*1000)*100,0,100):0;
+    var mine=L.lg.myPlayers||[], opp=L.solo?[]:(L.lg.oppPlayers||[]);
+    var rp=Array.isArray(L.lg.rosterPositions)?L.lg.rosterPositions:null;
+    var len=Math.max(mine.length,opp.length), rows='';
+    for(var i=0;i<len;i++){
+      var a=i<mine.length?mine[i]:null, b=i<opp.length?opp[i]:null;
+      rows+='<div class="cfm-lr">'+cellHTML(a,L,'me',M)+'<div class="cfm-slot">'+esc(slotTxt(a||b,i,rp))+'</div>'+cellHTML(b,L,'opp',M)+'</div>';
+    }
+    if(!len)rows='<div class="cfm-empty">No starters set.</div>';
+    var fmt=c.fmt||L.lg.fmt||'', plat=c.platform||L.lg.platform||'';
+    var myNm=c.myTeamName?maskT(c.myTeamName,'mine'):'', opNm=c.oppTeamName?maskT(c.oppTeamName,'opp'):'';
+    el.innerHTML='<div class="cfm-hin'+(entering?' enter':'')+'">'
+      +'<div class="cfm-htop"><div class="cfm-hlg">'+esc(maskL(L.name))+'<span class="plat">'+esc(String(plat).toUpperCase())+(fmt?' · '+esc(String(fmt).toUpperCase()):'')+'</span></div><span class="cfm-sp"></span>'
+      +  '<div class="cfm-hnav"><button type="button" data-cfm="prev" aria-label="Previous matchup">‹</button><span>'+idx+'/'+M.vis.length+'</span><button type="button" data-cfm="next" aria-label="Next matchup">›</button>'
+      +  '<button type="button" class="pin'+(P.mode==='pin'?' on':'')+'" data-cfm="pin" title="'+(P.mode==='pin'?'Unpin (resume rotating)':'Pin this matchup')+'" aria-label="Pin">⦿</button></div></div>'
+      +(P.mode==='rotate'?'<div class="cfm-rot"><i style="width:'+rotPct+'%"></i></div>':'')
+      +'<div class="cfm-hs">'
+      +  '<div class="side me"><div class="team">'+esc(myNm)+'</div><div class="pts">'+f2(v.my)+'</div><div class="proj">'+(v.hasProj?'proj '+f2(v.myP):'')+'</div></div>'
+      +  '<div class="mid"><div class="cfm-wp"><small>WIN CHANCE</small><span class="'+v.wpCls+'-c">'+esc(v.wpTxt)+'</span></div></div>'
+      +  '<div class="side opp">'+(L.solo?'':'<div class="team">'+esc(opNm)+'</div><div class="pts">'+f2(v.op)+'</div><div class="proj">'+(v.hasProj?'proj '+f2(v.opP):'')+'</div>')+'</div>'
+      +'</div>'
+      +(L.solo?'':'<div class="cfm-wpbar"><i class="bg-'+(v.wpBar>=50?'up':'dn')+'" style="width:'+v.wpBar+'%"></i></div>')
+      +'<div class="cfm-mg"><span class="'+v.mc+'-c">'+esc(v.mt)+'</span>'+(v.mq?'<span class="q">'+esc(v.mq)+'</span>':'')+'</div>'
+      +'<div class="cfm-lineup">'+rows+'</div>'
+      +'<div class="cfm-key"><span><i class="sw live"></i>In a game</span><span><i class="sw fin"></i>Final</span><span><span class="mono">0.00</span> Not started</span><span><span class="mono">grey</span> = projected</span></div>'
+      +'</div>';
+  }
+
+  /* Rooting: one row per player, name only. Buckets by roster membership across
+     the leagues switched on in Maniac Mode (a player on both sides of any
+     matchup = Conflicted). Never sums points across leagues. */
+  function rootingList(){
+    if(!M||M.status!=='ok')return [];
+    var vis={}; M.vis.forEach(function(n){ vis[n]=1; });
+    var out=[];
+    M.pool.forEach(function(p){
+      if(!p)return;
+      var mine=(p.myLeagues||[]).filter(function(n){return vis[n];});
+      var theirs=(p.againstLeagues||[]).filter(function(n){return vis[n];});
+      if(!mine.length&&!theirs.length)return;
+      out.push({p:p, mine:mine, theirs:theirs, b:(mine.length&&theirs.length)?'x':mine.length?'c':'e', st:gs(p.team)});
+    });
+    return out;
+  }
+  function renderRoot(){
+    var ctl=$('#cfm-rootctl'), el=$('#cfm-root'); if(!el)return;
+    if(ctl)ctl.innerHTML='<div class="cfm-seg">'+[['all','All'],['live','On the field'],['pre','Yet to play']].map(function(x){return '<button type="button" class="'+(S.rootF===x[0]?'on':'')+'" data-cfm-rootf="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div>'
+      +'<div class="cfm-seg">'+[['all','All'],['c','Cheer'],['e','Enemy'],['x','Conflicted']].map(function(x){return '<button type="button" class="'+(S.rootB===x[0]?'on':'')+'" data-cfm-rootb="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div>';
+    if(!M||M.status!=='ok'){ el.innerHTML=''; return; }
+    var ord={'in':0,'pre':1,'post':2};
+    var list=rootingList().filter(function(r){
+      if(S.rootF==='live'&&r.st!=='in')return false;
+      if(S.rootF==='pre'&&r.st!=='pre')return false;
+      return true;
+    }).sort(function(a,b){
+      var oa=ord[a.st]!=null?ord[a.st]:1.5, ob=ord[b.st]!=null?ord[b.st]:1.5;
+      return (oa-ob)||((b.mine.length+b.theirs.length)-(a.mine.length+a.theirs.length))||String(a.p.full_name||'').localeCompare(String(b.p.full_name||''));
+    });
+    function sec(b,title){
+      if(S.rootB!=='all'&&S.rootB!==b)return '';
+      var rows=list.filter(function(r){return r.b===b;}); if(!rows.length)return '';
+      return '<div class="cfm-bh '+b+'">'+title+' <span class="n">'+rows.length+'</span></div>'
+        +rows.map(function(r){
+          var open=S.sheet==='p:'+r.p.id?' open':'';
+          var st=r.st==='in'?'st-in':r.st==='post'?'st-post':r.st==='pre'?'st-pre':'st-unk';
+          return '<button type="button" class="cfm-rr b-'+b+' '+st+open+'" data-cfm-player="'+esc(r.p.id)+'"><span class="nm">'+esc(r.p.full_name||'Player')+'</span></button>';
+        }).join('');
+    }
+    var html=sec('x','Conflicted')+sec('c','Cheer')+sec('e','Enemy');
+    el.innerHTML=html||'<div class="cfm-empty">No one matches.</div>';
+  }
+
+  /* ---------- side drawer: player box score / settings ---------- */
+  function playerBetween(p){
+    var vis={}; if(M&&M.vis)M.vis.forEach(function(n){ vis[n]=1; });
+    var order=(M&&M.order)||[];
+    var rows=[].concat((p.myLeagues||[]).filter(function(n){return vis[n];}).map(function(n){return [n,1];}),
+                       (p.againstLeagues||[]).filter(function(n){return vis[n];}).map(function(n){return [n,-1];}))
+      .sort(function(a,b){ return order.indexOf(a[0])-order.indexOf(b[0]); });
+    var mine=rows.some(function(r){return r[1]>0;}), theirs=rows.some(function(r){return r[1]<0;});
+    var b=mine&&theirs?'x':mine?'c':'e';
+    var pre=gs(p.team)==='pre';
+    return '<div class="cfm-bh '+b+' cfm-bk">'+(b==='x'?'Conflicted':b==='c'?'Cheer':'Enemy')+'</div>'
+      +'<div class="cfm-pl">'+rows.map(function(r){
+        var lp=p.leaguePoints&&p.leaguePoints[r[0]];
+        var v=pre?'—':f2(lp?lp.pts:0);
+        return '<div class="r '+(r[1]>0?'me':'op')+'"><span class="nm">'+esc(maskL(r[0]))+'</span><b'+(pre?' class="pre"':'')+'>'+v+'</b></div>';
+      }).join('')+'</div>';
+  }
+  function findPlayer(key){
+    if(!M||!M.byKey)return null;
+    return M.byKey[key]||S.cells[key]||null;
+  }
+  function renderSheet(refresh){
+    var sh=$('#cfm-sheet'), scr=$('#cfm-scrim'); if(!sh)return;
+    if(!S.sheet){ sh.classList.remove('on'); if(scr)scr.classList.remove('on'); return; }
+    if(S.sheet==='settings'){ sh.innerHTML=settingsHTML(); }
+    else if(S.sheet.indexOf('p:')===0){
+      var p=findPlayer(S.sheet.slice(2));
+      if(!p){ sh.innerHTML='<div class="cfm-pbox"><div class="cfm-empty">Player not found.</div></div>'; }
+      else if(typeof window.cfPlayerBoxHTML==='function'){
+        var want=S.sheet, fresh=false;
+        if(refresh){ if(Date.now()-S.boxAt<25000&&sh.innerHTML)return; fresh=true; }
+        S.boxAt=Date.now();
+        window.cfPlayerBoxHTML(p,{between:playerBetween(p),fresh:fresh,noLoading:!!refresh},function(html){
+          if(S.sheet!==want)return;
+          sh.innerHTML='<div class="cfm-pbox">'+html+'</div>';
+        });
+      }else{ sh.innerHTML='<div class="cfm-pbox">'+playerBetween(p)+'</div>'; }
+    }
+    sh.classList.add('on'); if(scr)scr.classList.add('on');
+  }
+  function opt(k,v,l,cur){ return '<button type="button" class="'+(cur===v?'on':'')+'" data-cfm-set="'+k+'" data-v="'+v+'">'+l+'</button>'; }
+  function tog(k,l,on){ return '<div class="cfm-tg"><span>'+l+'</span><button type="button" class="cfm-sw'+(on?' on':'')+'" data-cfm-tog="'+k+'" aria-pressed="'+on+'" aria-label="'+esc(l)+'"></button></div>'; }
+  function settingsHTML(){
+    var order=(M&&M.order)||P.order||[];
+    var wall=root&&root.classList.contains('wall');
+    return '<div class="cfm-sh-h"><h3>Settings</h3><button type="button" class="cfm-ib" data-cfm="close">Done</button></div>'
+      +'<div class="cfm-grp">Layout</div>'
+      +'<div class="cfm-sec"><h5>Show on screen</h5>'+tog('rail','Matchup list',P.panels.rail)+tog('side','Who to root for',P.panels.side)+'</div>'
+      +'<div class="cfm-grp">Matchups</div>'
+      +'<div class="cfm-sec"><h5>Center matchup</h5><div class="cfm-opt">'+opt('mode','pin','Pinned',P.mode)+opt('mode','rotate','Rotate',P.mode)+'</div>'
+      +  '<div class="cfm-tg" style="margin-top:8px"><span>Show each matchup for</span><span class="cfm-rngv" id="cfm-rotv">'+P.rotateSec+'s</span></div>'
+      +  '<input type="range" id="cfm-rotr" min="5" max="60" step="5" value="'+P.rotateSec+'" aria-label="Seconds per matchup"'+(P.mode==='rotate'?'':' disabled')+'>'
+      +  '<p class="cfm-hint">'+(P.mode==='rotate'?'The center matchup moves to the next one in your list order.':'Pinned: the center matchup stays put. Tap any matchup on the left to change it.')+'</p></div>'
+      +'<div class="cfm-sec"><h5>Order &amp; visibility</h5>'
+      +  order.map(function(n,i){
+           var L=M&&M.leagues&&M.leagues[n], plat=L?(L.ctx.platform||L.lg.platform||''):'';
+           return '<div class="cfm-lg"><span class="cfm-ordn">'+(i+1)+'</span>'
+             +'<button type="button" class="cfm-ordb" data-cfm-mv="up" data-v="'+esc(n)+'" aria-label="Move up"'+(i===0?' disabled':'')+'>▲</button>'
+             +'<button type="button" class="cfm-ordb" data-cfm-mv="down" data-v="'+esc(n)+'" aria-label="Move down"'+(i===order.length-1?' disabled':'')+'>▼</button>'
+             +'<span class="nm">'+esc(maskL(n))+' <span class="plat">'+esc(String(plat).toUpperCase())+'</span></span>'
+             +'<button type="button" class="cfm-sw'+(P.hidden[n]?'':' on')+'" data-cfm-vis="'+esc(n)+'" aria-label="Show league"></button></div>';
+         }).join('')
+      +  '<p class="cfm-hint">Starts from your League priority. The switch hides a league from Maniac Mode only.</p></div>'
+      +'<div class="cfm-grp">Display</div>'
+      +'<div class="cfm-sec"><h5>Text size</h5><div class="cfm-opt">'+opt('txLg','false','Normal',String(!!P.txLg))+opt('txLg','true','Large',String(!!P.txLg))+'</div></div>'
+      +'<div class="cfm-sec"><h5>Wall mode</h5>'+tog('wall','Wall mode',wall)+'<p class="cfm-hint">Bigger type, controls hide until you tap, and the screen stays awake. Built for a tablet mounted by the TV.</p></div>';
+  }
+
+  /* ---------- events ---------- */
+  function setHero(n){ S.hero=n; S.heroAt=Date.now(); renderRail(); renderHero(); }
+  function step(dir){ if(!M||!M.vis||!M.vis.length)return; var i=M.vis.indexOf(S.hero), k=M.vis.length; setHero(M.vis[(i+dir+k)%k]); }
+  function onClick(e){
+    var t=e.target.closest('button,[data-cfm-player]');
+    if(e.target.id==='cfm-scrim'){ S.sheet=null; renderSheet(); renderRoot(); return; }
+    if(e.target.closest('[data-pd-close]')){ S.sheet=null; renderSheet(); renderRoot(); return; }
+    if(!t)return;
+    var a=t.getAttribute('data-cfm');
+    if(a==='exit'){ window.hideManiac(); return; }
+    if(a==='live'){ liveRefresh(t); return; }
+    if(a==='wall'){ setWall(!root.classList.contains('wall')); return; }
+    if(a==='settings'){ S.sheet=S.sheet==='settings'?null:'settings'; renderSheet(); renderRoot(); return; }
+    if(a==='close'){ S.sheet=null; renderSheet(); renderRoot(); return; }
+    if(a==='prev'){ step(-1); return; }
+    if(a==='next'){ step(1); return; }
+    if(a==='pin'){ P.mode=P.mode==='pin'?'rotate':'pin'; S.heroAt=Date.now(); savePrefs(); renderHero(); if(S.sheet==='settings')renderSheet(); return; }
+    var h=t.getAttribute('data-cfm-hero'); if(h!=null){ setHero(h); return; }
+    var pk=t.getAttribute('data-cfm-player'); if(pk!=null){ S.sheet=S.sheet==='p:'+pk?null:'p:'+pk; S.boxAt=0; renderSheet(); renderRoot(); try{cfTrack('maniac_player_open',{});}catch(_){} return; }
+    var rf=t.getAttribute('data-cfm-rootf'); if(rf){ S.rootF=rf; renderRoot(); return; }
+    var rb=t.getAttribute('data-cfm-rootb'); if(rb){ S.rootB=rb; renderRoot(); return; }
+    var sk=t.getAttribute('data-cfm-set');
+    if(sk){ var v=t.getAttribute('data-v');
+      if(sk==='mode'){ P.mode=v; S.heroAt=Date.now(); }
+      else if(sk==='txLg'){ P.txLg=(v==='true'); }
+      savePrefs(); applyLayout(); renderHero(); renderSheet(); return; }
+    var tg=t.getAttribute('data-cfm-tog');
+    if(tg){ if(tg==='wall'){ setWall(!root.classList.contains('wall')); renderSheet(); return; }
+      P.panels[tg]=!P.panels[tg]; savePrefs(); applyLayout(); renderSheet(); return; }
+    var mv=t.getAttribute('data-cfm-mv');
+    if(mv){ var n=t.getAttribute('data-v'), o=P.order||[], i=o.indexOf(n), k=i+(mv==='up'?-1:1);
+      if(i>=0&&k>=0&&k<o.length){ var tmp=o[i]; o[i]=o[k]; o[k]=tmp; savePrefs(); render(); } return; }
+    var vs=t.getAttribute('data-cfm-vis');
+    if(vs!=null){ var on=!P.hidden[vs];
+      if(on){ var visCount=(M&&M.vis)?M.vis.length:0; if(visCount<=1&&M&&M.vis.indexOf(vs)>=0)return; P.hidden[vs]=true; }
+      else delete P.hidden[vs];
+      savePrefs(); render(); return; }
+  }
+  function onInput(e){
+    if(e.target&&e.target.id==='cfm-rotr'){
+      P.rotateSec=+e.target.value; savePrefs(); S.heroAt=Date.now();
+      var v=$('#cfm-rotv'); if(v)v.textContent=P.rotateSec+'s';
+    }
+  }
+  function liveRefresh(btn){
+    if(btn.classList.contains('syncing'))return;
+    btn.classList.add('syncing');
+    var p=null; try{ p=(typeof handleRefresh==='function')?handleRefresh():null; }catch(e){}
+    Promise.resolve(p).catch(function(){}).then(function(){ btn.classList.remove('syncing'); });
+  }
+
+  /* ---------- wall mode ---------- */
+  function showChrome(){ if(!root)return; root.classList.add('chrome-on'); clearTimeout(chromeT); chromeT=setTimeout(function(){ if(root)root.classList.remove('chrome-on'); },4000); }
+  function setWall(on){
+    if(!root)return;
+    root.classList.toggle('wall',on);
+    if(on){
+      try{ var d=document.documentElement; if(d.requestFullscreen&&!document.fullscreenElement)d.requestFullscreen().catch(function(){}); }catch(e){}
+      try{ if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(l){ wake=l; }).catch(function(){}); }catch(e){}
+      showChrome();
+    }else{
+      try{ if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen(); }catch(e){}
+      try{ if(wake)wake.release(); }catch(e){} wake=null;
+    }
+    applyLayout();
+    try{ cfTrack('maniac_wall',{on:!!on}); }catch(e){}
+  }
+  /* A wake lock is dropped whenever the page is hidden; take it back on return. */
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'&&window.__cfManiacOpen&&root&&root.classList.contains('wall')&&navigator.wakeLock&&!wake){
+      try{ navigator.wakeLock.request('screen').then(function(l){ wake=l; }).catch(function(){}); }catch(e){}
+    }
+    if(document.visibilityState==='hidden')wake=null;
+  });
+
+  /* ---------- 1s ticker: rotation + "synced Ns ago" ---------- */
+  function tick(){
+    if(!window.__cfManiacOpen)return;
+    updateFresh();
+    if(M&&M.status==='ok'&&P.mode==='rotate'&&M.vis.length>1&&Date.now()-S.heroAt>=P.rotateSec*1000){ step(1); return; }
+    var rb=root&&root.querySelector('.cfm-rot i');
+    if(rb)rb.style.width=clamp((Date.now()-S.heroAt)/(P.rotateSec*1000)*100,0,100)+'%';
+  }
+
+  /* ---------- open / close ---------- */
+  window.showManiac=function(){
+    if(typeof window.cfCanManiac==='function'&&!window.cfCanManiac())return;
+    ensureRoot();
+    try{ if(window.BottomSheet&&window.BottomSheet.isOpen())window.BottomSheet.close(); }catch(e){}
+    window.__cfManiacOpen=true;
+    P=loadPrefs();
+    S.sheet=null; S.heroAt=Date.now(); S.lastHero=null; S.prevPts={}; S.flashes={};
+    root.classList.add('is-open');
+    document.body.classList.add('cf-maniac-lock');
+    try{ if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(function(){}); }catch(e){}
+    if(ticker)clearInterval(ticker); ticker=setInterval(tick,1000);
+    S.renderedAt=S.renderedAt||Date.now();
+    render();
+    /* Maniac Mode is live-week only: if the board is parked on a past week,
+       snap back to this week (same path as the app's LIVE button). */
+    try{ var d=window.__conflictedLastData; if(d&&d.isHist&&typeof handleRefresh==='function')handleRefresh(); }catch(e){}
+    /* Make sure the live poll is running even if Maniac was opened from a static view. */
+    try{ if(typeof startAutoRefresh==='function'&&typeof refreshTimer!=='undefined'&&!refreshTimer)startAutoRefresh(); }catch(e){}
+    try{ cfTrack('maniac_open',{}); }catch(e){}
+  };
+  window.hideManiac=function(){
+    if(!root)return;
+    window.__cfManiacOpen=false;
+    if(root.classList.contains('wall'))setWall(false);
+    root.classList.remove('is-open');
+    document.body.classList.remove('cf-maniac-lock');
+    S.sheet=null; renderSheet();
+    if(ticker){ clearInterval(ticker); ticker=null; }
+    try{ if(screen.orientation&&screen.orientation.unlock)screen.orientation.unlock(); }catch(e){}
+    try{ cfTrack('maniac_close',{}); }catch(e){}
+  };
+  document.addEventListener('keydown',function(e){
+    if(!window.__cfManiacOpen)return;
+    if(e.key==='Escape'){ if(S.sheet){ S.sheet=null; renderSheet(); renderRoot(); } else window.hideManiac(); }
+  });
+  /* If the account changes to one outside the preview list, close it. */
+  setInterval(function(){ if(window.__cfManiacOpen&&typeof window.cfCanManiac==='function'&&!window.cfCanManiac())window.hideManiac(); },2000);
 })();
 </script>
 
