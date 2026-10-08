@@ -10637,7 +10637,7 @@ async function loadYahooLeague(yLeague, week, isHist) {
   let opponentTeamKey = null, myPoints = 0, oppPoints = 0, myProjPts = 0, oppProjPts = 0;
   let hasMatchup = false, leagueState = 'NO_MATCHUP', myTeamName = null, oppTeamName = null;
   let allMatchupsY = null;
-  let sbOk = false, sbCount = 0, myRosterOk = false, myRosterCount = 0;
+  let sbOk = false, sbCount = 0, myRosterOk = false, myRosterCount = 0, oppRosterOk = false, oppRosterCount = 0;
   try {
     const sbJson = await yhFetch('endpoint=scoreboard&league_key=' + encodeURIComponent(yLeague.league_key) + '&week=' + week);
     const matchups = parseYahooScoreboard(sbJson);
@@ -10669,18 +10669,23 @@ async function loadYahooLeague(yLeague, week, isHist) {
     try {
       const oppRosterJson = await yhFetch('endpoint=roster_stats&team_key=' + encodeURIComponent(opponentTeamKey) + '&week=' + week);
       const oppRoster = parseYahooRoster(oppRosterJson); oppPP = parseYahooRosterStats(oppRosterJson);
+      oppRosterOk = true; oppRosterCount = oppRoster.length;
       const starters = oppRoster.filter(p => p.isStarter); oppPlayers = starters.length ? starters : oppRoster;
       oppBench = starters.length ? oppRoster.filter(p => !p.isStarter) : [];
     } catch (e) { console.warn('Yahoo opp roster failed for', yLeague.name, e.message); }
   }
   /* EMPTY-SHELL GATE (2026-10-07) — backstop for the draft_status gate in
      PROVIDERS.yahoo.loadLeagues, for a dead league Yahoo doesn't tag 'predraft'.
-     Drop ONLY when both fetches SUCCEEDED and came back empty (zero matchups on
-     the scoreboard AND zero players on my roster) during a live regular-season
-     week. A failed fetch never drops a league — a transient Yahoo blip must not
-     make a real league vanish. */
-  if (!isHist && !liveOffseason && String(yLeague.season) === String(liveSeason)
-      && sbOk && sbCount === 0 && myRosterOk && myRosterCount === 0) {
+     Drop ONLY when the fetches SUCCEEDED and came back empty: my roster has
+     zero players AND the scoreboard either has no matchups or pairs me with an
+     opponent whose roster is ALSO empty (Yahoo still publishes a schedule for
+     an undrafted league — that's what rendered the 0-0 "FINAL · TIE"). A failed
+     fetch never drops a league — a transient Yahoo blip must not make a real
+     league vanish. Live AND historic weeks; skipped only for the current
+     season during the offseason/preseason (draft may still be ahead). */
+  const _preseasonNow = liveOffseason && String(yLeague.season) === String(liveSeason);
+  const _emptySchedule = sbOk && (sbCount === 0 || !opponentTeamKey || (oppRosterOk && oppRosterCount === 0));
+  if (!_preseasonNow && myRosterOk && myRosterCount === 0 && _emptySchedule) {
     return { result: null, ctx: null, debug: { name: yLeague.name, leagueId: yLeague.league_key, rosterFound: false, matchupFound: false, myCount: 0, oppCount: 0, state: 'DORMANT', scoringFmt: fmt, isCoMgr } };
   }
   /* STRICT LOCK (locked-state-spec.md). Unlike the projection test it replaced,
@@ -13052,9 +13057,12 @@ const PROVIDERS={
          the new season but never drafted (e.g. the group moved to Sleeper) still
          lists under this season with draft_status 'predraft' — no rosters, no
          matchups. Once the NFL regular season is live it can never become
-         active, so drop it before any per-league fetch. Current season only;
-         preseason keeps it (the draft may still be ahead). */
-      if(!isHist&&String(season)===String(liveSeason)&&!liveOffseason){
+         active, so drop it before any per-league fetch. Applies to live AND
+         historic weeks (2026-10-08: past weeks of this season still showed it as
+         a 0-0 "FINAL · TIE"), and to past seasons. The ONLY exception is the
+         current season while the NFL is still in its offseason/preseason — the
+         draft may still be ahead. */
+      if(!(String(season)===String(liveSeason)&&liveOffseason)){
         yLeagues=yLeagues.filter(yl=>yl.draft_status!=='predraft');
       }
       if(!yLeagues.length)return{results:[],contexts:[],debugLeagues:[]};
