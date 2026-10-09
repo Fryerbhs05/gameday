@@ -7406,20 +7406,29 @@ function scoreProjectionStats(statObj, scoring){
 }
 
 /* Yahoo/ESPN fallback: synthesize a Sleeper-shaped scoring object from a
-   PPR / Half / Std label using standard-league defaults. Covers ~95% of
-   non-custom leagues correctly. If a Yahoo/ESPN league uses exotic scoring,
-   ranks will skew slightly until the backend passes raw scoring through. */
-function synthesizeScoringFromFmt(fmt){
+   PPR / Half / Std label using the platform's DEFAULT rules. Covers default
+   leagues; custom-scoring leagues still skew until real settings pass through.
+
+   KEYS MUST BE SLEEPER STAT KEYS (2026-10-09 fix). The old object used
+   def_sack / def_int / def_fum_rec / def_safe / def_st_td -- keys that do NOT
+   exist in Sleeper's projection or stats feeds -- so a team defense scored only
+   its TD + points-allowed tier: Week 5 HOU DEF rendered 2.68 against Sleeper's
+   own 9.44. Verified against Sleeper's live feed: with the keys below and ff:1
+   this reproduces Sleeper's pts_* exactly (HOU 9.44, DAL 8.76).
+   INT default is per platform: Yahoo -1 (was -2 here, ~0.6 pt low on every QB),
+   ESPN -2, Sleeper -1. Forced fumbles score on Sleeper only. */
+function synthesizeScoringFromFmt(fmt, platform){
   const recValue = fmt==='PPR' ? 1 : fmt==='Half' ? 0.5 : 0;
+  const pf = String(platform||'').toLowerCase();
   return {
-    pass_yd: 0.04, pass_td: 4, pass_int: -2, pass_2pt: 2,
+    pass_yd: 0.04, pass_td: 4, pass_int: (pf==='espn' ? -2 : -1), pass_2pt: 2,
     rush_yd: 0.1, rush_td: 6, rush_2pt: 2,
     rec: recValue, rec_yd: 0.1, rec_td: 6, rec_2pt: 2,
-    fum_lost: -2,
+    fum_lost: -2, fum_rec_td: 6,
     fgm_0_19: 3, fgm_20_29: 3, fgm_30_39: 3, fgm_40_49: 4, fgm_50p: 5,
     xpm: 1, xpmiss: -1, fgmiss: -1,
-    def_td: 6, def_sack: 1, def_int: 2, def_fum_rec: 2, def_safe: 2,
-    def_st_td: 6, def_pr_td: 6, def_kr_td: 6,
+    def_td: 6, sack: 1, int: 2, fum_rec: 2, safe: 2, blk_kick: 2, st_td: 6,
+    ff: ((pf==='yahoo'||pf==='espn') ? 0 : 1),
     pts_allow_0: 10, pts_allow_1_6: 7, pts_allow_7_13: 4,
     pts_allow_14_20: 1, pts_allow_21_27: 0, pts_allow_28_34: -1, pts_allow_35p: -4
   };
@@ -7427,9 +7436,9 @@ function synthesizeScoringFromFmt(fmt){
 
 function normalizeScoringForContext(ctx){
   /* Prefer raw scoring_settings if the provider preserved them; otherwise
-     fall back to a fmt-derived standard profile. */
+     fall back to a fmt-derived, platform-default profile. */
   if(ctx && ctx.scoringRaw && typeof ctx.scoringRaw==='object') return ctx.scoringRaw;
-  return synthesizeScoringFromFmt(ctx?.fmt || 'Std');
+  return synthesizeScoringFromFmt(ctx?.fmt || 'Std', ctx && (ctx.platform || ctx.source));
 }
 
 function computePosRankByLeague(seasonStats, playerDB, leagueContexts){
