@@ -25327,6 +25327,11 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-lineup{margin-top:14px;display:flex;flex-direction:column;gap:4px}
 #cfm .cfm-lr{display:grid;grid-template-columns:1fr 44px 1fr;gap:4px;align-items:stretch}
 #cfm .cfm-slot{display:flex;align-items:center;justify-content:center;font:700 var(--t2xs) var(--font-mono);color:var(--ink-500);letter-spacing:.04em}
+/* Bench (Settings → Show bench players): hairline under the starters, BN tile in the slot column */
+#cfm .cfm-bdiv{border-top:1px solid var(--line);margin:8px 0 4px}
+#cfm .cfm-slot.bn span{border:1px solid var(--line);border-radius:4px;padding:2px 5px;line-height:1.2}
+#cfm .cfm-pl .r .nm .bnt{font:700 var(--t2xs) var(--font-mono);font-style:normal;color:var(--ink-500);border:1px solid var(--line);border-radius:4px;padding:1px 4px;margin-right:6px;letter-spacing:.04em}
+#cfm .cfm-bh.bn{color:var(--ink-500)}
 #cfm .cfm-pc{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"nm pj pts";align-items:center;column-gap:10px;padding:7px 10px;border-radius:var(--radius-md);background:var(--tile-bg);border:1px solid var(--tile-line);text-align:left;min-width:0;min-height:34px}
 #cfm .cfm-pc.opp{grid-template-columns:auto auto minmax(0,1fr);grid-template-areas:"pts pj nm";text-align:right}
 #cfm .cfm-pc.empty{background:transparent;border-style:dashed;border-color:var(--line-soft)}
@@ -25481,6 +25486,8 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm.compact .cfm-lineup{margin-top:3px;gap:2px}
 #cfm.compact .cfm-lr{grid-template-columns:1fr 26px 1fr;gap:3px}
 #cfm.compact .cfm-slot{font-size:calc(var(--b)*.6)}
+#cfm.compact .cfm-bdiv{margin:4px 0 2px}
+#cfm.compact .cfm-slot.bn span{padding:0 3px;border-radius:3px}
 #cfm.compact .cfm-pc{padding:1px 7px;min-height:22px}
 #cfm.compact .cfm-seg button{padding:4px 7px}
 #cfm.compact .cfm-pc .pj,#cfm.compact .cfm-pc .fu{display:none}
@@ -25534,13 +25541,13 @@ body.cf-maniac-lock{overflow:hidden}
   }
 
   function loadPrefs(){
-    var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, panels:{rail:true,side:true}, ticker:{on:true,x:false,e:false}};
+    var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, bench:false, panels:{rail:true,side:true}, ticker:{on:true,x:false,e:false}};
     try{ var raw=localStorage.getItem(PREF_KEY); if(raw){ var o=JSON.parse(raw); if(o&&typeof o==='object'){
       if(o.mode==='pin'||o.mode==='rotate')d.mode=o.mode;
       if(+o.rotateSec>=5&&+o.rotateSec<=60)d.rotateSec=+o.rotateSec;
       if(Array.isArray(o.order))d.order=o.order.filter(function(x){return typeof x==='string';});
       if(o.hidden&&typeof o.hidden==='object')d.hidden=o.hidden;
-      d.txLg=!!o.txLg;
+      d.txLg=!!o.txLg; d.bench=!!o.bench;
       if(o.panels&&typeof o.panels==='object')d.panels={rail:o.panels.rail!==false,side:o.panels.side!==false};
       if(o.ticker&&typeof o.ticker==='object')d.ticker={on:o.ticker.on!==false,x:!!o.ticker.x,e:!!o.ticker.e};
     }}}catch(e){}
@@ -25695,7 +25702,7 @@ body.cf-maniac-lock{overflow:hidden}
      Grey slot priority: Points Pending line > +/- change badge > projection.
      Projection = pregame projection until kickoff, then the live projected
      final (same number as the Loyalties PROJ column); hidden once final / bye. */
-  function cellHTML(raw,L,side,M){
+  function cellHTML(raw,L,side,M,bench){
     if(raw==null) return '<div class="cfm-pc '+side+' empty"></div>';
     var n=norm(raw), c=L.ctx, pp=(side==='me'?c.myPP:c.oppPP)||{};
     var rp=M.byKey[n.key]||M.byKey[n.pid]||null;
@@ -25705,18 +25712,25 @@ body.cf-maniac-lock{overflow:hidden}
     var stCls=bye?'st-bye':(state==='in'?'st-in':state==='post'?'st-post':state==='pre'?'st-pre':'st-unk');
     var lp=rp&&rp.leaguePoints&&rp.leaguePoints[L.name];
     var preMap=(side==='me'?c.myPreProj:c.oppPreProj)||{}, proj=null;
-    if(state==='pre') proj=preMap[n.pid]!=null?+preMap[n.pid]:((lp&&lp.proj!=null)?+lp.proj:null);
+    if(bench){
+      /* Bench: never in leaguePoints for this league, so the grey number comes
+         from the pregame bench projection, decayed live the same way starters are. */
+      var bp=preMap[n.pid]!=null?+preMap[n.pid]:null;
+      if(state==='pre') proj=bp;
+      else if(state!=='post'&&!bye){ try{ proj=(typeof cfLiveProj==='function'&&bp!=null)?cfLiveProj(team,bp,pts):null; }catch(e){ proj=null; } }
+    }
+    else if(state==='pre') proj=preMap[n.pid]!=null?+preMap[n.pid]:((lp&&lp.proj!=null)?+lp.proj:null);
     else if(state!=='post'&&!bye) proj=(lp&&lp.proj!=null)?+lp.proj:null;
     var ptTxt=bye?'BYE':f2(pts);
     /* No rooting-pool match: keep a stub that still knows its league and side,
        so the drawer labels it correctly instead of an empty "Enemy". */
-    if(!rp){
+    if(!rp&&!bench){
       var sb=S.cells[n.key]||(S.cells[n.key]={id:n.key,full_name:name,position:pos,team:team,myLeagues:[],againstLeagues:[],leaguePoints:{}});
       var ls=side==='me'?sb.myLeagues:sb.againstLeagues; if(ls.indexOf(L.name)<0)ls.push(L.name);
       sb.leaguePoints[L.name]={pts:pts,proj:proj};
     }
-    var pend=(rp&&(state==='in'||state==='post')&&typeof window.cfPendingForLeague==='function')?window.cfPendingForLeague(rp,L.name):'';
-    var fk=L.name+'|'+side+'|'+n.key, ch=S.chg[fk], now=Date.now(), fl='', sty='', pj='', pjCls='pj';
+    var pend=(!bench&&rp&&(state==='in'||state==='post')&&typeof window.cfPendingForLeague==='function')?window.cfPendingForLeague(rp,L.name):'';
+    var fk=L.name+'|'+side+'|'+n.key, ch=bench?null:S.chg[fk], now=Date.now(), fl='', sty='', pj='', pjCls='pj';
     if(ch&&chgAlive(ch,now)){
       if(!ch.seen)ch.seen=now;                        // first time this change is in the center
       var good=ch.d*(side==='me'?1:-1)>0, el=now-ch.seen;
@@ -25725,7 +25739,7 @@ body.cf-maniac-lock{overflow:hidden}
     }
     if(pend){ pj=pendCyc(pend); pjCls='pj pend'; }
     else if(!pj) pj=proj==null?'':f2(proj);
-    return '<button type="button" class="cfm-pc '+side+' '+stCls+(pend?' pend':'')+fl+'"'+sty+' data-cfm-player="'+esc(n.key)+'"'+(pend?' aria-label="'+esc(name+', '+pend+', points pending')+'"':'')+'>'
+    return '<button type="button" class="cfm-pc '+side+' '+stCls+(bench?' bn':'')+(pend?' pend':'')+fl+'"'+sty+' data-cfm-player="'+esc(n.key)+'"'+(pend?' aria-label="'+esc(name+', '+pend+', points pending')+'"':'')+'>'
       +'<span class="nmw"><span class="fu">'+esc(name)+'</span><span class="ab">'+esc(shortName(name,pos,team))+'</span></span>'
       +'<span class="'+pjCls+'"'+(pjCls==='pj'?' title="Projected"':'')+'>'+pj+'</span>'
       +'<span class="pt">'+ptTxt+'</span></button>';
@@ -25860,6 +25874,22 @@ body.cf-maniac-lock{overflow:hidden}
       rows+='<div class="cfm-lr">'+cellHTML(a,L,'me',M)+'<div class="cfm-slot">'+esc(slotTxt(a||b,i,rp))+'</div>'+cellHTML(b,L,'opp',M)+'</div>';
     }
     if(!len)rows='<div class="cfm-empty">No starters set.</div>';
+    /* Bench (Settings toggle, off by default): below a hairline, BN tile in the
+       slot column, each side sorted QB, RB, WR, TE, DEF, K. Display only — never
+       in the score, the change flashes, Points Pending or the stat ticker. */
+    if(P.bench){
+      var bsort=function(arr){ return (arr||[]).filter(function(x){return x!=null;}).map(function(raw,i){
+          var nn=norm(raw), rp0=nn&&(M.byKey[nn.key]||M.byKey[nn.pid]);
+          return {raw:raw,i:i,r:posRank(posKey({position:(rp0&&rp0.position)||(nn&&nn.pos)}))};
+        }).sort(function(x,y){ return (x.r-y.r)||(x.i-y.i); }).map(function(x){return x.raw;}); };
+      var mb=bsort(L.lg.myBench), ob=L.solo?[]:bsort(L.lg.oppBench), blen=Math.max(mb.length,ob.length);
+      if(blen){
+        rows+='<div class="cfm-bdiv" role="separator" aria-label="Bench"></div>';
+        for(var j=0;j<blen;j++){
+          rows+='<div class="cfm-lr bn">'+cellHTML(j<mb.length?mb[j]:null,L,'me',M,true)+'<div class="cfm-slot bn"><span>BN</span></div>'+cellHTML(j<ob.length?ob[j]:null,L,'opp',M,true)+'</div>';
+        }
+      }
+    }
     var fmt=c.fmt||L.lg.fmt||'', plat=c.platform||L.lg.platform||'';
     var myNm=c.myTeamName?maskT(c.myTeamName,'mine'):'', opNm=c.oppTeamName?maskT(c.oppTeamName,'opp'):'';
     el.innerHTML='<div class="cfm-hin'+(entering?' enter':'')+'">'
@@ -26204,22 +26234,35 @@ body.cf-maniac-lock{overflow:hidden}
     var rows=[].concat((p.myLeagues||[]).filter(function(n){return vis[n];}).map(function(n){return [n,1];}),
                        (p.againstLeagues||[]).filter(function(n){return vis[n];}).map(function(n){return [n,-1];}))
       .sort(function(a,b){ return order.indexOf(a[0])-order.indexOf(b[0]); });
-    var mine=rows.some(function(r){return r[1]>0;}), theirs=rows.some(function(r){return r[1]<0;});
-    var b=mine&&theirs?'x':mine?'c':'e';
+    /* Bench toggle on: the leagues he sits on a bench in get a row too, tagged BN. */
+    if(P.bench)rows=rows.concat((p.myBenchLeagues||[]).filter(function(n){return vis[n];}).map(function(n){return [n,1,1];}),
+                                (p.againstBenchLeagues||[]).filter(function(n){return vis[n];}).map(function(n){return [n,-1,1];}))
+      .sort(function(a,b){ return (order.indexOf(a[0])-order.indexOf(b[0]))||((a[2]||0)-(b[2]||0)); });
+    var mine=rows.some(function(r){return r[1]>0&&!r[2];}), theirs=rows.some(function(r){return r[1]<0&&!r[2];});
+    var b=mine&&theirs?'x':mine?'c':(theirs?'e':(rows.length?'bn':'e'));
     var pre=gs(p.team)==='pre';
     /* Points Pending, same as the Loyalties card: the breathing stat / PENDING
        POINTS line, and the points still owed tint ice — per league, so a league
        that already paid out reads normally. Rooting-pool players only. */
     var real=!!(M&&M.byKey&&M.byKey[p.id]===p);
     var pendAll=(real&&!pre&&typeof window.cfPendingForPlayer==='function')?window.cfPendingForPlayer(p):'';
-    return '<div class="cfm-bh '+b+' cfm-bk">'+(b==='x'?'Conflicted':b==='c'?'Cheer':'Enemy')
+    return '<div class="cfm-bh '+b+' cfm-bk">'+(b==='x'?'Conflicted':b==='c'?'Cheer':b==='bn'?'Bench':'Enemy')
       +(pendAll?'<span class="cfm-pend-line" role="status" aria-label="'+esc(pendAll)+', points pending">'+pendCyc(pendAll)+'</span>':'')+'</div>'
       +'<div class="cfm-pl">'+rows.map(function(r){
+        if(r[2]){
+          return '<div class="r '+(r[1]>0?'me':'op')+'"><span class="nm"><i class="bnt">BN</i>'+esc(maskL(r[0]))+'</span><b'+(pre?' class="pre"':'')+'>'+(pre?'—':f2(benchPts(p,r[0],r[1])))+'</b></div>';
+        }
         var lp=p.leaguePoints&&p.leaguePoints[r[0]];
         var v=pre?'—':f2(lp?lp.pts:0);
         var pl=pendAll&&typeof window.cfPendingForLeague==='function'?window.cfPendingForLeague(p,r[0]):'';
         return '<div class="r '+(r[1]>0?'me':'op')+(pl?' pend':'')+'"><span class="nm">'+esc(maskL(r[0]))+'</span><b'+(pre?' class="pre"':'')+'>'+v+'</b></div>';
       }).join('')+'</div>';
+  }
+  function benchPts(p,n,side){
+    var L=M&&M.leagues&&M.leagues[n]; if(!L)return 0;
+    var list=(side>0?L.lg.myBench:L.lg.oppBench)||[], pp=(side>0?L.ctx.myPP:L.ctx.oppPP)||{};
+    for(var i=0;i<list.length;i++){ var nn=norm(list[i]); if(nn&&(nn.key===p.id||nn.pid===p.id))return pp[nn.pid]!=null?+pp[nn.pid]:0; }
+    return 0;
   }
   function findPlayer(key){
     if(!M||!M.byKey)return null;
@@ -26262,7 +26305,9 @@ body.cf-maniac-lock{overflow:hidden}
       +'<div class="cfm-sec"><h5>Center matchup</h5><div class="cfm-opt">'+opt('mode','pin','Pinned',P.mode)+opt('mode','rotate','Rotate',P.mode)+'</div>'
       +  '<div class="cfm-tg" style="margin-top:8px"><span>Show each matchup for</span><span class="cfm-rngv" id="cfm-rotv">'+P.rotateSec+'s</span></div>'
       +  '<input type="range" id="cfm-rotr" min="5" max="60" step="5" value="'+P.rotateSec+'" aria-label="Seconds per matchup"'+(P.mode==='rotate'?'':' disabled')+'>'
-      +  '<p class="cfm-hint">'+(P.mode==='rotate'?'The center matchup moves to the next one in your list order.':'Pinned: the center matchup stays put. Tap any matchup on the left to change it.')+'</p></div>'
+      +  '<p class="cfm-hint">'+(P.mode==='rotate'?'The center matchup moves to the next one in your list order.':'Pinned: the center matchup stays put. Tap any matchup on the left to change it.')+'</p>'
+      +  '<div style="margin-top:10px">'+tog('bench','Show bench players',!!P.bench)+'</div>'
+      +  '<p class="cfm-hint">Bench players show under the starters, below a divider, with BN in the middle. They never count toward the score or appear in the stat ticker.</p></div>'
       +'<div class="cfm-sec"><h5>Order &amp; visibility</h5>'
       +  order.map(function(n,i){
            var L=M&&M.leagues&&M.leagues[n], plat=L?(L.ctx.platform||L.lg.platform||''):'';
@@ -26309,6 +26354,7 @@ body.cf-maniac-lock{overflow:hidden}
       if(tg==='ticker'||tg==='tkx'||tg==='tke'){ var tf=tg==='ticker'?'on':tg==='tkx'?'x':'e'; P.ticker[tf]=!P.ticker[tf]; savePrefs();
         if(tf!=='on'){ var te=tkEls(); if(te.track){ te.track.innerHTML=''; te.track.style.transform=''; } TK.x=0; TK.cur=0; }   // new mix starts now, not after the queue
         tkSync(); renderSheet(); return; }
+      if(tg==='bench'){ P.bench=!P.bench; savePrefs(); renderHero(); renderSheet(); try{cfTrack('maniac_bench_toggle',{on:P.bench});}catch(_){} return; }
       P.panels[tg]=!P.panels[tg]; savePrefs(); applyLayout(); renderSheet(); return; }
     var mv=t.getAttribute('data-cfm-mv');
     if(mv){ var n=t.getAttribute('data-v'), o=P.order||[], i=o.indexOf(n), k=i+(mv==='up'?-1:1);
