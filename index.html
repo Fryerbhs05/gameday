@@ -25972,13 +25972,17 @@ body.cf-maniac-lock{overflow:hidden}
      Sleeper /stats row the box score uses), never points. A STAT CHANGE =
      a stat that scores or loses points in at least one league switched on in
      Maniac Mode (league scoring settings; pass attempts/completions never
-     count). It "jumps the line": the player is put next to scroll in, ringed in
-     ice with STAT CHANGE + the play, and only the stat(s) that moved turn ice.
-     Prioritized for 30s, longer while Points Pending still shows the play
-     (cap 150s); re-queued at the front each time it scrolls off until then.
+     count). ONE-SHOT ALERT CARDS (v331): each detected change builds its own
+     card (STAT CHANGE + the play, only the stat(s) that moved in ice), placed
+     next in line behind any change cards already waiting, so they run in the
+     order they happened. It scrolls through ONCE and is thrown away — never
+     re-queued, no hold timer. A card that has scrolled into view is frozen:
+     nothing on screen changes in place; only cards still waiting off the right
+     edge pick up new numbers. Regular cards for that player still waiting
+     off-screen are dropped so the change card is his next appearance.
      45 px/s. Baselines live in memory; reopening Maniac starts fresh. */
-  var TK_SPEED=45, TK_GAP=30, TK_HOLD=30000, TK_MAX=150000;
-  var TK={x:0, last:0, raf:0, paused:false, order:[], cur:0, rows:{}, base:{}, alerts:{}, fresh:[], wk:'', step:0};
+  var TK_SPEED=45, TK_GAP=30;
+  var TK={x:0, last:0, raf:0, paused:false, order:[], cur:0, rows:{}, base:{}, fresh:[], wk:'', step:0};
   var TK_KEYS=['pass_yd','pass_td','pass_int','pass_2pt','pass_sack','rush_yd','rush_td','rush_2pt','rec','rec_yd','rec_td','rec_2pt',
     'fum_lost','fum','fgm','fgmiss','xpm','xpmiss','def_sack','def_int','def_fum_rec','def_td','def_st_td','def_safe','def_blk_kick','pts_allow','yds_allow'];
   /* Sleeper team-DEF rows / scoring use the short names. */
@@ -26006,11 +26010,6 @@ body.cf-maniac-lock{overflow:hidden}
       g[k]=keys.some(function(key){ return names.some(function(nm){ return key===nm||(TK_TIERED[nm]&&key.indexOf(nm+'_')===0); }); });
     });
     return g;
-  }
-  function tkAlive(a,p,now){
-    if(now-a.t<TK_HOLD)return true;
-    if(now-a.t>=TK_MAX)return false;
-    try{ return !!(p&&typeof window.cfPendingForPlayer==='function'&&window.cfPendingForPlayer(p)); }catch(e){ return false; }
   }
   /* Same wording as Points Pending (cfPendLabel), widened to every scoring stat. */
   function tkLabel(d){
@@ -26090,7 +26089,7 @@ body.cf-maniac-lock{overflow:hidden}
   function tkDetect(){
     if(!M||M.status!=='ok')return;
     var wk=''; try{ wk=String((window.getActiveSeason&&window.getActiveSeason())||'')+'-'+String((window.getActiveWeek&&window.getActiveWeek())||''); }catch(e){}
-    if(wk!==TK.wk){ TK.wk=wk; TK.base={}; TK.alerts={}; TK.fresh=[]; }
+    if(wk!==TK.wk){ TK.wk=wk; TK.base={}; TK.fresh=[]; }
     var gate=null, now=Date.now();
     rootingList().forEach(function(r){
       if(r.st!=='in'&&r.st!=='post')return;
@@ -26102,29 +26101,23 @@ body.cf-maniac-lock{overflow:hidden}
       if(!gate)gate=tkGate();
       var d={}, any=false;
       TK_KEYS.forEach(function(k){ if(!gate[k])return; var dv=cur[k]-b[k]; if(Math.abs(dv)>1e-9){ d[k]=dv; any=true; } });
-      if(!any)return;
-      var ex=TK.alerts[p.id];
-      if(ex&&tkAlive(ex,p,now))Object.keys(ex.d).forEach(function(k){ d[k]=(d[k]||0)+ex.d[k]; if(Math.abs(d[k])<=1e-9)delete d[k]; });
-      if(!Object.keys(d).length){ delete TK.alerts[p.id]; return; }
-      TK.alerts[p.id]={d:d,t:now,label:tkLabel(d)};
-      TK.fresh.push(p.id);
+      if(!any||!tkWants(r)||!P.ticker.on)return;              // baseline still advances for filtered-out buckets
+      /* Card content is captured NOW and never repainted. */
+      TK.fresh.push({pid:p.id, html:tkItemHTML(r,{d:d,label:tkLabel(d)}), b:r.b, t:now});
     });
   }
+  function tkWants(r){ return !((r.b==='x'&&!P.ticker.x)||(r.b==='e'&&!P.ticker.e)); }
   function tkList(){
     if(!M||M.status!=='ok')return [];
-    var now=Date.now(), ord={x:0,c:1,e:2};
+    var ord={x:0,c:1,e:2};
     return rootingList().filter(function(r){
-      if(r.b==='x'&&!P.ticker.x)return false;
-      if(r.b==='e'&&!P.ticker.e)return false;
-      var a=TK.alerts[r.p.id]; r.a=(a&&tkAlive(a,r.p,now))?a:null;
-      if(a&&!r.a)delete TK.alerts[r.p.id];
-      return r.st==='in'||!!r.a;                              // a just-final play keeps him until it expires
+      return tkWants(r)&&r.st==='in';                         // a just-final play still runs as its own change card
     }).sort(function(a,b){
       return (ord[a.b]-ord[b.b])||((b.mine.length+b.theirs.length)-(a.mine.length+a.theirs.length))||String(a.p.full_name||'').localeCompare(String(b.p.full_name||''));
     });
   }
-  function tkItemHTML(r){
-    var p=r.p, a=r.a, row=(typeof window.cfStatRow==='function')?window.cfStatRow(p):null, hi={};
+  function tkItemHTML(r,a){
+    var p=r.p, row=(typeof window.cfStatRow==='function')?window.cfStatRow(p):null, hi={};
     if(a)Object.keys(a.d).forEach(function(k){ hi[k]=1; });
     var line=row==null?'<span class="zz">Stats loading…</span>'
       :tkTokens(p,row).map(function(t){ return '<span'+(t.k.some(function(k){return hi[k];})?' class="hi"':'')+'>'+esc(t.x)+'</span>'; }).join('<span class="sp">·</span>');
@@ -26133,7 +26126,7 @@ body.cf-maniac-lock{overflow:hidden}
       +'<span class="mt">'+esc(posKey(p)+(p.team?' · '+p.team:''))+'</span><span class="ln">'+line+'</span>';
   }
   function tkPaint(node,r){
-    var cls='cfm-ti b-'+r.b+(r.a?' alert':''), html=tkItemHTML(r);
+    var cls='cfm-ti b-'+r.b, html=tkItemHTML(r);
     if(node.className!==cls)node.className=cls;
     if(node._h!==html){ node.innerHTML=html; node._h=html; }
   }
@@ -26149,18 +26142,23 @@ body.cf-maniac-lock{overflow:hidden}
     for(var i=0;i<kids.length;i++){ if(kids[i].offsetLeft+TK.x>=W)return kids[i]; }
     return null;
   }
-  function tkJump(pid){
+  function tkAlertNode(a){
+    var n=document.createElement('button'); n.type='button';
+    n.setAttribute('data-tk',a.pid); n.setAttribute('data-tka','1'); n.setAttribute('data-cfm-player',a.pid);
+    n.className='cfm-ti b-'+a.b+' alert'; n.innerHTML=a.html; return n;
+  }
+  /* One-shot change card: drop his regular cards still waiting off the right
+     edge, then insert next in line BEHIND any change cards already waiting
+     (detection order). A card on screen — his included — is left alone. */
+  function tkQueueAlert(a){
     var e=tkEls(); if(!e.track||!e.run)return;
-    var W=e.run.clientWidth, kids=[].slice.call(e.track.children), queued=null;
-    for(var i=0;i<kids.length;i++){
-      if(kids[i].getAttribute('data-tk')!==pid)continue;
-      var l=kids[i].offsetLeft+TK.x;
-      if(l<W&&l+kids[i].offsetWidth>0)return;               // already on screen: ringed in place
-      if(l>=W&&!queued)queued=kids[i];
-    }
+    var W=e.run.clientWidth;
+    [].slice.call(e.track.children).forEach(function(k){
+      if(k.getAttribute('data-tk')===a.pid&&!k.hasAttribute('data-tka')&&k.offsetLeft+TK.x>=W)e.track.removeChild(k);
+    });
     var slot=tkNextSlot(e.track,W);
-    if(queued&&queued===slot)return;
-    var n=queued||tkNode(pid);
+    while(slot&&slot.hasAttribute('data-tka'))slot=slot.nextElementSibling;
+    var n=tkAlertNode(a);
     if(slot)e.track.insertBefore(n,slot); else e.track.appendChild(n);
   }
   function tkFill(){
@@ -26178,24 +26176,29 @@ body.cf-maniac-lock{overflow:hidden}
     if(!root)return;
     root.classList.toggle('tk-off',!P.ticker.on);
     var e=tkEls(); if(!e.track)return;
-    if(!P.ticker.on){ tkStop(); return; }
+    if(!P.ticker.on){ tkStop(); TK.fresh=[]; return; }
     var list=tkList();
     TK.rows={}; TK.order=list.map(function(r){ TK.rows[r.p.id]=r; return r.p.id; });
-    if(!list.length){
+    if(!list.length&&!TK.fresh.length&&!e.track.querySelector('[data-tka]')){
       e.track.innerHTML=''; TK.x=0; TK.cur=0; e.track.style.transform='';
       e.empty.textContent=(M&&M.status==='ok')?'No one on the field right now':'Loading…';
       e.empty.style.display=''; tkStop(); TK.fresh=[]; return;
     }
     e.empty.style.display='none';
-    /* Drop anyone who left (game final, filter change); repaint the rest in place.
-       A node removed while fully off the left edge shifts the strip, so pay it back. */
+    /* Drop anyone who left (game final, filter change) and refresh cards still
+       waiting off the right edge. Anything on screen is frozen until it scrolls
+       off; change cards are never repainted or dropped here. A node removed
+       while fully off the left edge shifts the strip, so pay it back. */
+    var W=e.run?e.run.clientWidth:0;
     [].slice.call(e.track.children).forEach(function(n){
-      var r=TK.rows[n.getAttribute('data-tk')];
-      if(r){ tkPaint(n,r); return; }
-      var w=n.offsetWidth+TK_GAP, gone=n.offsetLeft+w+TK.x<=0;
+      if(n.hasAttribute('data-tka'))return;
+      var r=TK.rows[n.getAttribute('data-tk')], l=n.offsetLeft+TK.x;
+      if(r){ if(W&&l>=W)tkPaint(n,r); return; }
+      if(W&&l<W&&l+n.offsetWidth>0)return;                  // on screen: let it finish its run
+      var w=n.offsetWidth+TK_GAP, gone=l+w<=0;
       e.track.removeChild(n); if(gone)TK.x+=w;
     });
-    TK.fresh.forEach(function(pid){ if(TK.rows[pid])tkJump(pid); }); TK.fresh=[];
+    TK.fresh.forEach(tkQueueAlert); TK.fresh=[];
     tkFill(); tkStart();
   }
   function tkFrame(t){
@@ -26203,18 +26206,16 @@ body.cf-maniac-lock{overflow:hidden}
     if(!root||!window.__cfManiacOpen||!P.ticker.on)return;
     var e=tkEls();
     if(e.run&&e.run.clientWidth&&!e.track.firstElementChild&&TK.order.length)tkFill();   // strip came up empty (no width yet at sync): fill now, not at the next poll
-    if(!e.run||!e.run.clientWidth||!e.track.firstElementChild){ TK.last=t; TK.raf=requestAnimationFrame(tkFrame); return; }
+    if(!e.run||!e.run.clientWidth||!e.track.firstElementChild){
+      if(e.run&&e.empty&&!e.track.firstElementChild&&!TK.order.length&&M&&M.status==='ok'){ e.empty.textContent='No one on the field right now'; e.empty.style.display=''; TK.x=0; e.track.style.transform=''; }
+      TK.last=t; TK.raf=requestAnimationFrame(tkFrame); return; }
+    if(e.empty&&e.empty.style.display!=='none')e.empty.style.display='none';
     var dt=TK.last?Math.min(0.1,(t-TK.last)/1000):0; TK.last=t;
     if(TK_REDUCED){ if(!TK.paused&&t-TK.step>4000){ TK.step=t; TK.x-=e.run.clientWidth*0.8; } }
     else if(!TK.paused) TK.x-=TK_SPEED*dt;
     var f=e.track.firstElementChild, guard=0;
     while(f&&guard++<40&&f.offsetWidth+TK_GAP+TK.x<0){
-      TK.x+=f.offsetWidth+TK_GAP; e.track.removeChild(f);
-      var r=TK.rows[f.getAttribute('data-tk')];
-      if(r&&r.a){                                            // still prioritized: back to the front of the line
-        var slot=tkNextSlot(e.track,e.run.clientWidth);
-        if(slot)e.track.insertBefore(f,slot); else e.track.appendChild(f);
-      }
+      TK.x+=f.offsetWidth+TK_GAP; e.track.removeChild(f);   // off the left edge: gone (change cards included — one pass only)
       tkFill(); f=e.track.firstElementChild;
     }
     e.track.style.transform='translateX('+TK.x.toFixed(1)+'px)';
@@ -26223,7 +26224,7 @@ body.cf-maniac-lock{overflow:hidden}
   function tkStart(){ if(!TK.raf){ TK.last=0; TK.raf=requestAnimationFrame(tkFrame); } }
   function tkStop(){ if(TK.raf){ cancelAnimationFrame(TK.raf); TK.raf=0; } }
   function tkReset(){
-    TK.x=0; TK.cur=0; TK.base={}; TK.alerts={}; TK.fresh=[]; TK.rows={}; TK.order=[]; TK.wk='';
+    TK.x=0; TK.cur=0; TK.base={}; TK.fresh=[]; TK.rows={}; TK.order=[]; TK.wk='';
     var e=tkEls(); if(e.track){ e.track.innerHTML=''; e.track.style.transform=''; }
   }
 
