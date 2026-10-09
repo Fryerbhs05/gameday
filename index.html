@@ -25520,8 +25520,18 @@ body.cf-maniac-lock{overflow:hidden}
   var root=null, ticker=null, wake=null, chromeT=null;
   var P=loadPrefs();                 // persisted per device
   var S={hero:null, heroAt:0, lastHero:null, sheet:null, rootF:'all', rootB:'all',
-         renderedAt:0, wk:'', last:{}, chg:{}, railFl:{}, cells:{}};
+         pausedAt:0, renderedAt:0, wk:'', last:{}, chg:{}, railFl:{}, cells:{}};
   var FLASH_MS=1600;
+  /* Rotation clock holds while a side drawer (player or settings) is open: the
+     hero start time slides forward with the wall clock, so the center matchup's
+     elapsed time (and its progress bar) freezes and resumes where it left off on
+     close. Sliding (not a stored elapsed) means a heroAt reset made while open —
+     a new rotate speed, Pinned/Rotate — stays put at 0 until the drawer closes. */
+  function holdRot(){
+    var now=Date.now();
+    if(S.sheet&&window.__cfManiacOpen){ if(S.pausedAt)S.heroAt+=now-S.pausedAt; S.pausedAt=now; }
+    else if(S.pausedAt){ S.heroAt+=now-S.pausedAt; S.pausedAt=0; }
+  }
 
   function loadPrefs(){
     var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, panels:{rail:true,side:true}, ticker:{on:true,x:false,e:false}};
@@ -25840,6 +25850,7 @@ body.cf-maniac-lock{overflow:hidden}
     var L=M.leagues[S.hero]; if(!L){ el.innerHTML=emptyHTML(); return; }
     var c=L.ctx, v=leagueView(L), idx=M.vis.indexOf(S.hero)+1;
     var entering=S.lastHero!==S.hero; S.lastHero=S.hero;
+    holdRot();
     var rotPct=P.mode==='rotate'?clamp((Date.now()-S.heroAt)/(P.rotateSec*1000)*100,0,100):0;
     var mine=L.lg.myPlayers||[], opp=L.solo?[]:(L.lg.oppPlayers||[]);
     var rp=Array.isArray(L.lg.rosterPositions)?L.lg.rosterPositions:null;
@@ -26142,7 +26153,7 @@ body.cf-maniac-lock{overflow:hidden}
     TK.rows={}; TK.order=list.map(function(r){ TK.rows[r.p.id]=r; return r.p.id; });
     if(!list.length){
       e.track.innerHTML=''; TK.x=0; TK.cur=0; e.track.style.transform='';
-      e.empty.textContent=(M&&M.status==='ok')?'No one on the field right now':'';
+      e.empty.textContent=(M&&M.status==='ok')?'No one on the field right now':'Loading…';
       e.empty.style.display=''; tkStop(); TK.fresh=[]; return;
     }
     e.empty.style.display='none';
@@ -26161,6 +26172,7 @@ body.cf-maniac-lock{overflow:hidden}
     TK.raf=0;
     if(!root||!window.__cfManiacOpen||!P.ticker.on)return;
     var e=tkEls();
+    if(e.run&&e.run.clientWidth&&!e.track.firstElementChild&&TK.order.length)tkFill();   // strip came up empty (no width yet at sync): fill now, not at the next poll
     if(!e.run||!e.run.clientWidth||!e.track.firstElementChild){ TK.last=t; TK.raf=requestAnimationFrame(tkFrame); return; }
     var dt=TK.last?Math.min(0.1,(t-TK.last)/1000):0; TK.last=t;
     if(TK_REDUCED){ if(!TK.paused&&t-TK.step>4000){ TK.step=t; TK.x-=e.run.clientWidth*0.8; } }
@@ -26215,6 +26227,7 @@ body.cf-maniac-lock{overflow:hidden}
   }
   function renderSheet(refresh){
     var sh=$('#cfm-sheet'), scr=$('#cfm-scrim'); if(!sh)return;
+    holdRot();
     if(!S.sheet){ sh.classList.remove('on'); if(scr)scr.classList.remove('on'); return; }
     if(S.sheet==='settings'){ sh.innerHTML=settingsHTML(); }
     else if(S.sheet.indexOf('p:')===0){
@@ -26347,6 +26360,7 @@ body.cf-maniac-lock{overflow:hidden}
   function tick(){
     if(!window.__cfManiacOpen)return;
     updateFresh();
+    holdRot();
     if(M&&M.status==='ok'&&P.mode==='rotate'&&M.vis.length>1&&Date.now()-S.heroAt>=P.rotateSec*1000){ step(1); return; }
     var rb=root&&root.querySelector('.cfm-rot i');
     if(rb)rb.style.width=clamp((Date.now()-S.heroAt)/(P.rotateSec*1000)*100,0,100)+'%';
@@ -26359,7 +26373,7 @@ body.cf-maniac-lock{overflow:hidden}
     try{ if(window.BottomSheet&&window.BottomSheet.isOpen())window.BottomSheet.close(); }catch(e){}
     window.__cfManiacOpen=true;
     P=loadPrefs();
-    S.sheet=null; S.heroAt=Date.now(); S.lastHero=null; S.last={}; S.chg={}; S.railFl={}; S.wk='';
+    S.sheet=null; S.heroAt=Date.now(); S.pausedAt=0; S.lastHero=null; S.last={}; S.chg={}; S.railFl={}; S.wk='';
     tkReset();
     root.classList.add('is-open');
     document.body.classList.add('cf-maniac-lock');
@@ -26367,6 +26381,10 @@ body.cf-maniac-lock{overflow:hidden}
     if(ticker)clearInterval(ticker); ticker=setInterval(tick,1000);
     S.renderedAt=S.renderedAt||Date.now();
     render();
+    /* Ticker stats: if the /stats pull isn't already in memory, get it now; when it lands,
+       cfPendRepaint repaints the ticker (otherwise it waits for the next 30s poll). */
+    try{ var se=window.getActiveSeason&&window.getActiveSeason(), wk=window.getActiveWeek&&window.getActiveWeek(), d0=window.__conflictedLastData;
+      if(se&&wk&&!(d0&&d0.isHist)&&typeof window.__cfWeekStats==='function')window.__cfWeekStats(se,wk).then(function(){ if(window.__cfManiacOpen&&typeof window.__cfManiacPendRepaint==='function')window.__cfManiacPendRepaint(); }).catch(function(){}); }catch(e){}
     /* Maniac Mode is live-week only: if the board is parked on a past week,
        snap back to this week (same path as the app's LIVE button). */
     try{ var d=window.__conflictedLastData; if(d&&d.isHist&&typeof handleRefresh==='function')handleRefresh(); }catch(e){}
@@ -26380,7 +26398,7 @@ body.cf-maniac-lock{overflow:hidden}
     if(root.classList.contains('wall'))setWall(false);
     root.classList.remove('is-open');
     document.body.classList.remove('cf-maniac-lock');
-    S.sheet=null; renderSheet();
+    S.sheet=null; renderSheet(); S.pausedAt=0;
     if(ticker){ clearInterval(ticker); ticker=null; }
     tkStop();
     try{ if(screen.orientation&&screen.orientation.unlock)screen.orientation.unlock(); }catch(e){}
