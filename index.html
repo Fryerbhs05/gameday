@@ -10036,6 +10036,17 @@ function cfPendingFor(player,isHist){
    read per league. cfPendingFor runs first (idempotent) so the state machine
    advances exactly as it does on the card; the label then covers only the plays
    THIS league still owes, so a league whose points already landed shows nothing. */
+/* Maniac Mode stat ticker: this player's Sleeper /stats row for the live week
+   (null = stats not loaded for this week; {} = loaded, no stats yet), and a
+   league's scoring in Sleeper stat keys (raw settings or the fmt profile). */
+window.cfStatRow=function(player){
+  try{
+    if(__wkStatsKey!==(activeSeason+'-'+activeWeek)||!__wkStatsAt) return null;
+    const sid=cfPendStatKey(player); if(!sid) return null;
+    return (__wkStats&&__wkStats[sid])||{};
+  }catch(e){ return null; }
+};
+window.cfScoringFor=function(ctx){ try{ return normalizeScoringForContext(ctx)||null; }catch(e){ return null; } };
 window.cfPendingForPlayer=function(p){ try{ return cfPendingFor(p,false); }catch(e){ return ''; } };
 window.cfPendingForLeague=function(player,lgName){
   try{
@@ -25223,10 +25234,29 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-fresh{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-pill);border:1px solid var(--line);font-size:var(--txs);color:var(--ink-700);white-space:nowrap;transition:background 1.3s var(--ease-out),border-color 1.3s var(--ease-out)}
 #cfm .cfm-fresh.synced-flash{transition:none;background:color-mix(in oklab,var(--live-ice) 16%,transparent);border-color:var(--live-ice)}
 #cfm .cfm-fresh .dot{width:7px;height:7px;border-radius:50%;background:var(--live-ice)}
-#cfm .cfm-ledger{display:flex;gap:10px;font-size:var(--txs);color:var(--ink-500);white-space:nowrap}
-#cfm .cfm-ledger b{font-family:var(--font-mono);font-weight:700;color:var(--ink-900)}
-#cfm .cfm-ledger .u{color:var(--cheer)}#cfm .cfm-ledger .d{color:var(--enemy)}
 #cfm .cfm-sp{flex:1}
+/* Stat ticker (2026-10-08) — fills Synced → LIVE; .cfm-tsp only holds the space when it's off */
+#cfm:not(.tk-off) .cfm-tsp{display:none}
+#cfm.tk-off .cfm-tk{display:none}
+#cfm .cfm-tk{flex:1;min-width:0;height:40px;display:flex;border:1px solid var(--line-soft);border-radius:var(--radius-pill);background:var(--paper-deep);overflow:hidden}
+#cfm .cfm-tk-run{flex:1;min-width:0;position:relative;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22px,#000 calc(100% - 22px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 22px,#000 calc(100% - 22px),transparent 100%)}
+#cfm .cfm-tk-track{position:absolute;left:0;top:0;bottom:0;display:flex;align-items:center;white-space:nowrap;will-change:transform}
+#cfm .cfm-tk-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:var(--txs);color:var(--ink-500);white-space:nowrap}
+#cfm .cfm-ti{display:inline-flex;align-items:center;gap:7px;margin-right:30px;font-size:var(--txs);padding:3px 0;border-radius:var(--radius-pill);flex:none}
+#cfm .cfm-ti .bk{width:3px;height:14px;border-radius:2px;flex:none}
+#cfm .cfm-ti.b-c .bk{background:var(--cheer)}#cfm .cfm-ti.b-e .bk{background:var(--enemy)}#cfm .cfm-ti.b-x .bk{background:var(--split)}
+#cfm .cfm-ti .nm{font-weight:700;color:var(--ink-900)}
+#cfm .cfm-ti .mt{font:600 var(--t2xs) var(--font-mono);color:var(--ink-500);letter-spacing:.04em}
+#cfm .cfm-ti .ln{font:500 var(--txs) var(--font-mono);color:var(--ink-700);font-variant-numeric:tabular-nums}
+#cfm .cfm-ti .ln .sp{color:var(--ink-300);margin:0 5px}
+#cfm .cfm-ti .ln .hi{color:var(--live-ice);font-weight:700}
+#cfm .cfm-ti .ln .zz{color:var(--ink-500)}
+#cfm .cfm-ti.alert{padding:3px 12px 3px 10px;background:color-mix(in oklab,var(--live-ice) 11%,transparent);box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--live-ice) 70%,transparent)}
+#cfm .cfm-ti .sc-chip{display:inline-flex;align-items:center;gap:5px;font:800 var(--t2xs) var(--font-mono);letter-spacing:.1em;color:var(--live-ice);text-transform:uppercase;flex:none}
+#cfm .cfm-ti .sc-chip i{width:6px;height:6px;border-radius:50%;background:var(--live-ice);animation:cfmScPulse 1.2s ease-in-out infinite}
+@keyframes cfmScPulse{0%,100%{opacity:1}50%{opacity:.25}}
+#cfm .cfm-ti .sc-what{font:800 var(--txs) var(--font-mono);color:var(--live-ice);letter-spacing:.02em;text-transform:uppercase}
+@media (prefers-reduced-motion:reduce){#cfm .cfm-ti .sc-chip i{animation:none}}
 #cfm .cfm-ctrls{display:flex;align-items:center;gap:8px;transition:opacity .4s}
 #cfm .cfm-ib{height:40px;min-width:40px;padding:0 12px;border:1px solid var(--line);border-radius:var(--radius-pill);display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:var(--txs);font-weight:600;color:var(--ink-700)}
 #cfm .cfm-ib svg{width:20px;height:20px}
@@ -25423,10 +25453,12 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm.compact.tx-lg,#cfm.compact.wall{--b:14px}
 #cfm.compact .cfm-top{padding:6px var(--pad);gap:8px;min-height:48px}
 #cfm.compact .cfm-wm{height:19px}
-#cfm.compact .cfm-kick,#cfm.compact .cfm-ledger .lf,#cfm.compact .cfm-ib .wl{display:none}
+#cfm.compact .cfm-kick,#cfm.compact .cfm-ib .wl{display:none}
 #cfm.compact .cfm-ib{height:36px;min-width:36px;padding:0 9px}
 #cfm.compact .cfm-ib svg{width:18px;height:18px}
 #cfm.compact .cfm-fresh{padding:3px 8px}
+#cfm.compact .cfm-tk{height:36px}
+#cfm.compact .cfm-ti .mt{display:none}
 #cfm.compact .cfm-rail{width:164px}
 #cfm.compact .cfm-ph{padding:7px 9px 5px}
 #cfm.compact .cfm-rail-list{padding:0 6px 6px;gap:6px}
@@ -25492,7 +25524,7 @@ body.cf-maniac-lock{overflow:hidden}
   var FLASH_MS=1600;
 
   function loadPrefs(){
-    var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, panels:{rail:true,side:true}};
+    var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, panels:{rail:true,side:true}, ticker:{on:true,x:false,e:false}};
     try{ var raw=localStorage.getItem(PREF_KEY); if(raw){ var o=JSON.parse(raw); if(o&&typeof o==='object'){
       if(o.mode==='pin'||o.mode==='rotate')d.mode=o.mode;
       if(+o.rotateSec>=5&&+o.rotateSec<=60)d.rotateSec=+o.rotateSec;
@@ -25500,6 +25532,7 @@ body.cf-maniac-lock{overflow:hidden}
       if(o.hidden&&typeof o.hidden==='object')d.hidden=o.hidden;
       d.txLg=!!o.txLg;
       if(o.panels&&typeof o.panels==='object')d.panels={rail:o.panels.rail!==false,side:o.panels.side!==false};
+      if(o.ticker&&typeof o.ticker==='object')d.ticker={on:o.ticker.on!==false,x:!!o.ticker.x,e:!!o.ticker.e};
     }}}catch(e){}
     return d;
   }
@@ -25701,8 +25734,8 @@ body.cf-maniac-lock{overflow:hidden}
       +    '<line x1="240" y1="12" x2="240" y2="66" style="stroke:var(--ink-900,#F5EFE4);stroke-width:1.2"/></svg>'
       +  '<span class="cfm-kick" id="cfm-kick">Maniac Mode</span>'
       +  '<span class="cfm-fresh" id="cfm-fresh"><span class="dot"></span><span id="cfm-fresh-t">Synced</span></span>'
-      +  '<span class="cfm-ledger" id="cfm-ledger"></span>'
-      +  '<span class="cfm-sp"></span>'
+      +  '<div class="cfm-tk" id="cfm-tk" aria-label="Live stat ticker"><div class="cfm-tk-run" id="cfm-tk-run"><div class="cfm-tk-track" id="cfm-tk-track"></div><div class="cfm-tk-empty" id="cfm-tk-empty"></div></div></div>'
+      +  '<span class="cfm-sp cfm-tsp"></span>'
       +  '<span class="cfm-ctrls">'
       +    '<button type="button" class="cfm-ib cfm-live" data-cfm="live" title="Refresh now"><span class="ldot"></span>LIVE</button>'
       +    '<button type="button" class="cfm-ib" data-cfm="wall" title="Wall mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span class="wl">Wall</span></button>'
@@ -25721,6 +25754,9 @@ body.cf-maniac-lock{overflow:hidden}
     root.addEventListener('click',onClick);
     root.addEventListener('input',onInput);
     root.addEventListener('pointermove',function(){ if(root.classList.contains('wall'))showChrome(); });
+    var tkr=root.querySelector('#cfm-tk-run');
+    tkr.addEventListener('pointerenter',function(){ TK.paused=true; });
+    tkr.addEventListener('pointerleave',function(){ TK.paused=false; });
     root.addEventListener('pointerdown',function(){ if(root.classList.contains('wall'))showChrome(); },true);
     try{ new ResizeObserver(function(){ applyLayout(); }).observe(root); }catch(e){ window.addEventListener('resize',applyLayout); }
     return root;
@@ -25745,7 +25781,8 @@ body.cf-maniac-lock{overflow:hidden}
     applyLayout();
     M=buildModel();
     trackChanges();
-    renderTop(); renderRail(); renderHero(); renderRoot();
+    tkDetect();
+    renderTop(); renderRail(); renderHero(); renderRoot(); tkSync();
     if(S.sheet&&S.sheet.indexOf('p:')===0)renderSheet(true);
     else if(S.sheet==='settings')renderSheet();
   }
@@ -25758,20 +25795,12 @@ body.cf-maniac-lock{overflow:hidden}
      center rows and the open drawer's league rows without waiting for the poll. */
   window.__cfManiacPendRepaint=function(){
     if(!root||!window.__cfManiacOpen||!M||M.status!=='ok')return;
-    renderHero();
+    renderHero(); tkDetect(); tkSync();
     if(S.sheet&&S.sheet.indexOf('p:')===0){ var p=findPlayer(S.sheet.slice(2)), b=root.querySelector('#cfm-sheet .cfm-between'); if(p&&b)b.innerHTML=playerBetween(p); }
   };
   window.__cfManiacWantsStats=function(){ return !!(window.__cfManiacOpen&&S.sheet&&S.sheet.indexOf('p:')===0); };
 
   function renderTop(){
-    var ok=M&&M.status==='ok', up=0, dn=0, onField=0, toPlay=0;
-    if(ok){
-      M.vis.forEach(function(n){ var L=M.leagues[n]; if(L.solo)return; var v=leagueView(L); if(v.my-v.op>0.004)up++; else if(v.my-v.op<-0.004)dn++; });
-      var seen={};
-      M.vis.forEach(function(n){ var L=M.leagues[n]; (L.lg.myPlayers||[]).forEach(function(r){ var t=teamFor(r), s=gs(t), k=n+'|'+(norm(r)||{}).key; if(seen[k])return; seen[k]=1; if(s==='in')onField++; else if(s==='pre')toPlay++; }); });
-    }
-    var lg=$('#cfm-ledger');
-    if(lg)lg.innerHTML=ok?('<span>Up in <b class="u">'+up+'</b></span><span>Down in <b class="d">'+dn+'</b></span><span class="lf">On the field <b>'+onField+'</b></span><span class="lf">Yet to play <b>'+toPlay+'</b></span>'):'';
     var k=$('#cfm-kick'); if(k){ var wk=''; try{ wk=(window.getActiveWeek&&window.getActiveWeek())||''; }catch(e){} k.textContent='Maniac Mode'+(wk?' · Week '+wk:''); }
     updateFresh();
   }
@@ -25896,6 +25925,266 @@ body.cf-maniac-lock{overflow:hidden}
     el.innerHTML=html||'<div class="cfm-empty">No one matches.</div>';
   }
 
+  /* ---------- STAT TICKER (2026-10-08) ----------------------------------
+     Header strip between Synced and LIVE. Shows players IN A GAME right now:
+     Cheer by default, Conflicted / Enemy opt-in (Settings). Stats only (the
+     Sleeper /stats row the box score uses), never points. A STAT CHANGE =
+     a stat that scores or loses points in at least one league switched on in
+     Maniac Mode (league scoring settings; pass attempts/completions never
+     count). It "jumps the line": the player is put next to scroll in, ringed in
+     ice with STAT CHANGE + the play, and only the stat(s) that moved turn ice.
+     Prioritized for 30s, longer while Points Pending still shows the play
+     (cap 150s); re-queued at the front each time it scrolls off until then.
+     45 px/s. Baselines live in memory; reopening Maniac starts fresh. */
+  var TK_SPEED=45, TK_GAP=30, TK_HOLD=30000, TK_MAX=150000;
+  var TK={x:0, last:0, raf:0, paused:false, order:[], cur:0, rows:{}, base:{}, alerts:{}, fresh:[], wk:'', step:0};
+  var TK_KEYS=['pass_yd','pass_td','pass_int','pass_2pt','pass_sack','rush_yd','rush_td','rush_2pt','rec','rec_yd','rec_td','rec_2pt',
+    'fum_lost','fum','fgm','fgmiss','xpm','xpmiss','def_sack','def_int','def_fum_rec','def_td','def_st_td','def_safe','def_blk_kick','pts_allow','yds_allow'];
+  /* Sleeper team-DEF rows / scoring use the short names. */
+  var TK_ALIAS={def_sack:['sack'],def_int:['int'],def_fum_rec:['fum_rec'],def_safe:['safe'],def_blk_kick:['blk_kick'],def_st_td:['st_td']};
+  var TK_EXTRA={rec:['bonus_rec_te','bonus_rec_wr','bonus_rec_rb'],def_st_td:['def_pr_td','def_kr_td','pr_td','kr_td']};
+  var TK_TIERED={fgm:1,fgmiss:1,pts_allow:1,yds_allow:1};     // scored through tier keys (fgm_40_49, pts_allow_7_13…)
+  var TK_REDUCED=false; try{ TK_REDUCED=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  function sv(row,k){
+    if(!row)return 0;
+    var names=[k].concat(TK_ALIAS[k]||[]);
+    for(var i=0;i<names.length;i++){ var v=row[names[i]]; if(typeof v==='number'&&isFinite(v))return v; }
+    return 0;
+  }
+  /* Which tracked stats score (either way) in ANY visible league. */
+  function tkGate(){
+    var set={}, any=false;
+    (M.vis||[]).forEach(function(n){
+      var sc=(typeof window.cfScoringFor==='function')?window.cfScoringFor(M.leagues[n].ctx):null;
+      if(sc&&typeof sc==='object'){ any=true; for(var k in sc){ if(+sc[k])set[k]=1; } }
+    });
+    var g={}, keys=Object.keys(set);
+    TK_KEYS.forEach(function(k){
+      if(!any){ g[k]=true; return; }
+      var names=[k].concat(TK_ALIAS[k]||[],TK_EXTRA[k]||[]);
+      g[k]=keys.some(function(key){ return names.some(function(nm){ return key===nm||(TK_TIERED[nm]&&key.indexOf(nm+'_')===0); }); });
+    });
+    return g;
+  }
+  function tkAlive(a,p,now){
+    if(now-a.t<TK_HOLD)return true;
+    if(now-a.t>=TK_MAX)return false;
+    try{ return !!(p&&typeof window.cfPendingForPlayer==='function'&&window.cfPendingForPlayer(p)); }catch(e){ return false; }
+  }
+  /* Same wording as Points Pending (cfPendLabel), widened to every scoring stat. */
+  function tkLabel(d){
+    var r=function(v){return Math.round(v||0);}, A=function(v){return Math.abs(r(v));};
+    var cnt=['pass_td','rush_td','rec_td','pass_int','fum_lost','fum','fgm','fgmiss','xpm','xpmiss','rec','def_sack','def_int','def_fum_rec','def_td','def_st_td','def_safe','def_blk_kick','pass_2pt','rush_2pt','rec_2pt'];
+    if(cnt.some(function(k){return d[k]<0;})) return 'Stat correction';
+    var td=function(n,y,w){ return n>1?(n+' '+w+' TDs'):((r(y)>0?r(y)+' yd ':'')+w+' TD'); };
+    if(d.pass_td>0) return td(d.pass_td,d.pass_yd,'pass');
+    if(d.rush_td>0) return td(d.rush_td,d.rush_yd,'rush');
+    if(d.rec_td>0)  return td(d.rec_td,d.rec_yd,'rec');
+    if(d.def_td>0)  return 'Defensive TD';
+    if(d.def_st_td>0) return 'Return TD';
+    if(d.pass_2pt>0||d.rush_2pt>0||d.rec_2pt>0) return '2-pt conversion';
+    if(d.pass_int>0) return 'INT';
+    if(d.fum_lost>0) return 'Fumble lost';
+    if(d.fum>0) return 'Fumble';
+    if(d.def_safe>0) return 'Safety';
+    if(d.def_int>0) return 'Def INT';
+    if(d.def_fum_rec>0) return 'Fumble rec';
+    if(d.def_blk_kick>0) return 'Blocked kick';
+    if(d.def_sack>0) return d.def_sack===1?'Sack':(d.def_sack+' sacks');
+    if(d.fgm>0) return 'FG good';
+    if(d.fgmiss>0) return 'FG missed';
+    if(d.xpm>0) return 'XP good';
+    if(d.xpmiss>0) return 'XP missed';
+    if(d.pass_sack>0) return 'Sacked';
+    if(r(d.pts_allow)) return (d.pts_allow>0?'+':'−')+A(d.pts_allow)+' pts allowed';
+    var ys=[['pass_yd','pass'],['rush_yd','rush'],['rec_yd','rec']].filter(function(a){return r(d[a[0]])!==0;});
+    var yd=function(v,w){ return (v>0?'+':'−')+Math.abs(v)+' '+(w?w+' ':'')+(Math.abs(v)===1?'yd':'yds'); };
+    if(ys.length===1) return yd(r(d[ys[0][0]]),ys[0][1]);
+    if(ys.length>1){ var t=r(ys.reduce(function(a,b){return a+d[b[0]];},0)); if(t) return yd(t,''); }
+    if(d.rec>0) return d.rec===1?'Catch':(d.rec+' catches');
+    if(r(d.yds_allow)) return (d.yds_allow>0?'+':'−')+A(d.yds_allow)+' yds allowed';
+    return 'Stat change';
+  }
+  /* Box-score line as separate tokens so ONLY the stat that moved turns ice:
+     a 7-yard run lights the yards, a 40-yard TD pass lights the yards and the TD. */
+  function tkTokens(p,row){
+    var v=function(k){return sv(row,k);}, t=[], pos=posKey(p);
+    function add(x,k){ t.push({x:x,k:k||[]}); }
+    var two=v('pass_2pt')+v('rush_2pt')+v('rec_2pt');
+    if(pos==='QB'){
+      add(v('pass_cmp')+'/'+v('pass_att'));
+      add(v('pass_yd')+' YDS',['pass_yd']);
+      if(v('pass_td'))add(v('pass_td')+' TD',['pass_td']);
+      if(v('pass_int'))add(v('pass_int')+' INT',['pass_int']);
+      if(v('rush_yd')||v('rush_td'))add(v('rush_yd')+' RUSH YDS',['rush_yd']);
+      if(v('rush_td'))add(v('rush_td')+' RUSH TD',['rush_td']);
+    }else if(pos==='RB'){
+      add(v('rush_att')+' CAR');
+      add(v('rush_yd')+' YDS',['rush_yd']);
+      if(v('rush_td'))add(v('rush_td')+' TD',['rush_td']);
+      if(v('rec')||v('rec_yd')){ add(v('rec')+' REC',['rec']); add(v('rec_yd')+' REC YDS',['rec_yd']); }
+      if(v('rec_td'))add(v('rec_td')+' REC TD',['rec_td']);
+    }else if(pos==='WR'||pos==='TE'){
+      add(v('rec')+' REC',['rec']);
+      add(v('rec_yd')+' YDS',['rec_yd']);
+      if(v('rec_td'))add(v('rec_td')+' TD',['rec_td']);
+      if(v('rush_yd')||v('rush_td'))add(v('rush_yd')+' RUSH YDS',['rush_yd']);
+      if(v('rush_td'))add(v('rush_td')+' RUSH TD',['rush_td']);
+    }else if(pos==='K'){
+      add('FG '+v('fgm')+'/'+(v('fgm')+v('fgmiss')),['fgm','fgmiss']);
+      add('XP '+v('xpm')+'/'+(v('xpm')+v('xpmiss')),['xpm','xpmiss']);
+    }else if(pos==='DEF'){
+      add(v('def_sack')+' SACK',['def_sack']);
+      if(v('def_int'))add(v('def_int')+' INT',['def_int']);
+      if(v('def_fum_rec'))add(v('def_fum_rec')+' FR',['def_fum_rec']);
+      if(v('def_td')||v('def_st_td'))add((v('def_td')+v('def_st_td'))+' TD',['def_td','def_st_td']);
+      if(v('def_safe'))add(v('def_safe')+' SFTY',['def_safe']);
+      add(v('pts_allow')+' PA',['pts_allow']);
+    }
+    if(two)add(two+' 2PT',['pass_2pt','rush_2pt','rec_2pt']);
+    if(v('fum_lost'))add(v('fum_lost')+' FUM LOST',['fum_lost']);
+    return t;
+  }
+  /* Diff every rostered player in a live/finished game against the last sync. */
+  function tkDetect(){
+    if(!M||M.status!=='ok')return;
+    var wk=''; try{ wk=String((window.getActiveSeason&&window.getActiveSeason())||'')+'-'+String((window.getActiveWeek&&window.getActiveWeek())||''); }catch(e){}
+    if(wk!==TK.wk){ TK.wk=wk; TK.base={}; TK.alerts={}; TK.fresh=[]; }
+    var gate=null, now=Date.now();
+    rootingList().forEach(function(r){
+      if(r.st!=='in'&&r.st!=='post')return;
+      var p=r.p, row=(typeof window.cfStatRow==='function')?window.cfStatRow(p):null;
+      if(row==null)return;                                   // stats not loaded: keep the old baseline
+      var cur={}; TK_KEYS.forEach(function(k){ cur[k]=sv(row,k); });
+      var b=TK.base[p.id]; TK.base[p.id]=cur;
+      if(!b)return;                                          // first sight = baseline only
+      if(!gate)gate=tkGate();
+      var d={}, any=false;
+      TK_KEYS.forEach(function(k){ if(!gate[k])return; var dv=cur[k]-b[k]; if(Math.abs(dv)>1e-9){ d[k]=dv; any=true; } });
+      if(!any)return;
+      var ex=TK.alerts[p.id];
+      if(ex&&tkAlive(ex,p,now))Object.keys(ex.d).forEach(function(k){ d[k]=(d[k]||0)+ex.d[k]; if(Math.abs(d[k])<=1e-9)delete d[k]; });
+      if(!Object.keys(d).length){ delete TK.alerts[p.id]; return; }
+      TK.alerts[p.id]={d:d,t:now,label:tkLabel(d)};
+      TK.fresh.push(p.id);
+    });
+  }
+  function tkList(){
+    if(!M||M.status!=='ok')return [];
+    var now=Date.now(), ord={x:0,c:1,e:2};
+    return rootingList().filter(function(r){
+      if(r.b==='x'&&!P.ticker.x)return false;
+      if(r.b==='e'&&!P.ticker.e)return false;
+      var a=TK.alerts[r.p.id]; r.a=(a&&tkAlive(a,r.p,now))?a:null;
+      if(a&&!r.a)delete TK.alerts[r.p.id];
+      return r.st==='in'||!!r.a;                              // a just-final play keeps him until it expires
+    }).sort(function(a,b){
+      return (ord[a.b]-ord[b.b])||((b.mine.length+b.theirs.length)-(a.mine.length+a.theirs.length))||String(a.p.full_name||'').localeCompare(String(b.p.full_name||''));
+    });
+  }
+  function tkItemHTML(r){
+    var p=r.p, a=r.a, row=(typeof window.cfStatRow==='function')?window.cfStatRow(p):null, hi={};
+    if(a)Object.keys(a.d).forEach(function(k){ hi[k]=1; });
+    var line=row==null?'<span class="zz">Stats loading…</span>'
+      :tkTokens(p,row).map(function(t){ return '<span'+(t.k.some(function(k){return hi[k];})?' class="hi"':'')+'>'+esc(t.x)+'</span>'; }).join('<span class="sp">·</span>');
+    return (a?'<span class="sc-chip"><i></i>Stat change</span><span class="sc-what">'+esc(a.label)+'</span>':'')
+      +'<span class="bk"></span><span class="nm">'+esc(shortName(p.full_name,p.position,p.team))+'</span>'
+      +'<span class="mt">'+esc(posKey(p)+(p.team?' · '+p.team:''))+'</span><span class="ln">'+line+'</span>';
+  }
+  function tkPaint(node,r){
+    var cls='cfm-ti b-'+r.b+(r.a?' alert':''), html=tkItemHTML(r);
+    if(node.className!==cls)node.className=cls;
+    if(node._h!==html){ node.innerHTML=html; node._h=html; }
+  }
+  function tkNode(pid){
+    var n=document.createElement('button'); n.type='button';
+    n.setAttribute('data-tk',pid); n.setAttribute('data-cfm-player',pid);
+    tkPaint(n,TK.rows[pid]); return n;
+  }
+  function tkEls(){ return {run:$('#cfm-tk-run'), track:$('#cfm-tk-track'), empty:$('#cfm-tk-empty')}; }
+  /* The first node still entirely off the right edge = "next in line". */
+  function tkNextSlot(track,W){
+    var kids=track.children;
+    for(var i=0;i<kids.length;i++){ if(kids[i].offsetLeft+TK.x>=W)return kids[i]; }
+    return null;
+  }
+  function tkJump(pid){
+    var e=tkEls(); if(!e.track||!e.run)return;
+    var W=e.run.clientWidth, kids=[].slice.call(e.track.children), queued=null;
+    for(var i=0;i<kids.length;i++){
+      if(kids[i].getAttribute('data-tk')!==pid)continue;
+      var l=kids[i].offsetLeft+TK.x;
+      if(l<W&&l+kids[i].offsetWidth>0)return;               // already on screen: ringed in place
+      if(l>=W&&!queued)queued=kids[i];
+    }
+    var slot=tkNextSlot(e.track,W);
+    if(queued&&queued===slot)return;
+    var n=queued||tkNode(pid);
+    if(slot)e.track.insertBefore(n,slot); else e.track.appendChild(n);
+  }
+  function tkFill(){
+    var e=tkEls(); if(!e.track||!TK.order.length)return;
+    var W=e.run.clientWidth, guard=0;
+    if(!W)return;
+    while(guard++<60){
+      var lc=e.track.lastElementChild, end=lc?lc.offsetLeft+lc.offsetWidth+TK_GAP+TK.x:0;
+      if(end>=W*2)break;
+      var pid=TK.order[TK.cur%TK.order.length]; TK.cur=(TK.cur+1)%TK.order.length;
+      e.track.appendChild(tkNode(pid));
+    }
+  }
+  function tkSync(){
+    if(!root)return;
+    root.classList.toggle('tk-off',!P.ticker.on);
+    var e=tkEls(); if(!e.track)return;
+    if(!P.ticker.on){ tkStop(); return; }
+    var list=tkList();
+    TK.rows={}; TK.order=list.map(function(r){ TK.rows[r.p.id]=r; return r.p.id; });
+    if(!list.length){
+      e.track.innerHTML=''; TK.x=0; TK.cur=0; e.track.style.transform='';
+      e.empty.textContent=(M&&M.status==='ok')?'No one on the field right now':'';
+      e.empty.style.display=''; tkStop(); TK.fresh=[]; return;
+    }
+    e.empty.style.display='none';
+    /* Drop anyone who left (game final, filter change); repaint the rest in place.
+       A node removed while fully off the left edge shifts the strip, so pay it back. */
+    [].slice.call(e.track.children).forEach(function(n){
+      var r=TK.rows[n.getAttribute('data-tk')];
+      if(r){ tkPaint(n,r); return; }
+      var w=n.offsetWidth+TK_GAP, gone=n.offsetLeft+w+TK.x<=0;
+      e.track.removeChild(n); if(gone)TK.x+=w;
+    });
+    TK.fresh.forEach(function(pid){ if(TK.rows[pid])tkJump(pid); }); TK.fresh=[];
+    tkFill(); tkStart();
+  }
+  function tkFrame(t){
+    TK.raf=0;
+    if(!root||!window.__cfManiacOpen||!P.ticker.on)return;
+    var e=tkEls();
+    if(!e.run||!e.run.clientWidth||!e.track.firstElementChild){ TK.last=t; TK.raf=requestAnimationFrame(tkFrame); return; }
+    var dt=TK.last?Math.min(0.1,(t-TK.last)/1000):0; TK.last=t;
+    if(TK_REDUCED){ if(!TK.paused&&t-TK.step>4000){ TK.step=t; TK.x-=e.run.clientWidth*0.8; } }
+    else if(!TK.paused) TK.x-=TK_SPEED*dt;
+    var f=e.track.firstElementChild, guard=0;
+    while(f&&guard++<40&&f.offsetWidth+TK_GAP+TK.x<0){
+      TK.x+=f.offsetWidth+TK_GAP; e.track.removeChild(f);
+      var r=TK.rows[f.getAttribute('data-tk')];
+      if(r&&r.a){                                            // still prioritized: back to the front of the line
+        var slot=tkNextSlot(e.track,e.run.clientWidth);
+        if(slot)e.track.insertBefore(f,slot); else e.track.appendChild(f);
+      }
+      tkFill(); f=e.track.firstElementChild;
+    }
+    e.track.style.transform='translateX('+TK.x.toFixed(1)+'px)';
+    TK.raf=requestAnimationFrame(tkFrame);
+  }
+  function tkStart(){ if(!TK.raf){ TK.last=0; TK.raf=requestAnimationFrame(tkFrame); } }
+  function tkStop(){ if(TK.raf){ cancelAnimationFrame(TK.raf); TK.raf=0; } }
+  function tkReset(){
+    TK.x=0; TK.cur=0; TK.base={}; TK.alerts={}; TK.fresh=[]; TK.rows={}; TK.order=[]; TK.wk='';
+    var e=tkEls(); if(e.track){ e.track.innerHTML=''; e.track.style.transform=''; }
+  }
+
   /* ---------- side drawer: player box score / settings ---------- */
   function playerBetween(p){
     var vis={}; if(M&&M.vis)M.vis.forEach(function(n){ vis[n]=1; });
@@ -25953,7 +26242,9 @@ body.cf-maniac-lock{overflow:hidden}
     return '<div class="cfm-sh-h"><h3>Settings</h3><button type="button" class="cfm-ib" data-cfm="close">Done</button></div>'
       +'<div class="cfm-sec"><button type="button" class="cfm-exit" data-cfm="exit">Exit Maniac Mode</button></div>'
       +'<div class="cfm-grp">Layout</div>'
-      +'<div class="cfm-sec"><h5>Show on screen</h5>'+tog('rail','Matchup list',P.panels.rail)+tog('side','Who to root for',P.panels.side)+'</div>'
+      +'<div class="cfm-sec"><h5>Show on screen</h5>'+tog('rail','Matchup list',P.panels.rail)+tog('side','Who to root for',P.panels.side)+tog('ticker','Stat ticker',P.ticker.on)+'</div>'
+      +'<div class="cfm-sec"><h5>Stat ticker</h5>'+tog('tkx','Include Conflicted players',P.ticker.x)+tog('tke','Include Enemy players',P.ticker.e)
+      +  '<p class="cfm-hint">Your Cheer players always show while their game is on. A stat that scores in any of your leagues jumps the player to the front of the line.</p></div>'
       +'<div class="cfm-grp">Matchups</div>'
       +'<div class="cfm-sec"><h5>Center matchup</h5><div class="cfm-opt">'+opt('mode','pin','Pinned',P.mode)+opt('mode','rotate','Rotate',P.mode)+'</div>'
       +  '<div class="cfm-tg" style="margin-top:8px"><span>Show each matchup for</span><span class="cfm-rngv" id="cfm-rotv">'+P.rotateSec+'s</span></div>'
@@ -26002,6 +26293,9 @@ body.cf-maniac-lock{overflow:hidden}
       savePrefs(); applyLayout(); renderHero(); renderSheet(); return; }
     var tg=t.getAttribute('data-cfm-tog');
     if(tg){ if(tg==='wall'){ setWall(!root.classList.contains('wall')); renderSheet(); return; }
+      if(tg==='ticker'||tg==='tkx'||tg==='tke'){ var tf=tg==='ticker'?'on':tg==='tkx'?'x':'e'; P.ticker[tf]=!P.ticker[tf]; savePrefs();
+        if(tf!=='on'){ var te=tkEls(); if(te.track){ te.track.innerHTML=''; te.track.style.transform=''; } TK.x=0; TK.cur=0; }   // new mix starts now, not after the queue
+        tkSync(); renderSheet(); return; }
       P.panels[tg]=!P.panels[tg]; savePrefs(); applyLayout(); renderSheet(); return; }
     var mv=t.getAttribute('data-cfm-mv');
     if(mv){ var n=t.getAttribute('data-v'), o=P.order||[], i=o.indexOf(n), k=i+(mv==='up'?-1:1);
@@ -26066,6 +26360,7 @@ body.cf-maniac-lock{overflow:hidden}
     window.__cfManiacOpen=true;
     P=loadPrefs();
     S.sheet=null; S.heroAt=Date.now(); S.lastHero=null; S.last={}; S.chg={}; S.railFl={}; S.wk='';
+    tkReset();
     root.classList.add('is-open');
     document.body.classList.add('cf-maniac-lock');
     try{ if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(function(){}); }catch(e){}
@@ -26087,6 +26382,7 @@ body.cf-maniac-lock{overflow:hidden}
     document.body.classList.remove('cf-maniac-lock');
     S.sheet=null; renderSheet();
     if(ticker){ clearInterval(ticker); ticker=null; }
+    tkStop();
     try{ if(screen.orientation&&screen.orientation.unlock)screen.orientation.unlock(); }catch(e){}
     try{ cfTrack('maniac_close',{}); }catch(e){}
   };
