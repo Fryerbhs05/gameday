@@ -25339,6 +25339,8 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-pc .pt{grid-area:pts;font:700 var(--tmd) var(--font-mono);font-variant-numeric:tabular-nums;color:var(--ink-900);white-space:nowrap}
 #cfm .cfm-pc .pj{grid-area:pj;font:500 var(--txs) var(--font-mono);color:var(--ink-500);white-space:nowrap}
 #cfm .cfm-pc .ab{display:none}
+/* Names: full unless THIS row's name overflows its cell (fitNames sets .abn) — same rule as the Rooting Card. Never viewport-driven. */
+#cfm .cfm-pc.abn .fu{display:none}#cfm .cfm-pc.abn .ab{display:inline}
 /* Row states: NOT STARTED = grey points · LIVE = ice outline · FINAL = flat tile */
 #cfm .cfm-pc.st-pre .pt{color:var(--ink-300);font-weight:500}
 #cfm .cfm-pc.st-post{background:var(--paper-deep);border-color:var(--line-soft)}
@@ -25367,7 +25369,6 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-key .mono{color:var(--ink-300)}
 @container cfmhero (max-width:560px){#cfm .cfm-pc .pj{display:none}}
 @container cfmhero (max-width:520px){
-  #cfm .cfm-pc .fu{display:none}#cfm .cfm-pc .ab{display:inline}
   #cfm .cfm-lr{grid-template-columns:1fr 30px 1fr}
   #cfm .cfm-pc{padding:6px 7px;column-gap:6px}
   #cfm .cfm-hs{gap:6px}
@@ -25493,8 +25494,7 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm.compact .cfm-slot.bn span{padding:0 3px;border-radius:3px}
 #cfm.compact .cfm-pc{padding:1px 7px;min-height:22px}
 #cfm.compact .cfm-seg button{padding:4px 7px}
-#cfm.compact .cfm-pc .pj,#cfm.compact .cfm-pc .fu{display:none}
-#cfm.compact .cfm-pc .ab{display:inline}
+#cfm.compact .cfm-pc .pj{display:none}
 #cfm.compact .cfm-pc .pt{font-size:var(--tsm)}
 #cfm.compact.tight .cfm-rail{width:150px}
 #cfm.compact.tight .cfm-side{width:206px}
@@ -25570,8 +25570,27 @@ body.cf-maniac-lock{overflow:hidden}
   function shortName(name,pos,team){
     var P0=String(pos||'').toUpperCase();
     if(P0==='DEF'||P0==='DST') return (team?String(team).toUpperCase()+' D/ST':name);
-    var n=String(name||'').trim().replace(/ (Jr\.|Sr\.|II|III|IV|V)$/,''); var i=n.indexOf(' ');
-    if(i<0) return n; return n[0]+'. '+n.slice(i+1);
+    /* Same rules as the Rooting Card's abbrevName(): already-initialled names
+       stay whole (A.J. Brown never becomes A. Brown); suffixes ride with the
+       surname (K. Walker III); single-token names are left alone. */
+    var n=String(name||'').trim(); if(!n)return n;
+    var parts=n.split(/\s+/); if(parts.length<2)return n;
+    if(/^(?:[A-Za-z]\.){2,}$/.test(parts[0]))return n;
+    var c=parts[0].charAt(0); if(!/[A-Za-z]/.test(c))return n;
+    return c.toUpperCase()+'. '+parts.slice(1).join(' ');
+  }
+  /* Conditional abbreviation for the center lineup: every row starts with its
+     full name; only a row whose name overflows its own cell falls back to the
+     short form (which may still ellipsize as the last resort). Measured on the
+     live node — Maniac never exports a PNG. Writes, then reads, then writes, so
+     one layout pass covers every row. Re-run on render, resize and font load. */
+  function fitNames(){
+    var host=$('#cfm-hero'); if(!host)return;
+    var cells=host.querySelectorAll('.cfm-pc'), i, w;
+    for(i=0;i<cells.length;i++)cells[i].classList.remove('abn');
+    var over=[];
+    for(i=0;i<cells.length;i++){ w=cells[i].querySelector('.nmw'); over.push(!!(w&&w.clientWidth&&w.scrollWidth>w.clientWidth+0.5)); }
+    for(i=0;i<cells.length;i++)if(over[i])cells[i].classList.add('abn');
   }
   function slotTxt(raw,idx,rp){
     var lbl='';
@@ -25793,6 +25812,7 @@ body.cf-maniac-lock{overflow:hidden}
     tkr.addEventListener('pointerleave',function(){ TK.paused=false; });
     root.addEventListener('pointerdown',function(){ if(root.classList.contains('wall'))showChrome(); },true);
     try{ new ResizeObserver(function(){ applyLayout(); }).observe(root); }catch(e){ window.addEventListener('resize',applyLayout); }
+    try{ document.fonts&&document.fonts.ready&&document.fonts.ready.then(function(){ fitNames(); }); }catch(e){}
     return root;
   }
 
@@ -25806,6 +25826,7 @@ body.cf-maniac-lock{overflow:hidden}
     cl.toggle('wide',wide); cl.toggle('xwide',wide&&W>=1500);
     cl.toggle('tx-lg',!!P.txLg);
     cl.toggle('rail-off',!P.panels.rail); cl.toggle('side-off',!P.panels.side);
+    fitNames();
   }
 
   var M=null;
@@ -25917,6 +25938,7 @@ body.cf-maniac-lock{overflow:hidden}
       +'<div class="cfm-lineup">'+rows+'</div>'
       +'<div class="cfm-key"><span><i class="sw live"></i>In a game</span><span><i class="sw fin"></i>Final</span><span><span class="mono">grey</span> = projected / not started</span></div>'
       +'</div>';
+    fitNames();
   }
 
   /* Rooting: one row per player, name only. Buckets by roster membership across
