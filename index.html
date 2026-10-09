@@ -4939,10 +4939,10 @@
       idx.sort(function(a,b){return(rank(a[0])-rank(b[0]))||(a[1]-b[1]);});
       ITEMS.length=0;idx.forEach(function(x){ITEMS.push(x[0]);});})();
     var ADMIN_EMAILS = ['fryerm@net.elmhurst.edu'];
-    /* Maniac Mode preview list (2026-10-08, Matt): owner + Jeremy Ried ONLY.
+    /* Maniac Mode preview list (2026-10-08, Matt): owner + Jeremy Ried + Tyler Boyer ONLY.
        Maniac-only — these accounts do not get the other admin tiles. Client-side
        gate = cosmetic filter, same as the admin check. */
-    var MANIAC_EMAILS = ['fryerm@net.elmhurst.edu', 'riedjeremy@yahoo.com'];
+    var MANIAC_EMAILS = ['fryerm@net.elmhurst.edu', 'riedjeremy@yahoo.com', 'tjboyer90@gmail.com'];  /* + Tyler Boyer (2026-10-08) */
     function canManiacUser() {
       try {
         var a = window.__account;
