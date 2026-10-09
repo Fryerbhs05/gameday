@@ -25477,7 +25477,10 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm.compact .cfm-hnav button{width:22px;height:22px;font-size:13px}
 #cfm.compact .cfm-rot{margin-top:4px}
 #cfm.compact .cfm-hs{margin-top:4px;align-items:center}
-#cfm.compact .cfm-hs .team,#cfm.compact .cfm-hs .proj,#cfm.compact .cfm-wp small,#cfm.compact .cfm-key{display:none}
+#cfm.compact .cfm-hs .team,#cfm.compact .cfm-wp small,#cfm.compact .cfm-key{display:none}
+/* Team projected totals stay on phones (Matt, 2026-10-08) -- small, tight, no reserved line when empty */
+#cfm.compact .cfm-hs .proj{font-size:var(--t2xs);margin-top:2px;min-height:0;line-height:1.1}
+#cfm.compact .cfm-hs .proj:empty{display:none}
 #cfm.compact .cfm-hs .pts{font-size:clamp(22px,7cqw,34px);margin:0}
 #cfm.compact .cfm-hs .mid{padding:0}
 #cfm.compact .cfm-wp{font-size:clamp(14px,4cqw,20px)}
@@ -25722,6 +25725,13 @@ body.cf-maniac-lock{overflow:hidden}
     else if(state==='pre') proj=preMap[n.pid]!=null?+preMap[n.pid]:((lp&&lp.proj!=null)?+lp.proj:null);
     else if(state!=='post'&&!bye) proj=(lp&&lp.proj!=null)?+lp.proj:null;
     var ptTxt=bye?'BYE':f2(pts);
+    /* Pre-kickoff (Matt, 2026-10-08): the points cell shows the pregame
+       projection (greyed by .st-pre) instead of 0.00 -- the grey projection
+       column is dropped on phones/narrow heroes, which left only 0.00. Real
+       points win if any have posted. The projection column then stays blank
+       for that row so the same number never shows twice. */
+    var ptProj=(state==='pre'&&!bye&&proj!=null&&!(pts&&isFinite(pts)));
+    if(ptProj) ptTxt=f2(proj);
     /* No rooting-pool match: keep a stub that still knows its league and side,
        so the drawer labels it correctly instead of an empty "Enemy". */
     if(!rp&&!bench){
@@ -25738,11 +25748,11 @@ body.cf-maniac-lock{overflow:hidden}
       pj='<span class="dl '+(good?'up':'dn')+'">'+(ch.d>0?'+':'−')+f2(Math.abs(ch.d))+'</span>'; pjCls='pj dlt';
     }
     if(pend){ pj=pendCyc(pend); pjCls='pj pend'; }
-    else if(!pj) pj=proj==null?'':f2(proj);
+    else if(!pj) pj=(proj==null||ptProj)?'':f2(proj);
     return '<button type="button" class="cfm-pc '+side+' '+stCls+(bench?' bn':'')+(pend?' pend':'')+fl+'"'+sty+' data-cfm-player="'+esc(n.key)+'"'+(pend?' aria-label="'+esc(name+', '+pend+', points pending')+'"':'')+'>'
       +'<span class="nmw"><span class="fu">'+esc(name)+'</span><span class="ab">'+esc(shortName(name,pos,team))+'</span></span>'
       +'<span class="'+pjCls+'"'+(pjCls==='pj'?' title="Projected"':'')+'>'+pj+'</span>'
-      +'<span class="pt">'+ptTxt+'</span></button>';
+      +'<span class="pt"'+(ptProj?' title="Projected"':'')+'>'+ptTxt+'</span></button>';
   }
 
   /* ---------- render ---------- */
@@ -25905,7 +25915,7 @@ body.cf-maniac-lock{overflow:hidden}
       +(L.solo?'':'<div class="cfm-wpbar"><i class="bg-'+(v.wpBar>=50?'up':'dn')+'" style="width:'+v.wpBar+'%"></i></div>')
       +'<div class="cfm-mg"><span class="'+v.mc+'-c">'+esc(v.mt)+'</span>'+(v.mq?'<span class="q">'+esc(v.mq)+'</span>':'')+'</div>'
       +'<div class="cfm-lineup">'+rows+'</div>'
-      +'<div class="cfm-key"><span><i class="sw live"></i>In a game</span><span><i class="sw fin"></i>Final</span><span><span class="mono">0.00</span> Not started</span><span><span class="mono">grey</span> = projected</span></div>'
+      +'<div class="cfm-key"><span><i class="sw live"></i>In a game</span><span><i class="sw fin"></i>Final</span><span><span class="mono">grey</span> = projected / not started</span></div>'
       +'</div>';
   }
 
