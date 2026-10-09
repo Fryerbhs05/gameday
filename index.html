@@ -25742,8 +25742,7 @@ body.cf-maniac-lock{overflow:hidden}
 
   /* One player cell for the center lineup. side: 'me' | 'opp'.
      Grey slot priority: Points Pending line > +/- change badge > projection.
-     Projection = pregame projection until kickoff, then the live projected
-     final (same number as the Loyalties PROJ column); hidden once final / bye. */
+     Projection = pregame projection only; none once his game kicks off. */
   function cellHTML(raw,L,side,M,bench){
     if(raw==null) return '<div class="cfm-pc '+side+' empty"></div>';
     var n=norm(raw), c=L.ctx, pp=(side==='me'?c.myPP:c.oppPP)||{};
@@ -25759,10 +25758,11 @@ body.cf-maniac-lock{overflow:hidden}
          from the pregame bench projection, decayed live the same way starters are. */
       var bp=preMap[n.pid]!=null?+preMap[n.pid]:null;
       if(state==='pre') proj=bp;
-      else if(state!=='post'&&!bye){ try{ proj=(typeof cfLiveProj==='function'&&bp!=null)?cfLiveProj(team,bp,pts):null; }catch(e){ proj=null; } }
     }
     else if(state==='pre') proj=preMap[n.pid]!=null?+preMap[n.pid]:((lp&&lp.proj!=null)?+lp.proj:null);
-    else if(state!=='post'&&!bye) proj=(lp&&lp.proj!=null)?+lp.proj:null;
+    /* (Matt, 2026-10-09) No per-player projection once his game kicks off, at any
+       display size: live, final, bye and unknown-state rows get no grey number.
+       The grey slot still carries Points Pending and the +/- change badge. */
     var ptTxt=bye?'BYE':f2(pts);
     /* Pre-kickoff (Matt, 2026-10-08): the points cell shows the pregame
        projection (greyed by .st-pre) instead of 0.00 -- the grey projection
