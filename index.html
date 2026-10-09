@@ -25544,13 +25544,13 @@ body.cf-maniac-lock{overflow:hidden}
   }
 
   function loadPrefs(){
-    var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, bench:false, panels:{rail:true,side:true}, ticker:{on:true,x:false,e:false}};
+    var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, bench:false, liveOnly:false, panels:{rail:true,side:true}, ticker:{on:true,x:false,e:false}};
     try{ var raw=localStorage.getItem(PREF_KEY); if(raw){ var o=JSON.parse(raw); if(o&&typeof o==='object'){
       if(o.mode==='pin'||o.mode==='rotate')d.mode=o.mode;
       if(+o.rotateSec>=5&&+o.rotateSec<=60)d.rotateSec=+o.rotateSec;
       if(Array.isArray(o.order))d.order=o.order.filter(function(x){return typeof x==='string';});
       if(o.hidden&&typeof o.hidden==='object')d.hidden=o.hidden;
-      d.txLg=!!o.txLg; d.bench=!!o.bench;
+      d.txLg=!!o.txLg; d.bench=!!o.bench; d.liveOnly=!!o.liveOnly;
       if(o.panels&&typeof o.panels==='object')d.panels={rail:o.panels.rail!==false,side:o.panels.side!==false};
       if(o.ticker&&typeof o.ticker==='object')d.ticker={on:o.ticker.on!==false,x:!!o.ticker.x,e:!!o.ticker.e};
     }}}catch(e){}
@@ -25654,7 +25654,27 @@ body.cf-maniac-lock{overflow:hidden}
     seed.forEach(function(n){ if(order.indexOf(n)<0)order.push(n); });
     if(!P.order||P.order.join('\u0001')!==order.join('\u0001')){ P.order=order; savePrefs(); }
     var vis=order.filter(function(n){ return !P.hidden[n]; });
-    return {status:vis.length?'ok':(order.length?'allhidden':'nodata'), leagues:leagues, order:order, vis:vis, pool:pool, byKey:byKey};
+    /* show = what the matchup list + center rotation use. vis stays the league
+       switches only, so Who to root for, the ticker and change tracking are
+       never narrowed by the live filter. "Live" = any starter on either side is
+       in a game right now (halftime included). With nothing live the toggle
+       switches itself back OFF (Matt, 2026-10-09) — but only once game states
+       have actually loaded, so a cold open can't knock it off. */
+    var show=vis;
+    if(P.liveOnly&&vis.length){
+      var known=false;
+      var act=vis.filter(function(n){
+        var L=leagues[n], sides=[L.lg.myPlayers||[]].concat(L.solo?[]:[L.lg.oppPlayers||[]]);
+        return sides.some(function(arr){ return arr.some(function(raw){
+          if(raw==null)return false; var nn=norm(raw); if(!nn)return false;
+          var rp=byKey[nn.key]||byKey[nn.pid], st=gs((rp&&rp.team)||nn.team);
+          if(st)known=true; return st==='in';
+        }); });
+      });
+      if(act.length)show=act;
+      else if(known){ P.liveOnly=false; savePrefs(); }
+    }
+    return {status:vis.length?'ok':(order.length?'allhidden':'nodata'), leagues:leagues, order:order, vis:vis, show:show, pool:pool, byKey:byKey};
   }
 
   function leagueView(L){
@@ -25878,8 +25898,8 @@ body.cf-maniac-lock{overflow:hidden}
   function renderRail(){
     var el=$('#cfm-rail'); if(!el)return;
     if(!M||M.status!=='ok'){ el.innerHTML=''; return; }
-    if(M.vis.indexOf(S.hero)<0){ S.hero=M.vis[0]; S.heroAt=Date.now(); }
-    el.innerHTML=M.vis.map(function(n){
+    if(M.show.indexOf(S.hero)<0){ S.hero=M.show[0]; S.heroAt=Date.now(); }
+    el.innerHTML=M.show.map(function(n){
       var L=M.leagues[n], v=leagueView(L), rf=S.railFl[n], rfl='', rsty='';
       if(rf){ var el=Date.now()-rf.t0; if(el<FLASH_MS){ rfl=' '+(rf.up?'fl-up':'fl-dn'); rsty=' style="--fd:-'+el+'ms"'; } else delete S.railFl[n]; }
       return '<button type="button" class="cfm-rc'+(n===S.hero?' on':'')+rfl+'"'+rsty+' data-cfm-hero="'+esc(n)+'">'
@@ -25893,7 +25913,7 @@ body.cf-maniac-lock{overflow:hidden}
     var el=$('#cfm-hero'); if(!el)return;
     if(!M||M.status!=='ok'){ el.innerHTML=emptyHTML(); S.lastHero=null; return; }
     var L=M.leagues[S.hero]; if(!L){ el.innerHTML=emptyHTML(); return; }
-    var c=L.ctx, v=leagueView(L), idx=M.vis.indexOf(S.hero)+1;
+    var c=L.ctx, v=leagueView(L), idx=M.show.indexOf(S.hero)+1;
     var entering=S.lastHero!==S.hero; S.lastHero=S.hero;
     holdRot();
     var rotPct=P.mode==='rotate'?clamp((Date.now()-S.heroAt)/(P.rotateSec*1000)*100,0,100):0;
@@ -25925,7 +25945,7 @@ body.cf-maniac-lock{overflow:hidden}
     var myNm=c.myTeamName?maskT(c.myTeamName,'mine'):'', opNm=c.oppTeamName?maskT(c.oppTeamName,'opp'):'';
     el.innerHTML='<div class="cfm-hin'+(entering?' enter':'')+'">'
       +'<div class="cfm-htop"><div class="cfm-hlg">'+esc(maskL(L.name))+'<span class="plat">'+esc(String(plat).toUpperCase())+(fmt?' · '+esc(String(fmt).toUpperCase()):'')+'</span></div><span class="cfm-sp"></span>'
-      +  '<div class="cfm-hnav"><button type="button" data-cfm="prev" aria-label="Previous matchup">‹</button><span>'+idx+'/'+M.vis.length+'</span><button type="button" data-cfm="next" aria-label="Next matchup">›</button>'
+      +  '<div class="cfm-hnav"><button type="button" data-cfm="prev" aria-label="Previous matchup">‹</button><span>'+idx+'/'+M.show.length+'</span><button type="button" data-cfm="next" aria-label="Next matchup">›</button>'
       +  '<button type="button" class="pin'+(P.mode==='pin'?' on':'')+'" data-cfm="pin" title="'+(P.mode==='pin'?'Unpin (resume rotating)':'Pin this matchup')+'" aria-label="Pin">⦿</button></div></div>'
       +(P.mode==='rotate'?'<div class="cfm-rot"><i style="width:'+rotPct+'%"></i></div>':'')
       +'<div class="cfm-hs">'
@@ -26342,6 +26362,8 @@ body.cf-maniac-lock{overflow:hidden}
       +  '<div style="margin-top:10px">'+tog('bench','Show bench players',!!P.bench)+'</div>'
       +  '<p class="cfm-hint">Bench players show under the starters, below a divider, with BN in the middle. They never count toward the score or appear in the stat ticker.</p></div>'
       +'<div class="cfm-sec"><h5>Order &amp; visibility</h5>'
+      +  tog('live','Only show live matchups',!!P.liveOnly)
+      +  '<p class="cfm-hint" style="margin-bottom:10px">Matchups with a starter in a game right now. Switches itself off when no games are on.</p>'
       +  order.map(function(n,i){
            var L=M&&M.leagues&&M.leagues[n], plat=L?(L.ctx.platform||L.lg.platform||''):'';
            return '<div class="cfm-lg"><span class="cfm-ordn">'+(i+1)+'</span>'
@@ -26358,7 +26380,7 @@ body.cf-maniac-lock{overflow:hidden}
 
   /* ---------- events ---------- */
   function setHero(n){ S.hero=n; S.heroAt=Date.now(); renderRail(); renderHero(); }
-  function step(dir){ if(!M||!M.vis||!M.vis.length)return; var i=M.vis.indexOf(S.hero), k=M.vis.length; setHero(M.vis[(i+dir+k)%k]); }
+  function step(dir){ if(!M||!M.show||!M.show.length)return; var i=M.show.indexOf(S.hero), k=M.show.length; setHero(M.show[(i+dir+k)%k]); }
   function onClick(e){
     var t=e.target.closest('button,[data-cfm-player]');
     if(e.target.id==='cfm-scrim'){ S.sheet=null; renderSheet(); renderRoot(); return; }
@@ -26387,6 +26409,7 @@ body.cf-maniac-lock{overflow:hidden}
       if(tg==='ticker'||tg==='tkx'||tg==='tke'){ var tf=tg==='ticker'?'on':tg==='tkx'?'x':'e'; P.ticker[tf]=!P.ticker[tf]; savePrefs();
         if(tf!=='on'){ var te=tkEls(); if(te.track){ te.track.innerHTML=''; te.track.style.transform=''; } TK.x=0; TK.cur=0; }   // new mix starts now, not after the queue
         tkSync(); renderSheet(); return; }
+      if(tg==='live'){ P.liveOnly=!P.liveOnly; savePrefs(); render(); renderSheet(); try{cfTrack('maniac_live_only',{on:P.liveOnly});}catch(_){} return; }
       if(tg==='bench'){ P.bench=!P.bench; savePrefs(); renderHero(); renderSheet(); try{cfTrack('maniac_bench_toggle',{on:P.bench});}catch(_){} return; }
       P.panels[tg]=!P.panels[tg]; savePrefs(); applyLayout(); renderSheet(); return; }
     var mv=t.getAttribute('data-cfm-mv');
@@ -26440,7 +26463,7 @@ body.cf-maniac-lock{overflow:hidden}
     if(!window.__cfManiacOpen)return;
     updateFresh();
     holdRot();
-    if(M&&M.status==='ok'&&P.mode==='rotate'&&M.vis.length>1&&Date.now()-S.heroAt>=P.rotateSec*1000){ step(1); return; }
+    if(M&&M.status==='ok'&&P.mode==='rotate'&&M.show.length>1&&Date.now()-S.heroAt>=P.rotateSec*1000){ step(1); return; }
     var rb=root&&root.querySelector('.cfm-rot i');
     if(rb)rb.style.width=clamp((Date.now()-S.heroAt)/(P.rotateSec*1000)*100,0,100)+'%';
   }
