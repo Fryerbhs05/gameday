@@ -11103,12 +11103,23 @@ async function loadData(){
        of a projection reads either leaguePoints[].proj or ctx.myProjPts, and
        both are produced in this loop, so converting once is the only way the
        player cards and the scoreboard's PROJECTED FINAL cannot drift apart.
-       SKIPPED FOR YAHOO: ctx.myProjPts there is Yahoo's OWN projection, which is
-       already time-aware -- replacing it with a Sleeper-derived decayed figure
-       would be a downgrade, not a fix. Historic weeks keep static projections;
-       there is no clock to decay against. */
-    const liveOn = !isHist && lg.platform!=='yahoo';
+       YAHOO (2026-10-09, Matt): the old exemption assumed Yahoo's scoreboard
+       team_projected_points was time-aware. It is NOT -- the API hands back
+       Yahoo's PREGAME team projection and never moves it (verified Week 5:
+       Conflicted showed Yahoo's 96.72 while Yahoo's app had moved to 115.21 on
+       a 30-pt Bucky Irving). Yahoo now goes through the same per-player live
+       decay, with its team total ANCHORED to Yahoo's own pregame number: each
+       starter's not-yet-scored remainder is scaled by k = YahooPregame /
+       SleeperPregameSum, so pregame the total equals Yahoo's figure exactly and
+       when every game is final it equals the actual score exactly. k is clamped
+       to [0.75, 1.33] (else 1) so a league with unresolved players can't
+       inflate the rest. Historic weeks keep static projections. */
+    const isYh = lg.platform==='yahoo' || !!(ctx&&ctx.source==='yahoo');
+    const liveOn = !isHist;
+    const yhMy0 = (isYh&&ctx)?(+ctx.myProjPts||0):0, yhOpp0 = (isYh&&ctx)?(+ctx.oppProjPts||0):0;
     let lpMy=0, lpOpp=0, lpAnyProj=false;
+    /* banked points / projected-remaining / pregame-proj sums per side (Yahoo anchor) */
+    let myBank=0, myRem=0, myPreSum=0, oppBank=0, oppRem=0, oppPreSum=0;
     /* Drawer pregame projections (pid -> league-scored, NOT live-decayed), shown
        greyed in the matchup drawer until that player's game kicks off. */
     const preMy={}, preOpp={};
@@ -11121,6 +11132,7 @@ async function loadData(){
       let proj=(ctx&&ctx.myProjPP&&ctx.myProjPP[k]!=null)?ctx.myProjPP[k]:projForPlayer(p,projScoring);
       if(proj==null&&!isHist&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring); // Yahoo/ESPN fill-in via Sleeper
       if(!isHist)prePut(preMy,k,proj);
+      const preV=proj;
       if(liveOn){const lv=cfLiveProj(e.team,proj,pts);if(lv!=null)proj=lv;}
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
       if(proj!=null)lpAnyProj=true;
@@ -11128,6 +11140,7 @@ async function loadData(){
          than the 0 the old provider-side sums used -- points on the board are
          never a worse estimate of a final than zero is. */
       lpMy+=(proj!=null?proj:(pts??0));
+      myBank+=(pts??0); if(proj!=null){myRem+=proj-(pts??0); myPreSum+=(+preV||0);}
     });
     lg.oppPlayers.forEach(p=>{
       const e=ensure(p);
@@ -11136,10 +11149,12 @@ async function loadData(){
       let proj=(ctx&&ctx.oppProjPP&&ctx.oppProjPP[k]!=null)?ctx.oppProjPP[k]:projForPlayer(p,projScoring);
       if(proj==null&&!isHist&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring); // Yahoo/ESPN fill-in via Sleeper
       if(!isHist)prePut(preOpp,k,proj);
+      const preV=proj;
       if(liveOn){const lv=cfLiveProj(e.team,proj,pts);if(lv!=null)proj=lv;}
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
       if(proj!=null)lpAnyProj=true;
       lpOpp+=(proj!=null?proj:(pts??0));
+      oppBank+=(pts??0); if(proj!=null){oppRem+=proj-(pts??0); oppPreSum+=(+preV||0);}
     });
     /* Rebuild the league totals from the very numbers the cards now show.
        Gated on lpAnyProj so a league with NO projection data keeps its existing
@@ -11147,8 +11162,14 @@ async function loadData(){
        0/0 as "no projections available", and summing bare current points here
        would fake a projected final out of nothing. */
     if(liveOn&&ctx&&lpAnyProj&&lg.myPlayers.length&&lg.oppPlayers.length){
-      ctx.myProjPts=+lpMy.toFixed(2);
-      ctx.oppProjPts=+lpOpp.toFixed(2);
+      if(isYh){
+        const kOf=(Y,P)=>{if(!(Y>0&&P>0))return 1;const q=Y/P;return(q>=0.75&&q<=1.33)?q:1;};
+        ctx.myProjPts=+(myBank+kOf(yhMy0,myPreSum)*myRem).toFixed(2);
+        ctx.oppProjPts=+(oppBank+kOf(yhOpp0,oppPreSum)*oppRem).toFixed(2);
+      }else{
+        ctx.myProjPts=+lpMy.toFixed(2);
+        ctx.oppProjPts=+lpOpp.toFixed(2);
+      }
     }
     /* Bench pregame projection for the drawer: same source order as starters. */
     const benchPre=(p,e,ppm,out)=>{
