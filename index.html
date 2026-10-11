@@ -3717,10 +3717,11 @@
        the stat tiles above. */
     .pd__foot {
       margin-top: 16px; padding: 12px 14px 0; border-top: 1px solid var(--line-soft);
-      display: flex; align-items: baseline; justify-content: flex-start; gap: 8px;
+      display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-start; gap: 8px;
     }
     .pd__fl { font: 500 9px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500); }
     .pd__fv { font: 500 12px/1 var(--font-mono); color: var(--ink-700); }
+    .pd__fsep { color: var(--ink-300); margin: 0 4px; }
     .pd__empty { padding: 30px 16px 34px; text-align: center; }
     .pd__empty h5 { font: 500 13px/1.3 var(--font-sans); color: var(--ink-700); margin: 0 0 6px; }
     .pd__empty p {
@@ -6716,7 +6717,7 @@
 <script>
 const BASE='https://api.sleeper.app/v1',CACHE_KEY='gd_players_db',CACHE_T_KEY='gd_players_db_t',CACHE_TTL=12*60*60*1000,PROJ_TTL=60*1000,USER_KEY='gd_username',POS_ORDER=['QB','RB','WR','TE','K','DEF'],FIRST_YR=2019,THIS_YR=new Date().getFullYear(),MAX_WEEK=18,LC_COLORS=['#7AA8D1','#5790C0','#2B6FA8','#3F5E78','#9E988A','#6E8BA8','#B0BEC9','#4A5A6A'];
 const LIVE_ONLY_KEY='gd_live_only',NFL_STATE_TTL=60*1000,ESPN_SCOREBOARD='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
-let liveOnly=false,toFinishOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map(),nflKickoffs=new Map(),nflOpponents=new Map();
+let liveOnly=false,toFinishOnly=false,nflGameStates=new Map(),nflGameStatesKey='',nflGameStatesAt=0,nflGameClocks=new Map(),nflKickoffs=new Map(),nflOpponents=new Map(),nflGames=[];
 /* GAME-WINDOW poll cadence (Matt, 2026-09-15): while any NFL game is in progress
    we tighten both the board refresh and the NFL-state re-fetch to 30s so a game's
    'post' flip (and the LOCKED/LOST verdict that rides on it) is caught within ~30s
@@ -6886,7 +6887,7 @@ async function fetchNflGameStates(season,week){
        the game clock, and a cached scoreboard freezes both. */
     const r=await fetch(url+'&_cb='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error(`ESPN HTTP ${r.status}`);
     const j=await r.json();
-    const m=new Map(),clk=new Map(),kck=new Map(),opp=new Map();
+    const m=new Map(),clk=new Map(),kck=new Map(),opp=new Map(),games=[];
     (j.events||[]).forEach(ev=>{
       const comp=ev.competitions?.[0];if(!comp)return;
       const state=comp.status?.type?.state||'pre';
@@ -6918,8 +6919,24 @@ async function fetchNflGameStates(season,week){
         if(ov)opp.set(abbr,ov);
         if(alias&&alias!==abbr){m.set(alias,state);if(clock)clk.set(alias,clock);if(kiso)kck.set(alias,kiso);if(ov)opp.set(alias,ov);}
       }});
+      /* Maniac Mode NFL scores (2026-10-11): one row per game from this SAME
+         response -- no extra request, same 30s live / 60s idle TTL as the LIVE
+         pill. Live-week only, like the maps above (never refetched on a past week). */
+      try{
+        const ty=comp.status?.type||{};
+        const aC=cps.find(x=>x.homeAway==='away')||cps[1],hC=cps.find(x=>x.homeAway==='home')||cps[0];
+        const tm=c=>({id:String(c.team?.id||''),abbr:c.team?.abbreviation||'',score:(c.score!=null&&c.score!=='')?Number(c.score):null});
+        if(aC&&hC&&aC.team&&hC.team){
+          let net='';
+          const bc=(comp.broadcasts||[]).find(x=>x&&Array.isArray(x.names)&&x.names.length);if(bc)net=bc.names[0];
+          if(!net){const gb=(comp.geoBroadcasts||[]).find(x=>x&&x.media&&x.media.shortName);if(gb)net=gb.media.shortName;}
+          games.push({id:String(ev.id||''),away:tm(aC),home:tm(hC),state,name:ty.name||'',detail:ty.shortDetail||ty.detail||'',
+            period:+(comp.status?.period)||0,clock:comp.status?.displayClock||'',kickMs:kiso?(Date.parse(kiso)||0):0,
+            poss:String(comp.situation?.possession||''),net:net});
+        }
+      }catch(e){}
     });
-    nflGameStates=m;nflGameClocks=clk;nflKickoffs=kck;nflOpponents=opp;nflGameStatesKey=key;nflGameStatesAt=Date.now();
+    nflGameStates=m;nflGameClocks=clk;nflKickoffs=kck;nflOpponents=opp;nflGames=games;nflGameStatesKey=key;nflGameStatesAt=Date.now();
   }catch(e){console.warn('NFL game state fetch failed:',e.message);}
 }
 function isPlayerLive(p){if(!p||!p.team)return false;return nflGameStates.get(p.team)==='in';}
@@ -7008,6 +7025,9 @@ function mpGameLive(team){
 /* Accessors so the Weekend Snapshot script (separate IIFE) can read the
    module-scoped NFL game maps. 'pre' | 'in' | 'post' | null. */
 window.__cfGameState=function(team){try{if(!team)return null;return nflGameStates.get(team)||nflGameStates.get(cfNormTeam(team))||null;}catch(e){return null;}};
+/* Maniac Mode's NFL scores list: every game of the live week as parsed above.
+   key '' = the scoreboard hasn't loaded yet (vs. loaded with no games). */
+window.__cfNflGames=function(){return {key:nflGameStatesKey,at:nflGameStatesAt,games:nflGames};};
 window.__cfGameClock=function(team){try{if(!team)return'';return nflGameClocks.get(team)||nflGameClocks.get(cfNormTeam(team))||'';}catch(e){return'';}};
 /* Kickoff for a team's game this period, as an ISO string (or an epoch ms in
    replay). '' when the slate hasn't been fetched or the team isn't playing. */
@@ -7339,8 +7359,13 @@ const SCORING_RULES = [
   ['fgm'], ['fgm_0_19'], ['fgm_20_29'], ['fgm_30_39'], ['fgm_40_49'], ['fgm_50p'],
   ['fgm_50_59'], ['fgm_60p'],
   ['fgmiss'], ['fgmiss_0_19'], ['fgmiss_20_29'], ['fgmiss_30_39'], ['fgmiss_40_49'],
+  ['fgmiss_50p'], ['fgmiss_50_59'], ['fgmiss_60p'], ['fgm_yds'], ['fgm_yds_over_30'],
   ['xpm'], ['xpmiss'],
   // Defense / special teams
+  /* Sleeper's team-DEF stat + scoring keys are the SHORT names (sack, int,
+     fum_rec, safe, ff, st_td); the def_* longs below never appear in the feed.
+     Missing these ranked every defense on TDs + points allowed alone (2026-10-11). */
+  ['sack'], ['int'], ['fum_rec'], ['safe'], ['ff'], ['st_td'],
   ['def_td'], ['def_sack'], ['def_int'], ['def_fum_rec'], ['def_safe'],
   ['def_4_and_stop'], ['def_st_td'], ['def_st_ff'], ['def_st_fum_rec'],
   ['def_pr_td'], ['def_kr_td'], ['def_block_kick'],
@@ -9909,13 +9934,24 @@ function updatePillCounts(){
    demo → '' (no tag). */
 const CF_PEND_TRACK=['pass_yd','pass_td','pass_int','rush_yd','rush_td','rec_yd','rec_td','fum_lost',
   'fgm','fgmiss','xpm','xpmiss','def_sack','def_int','def_fum_rec','def_td','def_st_td'];
+/* Sleeper team-DEF rows carry sack / int / fum_rec (never def_sack / def_int /
+   def_fum_rec), so those tracked keys read the short name first. Without this a
+   defense never went pending on a sack, pick or fumble recovery (fixed 2026-10-11). */
+const CF_PEND_ALIAS={def_sack:'sack',def_int:'int',def_fum_rec:'fum_rec'};
+function cfPendStatVal(row,k){
+  const a=CF_PEND_ALIAS[k];
+  if(a&&typeof row[a]==='number') return row[a];
+  return row[k];
+}
 const CF_PEND_TIMEOUT=150*1000;
 const CF_PEND_MINLAG=45*1000;
 const cfPendState=new Map();
 /* Survive a reload (sw v309): the iOS PWA reloads on resume, which used to wipe
    every baseline — so a play made while the app was closed became the NEW
    baseline and never tagged. Saved per device, dropped after 10 minutes. */
-const CF_PEND_LS='cf_pend_v1';
+/* v2 (2026-10-11): DEF sack/int/fum_rec now read Sleeper's real short keys, so a
+   v1 baseline (always 0 for those) would fire a phantom "3 sacks" on reload. */
+const CF_PEND_LS='cf_pend_v2';
 try{
   const raw=JSON.parse(localStorage.getItem(CF_PEND_LS)||'null');
   if(raw&&raw.at&&Date.now()-raw.at<10*60*1000&&raw.m){
@@ -10011,7 +10047,7 @@ function cfPendingFor(player,isHist){
   const row=(__wkStats&&__wkStats[sid])||{};
   const lpd=player.leaguePoints||{},pts={};
   for(const n in lpd){ const v=lpd[n]&&lpd[n].pts; if(typeof v==='number') pts[n]=v; }
-  const st={}; CF_PEND_TRACK.forEach(k=>{ const v=Number(row[k]); st[k]=isFinite(v)?v:0; });
+  const st={}; CF_PEND_TRACK.forEach(k=>{ const v=Number(cfPendStatVal(row,k)); st[k]=isFinite(v)?v:0; });
   const key=activeSeason+'|'+activeWeek+'|'+String(player.id), now=Date.now();
   let s=cfPendState.get(key);
   if(!s){ cfPendState.set(key,{pts:pts,last:st,ev:[],label:''}); cfPendSave(); return ''; }
@@ -16054,6 +16090,8 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
   var timer=null, current=null;
 
   function n(v){ return (typeof v==='number' && isFinite(v)) ? v : 0; }
+  /* Team-DEF stat: Sleeper's short key, falling back to the def_-prefixed one. */
+  function dv(s,k){ return (typeof s[k]==='number') ? n(s[k]) : n(s['def_'+k]); }
   function esc(t){ return String(t==null?'':t).replace(/[&<>"]/g,function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
@@ -16092,25 +16130,49 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     { label:'Kicking', core:['K'], vol:function(s){return n(s.fgm)+n(s.fgmiss)+n(s.xpm)+n(s.xpmiss);},
       tiles:function(s){return [
         {l:'FG',v:n(s.fgm)+'/'+(n(s.fgm)+n(s.fgmiss))},
-        {l:'Long',v:n(s.fgm_50p)||n(s.fgm_50_59)||n(s.fgm_60p)?'50+':(n(s.fgm_40_49)?'40s':(n(s.fgm)?'<40':'—'))},
+        /* Sleeper ships the real long (fgm_lng); the old 50+/40s/<40 band guess
+           is gone. Verified present on every kicker-game with a make, Wk 1-4 2026. */
+        {l:'Long',v:(n(s.fgm)&&n(s.fgm_lng))?n(s.fgm_lng):'—'},
         {l:'XP',v:n(s.xpm)+'/'+(n(s.xpm)+n(s.xpmiss))},
         {l:'Miss',v:n(s.fgmiss)+n(s.xpmiss)}];}},
-    { label:'Defense', core:['DEF','DST'], vol:function(s){return n(s.def_sack)+n(s.def_int)+n(s.def_fum_rec)+n(s.def_td);},
+    /* Kicker points are distance-driven, so the makes are split into the bands
+       every platform scores on (ESPN 0-39/40-49/50-59/60+; Yahoo + Sleeper tiers
+       fold into the same edges). Without this a 3/3 line can't be squared with
+       the points. Bands sum to fgm on all 117 kicker-games checked (Wk 1-4 2026). */
+    { label:'FG made by distance', core:['K'], vol:function(s){return n(s.fgm);},
+      tiles:function(s){
+        var b5059=(typeof s.fgm_50_59==='number')?n(s.fgm_50_59):Math.max(0,n(s.fgm_50p)-n(s.fgm_60p));
+        return [
+        {l:'0-39',v:n(s.fgm_0_19)+n(s.fgm_20_29)+n(s.fgm_30_39)},
+        {l:'40-49',v:n(s.fgm_40_49)},
+        {l:'50-59',v:b5059},
+        {l:'60+',v:n(s.fgm_60p)}];}},
+    /* Sleeper's team-DEF rows use the SHORT keys (sack / int / fum_rec / safe /
+       blk_kick); def_sack / def_int / def_fum_rec never appear (checked all 32
+       teams, Wk 1-5 2026). Reading the def_* names rendered 0 Sack / 0 Int / 0 FR
+       on every defense (fixed 2026-10-11). dv() still accepts the long name. */
+    { label:'Defense', core:['DEF','DST'], vol:function(s){return dv(s,'sack')+dv(s,'int')+dv(s,'fum_rec')+n(s.def_td)+n(s.def_st_td);},
       tiles:function(s){return [
-        {l:'Sack',v:n(s.def_sack)},
-        {l:'Int',v:n(s.def_int)},
-        {l:'FR',v:n(s.def_fum_rec)},
+        {l:'Sack',v:dv(s,'sack')},
+        {l:'Int',v:dv(s,'int')},
+        {l:'FR',v:dv(s,'fum_rec')+n(s.def_st_fum_rec)},
         {l:'TD',v:n(s.def_td)+n(s.def_st_td)}];}}
   ];
 
-  /* Footer strip: one cross-group number that doesn't belong inside a group. */
+  /* Footer strip: cross-group numbers that don't belong inside a group.
+     Returns a list of {l,v}; [] = no footer. Points allowed is Sleeper's
+     fantasy figure: it excludes points the opponent scored on its own
+     defensive/return TDs and safeties, so it can sit below the scoreboard. */
   function footer(pos,s){
-    if(pos==='K') return '';
+    if(pos==='K') return [];
     if(pos==='DEF'||pos==='DST'){
-      if(typeof s.pts_allow!=='number') return '';
-      return {l:'Points allowed',v:s.pts_allow};
+      var out=[];
+      if(typeof s.pts_allow==='number') out.push({l:'Points allowed',v:s.pts_allow});
+      if(dv(s,'safe')) out.push({l:'Safety',v:dv(s,'safe')});
+      var bk=n(s.blk_kick)||n(s.def_block_kick); if(bk) out.push({l:'Blocked kick',v:bk});
+      return out;
     }
-    return {l:'Fumbles lost',v:n(s.fum_lost)};
+    return [{l:'Fumbles lost',v:n(s.fum_lost)}];
   }
 
   function kickoffLabel(team){
@@ -16237,8 +16299,10 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
         +'<p>He hasn’t registered in any tracked category.</p></div>';
     }
     var f=footer(pos,row);
-    if(f) out+='<div class="pd__foot"><span class="pd__fl">'+esc(f.l)+'</span>'
-      +'<span class="pd__fv">'+esc(f.v)+'</span></div>';
+    if(f.length) out+='<div class="pd__foot">'+f.map(function(x,i){
+      return (i?'<span class="pd__fsep">·</span>':'')
+        +'<span class="pd__fl">'+esc(x.l)+'</span><span class="pd__fv">'+esc(x.v)+'</span>';
+    }).join('')+'</div>';
     return out;
   }
 
@@ -25300,7 +25364,12 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-main{flex:1;min-height:0;display:flex;gap:var(--pad);padding:var(--pad);overflow:hidden}
 #cfm .cfm-pane{background:var(--paper-soft);border:1px solid var(--line-soft);border-radius:var(--radius-lg);min-width:0;min-height:0}
 #cfm .cfm-ph{display:flex;align-items:center;gap:8px;padding:10px 12px 8px;font-size:var(--t2xs);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-500);font-weight:800}
-#cfm .cfm-rail{width:220px;flex:none;display:flex;flex-direction:column}
+#cfm .cfm-rail{width:220px;flex:none;display:flex;flex-direction:column;gap:var(--pad);min-height:0;overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain}
+#cfm .cfm-rail::-webkit-scrollbar{display:none}
+/* Left column = two panes, matchups first, NFL scores underneath. Both are full
+   height; the WHOLE column scrolls as one (Matt, 2026-10-11) -- no inner scrolling. */
+#cfm .cfm-mu,#cfm .cfm-nfl{display:flex;flex-direction:column;flex:none}
+#cfm .cfm-rail .cfm-rail-list,#cfm .cfm-rail .cfm-nfl-list{overflow:visible}
 #cfm .cfm-rail-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:0;padding:0 10px 10px;scrollbar-width:none}
 #cfm .cfm-rail-list::-webkit-scrollbar{display:none}
 #cfm .cfm-hero-wrap{flex:1;min-width:0;min-height:0;display:flex}
@@ -25309,7 +25378,9 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-side-body{flex:1;min-height:0;overflow-y:auto}
 #cfm.wide .cfm-rail{width:250px}#cfm.wide .cfm-side{width:380px}
 #cfm.xwide .cfm-rail{width:270px}#cfm.xwide .cfm-side{width:420px}
-#cfm.rail-off .cfm-rail{display:none}
+#cfm.rail-off .cfm-mu{display:none}
+#cfm.nfl-off .cfm-nfl{display:none}
+#cfm.rail-off.nfl-off .cfm-rail{display:none}
 #cfm.side-off .cfm-side{display:none}
 #cfm:not(.wide) .cfm-side .cfm-ph{display:none}
 #cfm:not(.wide) .cfm-root-ctl{padding-top:10px}
@@ -25381,6 +25452,23 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .fl-dn::after{border:2px solid var(--flash-down);background:color-mix(in oklab,var(--flash-down) 16%,transparent)}
 @keyframes cfmFlash{0%{opacity:1}100%{opacity:0}}
 #cfm .cfm-rc{position:relative}
+/* NFL scores (2026-10-11): kickoff order, finals drop to the bottom. Deliberately
+   quiet (Matt): no live outline or ice status -- grey = not started, plain tile =
+   in a game (possession dot only), flat tile = final. */
+#cfm .cfm-nfl-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:0;padding:0 10px 10px;scrollbar-width:none}
+#cfm .cfm-nfl-list::-webkit-scrollbar{display:none}
+#cfm .cfm-ng{position:relative;flex:none;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"a s1" "h s2";column-gap:8px;row-gap:1px;align-items:center;padding:6px 10px;border-radius:var(--radius-md);background:var(--tile-bg);border:1px solid var(--tile-line)}
+#cfm .cfm-ng .tm{display:flex;align-items:center;gap:6px;min-width:0}
+#cfm .cfm-ng .tm.a{grid-area:a}#cfm .cfm-ng .tm.h{grid-area:h}
+#cfm .cfm-ng .lg{width:16px;height:16px;object-fit:contain;flex:none}
+#cfm .cfm-ng .ab{font-size:var(--txs);font-weight:700;color:var(--ink-900);letter-spacing:.02em;white-space:nowrap}
+#cfm .cfm-ng .po{width:6px;height:6px;border-radius:50%;background:var(--live-ice);flex:none}
+#cfm .cfm-ng .s{margin-left:auto;font:700 var(--tsm) var(--font-mono);font-variant-numeric:tabular-nums;color:var(--ink-900)}
+#cfm .cfm-ng .s1,#cfm .cfm-ng .s2{justify-self:end;text-align:right;font:600 var(--t2xs) var(--font-mono);letter-spacing:.04em;color:var(--ink-500);white-space:nowrap;max-width:9em;overflow:hidden;text-overflow:ellipsis;padding-left:8px;border-left:1px solid var(--line-soft);line-height:1.45;min-height:1.45em}
+#cfm .cfm-ng .s1{grid-area:s1}#cfm .cfm-ng .s2{grid-area:s2}
+#cfm .cfm-ng.st-pre .ab{color:var(--ink-700)}
+#cfm .cfm-ng.st-post{background:var(--paper-deep);border-color:var(--line-soft)}
+#cfm .cfm-ng .tm.l .ab,#cfm .cfm-ng .tm.l .s{color:var(--ink-500);font-weight:500}
 /* Grey slot alternates: +/- change badge, Points Pending line (Loyalties look) */
 #cfm .cfm-pc .pj .dl{font-weight:700}
 #cfm .cfm-pc .pj .dl.up{color:var(--flash-up)}#cfm .cfm-pc .pj .dl.dn{color:var(--flash-down)}
@@ -25498,6 +25586,10 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm.compact .cfm-rail{width:164px}
 #cfm.compact .cfm-ph{padding:7px 9px 5px}
 #cfm.compact .cfm-rail-list{padding:0 6px 6px;gap:6px}
+#cfm.compact .cfm-nfl-list{padding:0 6px 6px;gap:5px}
+#cfm.compact .cfm-ng{padding:4px 8px;column-gap:6px}
+#cfm.compact .cfm-ng .s1,#cfm.compact .cfm-ng .s2{padding-left:6px}
+#cfm.compact .cfm-ng .lg{width:14px;height:14px}
 #cfm.compact .cfm-rc{padding:5px 8px}
 #cfm.compact .cfm-rc .sc b{font-size:var(--tsm)}
 #cfm.compact .cfm-side{width:236px}
@@ -25527,6 +25619,7 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm.compact .cfm-pc .pj{display:none}
 #cfm.compact .cfm-pc .pt{font-size:var(--tsm)}
 #cfm.compact.tight .cfm-rail{width:150px}
+#cfm.compact.tight .cfm-ng .lg{display:none}
 #cfm.compact.tight .cfm-side{width:206px}
 #cfm.compact.tight .cfm-lr{grid-template-columns:1fr 20px 1fr;gap:2px}
 #cfm.compact.tight .cfm-pc{padding:2px 5px;column-gap:4px}
@@ -25574,14 +25667,14 @@ body.cf-maniac-lock{overflow:hidden}
   }
 
   function loadPrefs(){
-    var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, bench:false, liveOnly:false, panels:{rail:true,side:true}, ticker:{on:true,x:false,e:false}};
+    var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, bench:false, liveOnly:false, panels:{rail:true,side:true,nfl:true}, ticker:{on:true,x:false,e:false}};
     try{ var raw=localStorage.getItem(PREF_KEY); if(raw){ var o=JSON.parse(raw); if(o&&typeof o==='object'){
       if(o.mode==='pin'||o.mode==='rotate')d.mode=o.mode;
       if(+o.rotateSec>=5&&+o.rotateSec<=60)d.rotateSec=+o.rotateSec;
       if(Array.isArray(o.order))d.order=o.order.filter(function(x){return typeof x==='string';});
       if(o.hidden&&typeof o.hidden==='object')d.hidden=o.hidden;
       d.txLg=!!o.txLg; d.bench=!!o.bench; d.liveOnly=!!o.liveOnly;
-      if(o.panels&&typeof o.panels==='object')d.panels={rail:o.panels.rail!==false,side:o.panels.side!==false};
+      if(o.panels&&typeof o.panels==='object')d.panels={rail:o.panels.rail!==false,side:o.panels.side!==false,nfl:o.panels.nfl!==false};
       if(o.ticker&&typeof o.ticker==='object')d.ticker={on:o.ticker.on!==false,x:!!o.ticker.x,e:!!o.ticker.e};
     }}}catch(e){}
     return d;
@@ -25846,7 +25939,10 @@ body.cf-maniac-lock{overflow:hidden}
       +  '</span>'
       +'</header>'
       +'<div class="cfm-main">'
-      +  '<section class="cfm-pane cfm-rail"><div class="cfm-ph">Your matchups</div><div class="cfm-rail-list" id="cfm-rail"></div></section>'
+      +  '<div class="cfm-rail">'
+      +    '<section class="cfm-pane cfm-mu"><div class="cfm-ph">Your matchups</div><div class="cfm-rail-list" id="cfm-rail"></div></section>'
+      +    '<section class="cfm-pane cfm-nfl" aria-label="NFL scores"><div class="cfm-ph">NFL scores</div><div class="cfm-nfl-list" id="cfm-nfl"></div></section>'
+      +  '</div>'
       +  '<div class="cfm-hero-wrap"><section class="cfm-pane cfm-hero" id="cfm-hero"></section></div>'
       +  '<aside class="cfm-pane cfm-side"><div class="cfm-side-body"><div class="cfm-ph">Who to root for</div><div class="cfm-root-ctl" id="cfm-rootctl"></div><div class="cfm-root-body" id="cfm-root"></div></div></aside>'
       +'</div>'
@@ -25875,7 +25971,7 @@ body.cf-maniac-lock{overflow:hidden}
     cl.toggle('portrait',portrait); cl.toggle('compact',compact); cl.toggle('tight',compact&&W<760);
     cl.toggle('wide',wide); cl.toggle('xwide',wide&&W>=1500);
     cl.toggle('tx-lg',!!P.txLg);
-    cl.toggle('rail-off',!P.panels.rail); cl.toggle('side-off',!P.panels.side);
+    cl.toggle('rail-off',!P.panels.rail); cl.toggle('nfl-off',!P.panels.nfl); cl.toggle('side-off',!P.panels.side);
     fitNames();
   }
 
@@ -25887,7 +25983,7 @@ body.cf-maniac-lock{overflow:hidden}
     M=buildModel();
     trackChanges();
     tkDetect();
-    renderTop(); renderRail(); renderHero(); renderRoot(); tkSync();
+    renderTop(); renderRail(); renderNfl(); renderHero(); renderRoot(); tkSync();
     if(S.sheet&&S.sheet.indexOf('p:')===0)renderSheet(true);
     else if(S.sheet==='settings')renderSheet();
   }
@@ -25937,6 +26033,59 @@ body.cf-maniac-lock{overflow:hidden}
         +'<span class="wp '+v.wpCls+'-c">'+esc(v.wpTxt)+'</span>'
         +'<span class="sc"><b>'+f2(v.my)+'</b>'+(L.solo?'':'<span class="dash">–</span><em>'+f2(v.op)+'</em>')+'</span></button>';
     }).join('');
+  }
+
+  /* NFL scores (2026-10-11): every game of the live week from the scoreboard pull
+     the board already makes each poll (window.__cfNflGames). Kickoff order; a game
+     drops to the bottom the moment it goes final (finals keep kickoff order).
+     Only rewrites the list when something changed, so logos never re-flash. */
+  var NFL_OFF=/POSTPONED|CANCEL|SUSPEND/;
+  function nflStatus(g){
+    var nm=String(g.name||'').toUpperCase(), q=g.period>4?'OT':(g.period?'Q'+g.period:'');
+    if(NFL_OFF.test(nm))return [g.detail||'Postponed',''];
+    if(g.state==='in'){
+      if(nm==='STATUS_HALFTIME')return ['Half',''];
+      if(nm==='STATUS_END_PERIOD')return [q?'End '+q:(g.detail||''),''];
+      if(nm.indexOf('DELAY')>=0)return ['Delayed',q];
+      return q?[q,'']:['Live',''];   /* quarter only -- the clock is a 30s-old snapshot that doesn't tick (Matt, 2026-10-11) */
+    }
+    if(g.state==='post')return ['Final',/OT/i.test(g.detail||'')?'OT':''];
+    if(!g.kickMs)return ['TBD',g.net||''];
+    var d=new Date(g.kickMs), tm='', dy='';
+    try{ tm=d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}); }catch(e){ tm=''; }
+    if(d.toDateString()!==new Date().toDateString()){ try{ dy=d.toLocaleDateString([],{weekday:'short'}).toUpperCase(); }catch(e){} }
+    return [tm,[dy,g.net||''].filter(Boolean).join(' · ')];
+  }
+  function nflTeamRow(t,side,g,showSc,win,ball){
+    var ab='', lu='';
+    try{ ab=(typeof cfNormTeam==='function')?cfNormTeam(t.abbr):t.abbr; }catch(e){ ab=t.abbr; }
+    try{ lu=(typeof dstLogoUrl==='function')?dstLogoUrl(t.abbr):''; }catch(e){}
+    return '<div class="tm '+side+(win?(win===side?' w':' l'):'')+'">'
+      +(lu?'<img class="lg" src="'+esc(lu)+'" alt="" onerror="this.style.visibility=\'hidden\'">':'')
+      +'<span class="ab">'+esc(ab)+'</span>'
+      +(ball?'<i class="po" title="Possession" aria-label="has the ball"></i>':'')
+      +(showSc&&t.score!=null?'<b class="s">'+esc(t.score)+'</b>':'')+'</div>';
+  }
+  function renderNfl(){
+    var el=$('#cfm-nfl'); if(!el)return;
+    var src=null; try{ src=window.__cfNflGames&&window.__cfNflGames(); }catch(e){}
+    var gl=(src&&Array.isArray(src.games))?src.games:[], html;
+    if(!gl.length) html='<div class="cfm-empty">'+(src&&src.key?'No games this week.':'Loading scores…')+'</div>';
+    else html=gl.slice().sort(function(a,b){
+        return ((a.state==='post'?1:0)-(b.state==='post'?1:0))||((a.kickMs||0)-(b.kickMs||0))||String(a.id).localeCompare(String(b.id));
+      }).map(function(g){
+        var nm=String(g.name||'').toUpperCase(), off=NFL_OFF.test(nm);
+        var live=g.state==='in'&&!off, fin=g.state==='post'&&!off, showSc=live||fin;
+        var as=+g.away.score, hs=+g.home.score;
+        var win=(fin&&g.away.score!=null&&g.home.score!=null&&as!==hs)?(as>hs?'a':'h'):'';
+        var ball=live&&g.poss&&nm!=='STATUS_HALFTIME'&&nm!=='STATUS_END_PERIOD';
+        var stt=nflStatus(g), cls=off?'st-pre':(live?'st-in':fin?'st-post':'st-pre');
+        return '<div class="cfm-ng '+cls+'">'
+          +nflTeamRow(g.away,'a',g,showSc,win,ball&&g.poss===g.away.id)
+          +nflTeamRow(g.home,'h',g,showSc,win,ball&&g.poss===g.home.id)
+          +'<span class="s1">'+esc(stt[0])+'</span><span class="s2">'+esc(stt[1])+'</span></div>';
+      }).join('');
+    if(html!==S.nflHtml){ S.nflHtml=html; el.innerHTML=html; }
   }
 
   function renderHero(){
@@ -26381,7 +26530,7 @@ body.cf-maniac-lock{overflow:hidden}
     return '<div class="cfm-sh-h"><h3>Settings</h3><button type="button" class="cfm-ib" data-cfm="close">Done</button></div>'
       +'<div class="cfm-sec"><button type="button" class="cfm-exit" data-cfm="exit">Exit Maniac Mode</button></div>'
       +'<div class="cfm-grp">Layout</div>'
-      +'<div class="cfm-sec"><h5>Show on screen</h5>'+tog('rail','Matchup list',P.panels.rail)+tog('side','Who to root for',P.panels.side)+tog('ticker','Stat ticker',P.ticker.on)+'</div>'
+      +'<div class="cfm-sec"><h5>Show on screen</h5>'+tog('rail','Matchup list',P.panels.rail)+tog('nfl','NFL scores',P.panels.nfl)+tog('side','Who to root for',P.panels.side)+tog('ticker','Stat ticker',P.ticker.on)+'</div>'
       +'<div class="cfm-sec"><h5>Stat ticker</h5>'+tog('tkx','Include Conflicted players',P.ticker.x)+tog('tke','Include Enemy players',P.ticker.e)
       +  '<p class="cfm-hint">Your Cheer players always show while their game is on. A stat that scores in any of your leagues jumps the player to the front of the line.</p></div>'
       +'<div class="cfm-grp">Matchups</div>'
@@ -26505,7 +26654,7 @@ body.cf-maniac-lock{overflow:hidden}
     try{ if(window.BottomSheet&&window.BottomSheet.isOpen())window.BottomSheet.close(); }catch(e){}
     window.__cfManiacOpen=true;
     P=loadPrefs();
-    S.sheet=null; S.heroAt=Date.now(); S.pausedAt=0; S.lastHero=null; S.last={}; S.chg={}; S.railFl={}; S.wk='';
+    S.sheet=null; S.heroAt=Date.now(); S.pausedAt=0; S.lastHero=null; S.last={}; S.chg={}; S.railFl={}; S.wk=''; S.nflHtml='';
     tkReset();
     root.classList.add('is-open');
     document.body.classList.add('cf-maniac-lock');
