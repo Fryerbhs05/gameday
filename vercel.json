@@ -30,10 +30,24 @@
     {
       "path": "/api/push/td",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/push/status?job=snf",
+      "schedule": "*/5 2-8 * * 1"
+    },
+    {
+      "path": "/api/push/status?job=tue",
+      "schedule": "0 * * * 2"
     }
   ],
   "functions": {
     "api/push/td.js": {
+      "maxDuration": 60
+    },
+    "api/push/status.js": {
+      "maxDuration": 300
+    },
+    "api/push/subscribe.js": {
       "maxDuration": 60
     }
   }
