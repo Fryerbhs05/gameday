@@ -100,24 +100,33 @@ function buildRow(m, games, final) {
   };
 }
 
-// Snapshot cardDetail (live branch), text version.
+// Snapshot cardDetail (live branch), in notification form. Same states, thresholds
+// and names as the Snapshot; only the punctuation is tightened for a lock screen
+// (plain text, no bold/colour, ~40 characters a line):
+//   Snapshot: "Up 15.84 — Higbee & Adams vs Nacua to go."
+//   Alert:    "Up 15.84 · Higbee & Adams vs Nacua to go"
+function tail(r) { return toGoTxt(r.myToGo, r.myLeft, r.oppToGo, r.oppLeft).replace(/^ — /, ' · ').replace(/\.$/, ''); }
 function detail(r) {
   const gap = r.curMy - r.curOpp;
-  if (gap >= 0) return 'Up ' + nf(gap) + (r.oppLeft ? toGoTxt(r.myToGo, r.myLeft, r.oppToGo, r.oppLeft) : ' and pulling away.');
-  return 'Chasing ' + nf(-gap) + (r.myLeft ? toGoTxt(r.myToGo, r.myLeft, r.oppToGo, r.oppLeft) : '.');
+  if (gap >= 0) return 'Up ' + nf(gap) + (r.oppLeft ? tail(r) : ' and pulling away');
+  return 'Chasing ' + nf(-gap) + (r.myLeft ? tail(r) : '');
 }
 
-function countLines(rows) {
-  const total = rows.length;
+// "3 lost, 2 in play" — zero counts left out, like the Snapshot's sub-line.
+function summary(rows, inPlay) {
   const won = rows.filter((r) => r.state === 'cwin').length;
   const lost = rows.filter((r) => r.state === 'closs').length;
-  const out = [];
-  if (won) out.push(`${won} of ${total} matchups won.`);
-  if (lost) out.push(`${lost} of ${total} matchups lost.`);
-  return out;
+  const parts = [];
+  if (won) parts.push(`${won} won`);
+  if (lost) parts.push(`${lost} lost`);
+  if (inPlay) parts.push(`${inPlay} in play`);
+  return parts.join(', ');
 }
 
-// Sunday night: counts, then one line per matchup still in play.
+// iOS prints "from Conflicted" under every web-app alert title, so the titles are
+// written to be finished by it: "Your Sunday night report / from Conflicted".
+// The tally leads the body.
+// Sunday night: tally, then one line per matchup still in play.
 // Order: ups first (smallest lead first = most at risk), then chases (smallest gap first).
 function snfMessage(matchups, games) {
   const rows = matchups.map((m) => buildRow(m, games, false)).filter(Boolean);
@@ -127,20 +136,20 @@ function snfMessage(matchups, games) {
     if ((ga >= 0) !== (gb >= 0)) return ga >= 0 ? -1 : 1;
     return Math.abs(ga) - Math.abs(gb);
   });
-  const lines = countLines(rows).concat(live.map((r) => `${r.name}: ${detail(r)}`));
-  return { title: 'Sunday night is final.', body: lines.join('\n'), rows };
+  const lines = [summary(rows, live.length)].concat(live.map((r) => `${r.name}: ${detail(r)}`));
+  return { title: 'Your Sunday night report', body: lines.join('\n'), rows };
 }
 
-// Tuesday: counts, then every matchup's final.
+// Tuesday: tally, then every final, wins first.
 function tuesdayMessage(matchups, week) {
   const rows = matchups.map((m) => buildRow(m, null, true)).filter(Boolean);
   if (!rows.length) return null;
   const ordered = rows.slice().sort((a, b) => (a.state === b.state ? 0 : a.state === 'cwin' ? -1 : 1));
-  const lines = countLines(rows).concat(ordered.map((r) => {
+  const body = [summary(rows, 0)].concat(ordered.map((r) => {
     const res = r.curMy > r.curOpp ? 'Won' : r.curMy < r.curOpp ? 'Lost' : 'Tied';
-    return `${r.name}: ${res} ${nf(r.curMy)} to ${nf(r.curOpp)}.`;
-  }));
-  return { title: `Week ${week} is final.`, body: lines.join('\n'), rows };
+    return `${r.name}: ${res} ${nf(r.curMy)}–${nf(r.curOpp)}`;
+  })).join('\n');
+  return { title: `Your Week ${week} results`, body, rows };
 }
 
 module.exports = {
