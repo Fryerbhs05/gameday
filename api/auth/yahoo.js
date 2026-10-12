@@ -27,10 +27,17 @@ module.exports = (req, res) => {
     `yahoo_oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`
   );
 
+  // Yahoo mints the access token against the scopes requested HERE, not against
+  // the permissions ticked in the developer console. With `scope` omitted the
+  // token comes back profile-only, and every Fantasy Sports call then fails with
+  // 403 "This application is not authorized to perform this action" — which is
+  // what happened from 2026-07-24 onward. `fspt-r` = Fantasy Sports, read-only
+  // (we never write rosters/trades, so do NOT widen this to fspt-w).
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
+    scope: 'fspt-r',
     state: state,
     language: 'en-us'
   });

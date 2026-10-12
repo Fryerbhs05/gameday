@@ -8,10 +8,13 @@
 //   POST /api/push/subscribe?action=status         { endpoint } -> { subscribed, prefs } for this device
 //   POST /api/push/subscribe?action=prefs          { endpoint, prefs } -> update this device's alert types
 //   POST /api/push/subscribe?action=roster         { season, week, players } -> live-week snapshot for TD alerts
+//   POST /api/push/subscribe?action=test_status    { endpoint, mode:'snf'|'tue' } -> build the Sunday-night /
+//                                                  Tuesday alert for THIS account right now and send it here
 // A subscription always belongs to the signed-in account, so the server knows
 // whose leagues an alert is about (needed for the Tuesday results alert).
 
 const A = require('../_lib/accounts');
+const S = require('../_lib/status-alerts');
 const W = require('../_lib/webpush');
 const O = require('../_lib/observe');
 
@@ -42,7 +45,7 @@ function previewOk(acct) {
 // Alert types a device can switch on/off. Missing = on.
 function cleanPrefs(p) {
   p = p || {};
-  return { checkin: p.checkin !== false, td: p.td !== false };
+  return { checkin: p.checkin !== false, td: p.td !== false, snf: p.snf !== false, tue: p.tue !== false };
 }
 
 const TEST_MESSAGE = {
@@ -175,6 +178,25 @@ async function handleRoster(req, res, acct) {
   res.status(200).json({ ok: true, players: players.length });
 }
 
+// Test send for the status alerts: same builder the crons use, run now, sent to
+// this device only. Sunday-night mode uses the CURRENT week as it stands; Tuesday
+// mode uses the most recent fully-final week.
+async function handleTestStatus(req, res, acct) {
+  const body = await readJsonBody(req);
+  const ep = String(body.endpoint || '');
+  const mode = body.mode === 'tue' ? 'tue' : 'snf';
+  if (!(await A.rateLimitOk(`push:teststatus:${acct.uid}`, 10, 3600))) {
+    res.status(429).json({ error: 'Too many test alerts. Try again later.' }); return;
+  }
+  const sub = ep && (await findSub(ep));
+  if (!sub || sub.user_id !== acct.uid) { res.status(404).json({ error: 'This device is not signed up for alerts.' }); return; }
+  const built = await S.buildForUser(acct.uid, mode);
+  if (!built) { res.status(200).json({ ok: false, error: 'No matchups found for this week.' }); return; }
+  const r = await W.sendPush(sub, { ...built.message, tag: `cf-test-${mode}` }, { ttl: 600 });
+  if (!r.ok) console.error('push test_status failed', r.status, r.text);
+  res.status(r.ok ? 200 : 502).json({ ok: r.ok, week: built.week, title: built.message.title, body: built.message.body });
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const enabled = A.accountsConfigured() && W.pushConfigured();
@@ -197,6 +219,7 @@ module.exports = async (req, res) => {
     if (action === 'prefs') return await handlePrefs(req, res, acct);
     if (!previewOk(acct)) { res.status(403).json({ error: 'Alerts are in preview.' }); return; }
     if (action === 'roster') return await handleRoster(req, res, acct);
+    if (action === 'test_status') return await handleTestStatus(req, res, acct);
     if (action === 'test') return await handleTest(req, res, acct);
     return await handleSubscribe(req, res, acct);
   } catch (e) {
