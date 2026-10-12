@@ -7,6 +7,10 @@
 //                                                    on THIS device (new/empty email), or
 //                                                    email a link (existing email w/ data)
 //   GET  /api/auth/magic/request?token=...      -> verify + sign in (the emailed link points here)
+//   POST /api/auth/magic/request?mode=code     { email, code }          -> verify the 6-digit emailed
+//                                                    code + sign in on THIS device (the only way
+//                                                    to sign in an iPhone Home Screen app, since
+//                                                    the emailed link always opens Safari)
 //
 // The plain POST always responds 200 (no account enumeration). The onboarding
 // POST intentionally distinguishes session-vs-link so the funnel can branch.
@@ -47,6 +51,20 @@ async function rateLimited(req, res, email) {
   return false;
 }
 
+// Mint a link token + a 6-digit code and email both. The code is best-effort:
+// if saving it fails, the email still goes out with the link alone.
+async function issueSignIn(email) {
+  const token = await A.saveMagicToken(email, 15);
+  let code = null;
+  try {
+    code = await A.saveSignInCode(email, 15);
+  } catch (e) {
+    console.error('sign-in code save failed (link still sent):', e.message);
+    await O.reportError(e, { where: 'auth:magic:code-save' });
+  }
+  await A.sendMagicLink(email, token, code);
+}
+
 // ── GET: verify the emailed token, sign the user in ──────────────
 async function handleVerify(req, res) {
   // The verify response sets the account cookie — never let it be cached.
@@ -63,6 +81,8 @@ async function handleVerify(req, res) {
       res.end();
       return;
     }
+    // One sign-in retires the whole email: the code sent alongside this link dies too.
+    await A.clearMagicTokens(email).catch(() => {});
     const user = await A.upsertUser(email);
     if (!user || !user.id) {
       res.status(500).send('Could not complete sign-in. Please try again.');
@@ -92,8 +112,7 @@ async function handleRequest(req, res) {
       return;
     }
     if (!(await rateLimited(req, res, email))) return;
-    const token = await A.saveMagicToken(email, 15);
-    await A.sendMagicLink(email, token);
+    await issueSignIn(email);
     res.status(200).json({ ok: true, sent: true });
   } catch (e) {
     console.error('magic request error:', e.message);
@@ -128,8 +147,7 @@ async function handleOnboard(req, res) {
     if (existing && (await A.userHasConnections(existing.id))) {
       // Protect a real account: require the emailed link to take over this device.
       if (A.emailConfigured()) {
-        const token = await A.saveMagicToken(email, 15);
-        await A.sendMagicLink(email, token);
+        await issueSignIn(email);
       }
       res.status(200).json({ ok: true, mode: 'link_sent' });
       return;
@@ -152,6 +170,53 @@ async function handleOnboard(req, res) {
   }
 }
 
+// ── POST ?mode=code: verify the 6-digit emailed code, sign in on this device ──
+// Guessing: a code is 1 in 1,000,000 and lives 15 minutes; 5 tries per email per
+// 15 minutes (plus 30/hour per IP) keeps the odds of a lucky guess negligible.
+// A wrong code and an unknown email get the same answer (no enumeration).
+async function handleCode(req, res) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  if (!A.accountsConfigured()) {
+    res.status(503).json({ error: 'Accounts are not enabled yet.' });
+    return;
+  }
+  try {
+    const body = await readJsonBody(req);
+    const email = A.normEmail(body.email);
+    const code = String(body.code || '').replace(/\D/g, '');
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || code.length !== 6) {
+      res.status(400).json({ error: 'Enter the 6-digit code from the email.' });
+      return;
+    }
+    const ip = A.clientIp(req);
+    const [okIp, okEmail] = await Promise.all([
+      A.rateLimitOk(`magic:code:ip:${ip}`, 30, 3600),
+      A.rateLimitOk(`magic:code:email:${email}`, 5, 900)
+    ]);
+    if (!okIp || !okEmail) {
+      res.status(429).json({ error: 'Too many tries. Request a new code in a few minutes.' });
+      return;
+    }
+    const valid = await A.checkSignInCode(email, code);
+    if (!valid) {
+      res.status(400).json({ error: "That code didn't work. Check it, or request a new one." });
+      return;
+    }
+    await A.clearMagicTokens(valid).catch(() => {});
+    const user = await A.upsertUser(valid);
+    if (!user || !user.id) {
+      res.status(500).json({ error: 'Could not complete sign-in. Please try again.' });
+      return;
+    }
+    res.setHeader('Set-Cookie', A.makeAccountCookie(user.id, user.email));
+    res.status(200).json({ ok: true, email: user.email });
+  } catch (e) {
+    console.error('magic code error:', e.message);
+    await O.reportError(e, { req, where: 'auth:magic:code' });
+    res.status(500).json({ error: 'Sign-in error. Please try again.' });
+  }
+}
+
 module.exports = async (req, res) => {
   // A token in the query means this is the click-through from the email → verify.
   if (req.method === 'GET' && req.query && req.query.token) {
@@ -160,6 +225,7 @@ module.exports = async (req, res) => {
   if (req.method === 'POST') {
     const mode = (req.query && req.query.mode) || '';
     if (mode === 'onboard') return handleOnboard(req, res);
+    if (mode === 'code') return handleCode(req, res);
     return handleRequest(req, res);
   }
   res.setHeader('Allow', 'GET, POST');
