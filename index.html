@@ -10338,7 +10338,7 @@ function renderBoard(data,username){
       var sbtn=document.getElementById('banner-session-btn');
       var semail=cfSessionEmail();
       if(sbody)sbody.textContent='Your sign-in expired, so any league stored in your account is hidden until you sign back in. Nothing was lost and there is nothing to re-enter.';
-      if(sbtn){ sbtn.style.display=''; sbtn.disabled=false; sbtn.textContent=semail?'Email me a sign-in link':'Sign in'; sbtn.onclick=cfSessionResendLink; }
+      if(sbtn){ sbtn.style.display=''; sbtn.disabled=false; sbtn.textContent=semail?'Email me a sign-in code':'Sign in'; sbtn.onclick=cfSessionResendLink; }
       b.classList.add('visible');
       /* renderBoard re-runs this block on every refresh — fire the event once per page. */
       try{if(!window.__cfLapseTracked){window.__cfLapseTracked=true;cfTrack('account_session_lapsed',{mobile:(typeof isMobileDevice==='function')&&isMobileDevice(),known_email:!!semail});}}catch(e){}
@@ -13957,8 +13957,9 @@ async function submitIdentityInline(){
       try{cfTrack('signup_link_sent',null);}catch(e){}
       const root = document.getElementById('wizard-root');
       if(root){
-        root.innerHTML = `<div class="provider-mobile-note" style="border-style:solid">You already have a Conflicted account. We emailed a sign-in link to <strong>${email}</strong> — open it to pick up where you left off. It works once and expires in 15 minutes.</div>`;
+        root.innerHTML = `<div class="provider-mobile-note" style="border-style:solid">You already have a Conflicted account. We emailed a sign-in link and a 6-digit code to <strong>${cfEscHtml(email)}</strong>. Enter the code to pick up where you left off.</div>`;
       }
+      try{ openCodeEntryModal(email, `You already have a Conflicted account. We sent a sign-in link and a 6-digit code to <strong>${cfEscHtml(email)}</strong>. Enter the code here, or tap the link. Both work once and expire in 15 minutes.`); }catch(e){}
       return false;
     }else{
       showErr(j.error || 'Could not save. Please try again.');
@@ -14258,10 +14259,9 @@ function openAccountModal(){
           body: JSON.stringify({email})
         });
         if(r.ok){
-          backdrop.querySelector('.espn-modal').innerHTML =
-            `<h2>Check your email</h2><p class="espn-modal-sub">We sent a sign-in link to <strong>${email}</strong>. It works once and expires in 15 minutes.</p>
-             <div class="espn-modal-actions"><button type="button" class="btn-modal" id="account-done">Done</button></div>`;
-          backdrop.querySelector('#account-done').addEventListener('click', close);
+          const m = backdrop.querySelector('.espn-modal');
+          m.innerHTML = cfCodeStepHTML(`We sent a sign-in link and a 6-digit code to <strong>${cfEscHtml(email)}</strong>. Enter the code here, or tap the link. Both work once and expire in 15 minutes.`);
+          cfWireCodeStep(m, email, close);
         } else {
           const j = await r.json().catch(()=>({}));
           errEl.textContent = j.error || 'Could not send link. Try again.';
@@ -14295,6 +14295,86 @@ function updateHeaderAuthControls(showSignin){
 try{setInterval(function(){try{document.body.classList.toggle('nav-signedin',!!(window.__account&&window.__account.signedIn));}catch(e){}},400);}catch(e){}
 window.updateHeaderAuthControls = updateHeaderAuthControls;
 
+/* ── Sign-in code step (sw v341) ─────────────────────────────────────────────
+   Every sign-in email carries a link AND a 6-digit code. On iPhone the link
+   always opens Safari, which keeps its own cookies apart from the Home Screen
+   app, so typing the code is the only way to sign the installed app in. This
+   is the shared "Check your email" step: code box (iOS offers the code from
+   Mail via autocomplete=one-time-code), auto-submits at 6 digits, accepts a
+   pasted "123 456". On success it reloads through ?account=connected — the
+   same landing the emailed link uses — so both paths rehydrate identically. */
+function cfIsStandalone(){
+  try{ return window.navigator.standalone===true || !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches); }catch(e){ return false; }
+}
+function cfEscHtml(t){ return String(t==null?'':t).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function cfCodeStepHTML(lead){
+  return `<button type="button" class="espn-modal-x" id="cf-code-x" aria-label="Close">&times;</button>
+    <h2>Check your email</h2>
+    <p class="espn-modal-sub">${lead}</p>
+    <div class="espn-field">
+      <label for="cf-code-input">6-digit code</label>
+      <input type="text" id="cf-code-input" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" placeholder="000000" style="font-size:22px;letter-spacing:6px;text-align:center" />
+    </div>
+    <button type="button" class="btn-modal" id="cf-code-submit" style="width:100%">Sign in</button>
+    <div class="espn-modal-error" id="cf-code-error" style="min-height:0;margin-top:8px"></div>
+    ${cfIsStandalone()?'<p class="espn-modal-sub" style="margin-top:8px">In the Home Screen app, use the code. The link opens Safari, not this app.</p>':''}
+    <p class="espn-modal-sub" style="margin-top:8px">Nothing within a minute? Check your spam folder.</p>`;
+}
+function cfWireCodeStep(root, email, onClose){
+  const input=root.querySelector('#cf-code-input');
+  const btn=root.querySelector('#cf-code-submit');
+  const err=root.querySelector('#cf-code-error');
+  const x=root.querySelector('#cf-code-x');
+  if(x && onClose) x.addEventListener('click', onClose);
+  if(!input||!btn) return;
+  let busy=false;
+  const go=async()=>{
+    const code=(input.value||'').replace(/\D/g,'');
+    if(code.length!==6){ if(err) err.textContent='Enter the 6-digit code from the email.'; return; }
+    if(busy) return;
+    busy=true; btn.disabled=true; btn.textContent='Signing in…'; if(err) err.textContent='';
+    try{
+      const r=await fetch('/api/auth/magic/request?mode=code',{
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email, code })
+      });
+      const j=await r.json().catch(()=>({}));
+      if(r.ok && j.ok){
+        try{ cfRememberSession(j.email||email); }catch(e){}
+        try{ cfTrack('signin_code_used',{pwa:cfIsStandalone()}); }catch(e){}
+        window.location.href='/?account=connected';
+        return;
+      }
+      if(err) err.textContent=j.error||"That code didn't work. Check it, or request a new one.";
+    }catch(e){ if(err) err.textContent='Network error. Please try again.'; }
+    busy=false; btn.disabled=false; btn.textContent='Sign in';
+  };
+  input.addEventListener('input',()=>{
+    const d=(input.value||'').replace(/\D/g,'').slice(0,6);
+    if(input.value!==d) input.value=d;
+    if(d.length===6) go();
+  });
+  input.addEventListener('keydown',e=>{ if(e.key==='Enter') go(); });
+  btn.addEventListener('click',go);
+  setTimeout(()=>{ try{ input.focus(); }catch(e){} },50);
+}
+/* Standalone code-entry modal, for flows that sent the email from somewhere
+   other than a modal (onboarding's existing-account branch, session banner). */
+function openCodeEntryModal(email, lead){
+  const existing=document.getElementById('code-modal-backdrop');
+  if(existing) existing.remove();
+  const backdrop=document.createElement('div');
+  backdrop.id='code-modal-backdrop';
+  backdrop.className='espn-modal-backdrop';
+  backdrop.innerHTML=`<div class="espn-modal" role="dialog" aria-modal="true">${cfCodeStepHTML(lead)}</div>`;
+  document.body.appendChild(backdrop);
+  const close=()=>backdrop.remove();
+  backdrop.addEventListener('click',e=>{ if(e.target===backdrop) close(); });
+  cfWireCodeStep(backdrop, email, close);
+}
+window.openCodeEntryModal = openCodeEntryModal;
+
 /* Header "Sign in" entry. Two explicit paths:
      • SIGN IN (existing users only) — emails a one-time magic link. mode=onboard
        is deliberately omitted so this path never creates an account or grants a
@@ -14311,12 +14391,12 @@ function openSignInModal(){
     <div class="espn-modal" role="dialog" aria-modal="true" aria-labelledby="signin-modal-title">
       <button type="button" class="espn-modal-x" id="signin-x" aria-label="Close">&times;</button>
       <h2 id="signin-modal-title">Sign in</h2>
-      <p class="espn-modal-sub">Already have a Conflicted account? Enter your email and we'll send a one-time sign-in link — no password.</p>
+      <p class="espn-modal-sub">Already have a Conflicted account? Enter your email and we'll send a one-time sign-in code — no password.</p>
       <div class="espn-field">
         <label for="signin-email">Email</label>
         <input type="email" id="signin-email" placeholder="you@example.com" autocomplete="email" />
       </div>
-      <button type="button" class="btn-modal" id="signin-submit" style="width:100%">Email me a sign-in link</button>
+      <button type="button" class="btn-modal" id="signin-submit" style="width:100%">Email me a sign-in code</button>
       <div class="espn-modal-error" id="signin-modal-error" style="min-height:0;margin-top:8px"></div>
     </div>`;
   document.body.appendChild(backdrop);
@@ -14340,17 +14420,15 @@ function openSignInModal(){
         body: JSON.stringify({ email })
       });
       if(r.ok){
-        backdrop.querySelector('.espn-modal').innerHTML =
-          `<h2>Check your email</h2><p class="espn-modal-sub">If an account exists for <strong>${email}</strong>, we've sent a one-time sign-in link. It works once and expires in 15 minutes.</p>
-           <p class="espn-modal-sub" style="margin-top:8px">No link within 10 seconds? Check your spam folder — it likes to hide there sometimes.</p>
-           <div class="espn-modal-actions"><button type="button" class="btn-modal" id="signin-done">Done</button></div>`;
-        backdrop.querySelector('#signin-done').addEventListener('click', close);
+        const m = backdrop.querySelector('.espn-modal');
+        m.innerHTML = cfCodeStepHTML(`If an account exists for <strong>${cfEscHtml(email)}</strong>, we sent a sign-in link and a 6-digit code. Enter the code here, or tap the link. Both work once and expire in 15 minutes.`);
+        cfWireCodeStep(m, email, close);
       } else {
         const j = await r.json().catch(()=>({}));
         errEl.textContent = j.error || 'Could not send link. Please try again.';
-        submit.disabled=false; submit.textContent='Email me a sign-in link';
+        submit.disabled=false; submit.textContent='Email me a sign-in code';
       }
-    }catch(e){ errEl.textContent='Network error. Please try again.'; submit.disabled=false; submit.textContent='Email me a sign-in link'; }
+    }catch(e){ errEl.textContent='Network error. Please try again.'; submit.disabled=false; submit.textContent='Email me a sign-in code'; }
   };
   submit.addEventListener('click', send);
   backdrop.querySelector('#signin-email').addEventListener('keydown', e=>{ if(e.key==='Enter') send(); });
@@ -14420,11 +14498,12 @@ function cfSessionResendLink(){
   if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
   fetch('/api/auth/magic/request',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
     .then(function(r){
-      if(btn){ btn.disabled=false; btn.textContent=r.ok?'Link sent':'Email me a sign-in link'; }
-      showYahooToast(r.ok?('Sign-in link sent to '+email+'.'):'Could not send the link right now.', !r.ok);
+      if(btn){ btn.disabled=false; btn.textContent=r.ok?'Code sent':'Email me a sign-in code'; }
+      if(r.ok){ try{ openCodeEntryModal(email, 'We sent a sign-in link and a 6-digit code to <strong>'+cfEscHtml(email)+'</strong>. Enter the code here, or tap the link.'); }catch(e){ showYahooToast('Sign-in link sent to '+email+'.'); } }
+      else showYahooToast('Could not send the link right now.', true);
       try{ if(r.ok) cfTrack('session_relink_sent',null); }catch(e){}
     })
-    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Email me a sign-in link'; } showYahooToast('Could not send the link right now.', true); });
+    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Email me a sign-in code'; } showYahooToast('Could not send the link right now.', true); });
 }
 
 function cfEspnReconnectNeeded(){
