@@ -8,8 +8,8 @@
 //   POST /api/push/subscribe?action=status         { endpoint } -> { subscribed, prefs } for this device
 //   POST /api/push/subscribe?action=prefs          { endpoint, prefs } -> update this device's alert types
 //   POST /api/push/subscribe?action=roster         { season, week, players } -> live-week snapshot for TD alerts
-//   POST /api/push/subscribe?action=test_status    { endpoint, mode:'snf'|'tue' } -> build the Sunday-night /
-//                                                  Tuesday alert for THIS account right now and send it here
+//   POST /api/push/subscribe?action=test_status    { endpoint, mode:'snf'|'mnf'|'tue' } -> build the Sunday-night /
+//                                                  Monday heads-up / Tuesday alert for THIS account right now and send it here
 // A subscription always belongs to the signed-in account, so the server knows
 // whose leagues an alert is about (needed for the Tuesday results alert).
 
@@ -45,7 +45,7 @@ function previewOk(acct) {
 // Alert types a device can switch on/off. Missing = on.
 function cleanPrefs(p) {
   p = p || {};
-  return { checkin: p.checkin !== false, td: p.td !== false, snf: p.snf !== false, tue: p.tue !== false };
+  return { checkin: p.checkin !== false, td: p.td !== false, snf: p.snf !== false, mnf: p.mnf !== false, tue: p.tue !== false };
 }
 
 const TEST_MESSAGE = {
@@ -184,14 +184,19 @@ async function handleRoster(req, res, acct) {
 async function handleTestStatus(req, res, acct) {
   const body = await readJsonBody(req);
   const ep = String(body.endpoint || '');
-  const mode = body.mode === 'tue' ? 'tue' : 'snf';
+  const mode = body.mode === 'tue' ? 'tue' : body.mode === 'mnf' ? 'mnf' : 'snf';
   if (!(await A.rateLimitOk(`push:teststatus:${acct.uid}`, 10, 3600))) {
     res.status(429).json({ error: 'Too many test alerts. Try again later.' }); return;
   }
   const sub = ep && (await findSub(ep));
   if (!sub || sub.user_id !== acct.uid) { res.status(404).json({ error: 'This device is not signed up for alerts.' }); return; }
-  const built = await S.buildForUser(acct.uid, mode);
-  if (!built) { res.status(200).json({ ok: false, error: 'No matchups found for this week.' }); return; }
+  // Monday test = preview: Monday games treated as not yet kicked off, so the
+  // heads-up can be tried any day of a week that has a Monday game.
+  const built = await S.buildForUser(acct.uid, mode, mode === 'mnf' ? { preview: true } : undefined);
+  if (!built) {
+    const error = mode === 'mnf' ? 'Nothing in play on Monday night this week, so no heads-up would go out.' : 'No matchups found for this week.';
+    res.status(200).json({ ok: false, error }); return;
+  }
   const r = await W.sendPush(sub, { ...built.message, tag: `cf-test-${mode}` }, { ttl: 600 });
   if (!r.ok) console.error('push test_status failed', r.status, r.text);
   res.status(r.ok ? 200 : 502).json({ ok: r.ok, week: built.week, title: built.message.title, body: built.message.body });

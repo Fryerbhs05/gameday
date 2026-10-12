@@ -152,7 +152,61 @@ function tuesdayMessage(matchups, week) {
   return { title: `Your Week ${week} results`, body, rows };
 }
 
+// Monday night heads-up (Matt, 2026-10-12). Sent ~5 minutes before the FIRST
+// Monday kickoff, covering every Monday game. Locked copy:
+//   title "A Monday night heads-up"  (iOS finishes it: "from Conflicted")
+//   body  "Kickoff in 5. Keep an eye on Jalen Hurts, A.J. Brown and Travis Kelce."
+// Who counts: starters on EITHER side (yours and your opponents') whose team plays
+// Monday and hasn't finished, in matchups still in play (Snapshot lock logic —
+// already won / lost matchups are skipped). No cap on names. Full names; a
+// defense reads "PHI D/ST". Order: players touching the most in-play matchups
+// first, ties by the closest matchup they're in (smallest score gap first).
+// Nothing in play on Monday → null (no alert).
+function mnfName(p) {
+  if (isDefPos(p.pos)) return normTeam(p.team || p.name) + ' D/ST';
+  return String(p.name || '').trim();
+}
+function mnfKey(p) {
+  if (isDefPos(p.pos)) return 'DEF|' + normTeam(p.team || p.name);
+  return String(p.name || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+(jr|sr|ii|iii|iv|v)$/, '').replace(/\s+/g, ' ').trim() + '|' + normTeam(p.team);
+}
+function andJoin(arr) {
+  if (arr.length <= 1) return arr.join('');
+  return arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1];
+}
+// mondayTeams: Set of normTeam abbreviations playing Monday (ET).
+function mnfMessage(matchups, games, mondayTeams) {
+  if (!mondayTeams || !mondayTeams.size) return null;
+  const rows = [];
+  matchups.forEach((m) => {
+    const r = buildRow(m, games, false);
+    if (r && r.state === 'live') rows.push({ m, gap: Math.abs(r.curMy - r.curOpp) });
+  });
+  rows.sort((a, b) => a.gap - b.gap);
+  const seen = new Map(); // key -> { name, n, first }
+  rows.forEach(({ m }, idx) => {
+    const inThis = new Set();
+    m.mine.concat(m.opp).forEach((p) => {
+      if (!p || !mondayTeams.has(normTeam(p.team)) || isDone(p, games)) return;
+      const name = mnfName(p); if (!name) return;
+      const k = mnfKey(p);
+      if (inThis.has(k)) return; // both sides of one matchup = one matchup
+      inThis.add(k);
+      const e = seen.get(k);
+      if (e) e.n++; else seen.set(k, { name, n: 1, first: idx });
+    });
+  });
+  if (!seen.size) return null;
+  const names = [...seen.values()].sort((a, b) => (b.n - a.n) || (a.first - b.first)).map((e) => e.name);
+  return {
+    title: 'A Monday night heads-up',
+    body: `Kickoff in 5. Keep an eye on ${andJoin(names)}.`,
+    names,
+    matchups: rows.length
+  };
+}
+
 module.exports = {
   CF_FLOOR_DEF, CF_FLOOR_PENALTY, CF_FLOOR_PENALTY_DEFAULT, LOTS_PER_SIDE, NAME_TO_GO_MAX,
-  normTeam, nf, isDone, buildRow, detail, toGoTxt, names, shortName, snfMessage, tuesdayMessage
+  normTeam, nf, isDone, buildRow, detail, toGoTxt, names, shortName, snfMessage, tuesdayMessage, mnfMessage, andJoin
 };

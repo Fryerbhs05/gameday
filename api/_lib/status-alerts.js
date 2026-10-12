@@ -25,7 +25,7 @@ function etWeekday(ms) {
   return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' }).format(new Date(ms));
 }
 
-// { states: Map(team -> 'pre'|'in'|'post'), loaded, events: [{ms, state, sunday}] }
+// { states: Map(team -> 'pre'|'in'|'post'), loaded, events: [{ms, state, sunday, monday, teams}] }
 async function weekGames(season, week, type) {
   const st = type === 'post' ? 3 : 2;
   try {
@@ -35,11 +35,12 @@ async function weekGames(season, week, type) {
       const comp = e.competitions && e.competitions[0];
       const state = comp && comp.status && comp.status.type && comp.status.type.state;
       const ms = Date.parse(e.date);
-      events.push({ ms, state, sunday: etWeekday(ms) === 'Sun' });
+      const wd = etWeekday(ms), teams = [];
       for (const c of (comp && comp.competitors) || []) {
         const ab = c.team && c.team.abbreviation;
-        if (ab) states.set(C.normTeam(ab), state);
+        if (ab) { states.set(C.normTeam(ab), state); teams.push(C.normTeam(ab)); }
       }
+      events.push({ ms, state, sunday: wd === 'Sun', monday: wd === 'Mon', teams });
     }
     return { states, loaded: events.length > 0, events };
   } catch (e) {
@@ -55,9 +56,35 @@ async function completedWeek(ns) {
   return allPost ? ns.week : Math.max(1, ns.week - 1);
 }
 
-// mode: 'snf' | 'tue'. Returns { message, rows, week } or null when there's nothing to say.
+// Monday games this week: { kickoff: first Monday kickoff ms, teams: Set }.
+function mondaySlate(games) {
+  const mon = (games.events || []).filter((e) => e.monday && Number.isFinite(e.ms));
+  if (!mon.length) return null;
+  const teams = new Set();
+  mon.forEach((e) => (e.teams || []).forEach((t) => teams.add(t)));
+  return { kickoff: Math.min(...mon.map((e) => e.ms)), teams, events: mon };
+}
+
+// mode: 'snf' | 'tue' | 'mnf'. Returns { message, rows, week } or null when there's nothing to say.
+// mnf + ctx.preview (Settings test button): Monday games are treated as not yet
+// kicked off, so the test shows the pre-kickoff heads-up any day of the week.
 async function buildForUser(uid, mode, ctx) {
   const ns = (ctx && ctx.ns) || await nflState();
+  if (mode === 'mnf') {
+    const week = ns.week;
+    let games = (ctx && ctx.games) || await weekGames(ns.season, week, ns.type);
+    const slate = mondaySlate(games);
+    if (!slate) return null;
+    if (ctx && ctx.preview) {
+      const states = new Map(games.states);
+      slate.teams.forEach((t) => states.set(t, 'pre'));
+      games = { ...games, states };
+    }
+    const matchups = await R.readAccountMatchups(uid, ns.season, week);
+    const msg = C.mnfMessage(matchups, games, slate.teams);
+    if (!msg) return null;
+    return { week, rows: msg.names, message: { kind: 'mnf', title: msg.title, body: msg.body, url: '/?push=mnf', tag: `cf-mnf-${ns.season}-${week}` } };
+  }
   if (mode === 'tue') {
     const week = (ctx && ctx.week) || await completedWeek(ns);
     const matchups = await R.readAccountMatchups(uid, ns.season, week);
@@ -73,4 +100,4 @@ async function buildForUser(uid, mode, ctx) {
   return { week, rows: msg.rows, message: { kind: 'snf', title: msg.title, body: msg.body, url: '/?push=snf', tag: `cf-snf-${ns.season}-${week}` } };
 }
 
-module.exports = { nflState, weekGames, completedWeek, buildForUser, etWeekday };
+module.exports = { nflState, weekGames, completedWeek, buildForUser, etWeekday, mondaySlate };
