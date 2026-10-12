@@ -36,6 +36,14 @@
       "schedule": "*/5 2-8 * * 1"
     },
     {
+      "path": "/api/push/status?job=mnf",
+      "schedule": "* 16-23 * * 1"
+    },
+    {
+      "path": "/api/push/status?job=mnf&late=1",
+      "schedule": "* 0-3 * * 2"
+    },
+    {
       "path": "/api/push/status?job=tue",
       "schedule": "0 * * * 2"
     }

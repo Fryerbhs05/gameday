@@ -5945,6 +5945,13 @@
         </div>
         <button class="live-toggle" id="cf-push-snf-toggle" onclick="cfPushToggle('snf')" type="button" aria-label="Sunday night status"></button>
       </div>
+      <div class="settings-row" id="cf-push-mnf-row" style="display:none;">
+        <div class="settings-row-meta">
+          <div class="settings-row-title">Monday night heads-up</div>
+          <div class="settings-row-sub">Five minutes before Monday kickoff: every player in the Monday game who can still swing one of your matchups, yours and theirs.</div>
+        </div>
+        <button class="live-toggle" id="cf-push-mnf-toggle" onclick="cfPushToggle('mnf')" type="button" aria-label="Monday night heads-up"></button>
+      </div>
       <div class="settings-row" id="cf-push-tue-row" style="display:none;">
         <div class="settings-row-meta">
           <div class="settings-row-title">Tuesday results</div>
@@ -14426,35 +14433,36 @@ window.openCodeEntryModal = openCodeEntryModal;
   async function reg(){return navigator.serviceWorker.ready;}
   async function currentSub(){try{return await (await reg()).pushManager.getSubscription();}catch(e){return null;}}
   function post(action,body){return fetch(API+(action?'?action='+action:''),{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});}
-  function saveSub(sub,prefs){return post('',{subscription:sub.toJSON(),tz:tz(),platform:platform(),prefs:prefs||curPrefs||{checkin:true,td:true,snf:true,tue:true}});}
+  function saveSub(sub,prefs){return post('',{subscription:sub.toJSON(),tz:tz(),platform:platform(),prefs:prefs||curPrefs||{checkin:true,td:true,snf:true,mnf:true,tue:true}});}
   /* Per-device alert types (sw v344): Sunday lineup alert + Touchdown alerts.
      Missing = on. Cached so Settings paints without waiting on the network. */
   var PREF_KEY='cf_push_prefs_v1', curPrefs=null;
   try{curPrefs=JSON.parse(localStorage.getItem(PREF_KEY))||null;}catch(e){}
-  function setPrefs(p){curPrefs=p?{checkin:p.checkin!==false,td:p.td!==false,snf:p.snf!==false,tue:p.tue!==false}:null;try{if(curPrefs)localStorage.setItem(PREF_KEY,JSON.stringify(curPrefs));else localStorage.removeItem(PREF_KEY);}catch(e){}}
+  function setPrefs(p){curPrefs=p?{checkin:p.checkin!==false,td:p.td!==false,snf:p.snf!==false,mnf:p.mnf!==false,tue:p.tue!==false}:null;try{if(curPrefs)localStorage.setItem(PREF_KEY,JSON.stringify(curPrefs));else localStorage.removeItem(PREF_KEY);}catch(e){}}
 
   /* prefs = null → this device isn't subscribed (both toggles off). msg replaces
      the Sunday row's sub-line (used for setup/blocked/error notes). */
   function ui(prefs,msg,opts){
     var dis=!!(opts&&opts.disabled);
-    [['cf-push-toggle','checkin'],['cf-push-td-toggle','td'],['cf-push-snf-toggle','snf'],['cf-push-tue-toggle','tue']].forEach(function(t){
+    [['cf-push-toggle','checkin'],['cf-push-td-toggle','td'],['cf-push-snf-toggle','snf'],['cf-push-mnf-toggle','mnf'],['cf-push-tue-toggle','tue']].forEach(function(t){
       var tg=el(t[0]);if(!tg)return;var on=!!(prefs&&prefs[t[1]]);
       tg.classList.toggle('on',on);tg.setAttribute('aria-pressed',on?'true':'false');tg.disabled=dis;tg.style.opacity=dis?'0.4':'';
     });
     var sub=el('cf-push-sub'),x=el('cf-push-extra');
     if(sub)sub.textContent=msg||DEFAULT_SUB;
-    ['cf-push-td-row','cf-push-snf-row','cf-push-tue-row'].forEach(function(id){var r=el(id);if(r)r.style.display=dis?'none':'';});
+    ['cf-push-td-row','cf-push-snf-row','cf-push-mnf-row','cf-push-tue-row'].forEach(function(id){var r=el(id);if(r)r.style.display=dis?'none':'';});
     var tb=function(id,label){return '<button type="button" class="btn-ghost" id="'+id+'" style="display:block;margin-top:8px;padding:0;font-size:13px">'+label+'</button>';};
-    if(x)x.innerHTML=prefs?(tb('cf-push-test','Send a test alert')+tb('cf-push-test-snf','Test: Sunday night status')+tb('cf-push-test-tue','Test: Tuesday results')):'';
+    if(x)x.innerHTML=prefs?(tb('cf-push-test','Send a test alert')+tb('cf-push-test-snf','Test: Sunday night status')+tb('cf-push-test-mnf','Test: Monday night heads-up')+tb('cf-push-test-tue','Test: Tuesday results')):'';
     var t=el('cf-push-test');if(t)t.onclick=sendTest;
     var t2=el('cf-push-test-snf');if(t2)t2.onclick=function(){sendStatusTest('snf',t2);};
     var t3=el('cf-push-test-tue');if(t3)t3.onclick=function(){sendStatusTest('tue',t3);};
+    var t4=el('cf-push-test-mnf');if(t4)t4.onclick=function(){sendStatusTest('mnf',t4);};
   }
   var DEFAULT_SUB='One buzz, an hour before Sunday kickoff. Opens straight into Lineup Check-In.';
 
   async function paint(){
     var row=el('cf-push-row');if(!row)return;
-    if(!allowed()){row.style.display='none';['cf-push-td-row','cf-push-snf-row','cf-push-tue-row'].forEach(function(id){var r=el(id);if(r)r.style.display='none';});return;}
+    if(!allowed()){row.style.display='none';['cf-push-td-row','cf-push-snf-row','cf-push-mnf-row','cf-push-tue-row'].forEach(function(id){var r=el(id);if(r)r.style.display='none';});return;}
     row.style.display='';
     if(!supported()){
       ui(false,isIOS()&&!cfIsStandalone()?'Alerts only reach the Home Screen app. In Safari, tap Share → Add to Home Screen, then turn this on from the app.':'This browser can’t receive alerts.',{disabled:true});
@@ -14465,13 +14473,13 @@ window.openCodeEntryModal = openCodeEntryModal;
     if(Notification.permission==='denied'){ui(false,'Notifications are blocked for Conflicted. Turn them on in your phone’s Settings, then come back.',{disabled:true});return;}
     var sub=await currentSub();
     if(!sub){setPrefs(null);ui(null);return;}
-    ui(curPrefs||{checkin:true,td:true,snf:true,tue:true});
+    ui(curPrefs||{checkin:true,td:true,snf:true,mnf:true,tue:true});
     /* Once per load: ask the server for this device's alert types, and re-send the
        subscription if the server lost it (account switch, a row deleted on a
        failed send). Keeps time zone current too. */
     if(!synced){synced=true;try{
       var r=await post('status',{endpoint:sub.endpoint});var j=await r.json().catch(function(){return{};});
-      if(j&&j.subscribed){setPrefs(j.prefs);}else{await saveSub(sub,curPrefs||{checkin:true,td:true,snf:true,tue:true});setPrefs(curPrefs||{checkin:true,td:true,snf:true,tue:true});}
+      if(j&&j.subscribed){setPrefs(j.prefs);}else{await saveSub(sub,curPrefs||{checkin:true,td:true,snf:true,mnf:true,tue:true});setPrefs(curPrefs||{checkin:true,td:true,snf:true,mnf:true,tue:true});}
       ui(curPrefs);
     }catch(e){}}
   }
@@ -14483,7 +14491,7 @@ window.openCodeEntryModal = openCodeEntryModal;
     var r=await reg();
     var sub=await r.pushManager.getSubscription();
     if(!sub)sub=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(c.publicKey)});
-    prefs=prefs||{checkin:true,td:true,snf:true,tue:true};
+    prefs=prefs||{checkin:true,td:true,snf:true,mnf:true,tue:true};
     var res=await saveSub(sub,prefs);
     if(res.ok)setPrefs(prefs);
     if(!res.ok){var j=await res.json().catch(function(){return{};});try{await sub.unsubscribe();}catch(e){}throw new Error(j.error||'Could not turn on alerts.');}
@@ -14509,10 +14517,11 @@ window.openCodeEntryModal = openCodeEntryModal;
 
   /* type: 'checkin' | 'td'. First type switched on subscribes the device (with
      only that type on); last type switched off unsubscribes it. */
-  /* Status-alert test (sw v346): the server builds the real Sunday-night / Tuesday
+  /* Status-alert test (sw v346, Monday v347): the server builds the real Sunday-night / Monday heads-up / Tuesday
      alert for this account right now (live lineups from Sleeper/ESPN/Yahoo) and
      sends it to THIS device. Sunday-night mode = this week as it stands; Tuesday
-     mode = the most recent fully final week. Can take ~10–20s. */
+     mode = the most recent fully final week; Monday mode = this week with the Monday
+     game(s) treated as not yet kicked off (a preview). Can take ~10–20s. */
   async function sendStatusTest(mode,btn){
     var label=btn?btn.textContent:'';
     if(btn){btn.disabled=true;btn.textContent='Building…';}
@@ -14526,18 +14535,18 @@ window.openCodeEntryModal = openCodeEntryModal;
     }catch(e){if(btn){btn.disabled=false;btn.textContent=label;}var s=el('cf-push-sub');if(s)s.textContent=e.message;}
   }
   window.cfPushToggle=function(type){
-    var TG={checkin:'cf-push-toggle',td:'cf-push-td-toggle',snf:'cf-push-snf-toggle',tue:'cf-push-tue-toggle'};
+    var TG={checkin:'cf-push-toggle',td:'cf-push-td-toggle',snf:'cf-push-snf-toggle',mnf:'cf-push-mnf-toggle',tue:'cf-push-tue-toggle'};
     if(!TG[type])type='checkin';
     if(busy)return;var tg=el(TG[type]);if(tg&&tg.disabled)return;
     var on=tg&&tg.classList.contains('on');
     var subscribed=!!curPrefs;
     /* Permission prompt FIRST, synchronously inside the tap (see header). */
     var permPromise=(!on&&!subscribed)?(Notification.permission==='granted'?Promise.resolve('granted'):Notification.requestPermission()):null;
-    var next=Object.assign({checkin:false,td:false,snf:false,tue:false},curPrefs||{});next[type]=!on;
+    var next=Object.assign({checkin:false,td:false,snf:false,mnf:false,tue:false},curPrefs||{});next[type]=!on;
     busy=true;ui(next,on?'Turning off…':'Turning on…');
     var job;
     if(!subscribed)job=turnOn(permPromise,next);
-    else if(!next.checkin&&!next.td&&!next.snf&&!next.tue)job=turnOff();
+    else if(!next.checkin&&!next.td&&!next.snf&&!next.mnf&&!next.tue)job=turnOff();
     else job=currentSub().then(function(sub){
       if(!sub)return turnOn(Promise.resolve(Notification.permission),next);
       return post('prefs',{endpoint:sub.endpoint,prefs:next}).then(function(r){if(!r.ok)throw new Error('Could not save that. Try again.');setPrefs(next);});
@@ -14666,6 +14675,8 @@ window.openCodeEntryModal = openCodeEntryModal;
     try{cfTrack('push_opened',{kind:d.kind||'',warm:true});}catch(e){}
     if(d.kind==='checkin'&&typeof window.cfShowLineupCheckIn==='function')window.cfShowLineupCheckIn('push');
     if((d.kind==='snf'||d.kind==='tue')&&typeof window.showSnapshot==='function')window.showSnapshot();
+    /* Monday heads-up (v347) opens Home, where the Loyalties players are. Cold opens land there already. */
+    if(d.kind==='mnf'&&typeof window.goToDashboardOrSetup==='function')window.goToDashboardOrSetup();
   });}catch(e){}
   /* Cold open from an alert (app wasn't running): /?checkin=1&push=checkin. */
   try{var pk=new URLSearchParams(location.search).get('push');if(pk)setTimeout(function(){try{cfTrack('push_opened',{kind:pk,warm:false});}catch(e){}},0);
