@@ -1,8 +1,6 @@
 // api/track.js
-// Analytics ingestion — the 12th of 12 Vercel Hobby functions. WE ARE NOW AT
-// THE CAP: any future endpoint MUST merge into an existing function via
-// ?action= routing (see feedback_vercel_function_limit — over-limit deploys
-// ERROR silently while serving the stale build). One endpoint, batched
+// Analytics ingestion. (Written under the old Hobby 12-function cap; the
+// project is on Pro now, so that cap no longer applies.) One endpoint, batched
 // events, zero npm dependencies, matching the api/* house style.
 //
 //   POST /api/track
@@ -24,9 +22,44 @@
 //     limiter; over-limit calls are dropped (204), never blocked with an error.
 //   • Signed-in calls also touch users.last_seen_at — the cheap retention
 //     signal ("active in last N days") without scanning events.
+//   • ip_hash (added 2026-10-12): every row carries a keyed hash of the
+//     caller's network so the owner's private-window test sessions can be
+//     filtered out of anonymous counts (match against the owner's signed-in
+//     rows from the same network). The raw IP is NEVER stored. IPv6 is cut to
+//     its /64 prefix first, because phones rotate the lower 64 bits for
+//     privacy and the /64 is what identifies one home/LAN. Key = IP_HASH_SALT,
+//     falling back to SESSION_SECRET; with neither set the column stays null.
 
+const crypto = require('crypto');
 const A = require('./_lib/accounts');
 const O = require('./_lib/observe');
+
+// Network key for one caller: full IPv4, or the /64 prefix of an IPv6 address.
+function networkKey(ip) {
+  if (!ip || ip === 'unknown') return null;
+  let s = String(ip).trim().toLowerCase();
+  if (s.startsWith('::ffff:') && s.indexOf('.') > 0) s = s.slice(7);   // IPv4-mapped IPv6
+  if (s.indexOf(':') === -1) return /^\d{1,3}(\.\d{1,3}){3}$/.test(s) ? s : null;
+  s = s.split('%')[0];                                                // drop zone id
+  const halves = s.split('::');
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(':') : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
+  const fill = halves.length === 2 ? Math.max(0, 8 - head.length - tail.length) : 0;
+  const groups = head.concat(new Array(fill).fill('0'), tail);
+  if (groups.length < 4) return null;
+  return groups.slice(0, 4).map((g) => (parseInt(g || '0', 16) || 0).toString(16)).join(':') + '::/64';
+}
+
+// Keyed so a leaked events table can't be reversed by hashing all 4B IPv4s.
+function ipHash(req) {
+  try {
+    const key = process.env.IP_HASH_SALT || process.env.SESSION_SECRET;
+    const net = networkKey(A.clientIp(req));
+    if (!key || !net) return null;
+    return crypto.createHmac('sha256', key).update('cf-ip:' + net).digest('hex').slice(0, 16);
+  } catch (e) { return null; }
+}
 
 const NAME_RE = /^[a-z][a-z0-9_]{0,49}$/;
 const MAX_EVENTS = 20;
@@ -64,6 +97,7 @@ module.exports = async (req, res) => {
     list = list.slice(0, MAX_EVENTS);
 
     const acct = A.readAccount(req); // { uid, email } or null — never throws
+    const ipH = ipHash(req);
     const rows = [];
     for (const ev of list) {
       if (!ev || typeof ev.name !== 'string' || !NAME_RE.test(ev.name)) continue;
@@ -74,7 +108,7 @@ module.exports = async (req, res) => {
           if (s.length <= MAX_PROPS_BYTES) props = JSON.parse(s);
         } catch (e) { /* unserializable props → drop props, keep event */ }
       }
-      rows.push({ user_id: acct ? acct.uid : null, anon_id: anonId, name: ev.name, props });
+      rows.push({ user_id: acct ? acct.uid : null, anon_id: anonId, name: ev.name, props, ip_hash: ipH });
     }
 
     if (rows.length) {
