@@ -24329,18 +24329,25 @@ if(typeof window.cfRegisterView==='function'){
           var anyPm=ms.some(function(m){var rf=(m.isFinal!=null)?m.isFinal:(fin||cfMatchupFinalFromTeams(m.teams||[]));return !rf&&(m.homeProj!=null||m.awayProj!=null);});
           colhd='<div class="cf-ls-colhd" data-lv-key="ls:'+ek+':hd"><span class="cf-ls-hd1">'+segHtml('match')+'</span>'+(anyPm?sortBtn('proj',false):'<span></span>')+sortBtn('pts',false)+'<span></span></div>';
         }else{
+          /* MEDIAN divider (Matt, 2026-10-11): a hairline + MEDIAN label between
+             the top and bottom half, for leagues that award a median-scoring win.
+             Rank mode only (the one view listing every team in order), even-sized
+             leagues of 4+ (odd counts have no clean half), and only while there is
+             a real order — never on a pregame PTS sort where every rank is "—". */
+          var medAt=(!noRank&&sorted.length>=4&&sorted.length%2===0)?sorted.length/2:0;
           rows=sorted.map(function(t,i){
             var rk=(noRank||(key==='proj'&&!t.fin&&t.proj==null))?'—':String(i+1);
             var d=rec.marks[t.id],mv='';
             if(d&&rk!=='—')mv='<span class="cf-ls-mv" aria-label="'+(d>0?'Up ':'Down ')+Math.abs(d)+'">'+(d>0?UPA:DNA)+Math.abs(d)+'</span>';
             var col2=lgFinal?'':(t.fin?'<span class="cf-ls-final">FINAL</span>':(anyP?'<div>'+fp(t.proj)+'</div>':''));
             var tap=!!(t.mk&&keyMap[t.mk]);
-            return '<div class="cf-ls-row cf-ls-rk'+(tap?' is-tap':'')+(t.mine?' is-me':'')+'" data-lv-key="ls:'+ek+':t:'+cfEsc(t.id)+'"'+(tap?' data-ls-mk="'+cfEsc(t.mk)+'" role="button" tabindex="0" aria-label="Open matchup detail"':'')+'>'
+            return '<div class="cf-ls-row cf-ls-rk'+(tap?' is-tap':'')+(t.mine?' is-me':'')+(medAt&&i===medAt-1?' pre-med':'')+'" data-lv-key="ls:'+ek+':t:'+cfEsc(t.id)+'"'+(tap?' data-ls-mk="'+cfEsc(t.mk)+'" role="button" tabindex="0" aria-label="Open matchup detail"':'')+'>'
               +'<div class="cf-ls-rkname"><span class="cf-ls-rkn">'+rk+'</span><span class="cf-ls-rktm">'+cfEsc(mask(cfMaskTeam,t.name)||'—')+'</span>'+mv+'</div>'
               +'<div class="cf-ls-proj">'+col2+'</div>'
               +'<div class="cf-ls-scores"><div'+(anyPts?'':' class="l"')+'>'+(+t.score||0).toFixed(2)+'</div></div>'
               +'<span class="cf-ls-chevr">'+(tap?CHEVR:'')+'</span>'
-            +'</div>';
+            +'</div>'
+            +(medAt&&i===medAt-1?'<div class="cf-ls-med" role="separator" aria-label="Median" data-lv-key="ls:'+ek+':med"><span>MEDIAN</span></div>':'');
           }).join('');
           colhd='<div class="cf-ls-colhd" data-lv-key="ls:'+ek+':hd"><span class="cf-ls-hd1">'+(T.rankOnly?'':segHtml('rank'))+'</span>'+(anyP?sortBtn('proj',key==='proj'):'<span></span>')+sortBtn('pts',key==='pts')+'<span></span></div>';
         }
@@ -24438,7 +24445,11 @@ if(typeof window.cfRegisterView==='function'){
       +'.cf-ls-row.is-me .cf-ls-rktm{color:var(--ink-900,#F5EFE4);font-weight:700;}'
       +'.cf-ls-rk .cf-ls-proj{line-height:16px;}'
       +'.cf-ls-mv{flex:none;display:inline-flex;align-items:center;gap:1px;font:600 9.5px/16px var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-500,#9E988A);}'
-      +'.cf-ls-mv svg{display:block;}';
+      +'.cf-ls-mv svg{display:block;}'
+      /* Median divider (2026-10-11) */
+      +'.cf-ls-row.pre-med{border-bottom:0;}'
+      +'.cf-ls-med{display:flex;align-items:center;gap:8px;padding:3px 4px 3px 8px;font:600 8px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.12em;color:var(--ink-500,#9E988A);}'
+      +'.cf-ls-med::before,.cf-ls-med::after{content:"";flex:1 1 auto;height:1px;background:var(--line,#2A3949);}';
       document.head.appendChild(st);
     }
   }catch(e){}
