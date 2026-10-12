@@ -14470,6 +14470,84 @@ window.openCodeEntryModal = openCodeEntryModal;
     busy=true;ui(!on,on?'Turning off…':'Turning on…');
     (on?turnOff():turnOn(permPromise)).then(function(){busy=false;paint();},function(e){busy=false;paint().then(function(){var s=el('cf-push-sub');if(s)s.textContent=(e&&e.message)||'Something went wrong. Try again.';});});
   };
+  /* ── The ask (sw v343) ──────────────────────────────────────────────────────
+     A browser can't turn alerts on by itself: the person must tap Allow on the
+     system prompt, and a "Don't Allow" is nearly permanent (only fixable in the
+     phone's Settings). So we never fire the system prompt cold. Our own sheet
+     asks first; only "Turn on alerts" triggers the real prompt (inside that tap).
+     Triggers: first open of the Home Screen app · closing Lineup Check-In after a
+     "Looks good" · a Sunday-morning open (ET, before 1pm). "Not now" snoozes 14
+     days; max 3 asks per device. iPhone Safari gets the add-to-Home-Screen
+     version instead (push only exists in the Home Screen app). */
+  var ASK_KEY='cf_push_ask_v1', SNOOZE=14*86400000, MAX_ASKS=3, askedThisLoad=false;
+  function askState(){try{return JSON.parse(localStorage.getItem(ASK_KEY))||{n:0,until:0};}catch(e){return{n:0,until:0};}}
+  function saveAsk(s){try{localStorage.setItem(ASK_KEY,JSON.stringify(s));}catch(e){}}
+  function sundayMorningET(){try{var o={};new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short',hour:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).forEach(function(p){o[p.type]=p.value;});return o.weekday==='Sun'&&+o.hour<13;}catch(e){return false;}}
+  function blocked(){try{if(document.querySelector('.espn-modal-backdrop'))return true;if(window.BottomSheet&&window.BottomSheet.isOpen&&window.BottomSheet.isOpen())return true;}catch(e){}return false;}
+  async function askVariant(){
+    if(askedThisLoad||!allowed())return null;
+    try{if(isDemoMode)return null;}catch(e){}
+    var a=window.__account;if(!a||a.signedIn!==true)return null;
+    try{if(typeof isAnyProviderConnected==='function'&&!isAnyProviderConnected())return null;}catch(e){}
+    var s=askState();if(s.n>=MAX_ASKS||Date.now()<(s.until||0))return null;
+    if(isIOS()&&!cfIsStandalone())return 'install';
+    if(!supported()||Notification.permission!=='default')return null;
+    var c=await loadCfg();if(!c.enabled||!c.publicKey)return null;
+    if(await currentSub())return null;
+    return 'push';
+  }
+  function showAsk(variant,trigger){
+    askedThisLoad=true;
+    var s=askState();s.n=(s.n||0)+1;s.until=Date.now()+SNOOZE;saveAsk(s);
+    try{cfTrack('push_ask_shown',{trigger:trigger,variant:variant,n:s.n});}catch(e){}
+    var body=variant==='push'
+      ?'<h2 id="push-ask-title">Want a heads-up before Sunday kickoff?</h2>'
+        +'<p class="espn-modal-sub">One buzz an hour before kickoff, straight into Lineup Check-In. Turn it off anytime in Settings.</p>'
+        +'<button type="button" class="btn-modal" id="push-ask-yes" style="width:100%;margin-top:6px">Turn on alerts</button>'
+        +'<div class="espn-modal-error" id="push-ask-err" style="min-height:0;margin-top:8px"></div>'
+        +'<button type="button" class="btn-ghost" id="push-ask-no" style="width:100%;margin-top:4px">Not now</button>'
+      :'<h2 id="push-ask-title">Want a heads-up before Sunday kickoff?</h2>'
+        +'<p class="espn-modal-sub">Alerts only reach the Home Screen app. In Safari, tap Share, then Add to Home Screen. Open Conflicted from there and turn alerts on.</p>'
+        +'<button type="button" class="btn-modal" id="push-ask-no" style="width:100%;margin-top:6px">Got it</button>';
+    var bd=document.createElement('div');bd.className='espn-modal-backdrop';bd.id='push-ask-backdrop';
+    bd.innerHTML='<div class="espn-modal" role="dialog" aria-modal="true" aria-labelledby="push-ask-title">'+body+'</div>';
+    document.body.appendChild(bd);
+    function close(how){bd.remove();if(how)try{cfTrack('push_ask_dismiss',{trigger:trigger,variant:variant,how:how});}catch(e){}}
+    bd.addEventListener('click',function(e){if(e.target===bd)close('backdrop');});
+    bd.querySelector('#push-ask-no').onclick=function(){close('not_now');};
+    var yes=bd.querySelector('#push-ask-yes');
+    if(yes)yes.onclick=function(){
+      var permPromise=Notification.permission==='granted'?Promise.resolve('granted'):Notification.requestPermission(); /* first, inside the tap */
+      try{cfTrack('push_ask_accept',{trigger:trigger});}catch(e){}
+      yes.disabled=true;yes.textContent='Turning on…';
+      turnOn(permPromise).then(function(){
+        if(Notification.permission!=='granted'){try{cfTrack('push_ask_denied',{trigger:trigger});}catch(e){}bd.remove();return;}
+        var st=askState();st.n=MAX_ASKS;st.done=1;saveAsk(st);
+        bd.querySelector('.espn-modal').innerHTML='<h2>You’re set.</h2><p class="espn-modal-sub">One buzz, an hour before Sunday kickoff. Change it anytime in Settings.</p><button type="button" class="btn-modal" id="push-ask-done" style="width:100%;margin-top:6px">Done</button>';
+        bd.querySelector('#push-ask-done').onclick=function(){bd.remove();};
+        try{paint();}catch(e){}
+      },function(e){
+        var er=bd.querySelector('#push-ask-err');if(er)er.textContent=(e&&e.message)||'Something went wrong. Try again.';
+        yes.disabled=false;yes.textContent='Try again';
+      });
+    };
+  }
+  window.cfPushAsk=async function(trigger){
+    var v=await askVariant();
+    if(!v||blocked())return false;
+    showAsk(v,trigger);return true;
+  };
+  /* Boot triggers: wait for the board, let any open sheet (e.g. the auto
+     Check-In) close first, then a short beat so the board is seen before we ask. */
+  (function(){
+    var tries=0,iv=setInterval(function(){
+      if(++tries>90){clearInterval(iv);return;}
+      if(!window.__conflictedLastData||blocked())return;
+      clearInterval(iv);
+      var trig=(cfIsStandalone()&&!(askState().n>0))?'first_open':(sundayMorningET()?'sunday_morning':null);
+      if(trig)setTimeout(function(){if(!blocked())window.cfPushAsk(trig);},4000);
+    },2000);
+  })();
   window.cfPushPaint=paint;
 
   /* Tapping an alert while the app is already open: the service worker focuses
@@ -16095,6 +16173,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
         track('lineup_checkin_close',{secs:sess?Math.round((Date.now()-sess.t0)/1000):null,checked:M2.leagues.filter(function(L){return c[L.id];}).length,total:M2.leagues.length,adjusted:sess?sess.adjusted:0,expanded:sess?sess.expanded:0});
       }catch(e){}
       sess=null;
+      try{if(window.__cfCiLooksGood&&window.cfPushAsk){window.__cfCiLooksGood=false;setTimeout(function(){window.cfPushAsk('checkin');},450);}}catch(e){}
     }});
     fitStats();
   }
@@ -16252,6 +16331,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
       if(card2&&c[id])snapToOpen(card2,goneH);
       chk.innerHTML=c[id]?CHECK+' Checked':'Looks good';
       track('lineup_checkin_check',{platform:String(id).split(':')[0],on:!!c[id]});
+      if(c[id])window.__cfCiLooksGood=true; /* push ask fires when the sheet closes (sw v343) */
       try{var nb=window.BottomSheet.getSheetEl().querySelector('.ci-nchk');if(nb&&lastModel){var n=lastModel.leagues.filter(function(L){return c[L.id];}).length;nb.innerHTML=n+'<span> / '+lastModel.leagues.length+'</span>';}}catch(e){}
       syncHtml();return;
     }
