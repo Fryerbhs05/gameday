@@ -289,6 +289,58 @@ async function consumeMagicToken(token) {
   return row.email;
 }
 
+/* ── 6-digit sign-in codes ──────────────────────────────────────── */
+// On iPhone the emailed link always opens in Safari, which keeps its own
+// cookies apart from the Home Screen app — so a link can never sign the
+// installed app in. The same email therefore also carries a 6-digit code the
+// user types into whichever copy of the app they're in.
+// Stored in magic_tokens (no schema change). The key is an HMAC over
+// email + code keyed by SESSION_SECRET, so (a) a leaked table can't be
+// brute-forced offline the way a plain hash of a 1-in-a-million code could,
+// and (b) a code only works for the address it was sent to. The 'c_' prefix
+// keeps code rows from ever colliding with link-token hashes.
+function codeHash(email, code) {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) throw new Error('SESSION_SECRET not set');
+  return (
+    'c_' +
+    crypto.createHmac('sha256', secret).update(normEmail(email) + ':' + code).digest('hex')
+  );
+}
+async function saveSignInCode(email, ttlMinutes = 15) {
+  const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+  const expires_at = new Date(Date.now() + ttlMinutes * 60000).toISOString();
+  await sbFetch('magic_tokens', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify([{ token_hash: codeHash(email, code), email: normEmail(email), expires_at }])
+  });
+  return code;
+}
+// Returns the email if the code is valid for it, else null. Does NOT consume —
+// the caller clears every outstanding link + code for the email on success
+// (clearMagicTokens), so one sign-in retires the whole email.
+async function checkSignInCode(email, code) {
+  const e = normEmail(email);
+  const c = String(code || '').replace(/\D/g, '');
+  if (!e || c.length !== 6) return null;
+  const h = codeHash(e, c);
+  const rows = await sbFetch(`magic_tokens?token_hash=eq.${h}&select=email,expires_at`);
+  const row = rows && rows[0];
+  if (!row || row.email !== e) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) return null;
+  return row.email;
+}
+// Retire every outstanding link + code for an email (after any successful sign-in).
+async function clearMagicTokens(email) {
+  const e = normEmail(email);
+  if (!e) return;
+  await sbFetch(`magic_tokens?email=eq.${encodeURIComponent(e)}`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=minimal' }
+  });
+}
+
 /* ── Platform sessions (account-keyed ESPN / Yahoo blobs) ───────── */
 // blob = the SAME base64url ciphertext we'd otherwise put in the cookie.
 async function savePlatformSession(uid, platform, blob) {
@@ -408,19 +460,24 @@ async function deleteUserData(uid, email) {
 }
 
 /* ── Email (Resend REST) ────────────────────────────────────────── */
-async function sendMagicLink(email, token) {
+async function sendMagicLink(email, token, code) {
   // Verification is handled by the GET branch of /api/auth/magic/request
   // (consolidated into one function to stay under Vercel Hobby's 12-fn limit).
   const link = `${appUrl()}/api/auth/magic/request?token=${encodeURIComponent(token)}`;
   const from = process.env.MAGIC_FROM || 'Conflicted <login@conflictedapp.com>';
+  const codeBlock = code
+    ? `<p style="color:#5a6472;font-size:14px;line-height:1.5;margin:0">Enter this code in Conflicted:</p>
+      <p style="font-family:SFMono-Regular,Menlo,Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:6px;margin:8px 0 20px;color:#1a2233">${code}</p>
+      <p style="color:#5a6472;font-size:14px;line-height:1.5">Or tap the button to sign in here. On an iPhone Home Screen app, use the code. The button opens Safari.</p>`
+    : `<p style="color:#5a6472;font-size:14px;line-height:1.5">Tap the button below to finish signing in.</p>`;
   const html = `
     <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a2233">
-      <h2 style="margin:0 0 8px">Sign in to Conflicted</h2>
-      <p style="color:#5a6472;font-size:14px;line-height:1.5">Tap the button below to finish signing in. This link works once and expires in 15 minutes.</p>
+      <h2 style="margin:0 0 12px">Sign in to Conflicted</h2>
+      ${codeBlock}
       <p style="margin:24px 0">
         <a href="${link}" style="background:#1b2a4a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;font-size:14px;display:inline-block">Sign in to Conflicted</a>
       </p>
-      <p style="color:#8a93a3;font-size:12px;line-height:1.5">If you didn't request this, you can ignore this email — nothing will happen.</p>
+      <p style="color:#8a93a3;font-size:12px;line-height:1.5">${code ? 'The code and the button' : 'This link'} work once and expire in 15 minutes. If you didn't request this, you can ignore this email — nothing will happen.</p>
     </div>`;
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -431,7 +488,7 @@ async function sendMagicLink(email, token) {
     body: JSON.stringify({
       from,
       to: [normEmail(email)],
-      subject: 'Your Conflicted sign-in link',
+      subject: code ? `${code} is your Conflicted sign-in code` : 'Your Conflicted sign-in link',
       html
     })
   });
@@ -465,6 +522,9 @@ module.exports = {
   setDisabledLeagues,
   saveMagicToken,
   consumeMagicToken,
+  saveSignInCode,
+  checkSignInCode,
+  clearMagicTokens,
   saveIntegrationRequest,
   savePlatformSession,
   getPlatformSession,
