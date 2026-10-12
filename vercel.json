@@ -26,6 +26,15 @@
     {
       "path": "/api/push/cron",
       "schedule": "*/5 14-18 * * 0"
+    },
+    {
+      "path": "/api/push/td",
+      "schedule": "* * * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/push/td.js": {
+      "maxDuration": 60
+    }
+  }
 }
