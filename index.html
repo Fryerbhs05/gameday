@@ -4729,18 +4729,22 @@
     body:not(.nav-landing) .cbmore-tile[data-more-action="blog"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="contact"],
     body:not(.nav-landing) .cbmore-tile[data-more-action="account"] { display: none; }
+    /* Maniac Mode (2026-10-13): outside the kickoff window it lives in this sheet
+       on desktop; inside it (body.cf-maniac-hot) it's a rail tab instead, so the
+       tile hides and the grid is empty again. */
+    body:not(.nav-landing).cf-maniac-hot .cbmore-tile[data-more-action="maniac"] { display: none; }
     /* …so the owner's desktop sheet is just the gated row — no empty grid/divider above it. */
-    body:not(.nav-landing) .cbmore-title + .cbmore-grid { display: none; }
-    body:not(.nav-landing) .cbmore-admin { margin-top: 0; padding-top: 0; border-top: 0; }
+    body:not(.nav-landing).cf-maniac-hot .cbmore-title + .cbmore-grid { display: none; }
+    body:not(.nav-landing).cf-maniac-hot .cbmore-admin { margin-top: 0; padding-top: 0; border-top: 0; }
     /* Blog + Contact are pinned rail tabs now (2026-08-20); the …More sheet is
        empty for a normal user (About lives in Account; Exposure/Schedule/Account
        are first-class tabs). Hide the rail's More button unless admin — Shop/
        Partners/Conflict still populate the sheet for the owner. */
     body:not(.nav-landing) #cf-side-rail [data-rail-tab="more"] { display: none; }
     body:not(.nav-landing).is-admin #cf-side-rail [data-rail-tab="more"] { display: flex; }
-    /* Maniac Mode lives only in …More, so its two preview accounts need the
-       desktop More button too (Jeremy is not an admin). */
-    body:not(.nav-landing).can-maniac #cf-side-rail [data-rail-tab="more"] { display: flex; }
+    /* Maniac Mode (2026-10-13): outside the 30-min kickoff window it sits in the
+       …More sheet, so every user gets the rail's More button then. */
+    body:not(.nav-landing):not(.cf-maniac-hot) #cf-side-rail [data-rail-tab="more"] { display: flex; }
     /* Conflict Card is admin-only in …More (2026-09-24) — no rail tab for anyone. */
     body:not(.nav-landing) #cf-side-rail [data-rail-tab="conflict"] { display: none !important; }
   }
@@ -4779,6 +4783,13 @@
   <button class="cfrail-tab" type="button" data-rail-tab="dashboard" aria-label="Home">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
     <span>Home</span>
+  </button>
+  <!-- Maniac Mode (2026-10-13): shown ONLY inside the hot window (a game live or
+       kicking off within 30 min, body.cf-maniac-hot); otherwise it's a …More tile. -->
+  <button class="cfrail-tab cfrail-maniac" type="button" data-rail-tab="maniac" aria-label="Maniac Mode">
+    <span class="cfmx-dot" aria-hidden="true"></span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2z"/></svg>
+    <span>Maniac Mode</span>
   </button>
   <button class="cfrail-tab" type="button" data-rail-tab="checkin" aria-label="Lineup Check-In">
     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8.5 13l2.5 2.5 4.5-5"/></svg>
@@ -4922,10 +4933,12 @@
       { key: 'account',  label: 'Account',  soon: false, svg: '<g transform="translate(12,12) scale(0.7742) translate(-12,-12.25)"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></g>' },
       /* Conflict moved off the bar for EVERYONE (Leagues took its slot,
          2026-09-24) and is admin-only: this tile is the only way in. Two-ring art is 11u tall centered at 12, normalized to the flask body. */
-      /* Maniac Mode (2026-10-08): full-screen landscape game-day board. Gated to
-         MANIAC_EMAILS (owner + Jeremy Ried) via maniacOnly, NOT adminOnly. Bolt
-         icon height-normalized to the flask body like every other tile. */
-      { key: 'maniac', label: 'Maniac Mode', soon: false, maniacOnly: true, svg: '<g transform="translate(12,12) scale(0.6) translate(-12,-12)"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2z"/></g>' },
+      /* Maniac Mode (2026-10-08): full-screen landscape game-day board. Released to
+         ALL users 2026-10-13 (was the MANIAC_EMAILS preview). Phones: always here
+         (turning the phone sideways is the main way in). Desktop: here only outside
+         the kickoff window (see the cf-maniac-hot rules). Bolt icon height-
+         normalized to the flask body like every other tile. */
+      { key: 'maniac', label: 'Maniac Mode', soon: false, svg: '<g transform="translate(12,12) scale(0.6) translate(-12,-12)"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2z"/></g>' },
       { key: 'conflict', label: 'Conflict', soon: false, adminOnly: true, svg: '<g transform="translate(12,12) scale(1.0909) translate(-12,-12)"><circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/></g>' },
       /* Lineup Check-In on demand — for everyone since 2026-09-26 (first tile).
          Opens the same sheet the auto trigger shows, ignoring the schedule + seen flag.
@@ -4934,7 +4947,7 @@
     ];
     /* Normal-user tile order (Matt, 2026-09-26): Check-In, Leaders, Exposure, Account,
        Blog, Contact. Gated tiles keep their own bottom row regardless. */
-    (function(){var ORDER=['checkin','leaders','exposure','account','blog','contact'];
+    (function(){var ORDER=['maniac','checkin','leaders','exposure','account','blog','contact'];
       var rank=function(it){var i=ORDER.indexOf(it.key);return i<0?99:i;};
       var idx=ITEMS.map(function(it,i){return[it,i];});
       idx.sort(function(a,b){return(rank(a[0])-rank(b[0]))||(a[1]-b[1]);});
@@ -4944,12 +4957,10 @@
        Maniac-only — these accounts do not get the other admin tiles. Client-side
        gate = cosmetic filter, same as the admin check. */
     var MANIAC_EMAILS = ['fryerm@net.elmhurst.edu', 'riedjeremy@yahoo.com', 'tjboyer90@gmail.com'];  /* + Tyler Boyer (2026-10-08) */
-    function canManiacUser() {
-      try {
-        var a = window.__account;
-        return !!(a && a.signedIn && a.email && MANIAC_EMAILS.indexOf(String(a.email).trim().toLowerCase()) >= 0);
-      } catch (e) { return false; }
-    }
+    /* Released to ALL users 2026-10-13 (Matt) — gate kept as a stub so callers
+       don't change. MANIAC_EMAILS above is now unused. Push alerts were released
+       at the same time (their client check is now just "signed in"). */
+    function canManiacUser() { return true; }
     window.cfCanManiac = canManiacUser;
     /* Leagues view preview list (2026-09-24): owner + Jeremy Ried. Leagues-only —
        these users do NOT get the other admin tiles/links. */
@@ -14423,7 +14434,8 @@ window.openCodeEntryModal = openCodeEntryModal;
   var API='/api/push/subscribe';
   var cfg=null, synced=false, busy=false;
   function el(id){return document.getElementById(id);}
-  function allowed(){try{return typeof window.cfCanManiac==='function'&&window.cfCanManiac();}catch(e){return false;}}
+  /* Released to all signed-in users 2026-10-13 (was the Maniac preview list); a subscription needs an account. */
+  function allowed(){try{var a=window.__account;return !!(a&&a.signedIn);}catch(e){return false;}}
   function supported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;}
   function isIOS(){var ua=navigator.userAgent||'';return /iPhone|iPad|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}
   function platform(){var s=cfIsStandalone();if(isIOS())return s?'ios-app':'ios-safari';if(/Android/.test(navigator.userAgent||''))return s?'android-app':'android';return s?'desktop-app':'desktop';}
@@ -19801,6 +19813,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
         // Blog + Contact are pinned rail tabs (2026-08-20) with no bottom-nav
         // twin - call their handlers directly instead of forwarding a click.
         if (tab === 'checkin') { if (typeof window.cfShowLineupCheckIn === 'function') window.cfShowLineupCheckIn('rail'); return; }
+        if (tab === 'maniac') { if (typeof window.showManiac === 'function') window.showManiac({ via: 'rail' }); return; }
         if (tab === 'blog') { if (typeof window.showBlog === 'function') window.showBlog(); return; }
         if (tab === 'contact') { if (typeof window.showContact === 'function') { window.showContact('more'); window.scrollTo(0, 0); } return; }
         var target = bottom.querySelector('[data-exp-tab="' + tab + '"]');
@@ -27224,7 +27237,8 @@ body.cf-maniac-lock{overflow:hidden}
   }
 
   /* ---------- open / close ---------- */
-  window.showManiac=function(){
+  window.showManiac=function(opts){
+    opts=(opts&&typeof opts==='object'&&!opts.type)?opts:{};
     if(typeof window.cfCanManiac==='function'&&!window.cfCanManiac())return;
     ensureRoot();
     try{ if(window.BottomSheet&&window.BottomSheet.isOpen())window.BottomSheet.close(); }catch(e){}
@@ -27234,7 +27248,8 @@ body.cf-maniac-lock{overflow:hidden}
     tkReset();
     root.classList.add('is-open');
     document.body.classList.add('cf-maniac-lock');
-    try{ if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(function(){}); }catch(e){}
+    /* Opened by turning a phone sideways: never lock — turning it back upright is the exit. */
+    if(opts.via!=='rotate'){ try{ if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(function(){}); }catch(e){} }
     if(ticker)clearInterval(ticker); ticker=setInterval(tick,1000);
     S.renderedAt=S.renderedAt||Date.now();
     render();
@@ -27247,7 +27262,7 @@ body.cf-maniac-lock{overflow:hidden}
     try{ var d=window.__conflictedLastData; if(d&&d.isHist&&typeof handleRefresh==='function')handleRefresh(); }catch(e){}
     /* Make sure the live poll is running even if Maniac was opened from a static view. */
     try{ if(typeof startAutoRefresh==='function'&&typeof refreshTimer!=='undefined'&&!refreshTimer)startAutoRefresh(); }catch(e){}
-    try{ cfTrack('maniac_open',{}); }catch(e){}
+    try{ cfTrack('maniac_open',{via:opts.via||'more'}); }catch(e){}
   };
   window.hideManiac=function(){
     if(!root)return;
@@ -27267,6 +27282,178 @@ body.cf-maniac-lock{overflow:hidden}
   });
   /* If the account changes to one outside the preview list, close it. */
   setInterval(function(){ if(window.__cfManiacOpen&&typeof window.cfCanManiac==='function'&&!window.cfCanManiac())window.hideManiac(); },2000);
+})();
+</script>
+
+<!-- ============ MANIAC MODE ENTRY POINTS (2026-10-13, sw v352) ============
+     Maniac Mode is released to all users. "Hot" window = an NFL game is in
+     progress, or one kicks off within 30 minutes (live week's ESPN slate).
+     PHONES: turning the phone sideways opens Maniac Mode at ANY time; turning it
+       back upright exits. A one-time tip ("Turn your phone sideways…") shows only
+       inside the hot window, and never again once dismissed or used. Tablets are
+       excluded (screen short side > 500px) — they're held sideways normally.
+     DESKTOP / iPAD RAIL (>=900px): inside the hot window the Maniac tab sits in
+       slot 2 under Home (ice blue + live dot) with a tip once per game day;
+       outside it the tab hides and Maniac is a tile in the …More sheet. -->
+<style>
+#cf-side-rail [data-rail-tab="maniac"]{display:none}
+@media (min-width:900px){
+  body:not(.nav-landing).cf-maniac-hot #cf-side-rail [data-rail-tab="maniac"]{display:flex}
+}
+.cfrail-maniac,.cfrail-maniac:hover,.cfrail-maniac.is-on{color:var(--live-ice)}
+.cfrail-maniac svg{fill:currentColor;stroke:none}
+.cfrail-maniac .cfmx-dot{position:absolute;top:8px;left:calc(50% + 9px);width:7px;height:7px;border-radius:50%;background:var(--live-ice);animation:cfmxPing 2s infinite}
+@keyframes cfmxPing{0%{box-shadow:0 0 0 0 color-mix(in oklab,var(--live-ice) 65%,transparent)}100%{box-shadow:0 0 0 7px transparent}}
+/* Phone first-open tip */
+#cfmx-tip{position:fixed;left:12px;right:12px;bottom:calc(var(--cbnav-h,87px) + var(--exp-ribbon-h,0px) + 12px);z-index:9000;display:none;align-items:center;gap:12px;padding:13px 6px 13px 14px;border-radius:16px;background:#12283C;border:1px solid color-mix(in oklab,var(--live-ice) 50%,transparent);box-shadow:0 18px 40px -12px rgba(0,0,0,.7);color:var(--ink-900);font-family:var(--font-sans);max-width:520px;margin:0 auto}
+#cfmx-tip.on{display:flex;animation:cfmxIn .45s var(--ease-out) both}
+@keyframes cfmxIn{from{transform:translateY(14px);opacity:0}}
+#cfmx-tip .rot{color:var(--live-ice);flex:none;animation:cfmxWob 2.6s ease-in-out infinite}
+#cfmx-tip svg,#cfm .cfmx-up svg{display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#cfmx-tip .rot svg{width:30px;height:30px}
+@keyframes cfmxWob{0%,30%{transform:rotate(0)}50%,80%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+#cfmx-tip .tt{font:600 14px/1.3 var(--font-sans)}
+#cfmx-tip .tt b{color:var(--live-ice);font-weight:800}
+#cfmx-tip .ts{font:500 12px/1.3 var(--font-sans);color:var(--ink-500);margin-top:3px}
+#cfmx-tip .x{margin-left:auto;flex:none;width:40px;height:40px;border:0;background:none;color:var(--ink-500);font-size:22px;line-height:1;cursor:pointer}
+/* Desktop / iPad rail tip */
+#cfmx-rtip{position:fixed;z-index:95;display:none;width:280px;padding:14px 14px 12px;border-radius:14px;background:#12283C;border:1px solid color-mix(in oklab,var(--live-ice) 50%,transparent);box-shadow:0 18px 40px -12px rgba(0,0,0,.7);font-family:var(--font-sans);color:var(--ink-900);transform:translateY(-50%)}
+#cfmx-rtip.on{display:block;animation:cfmxSide .4s var(--ease-out) both}
+@keyframes cfmxSide{from{opacity:0;margin-left:-8px}}
+#cfmx-rtip::before{content:"";position:absolute;left:-7px;top:50%;width:12px;height:12px;margin-top:-6px;background:#12283C;border-left:1px solid color-mix(in oklab,var(--live-ice) 50%,transparent);border-bottom:1px solid color-mix(in oklab,var(--live-ice) 50%,transparent);transform:rotate(45deg)}
+#cfmx-rtip .k{display:flex;align-items:center;gap:7px;font:800 10px/1 var(--font-sans);letter-spacing:.13em;text-transform:uppercase;color:var(--live-ice)}
+#cfmx-rtip .k i{width:7px;height:7px;border-radius:50%;background:var(--live-ice);animation:cfmxPing 2s infinite}
+#cfmx-rtip .h{font:800 16px/1.25 var(--font-sans);margin:8px 0 4px}
+#cfmx-rtip .b{font:500 13px/1.45 var(--font-sans);color:var(--ink-500)}
+#cfmx-rtip .a{display:flex;gap:8px;margin-top:12px}
+#cfmx-rtip .go{height:34px;padding:0 14px;border-radius:999px;border:0;background:var(--live-ice);color:#0A1A2A;font:800 12.5px/1 var(--font-sans);cursor:pointer}
+#cfmx-rtip .no{height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--ink-700);font:600 12.5px/1 var(--font-sans);cursor:pointer}
+/* "Turn upright to go back" — first few rotation opens only */
+#cfm .cfmx-up{position:absolute;left:50%;top:62px;z-index:60;display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:#12283C;border:1px solid color-mix(in oklab,var(--live-ice) 50%,transparent);font:600 13px/1 var(--font-sans);color:var(--ink-700);white-space:nowrap;pointer-events:none;animation:cfmxUp 3.6s ease forwards}
+#cfm .cfmx-up svg{width:18px;height:18px;color:var(--live-ice)}
+@keyframes cfmxUp{0%{opacity:0;transform:translate(-50%,-8px)}10%,75%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,0)}}
+</style>
+<script>
+(function(){
+  var LEAD=30*60*1000, STALE=5*60*60*1000;
+  var K_TIP='cf_maniac_rotate_tip_v1', K_RTIP='cf_maniac_railtip_day', K_UP='cf_maniac_uphint_n';
+  var ROT='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="2.5" width="9" height="15" rx="1.8"/><path d="M10 14.5h.01"/><path d="M20.5 11a8 8 0 0 1-7 9.5"/><path d="M15.6 22.3 13.4 20.6l1.8-2.1"/></svg>';
+  function ls(k,v){ try{ if(v===undefined)return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){} return null; }
+  function track(n,p){ try{ cfTrack(n,p||{}); }catch(e){} }
+  function slate(){ try{ var g=window.__cfNflGames&&window.__cfNflGames(); return (g&&g.games)||[]; }catch(e){ return []; } }
+  /* Hot = a game in progress, or a kickoff within 30 min. Pure time math on the
+     slate's kickoffs, so the window opens on its own without a fresh pull; the 5h
+     cap keeps a stale slate (board parked on a past week) from holding it open. */
+  function hotInfo(){
+    var now=Date.now(), live=0, next=Infinity;
+    slate().forEach(function(x){
+      var k=x.kickMs||0;
+      if(x.state==='in'){ if(!k||now-k<STALE)live++; return; }
+      if(x.state==='pre'&&k){ var dt=k-now; if(dt<=LEAD&&dt>-STALE){ if(dt>0)next=Math.min(next,dt); else live++; } }
+    });
+    return { hot:live>0||next!==Infinity, live:live, next:next };
+  }
+  window.cfManiacHot=function(){ return hotInfo().hot; };
+  function isPhone(){ try{ var a=Math.min(screen.width||0,screen.height||0); return a>0&&a<=500&&window.matchMedia('(pointer: coarse)').matches; }catch(e){ return false; } }
+  function isLand(){
+    try{ var t=screen.orientation&&screen.orientation.type; if(t)return t.indexOf('landscape')===0; }catch(e){}
+    if(typeof window.orientation==='number')return Math.abs(window.orientation)===90;
+    return window.innerWidth>window.innerHeight;
+  }
+  function inApp(){ var b=document.body; return !!(b&&!b.classList.contains('nav-landing')&&window.__conflictedLastData); }
+  function sheetOpen(){ try{ return !!(window.BottomSheet&&window.BottomSheet.isOpen()); }catch(e){ return false; } }
+  function today(){ var d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+
+  /* ---- phones: sideways opens, upright exits ---- */
+  var lastLand=false;
+  function upHint(){
+    var n=+(ls(K_UP)||0); if(n>=3)return; ls(K_UP,String(n+1));
+    setTimeout(function(){
+      var r=document.getElementById('cfm'); if(!r||!window.__cfManiacOpen)return;
+      var h=document.createElement('div'); h.className='cfmx-up'; h.innerHTML=ROT+'Turn upright to go back';
+      r.appendChild(h); setTimeout(function(){ if(h.parentNode)h.parentNode.removeChild(h); },3800);
+    },400);
+  }
+  function checkOrient(){
+    if(!isPhone())return;
+    var land=isLand();
+    if(land===lastLand)return;
+    if(land){
+      if(window.__cfManiacOpen){ lastLand=true; return; }
+      if(!inApp())return;                       /* app not ready: retry on the next check */
+      lastLand=true;
+      if(typeof window.showManiac!=='function')return;
+      if(ls(K_TIP)!=='1')ls(K_TIP,'1');         /* they found it — the tip has done its job */
+      window.showManiac({via:'rotate'});
+      upHint();
+    }else{
+      lastLand=false;
+      if(window.__cfManiacOpen&&typeof window.hideManiac==='function')window.hideManiac();
+    }
+    paint();
+  }
+
+  /* ---- phone tip (once, hot window only) ---- */
+  var tip=null;
+  function phoneTip(show){
+    if(show&&!tip){
+      tip=document.createElement('div'); tip.id='cfmx-tip'; tip.setAttribute('role','status');
+      tip.innerHTML='<span class="rot">'+ROT+'</span><div><div class="tt">Turn your phone sideways for <b>Maniac Mode</b></div><div class="ts">Every matchup, live, on one screen.</div></div><button type="button" class="x" aria-label="Dismiss">×</button>';
+      document.body.appendChild(tip);
+      tip.querySelector('.x').addEventListener('click',function(){ ls(K_TIP,'1'); phoneTip(false); track('maniac_tip',{kind:'rotate',action:'dismiss'}); });
+    }
+    if(!tip)return;
+    var was=tip.classList.contains('on');
+    tip.classList.toggle('on',!!show);
+    if(show&&!was)track('maniac_tip',{kind:'rotate',action:'shown'});
+  }
+
+  /* ---- desktop / iPad rail tip (once per game day) ---- */
+  var rt=null;
+  function railTip(show,info){
+    var tab=document.querySelector('#cf-side-rail [data-rail-tab="maniac"]');
+    if(show&&(!tab||!tab.offsetParent))show=false;
+    if(show&&!rt){
+      rt=document.createElement('div'); rt.id='cfmx-rtip'; rt.setAttribute('role','dialog'); rt.setAttribute('aria-label','Maniac Mode');
+      rt.innerHTML='<div class="k"><i></i><span></span></div><div class="h">Maniac Mode moved up top</div><div class="b">Every league, every play, one screen. Open it and leave it running.</div><div class="a"><button type="button" class="go">Open Maniac Mode</button><button type="button" class="no">Not now</button></div>';
+      document.body.appendChild(rt);
+      rt.addEventListener('click',function(e){
+        var b=e.target.closest('button'); if(!b)return;
+        ls(K_RTIP,today()); railTip(false);
+        if(b.classList.contains('go')){ if(typeof window.showManiac==='function')window.showManiac({via:'railtip'}); }
+        else track('maniac_tip',{kind:'rail',action:'dismiss'});
+      });
+    }
+    if(!rt)return;
+    if(!show){ rt.classList.remove('on'); return; }
+    var k=info.live?(info.live+(info.live===1?' game live':' games live')):('Kickoff in '+Math.max(1,Math.ceil(info.next/60000))+' min');
+    rt.querySelector('.k span').textContent=k;
+    var r=tab.getBoundingClientRect();
+    rt.style.left=Math.round(r.right+14)+'px'; rt.style.top=Math.round(r.top+r.height/2)+'px';
+    if(!rt.classList.contains('on')){ rt.classList.add('on'); track('maniac_tip',{kind:'rail',action:'shown'}); }
+  }
+  /* Clicking the rail tab itself also counts as seeing the tip for today. */
+  document.addEventListener('click',function(e){
+    if(e.target.closest&&e.target.closest('#cf-side-rail [data-rail-tab="maniac"]')){ ls(K_RTIP,today()); railTip(false); }
+  },true);
+
+  function paint(){
+    var b=document.body; if(!b)return;
+    var info=hotInfo();
+    b.classList.toggle('cf-maniac-hot',info.hot);
+    var ok=info.hot&&inApp()&&!window.__cfManiacOpen&&!sheetOpen();
+    phoneTip(ok&&isPhone()&&!isLand()&&ls(K_TIP)!=='1');
+    var desk=false; try{ desk=window.matchMedia('(min-width: 900px)').matches; }catch(e){}
+    railTip(ok&&desk&&ls(K_RTIP)!==today(),info);
+  }
+
+  try{ if(screen.orientation&&screen.orientation.addEventListener)screen.orientation.addEventListener('change',function(){ setTimeout(checkOrient,60); }); }catch(e){}
+  window.addEventListener('orientationchange',function(){ setTimeout(checkOrient,150); });
+  window.addEventListener('resize',function(){ setTimeout(checkOrient,60); if(rt&&rt.classList.contains('on'))paint(); });
+  document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'){ checkOrient(); paint(); } });
+  setInterval(checkOrient,1000);
+  setInterval(paint,5000);
+  setTimeout(paint,1200);
 })();
 </script>
 
