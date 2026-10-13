@@ -27387,6 +27387,7 @@ body.cf-maniac-lock{overflow:hidden}
     tkReset();
     root.classList.add('is-open');
     root.classList.toggle('via-rot',opts.via==='rotate');
+    if(opts.via==='rotate'){ root.classList.add('cfm-arrive'); clearTimeout(S.arriveT); S.arriveT=setTimeout(function(){ if(root)root.classList.remove('cfm-arrive'); },400); }
     document.body.classList.add('cf-maniac-lock');
     /* Opened by turning a phone sideways: never lock — turning it back upright is the exit. */
     if(opts.via!=='rotate'){ try{ if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(function(){}); }catch(e){} }
@@ -27404,11 +27405,14 @@ body.cf-maniac-lock{overflow:hidden}
     try{ if(typeof startAutoRefresh==='function'&&typeof refreshTimer!=='undefined'&&!refreshTimer)startAutoRefresh(); }catch(e){}
     try{ cfTrack('maniac_open',{via:opts.via||'more'}); }catch(e){}
   };
+  /* Phones (sw v355): build the DOM ahead of time so a sideways turn can show the
+     real Maniac frame (top bar + empty panes) in the rotation's own layout pass. */
+  window.__cfManiacStage=function(){ try{ ensureRoot(); }catch(e){} };
   window.hideManiac=function(){
     if(!root)return;
     window.__cfManiacOpen=false;
     if(root.classList.contains('wall'))setWall(false);
-    root.classList.remove('is-open','via-rot');
+    root.classList.remove('is-open','via-rot','cfm-arrive');
     document.body.classList.remove('cf-maniac-lock','cf-mx-armed');
     S.sheet=null; renderSheet(); S.pausedAt=0;
     if(ticker){ clearInterval(ticker); ticker=null; }
@@ -27454,7 +27458,17 @@ body.cf-maniac-lock{overflow:hidden}
   body.cf-mx-armed:not(.nav-landing)::after{content:"";position:fixed;inset:0;z-index:9499;background:var(--paper)}
 }
 @media (orientation:portrait){ #cfm.via-rot{display:none!important} }
-#cfm.via-rot.is-open>.cfm-top,#cfm.via-rot.is-open>.cfm-main{animation:cfmxRotIn .18s ease-out both}
+/* Staged shell (sw v355): while armed and sideways, the real #cfm frame shows before JS
+   runs — wordmark, controls and pane frames/headers in their final spots; every live-data
+   region stays invisible until showManiac paints, then only the data fades in. The left column's pane heights depend on
+   its data, so it stays hidden whole and fades in with the data (no wrong-size placeholder). */
+@media (orientation:landscape) and (min-aspect-ratio:3/2) and (max-height:520px){
+  body.cf-mx-armed:not(.nav-landing) #cfm{display:flex}
+}
+#cfm:not(.is-open){pointer-events:none}
+#cfm:not(.is-open) .cfm-rot-msg,#cfm:not(.is-open) .cfm-scrim,#cfm:not(.is-open) .cfm-sheet{display:none!important}
+#cfm:not(.is-open) .cfm-fresh,#cfm:not(.is-open) .cfm-tk,#cfm:not(.is-open) .cfm-rail,#cfm:not(.is-open) #cfm-hero>*,#cfm:not(.is-open) #cfm-rootctl,#cfm:not(.is-open) #cfm-root{visibility:hidden}
+#cfm.cfm-arrive .cfm-fresh,#cfm.cfm-arrive .cfm-tk,#cfm.cfm-arrive .cfm-rail,#cfm.cfm-arrive #cfm-hero>*,#cfm.cfm-arrive #cfm-rootctl,#cfm.cfm-arrive #cfm-root{animation:cfmxRotIn .22s ease-out both}
 @keyframes cfmxRotIn{from{opacity:0}}
 /* Phone first-open tip */
 #cfmx-tip{position:fixed;left:12px;right:12px;bottom:calc(var(--cbnav-h,87px) + var(--exp-ribbon-h,0px) + 12px);z-index:9000;display:none;align-items:center;gap:12px;padding:13px 6px 13px 14px;border-radius:16px;background:#12283C;border:1px solid color-mix(in oklab,var(--live-ice) 50%,transparent);box-shadow:0 18px 40px -12px rgba(0,0,0,.7);color:var(--ink-900);font-family:var(--font-sans);max-width:520px;margin:0 auto}
@@ -27530,6 +27544,7 @@ body.cf-maniac-lock{overflow:hidden}
     var b=document.body; if(!b)return;
     var ok=isPhone()&&inApp()&&(typeof window.cfCanManiac!=='function'||window.cfCanManiac())&&(!lastLand||window.__cfManiacOpen);
     b.classList.toggle('cf-mx-armed',!!ok);
+    if(ok&&!document.getElementById('cfm')&&typeof window.__cfManiacStage==='function')window.__cfManiacStage();
   }
   function checkOrient(){ orient(); arm(); }
   function orient(){
