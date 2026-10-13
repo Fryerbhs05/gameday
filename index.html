@@ -3737,6 +3737,15 @@
     .pd__fsep { color: var(--ink-300); margin: 0 4px; }
     .pd__empty { padding: 30px 16px 34px; text-align: center; }
     .pd__empty h5 { font: 500 13px/1.3 var(--font-sans); color: var(--ink-700); margin: 0 0 6px; }
+    /* Pre-kickoff NFL matchup line above "Game starts at…" (2026-10-13):
+       away logo+abbr @ home logo+abbr · network, from the ESPN scoreboard pull. */
+    .pd__mu {
+      display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px;
+      margin: 0 0 8px; font: 600 12px/1 var(--font-mono); letter-spacing: .04em; color: var(--ink-900);
+    }
+    .pd__mu .pd__logo { width: 16px; height: 16px; }
+    .pd__mu-at { color: var(--ink-500); font-weight: 500; margin: 0 2px; }
+    .pd__mu-net { color: var(--ink-500); font-weight: 500; }
     .pd__empty p {
       font: 400 11px/1.5 var(--font-sans); color: var(--ink-500);
       margin: 0 auto; max-width: 250px;
@@ -16688,6 +16697,27 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     return hasRow?'post':'none';
   }
 
+  /* "BUF @ KC · CBS" — the player's NFL game off the ESPN scoreboard the board
+     already pulls (window.__cfNflGames; no new request). Both sides compared
+     through cfNormTeam so WAS/WSH, JAX/JAC etc. match. '' when the slate
+     hasn't loaded or his team isn't on it (bye). Only used pre-kickoff, which
+     never happens on a historic week, so the stale-slate rule can't bite. */
+  function matchupHTML(team){
+    if(!team) return '';
+    var norm=function(t){ try{ return (typeof cfNormTeam==='function')?cfNormTeam(t):String(t||'').toUpperCase(); }catch(e){ return String(t||'').toUpperCase(); } };
+    var games=[]; try{ var src=window.__cfNflGames&&window.__cfNflGames(); games=(src&&src.games)||[]; }catch(e){}
+    var T=norm(team), g=null;
+    for(var i=0;i<games.length;i++){ var x=games[i]; if(x&&x.away&&x.home&&(norm(x.away.abbr)===T||norm(x.home.abbr)===T)){ g=x; break; } }
+    if(!g) return '';
+    var side=function(abbr){
+      var a=norm(abbr), lg='';
+      try{ var u=dstLogoUrl(a); if(u) lg='<img class="pd__logo" src="'+u+'" alt="" onerror="this.remove();">'; }catch(e){}
+      return lg+'<span>'+esc(a)+'</span>';
+    };
+    return '<div class="pd__mu">'+side(g.away.abbr)+'<span class="pd__mu-at">@</span>'+side(g.home.abbr)
+      +(g.net?'<span class="pd__mu-net">· '+esc(g.net)+'</span>':'')+'</div>';
+  }
+
   function loadingHTML(player,week,between){
     /* Status is known synchronously — only the numbers are pending — so the
        chip must not flash "Final" over a live game. */
@@ -16708,7 +16738,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 
     if(state==='pre'){
       var k=kickoffLabel(player.team||'');
-      return out+'<div class="pd__empty"><h5>'
+      return out+'<div class="pd__empty">'+matchupHTML(player.team||'')+'<h5>'
         +(k?('Game starts at '+esc(k)):'Game hasn’t started')+'</h5>'
         +'<p>The box score fills in once he takes the field.</p></div>';
     }
