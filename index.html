@@ -24184,7 +24184,7 @@ if(typeof window.cfRegisterView==='function'){
       matchups.forEach(function(mm){
         var ts=(mm&&mm.teams)||[];
         if(ts.length<2){
-          if(ts.length===1){var t0=ts[0];solo.push({id:t0.team_key||null,name:t0.name||null,score:+(t0.points||0),proj:(!isHist&&(+t0.projPoints||0)>0)?+(+t0.projPoints).toFixed(2):null,isFinal:!!(mm&&mm.status==='postevent'),isMine:(t0.team_key===myTeamKey)});}
+          if(ts.length===1){var t0=ts[0];solo.push({id:t0.team_key||null,name:t0.name||null,score:+(t0.points||0),proj:(!isHist&&(+t0.projPoints||0)>0)?+(+t0.projPoints).toFixed(2):null,yPre:+t0.projPoints||0,isFinal:!!(mm&&mm.status==='postevent'),isMine:(t0.team_key===myTeamKey)});}
           return;
         }
         var a=ts[0],b=ts[1];
@@ -24192,7 +24192,7 @@ if(typeof window.cfRegisterView==='function'){
         /* Yahoo's own team projection, used as-is (same exemption My Matchups makes).
            Both 0 = Yahoo returned no projection -> null, never a fake 0.00. */
         var yp=(!isHist&&((+a.projPoints||0)+(+b.projPoints||0))>0);
-        rows.push({homeName:a.name||null,awayName:b.name||null,homeId:a.team_key||null,awayId:b.team_key||null,homeScore:+(a.points||0),awayScore:+(b.points||0),isMine:(aM||bM),mineSide:(aM?'home':(bM?'away':null)),homeProj:yp?+(+a.projPoints).toFixed(2):null,awayProj:yp?+(+b.projPoints).toFixed(2):null,isFinal:!!(mm&&mm.status==='postevent')});
+        rows.push({homeName:a.name||null,awayName:b.name||null,homeId:a.team_key||null,awayId:b.team_key||null,homeScore:+(a.points||0),awayScore:+(b.points||0),isMine:(aM||bM),mineSide:(aM?'home':(bM?'away':null)),homeProj:yp?+(+a.projPoints).toFixed(2):null,awayProj:yp?+(+b.projPoints).toFixed(2):null,homeYPre:+a.projPoints||0,awayYPre:+b.projPoints||0,isFinal:!!(mm&&mm.status==='postevent')});
       });
       /* Death leagues: Yahoo pairs every team against the SAME opponent. That
          shows up as one team_key in several matchups; cfLSTeams() detects the
@@ -24356,6 +24356,91 @@ if(typeof window.cfRegisterView==='function'){
     return {list:list,rankOnly:dup||!ms.length};
   };
 
+  /* ── YAHOO LEAGUE SCORES: LIVE PROJECTIONS FOR EVERY TEAM (sw v349, Matt 2026-10-12)
+     Yahoo's scoreboard only carries each team's PREGAME projection, frozen all
+     week, so every Yahoo row except your own matchup (pinned to the live
+     ctx.myProjPts/oppProjPts) showed a projection BELOW points already banked.
+     Fix: same rules as My Matchups (v336) — pull each team's roster_stats
+     (existing proxy endpoint, no new serverless function), per-starter live
+     decay via cfLiveProj, team total anchored to Yahoo's pregame number with
+     k = YahooPregame / SleeperPregameSum clamped [0.75, 1.33].
+     Cost guard: fetched ONLY for leagues expanded in League Scores, only once a
+     game this week has kicked off (pregame, Yahoo's number is already right),
+     cached per team+week (55s while any game is live, 5 min otherwise). Until a
+     team's lineup lands its PROJ shows "—" rather than the stale number. */
+  var YLS={};
+  var yLsKicked=function(){try{if(typeof nflGameStates==='undefined'||!nflGameStates)return false;for(var v of nflGameStates.values()){if(v==='in'||v==='post')return true;}}catch(e){}return false;};
+  var yLsLive=function(){try{if(typeof nflGameStates==='undefined'||!nflGameStates)return false;for(var v of nflGameStates.values()){if(v==='in')return true;}}catch(e){}return false;};
+  var yLsSide=function(ctx,teamKey,week){
+    var k=teamKey+'|'+week,e=YLS[k],ttl=yLsLive()?55000:300000;
+    if(e&&!e.loading&&(Date.now()-e.t<ttl))return e.v;
+    if(!(e&&e.loading)&&typeof yhFetch==='function'&&typeof parseYahooRoster==='function'){
+      YLS[k]={t:e?e.t:0,v:e?e.v:null,loading:true,done:!!(e&&e.done)};
+      yhFetch('endpoint=roster_stats&team_key='+encodeURIComponent(teamKey)+'&week='+week).then(function(j){
+        var ros=parseYahooRoster(j),pp=(typeof parseYahooRosterStats==='function')?parseYahooRosterStats(j):{};
+        var st=ros.filter(function(p){return p.isStarter;});
+        var bank=0,rem=0,pre=0;
+        st.forEach(function(p){
+          var pts=(pp[p.player_key]!=null&&isFinite(+pp[p.player_key]))?+pp[p.player_key]:0;
+          var key=null;try{key=canonicalPlayerKey(p.name,p.team,p.position,null);}catch(x){}
+          var m=/^sl:(\d+)$/.exec(key||''),sid=m?m[1]:(/^DST\|/.test(key||'')?key.slice(4):null);
+          var pr=(sid&&typeof window.__cfProjForSid==='function')?window.__cfProjForSid(sid,ctx):null;
+          bank+=pts;
+          if(pr!=null&&isFinite(+pr)){
+            var lv=(typeof window.__cfLiveProj==='function')?window.__cfLiveProj(p.team,+pr,pts):null;
+            rem+=((lv!=null)?lv:+pr)-pts;pre+=(+pr);
+          }
+        });
+        YLS[k]={t:Date.now(),v:st.length?{bank:bank,rem:rem,pre:pre}:null,loading:false,done:true};
+        yLsRepaint();
+      }).catch(function(){YLS[k]={t:Date.now(),v:(e&&e.v)||null,loading:false,done:true};yLsRepaint();});
+    }
+    return e?e.v:null;
+  };
+  /* One repaint per burst of lineup arrivals: the Leagues page (Division Watch
+     win % + League Scores) when it's open, otherwise just League Scores. */
+  var yLsRT=null;
+  var yLsRepaint=function(){
+    if(yLsRT)return;
+    yLsRT=setTimeout(function(){yLsRT=null;
+      try{if(window.__cfLeaguesOpen&&typeof window.__cfRenderLeagues==='function'){window.__cfRenderLeagues();return;}}catch(e){}
+      lsRerender();
+    },120);
+  };
+  /* First pull for this team still in flight (no number yet). */
+  var yLsWaiting=function(teamKey,week){var e=YLS[teamKey+'|'+week];return !!(e&&e.loading&&!e.done);};
+  var yLsProj=function(ctx,teamKey,yPre,week){
+    var v=yLsSide(ctx,teamKey,week);if(!v)return null;
+    var k=1;if(yPre>0&&v.pre>0){var q=yPre/v.pre;if(q>=0.75&&q<=1.33)k=q;}
+    return +(v.bank+k*v.rem).toFixed(2);
+  };
+  var yLsApply=function(c,am){
+    if(!c||c.source!=='yahoo'||!am)return;
+    try{if(typeof isHistoricalWeek==='function'&&isHistoricalWeek())return;}catch(e){}
+    if(!yLsKicked())return;
+    var week=null;try{week=(typeof activeWeek!=='undefined')?+activeWeek:null;}catch(e){}
+    if(!week)return;
+    var wait=0;
+    (Array.isArray(am.matchups)?am.matchups:[]).forEach(function(r){
+      if(!r||r.isFinal)return;
+      if(r.mineSide!=='home'&&r.homeId){r.homeProj=yLsProj(c,r.homeId,+r.homeYPre||0,week);if(yLsWaiting(r.homeId,week))wait++;}
+      if(r.mineSide!=='away'&&r.awayId){r.awayProj=yLsProj(c,r.awayId,+r.awayYPre||0,week);if(yLsWaiting(r.awayId,week))wait++;}
+    });
+    (Array.isArray(am.solo)?am.solo:[]).forEach(function(s){
+      if(!s||s.isFinal||s.isMine||!s.id)return;
+      s.proj=yLsProj(c,s.id,+s.yPre||0,week);if(yLsWaiting(s.id,week))wait++;
+    });
+    return wait;
+  };
+  /* Leagues page hook: make every Yahoo league live (not just expanded ones) so
+     Division Watch win % is right. Returns how many teams are still on their
+     first pull, so the page can hold its skeleton until they land. */
+  window.__cfYahooLiveAll=function(contexts){
+    var wait=0;
+    (Array.isArray(contexts)?contexts:[]).forEach(function(c){try{if(c&&c.source==='yahoo'&&c.allMatchups)wait+=(yLsApply(c,c.allMatchups)||0);}catch(e){}});
+    return wait;
+  };
+
   window.cfRenderLeagueScores=function(contexts,opts){
     /* opts.host: render into that element instead of under the scoreboard
        (the Leagues view). A hosted render drops the collapsible LEAGUE SCORES
@@ -24407,6 +24492,7 @@ if(typeof window.cfRegisterView==='function'){
       var segHtml=function(mode){return '<span class="cf-ls-seg" role="group" aria-label="League Scores view"><button type="button" data-ls-mode="rank" aria-pressed="'+(mode==='rank'?'true':'false')+'">Rank</button><button type="button" data-ls-mode="match" aria-pressed="'+(mode==='match'?'true':'false')+'">Matchups</button></span>';};
       leagues.forEach(function(c){
         var name=c.leagueName,open=!!OPEN[name],am=c.allMatchups,fin=am.isFinal,ek=cfEsc(name);
+        if(open){try{yLsApply(c,am);}catch(e){}}
         var ms=Array.isArray(am.matchups)?am.matchups:[];
         ms.forEach(function(m){if(m&&m.drawer&&m.mkey)keyMap[m.mkey]=m.drawer;});
         (Array.isArray(am.solo)?am.solo:[]).forEach(function(s){if(s&&s.drawer&&s.mkey)keyMap[s.mkey]=s.drawer;});
@@ -25545,6 +25631,22 @@ if(typeof window.cfRegisterView==='function'){
     var empty=document.getElementById('lv-empty'),ds=document.getElementById('lv-div-sec'),db=document.getElementById('lv-div-body'),ls=document.getElementById('lv-ls-sec'),lb=document.getElementById('lv-ls-body');
     var data=lastData();
     if(!data){W.__cfLeaguesSkel(true);return;}   /* cold load: shimmer, not a sentence */
+    /* Yahoo live projections (sw v350, Matt 2026-10-12): Yahoo's scoreboard only
+       has frozen PREGAME team projections, so Division Watch win % for a Yahoo
+       rival was computed off stale numbers. Opening this page pulls every Yahoo
+       team's lineup (cached; see __cfYahooLiveAll) and the page stays on its
+       skeleton until the first pull lands — capped at 8s so a slow or failed
+       Yahoo call can never strand it; after that rows fall back to points. */
+    var _yw=0;
+    try{if(!data.isHist&&typeof W.__cfYahooLiveAll==='function')_yw=W.__cfYahooLiveAll(data.contexts)||0;}catch(e){_yw=0;}
+    if(_yw>0){
+      if(!W.__cfYLSHold)W.__cfYLSHold=Date.now();
+      if(Date.now()-W.__cfYLSHold<8000){
+        W.__cfLeaguesSkel(true);
+        if(!W.__cfYLSHoldT)W.__cfYLSHoldT=setTimeout(function(){W.__cfYLSHoldT=null;render();},8100);
+        return;
+      }
+    }
     W.__cfLeaguesSkel(false);
     if(data.noData||data.offseasonMode){
       ds.hidden=true;ls.hidden=true;empty.hidden=false;
@@ -25669,6 +25771,7 @@ if(typeof window.cfRegisterView==='function'){
     try{if(typeof W.inDemoMode==='function'&&W.inDemoMode()){var d0=lastData(),f0=d0&&prioSort(d0.contexts).filter(function(c){return c&&c.div&&!isHidden(c.leagueName);})[0];if(f0)OPEN['st:'+f0.leagueName]=true;}}catch(e){}
     /* League Scores: every open starts in Rank, default sort, no movement markers. */
     W.__cfLSMode={};W.__cfLSRank={};
+    W.__cfYLSHold=0;
     var v=ensureView();v.style.display='block';
     W.__cfLeaguesOpen=true;
     if(typeof W.cfShowPeriodBar==='function')W.cfShowPeriodBar();
