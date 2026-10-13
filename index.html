@@ -24489,7 +24489,7 @@ if(typeof window.cfRegisterView==='function'){
       var DNA='<svg width="7" height="7" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 8.5L1 2h8z" fill="currentColor"></path></svg>';
       var fp=function(v){return (v==null||isNaN(+v))?'—':(+v).toFixed(2);};
       var sortBtn=function(k,on){return '<button type="button" class="cf-ls-sort'+(on?' on':'')+'" data-ls-sort="'+k+'" aria-pressed="'+(on?'true':'false')+'" aria-label="Rank by '+(k==='proj'?'projected points':'points')+'">'+(k==='proj'?'PROJ':'PTS')+CARET+'</button>';};
-      var segHtml=function(mode){return '<span class="cf-ls-seg" role="group" aria-label="League Scores view"><button type="button" data-ls-mode="rank" aria-pressed="'+(mode==='rank'?'true':'false')+'">Rank</button><button type="button" data-ls-mode="match" aria-pressed="'+(mode==='match'?'true':'false')+'">Matchups</button></span>';};
+      var segHtml=function(mode){return '<span class="cf-ls-seg" role="group" aria-label="League Scores view"><button type="button" data-ls-mode="rank" aria-pressed="'+(mode==='rank'?'true':'false')+'">Scores</button><button type="button" data-ls-mode="match" aria-pressed="'+(mode==='match'?'true':'false')+'">Matchups</button></span>';};
       leagues.forEach(function(c){
         var name=c.leagueName,open=!!OPEN[name],am=c.allMatchups,fin=am.isFinal,ek=cfEsc(name);
         if(open){try{yLsApply(c,am);}catch(e){}}
