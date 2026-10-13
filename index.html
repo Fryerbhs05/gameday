@@ -606,118 +606,65 @@
        regardless of label length (the demo/ghost row is exempt). */
     .lp-cta-row:not(.lp-cta-row--secondary) .btn-hero { min-width: 210px; text-align: center; }
 
-    /* ── 1B phone stage — faithful port of the "Phone Loyalties" / "Phone
-       Scoreboard" mockups. Screens are authored at native 402×874 in an iOS
-       shell, then scaled with transforms exactly like the mock (0.63 desktop,
-       0.42 mobile). Decorative only. ── */
+    /* ── Landing hero device (2026-10-13) — Maniac Mode on a phone turned
+       sideways, from mocks/hero-phone-sideways.html. Replaces the two tilted
+       portrait phones (Loyalties / Scoreboard). The screen is a screenshot
+       (icons/hero-phone-sideways.webp, 1688×780); the stat ticker + touchdown
+       flood are live HTML/CSS laid over the screenshot's ticker well
+       (left 28.55%, width 52.25%). All classes/keyframes/containers are
+       lp-hx-prefixed so they never collide with the real Maniac ticker. ── */
     .lp-stage {
-      position: relative; height: 600px; overflow: hidden;
-      max-width: var(--max-width); margin: 6px auto 0; width: 100%;
+      max-width: var(--max-width); margin: 14px auto 0; width: 100%;
+      padding: 0 var(--gutter) 28px; box-sizing: border-box;
+      display: flex; justify-content: center;
       pointer-events: none; user-select: none;
     }
-    .lp-stage__seam { position: absolute; left: 50%; top: 30px; bottom: 0; width: 1px; background: var(--line); }
-    .lp-ph-slot { position: absolute; top: 40px; left: 50%; width: 253px; height: 550px; }
-    .lp-ph-slot--left  { transform: translateX(-292px); }
-    .lp-ph-slot--right { transform: translateX(40px); }
-    .lp-ph-scale { width: 402px; height: 874px; transform: scale(0.63); transform-origin: top left; }
-    .lp-ph-tilt { transform-style: preserve-3d; filter: drop-shadow(0 30px 50px rgba(0,0,0,0.5)); }
-    .lp-ph-tilt--left  { transform: perspective(1800px) rotateY(11deg) rotateX(3deg) rotateZ(-1deg); }
-    .lp-ph-tilt--right { transform: perspective(1800px) rotateY(-11deg) rotateX(3deg) rotateZ(1deg); }
-    /* iOS shell */
-    .lp-dev {
-      position: relative; width: 402px; height: 874px;
-      border-radius: 48px; overflow: hidden;
-      background: var(--paper);
-      border: 1px solid #2A3949;
-      box-shadow: inset 0 0 0 4px #05090F;
+    .lp-hx-phl {
+      width: 100%; max-width: 820px; padding: 7px; border-radius: 26px;
+      background: linear-gradient(160deg,#1c2c3c,#0c151f); border: 1px solid #26384a;
+      box-shadow: 0 40px 80px -30px rgba(0,0,0,.75), 0 0 0 1px rgba(0,0,0,.25);
     }
-    .lp-dev__island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 122px; height: 35px; border-radius: 999px; background: #05090F; z-index: 6; }
-    .lp-dev__status {
-      position: absolute; top: 20px; left: 0; right: 0; z-index: 5;
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 0 38px 0 46px;
-      font: 600 16px/1 var(--font-sans); color: #F5EFE4;
+    .lp-hx-scr { position: relative; container: lphxscr / inline-size; border-radius: 19px; overflow: hidden; background: #0F1B26; }
+    .lp-hx-scr img { display: block; width: 100%; height: auto; }
+    .lp-hx-tkw { position: absolute; container: lphxtk / inline-size; border-radius: 999px; overflow: hidden; background: #0A1019; border: 1px solid #1F2C3A;
+      left: 28.55%; width: 52.25%; top: 1.54%; height: 9.1%; --tf: 2.95; }
+    .lp-hx-run { position: absolute; inset: 0; overflow: hidden; animation: lphx-runfade 18s linear infinite; }
+    .lp-hx-run::before, .lp-hx-run::after { content: ""; position: absolute; top: 0; bottom: 0; width: 7cqw; z-index: 2; pointer-events: none; }
+    .lp-hx-run::before { left: 0; background: linear-gradient(90deg,#0A1019,transparent); }
+    .lp-hx-run::after { right: 0; background: linear-gradient(270deg,#0A1019,transparent); }
+    .lp-hx-track { position: absolute; left: 0; top: 0; bottom: 0; display: flex; align-items: center; white-space: nowrap; animation: lphx-tscroll 46s linear infinite; }
+    .lp-hx-ti { display: inline-flex; align-items: center; gap: calc(var(--tf)*.5cqw); margin-left: calc(var(--tf)*2.6cqw); flex: none; }
+    .lp-hx-ti .bk { width: calc(var(--tf)*.22cqw); height: calc(var(--tf)*1.1cqw); border-radius: 2px; background: #6BBF8C; }
+    .lp-hx-ti.x .bk { background: #D9A445; }
+    .lp-hx-ti .nm { font-weight: 700; color: #F5EFE4; font-size: calc(var(--tf)*1cqw); font-family: Inter, system-ui, sans-serif; }
+    .lp-hx-ti .mt { font: 600 calc(var(--tf)*.8cqw) 'JetBrains Mono', monospace; color: #9E988A; letter-spacing: .04em; }
+    .lp-hx-ti .ln { font: 500 calc(var(--tf)*.92cqw) 'JetBrains Mono', monospace; color: #E0DACA; }
+    .lp-hx-td { position: absolute; inset: 0; background: #D9A445; color: #1A1206; display: flex; align-items: center; gap: calc(var(--tf)*.8cqw); padding: 0 calc(var(--tf)*1.3cqw); white-space: nowrap; overflow: hidden; clip-path: inset(0 100% 0 0); animation: lphx-flood 18s cubic-bezier(.3,.8,.2,1) infinite; }
+    .lp-hx-td .big { font: 900 calc(var(--tf)*1.2cqw)/1 Inter, sans-serif; letter-spacing: .16em; text-transform: uppercase; animation: lphx-blink 18s steps(1) infinite; }
+    .lp-hx-td .rest { display: flex; align-items: center; gap: calc(var(--tf)*.8cqw); animation: lphx-restin 18s linear infinite; }
+    .lp-hx-td .dot { width: calc(var(--tf)*.3cqw); height: calc(var(--tf)*.3cqw); border-radius: 50%; background: currentColor; opacity: .5; flex: none; }
+    .lp-hx-td .nm2 { font: 800 calc(var(--tf)*1.08cqw)/1 Inter, sans-serif; }
+    .lp-hx-td .pl { font: 700 calc(var(--tf)*.9cqw)/1 'JetBrains Mono', monospace; letter-spacing: .04em; }
+    .lp-hx-td .hl { font: 600 calc(var(--tf)*.9cqw)/1 Inter, sans-serif; opacity: .85; }
+    .lp-hx-td .hl b { font-weight: 800; letter-spacing: .08em; font-size: .86em; text-transform: uppercase; margin-right: .35em; }
+    .lp-hx-td .short { display: none; }
+    @container lphxtk (max-width: 440px) {
+      .lp-hx-td .hl, .lp-hx-td .hl-dot, .lp-hx-td .full { display: none; }
+      .lp-hx-td .short { display: inline; }
     }
-    .lp-dev__sicons { display: flex; align-items: center; gap: 7px; color: #F5EFE4; }
-    .lp-dev__sicons svg { display: block; }
-    .lp-dev__home { position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: rgba(245,239,228,0.35); z-index: 6; }
-    .lp-scr { height: 100%; background: #0F1B26; display: flex; flex-direction: column; overflow: hidden; }
-    /* Shared screen furniture (mock values verbatim) */
-    .lps-top { display: flex; align-items: center; justify-content: space-between; padding: 64px 20px 14px; }
-    .lps-wm { width: 111px; height: 18px; display: block; }
-    .lps-live { display: flex; align-items: center; gap: 6px; font: 500 11px/1 var(--font-mono); letter-spacing: 0.08em; color: #9E988A; white-space: nowrap; }
-    .lps-live i { width: 6px; height: 6px; border-radius: 50%; background: var(--cheer); }
-    .lps-sechead { display: flex; align-items: center; gap: 8px; padding: 22px 20px 12px; }
-    .lps-sechead i { width: 3px; height: 15px; background: var(--coral-500); border-radius: 2px; flex: none; }
-    .lps-sechead b { font: 800 19px/1 var(--font-sans); letter-spacing: 0.05em; white-space: nowrap; }
-    .lps-sechead b .w { color: #F5EFE4; }
-    .lps-sechead b .c { color: var(--coral-500); }
-    .lps-sechead--sm b { font-size: 15px; }
-    .lps-share { width: 16px; height: 16px; margin-left: auto; color: #9E988A; }
-    /* Scoreboard screen */
-    .lps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px; }
-    .lps-cell {
-      background: #162635; border: 1px solid #2A3949; border-top: 3px solid var(--neutral);
-      border-radius: 12px; padding: 10px 12px 9px; min-width: 0;
+    @keyframes lphx-tscroll { to { transform: translateX(-50%); } }
+    @keyframes lphx-runfade { 0%,40% { opacity: 1; } 42%,96% { opacity: 0; } 98%,100% { opacity: 1; } }
+    @keyframes lphx-flood { 0%,40% { clip-path: inset(0 100% 0 0); } 42.5%,95% { clip-path: inset(0 0 0 0); } 97.5%,100% { clip-path: inset(0 0 0 100%); } }
+    @keyframes lphx-blink { 0%,43% { opacity: 1; } 44% { opacity: .15; } 46% { opacity: 1; } 48% { opacity: .15; } 50%,100% { opacity: 1; } }
+    @keyframes lphx-restin { 0%,45% { opacity: 0; } 47.5%,100% { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) {
+      .lp-hx-track, .lp-hx-run, .lp-hx-td, .lp-hx-td .big, .lp-hx-td .rest { animation: none; }
+      .lp-hx-td { display: none; }
     }
-    .lps-cell > b { display: block; text-align: center; font: 700 12px/1.2 var(--font-sans); color: #F5EFE4; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lps-sc { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; white-space: nowrap; }
-    .lps-sc em { font: 700 16px/1 var(--font-mono); font-style: normal; }
-    .lps-sc i { font: 500 14px/1 var(--font-mono); font-style: normal; color: #9E988A; }
-    .lps-bar { position: relative; display: block; height: 5px; border-radius: 99px; background: #1A3A52; margin-bottom: 7px; }
-    .lps-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-500); border-radius: 99px 0 0 99px; } /* inline bg = tile's score color */
-    .lps-bar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #F5EFE4; border-radius: 1px; }
-    .lps-st { display: block; text-align: center; font: 500 9px/1 var(--font-sans); letter-spacing: 0.08em; white-space: nowrap; }
-    .lps-updlist { display: flex; flex-direction: column; gap: 6px; padding: 0 16px; }
-    .lps-upd {
-      display: flex; align-items: center; justify-content: space-between;
-      background: #162635; border: 1px solid #2A3949; border-radius: 10px; padding: 10px 14px;
-    }
-    .lps-upd__id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .lps-upd__id b { font: 700 13px/1.1 var(--font-sans); color: #F5EFE4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lps-upd__id i { font: 400 10px/1 var(--font-mono); font-style: normal; color: #9E988A; white-space: nowrap; }
-    .lps-upd > em { font: 500 14px/1 var(--font-mono); font-style: normal; flex: none; margin-left: 10px; }
-    /* Loyalties screen */
-    .lps-duo { display: flex; gap: 8px; padding: 0 20px; }
-    .lps-duo__cell { flex: 1; background: #162635; border: 1px solid #2A3949; border-top: 2px solid var(--neutral); border-radius: 10px; padding: 9px 12px; min-width: 0; }
-    .lps-duo__cell > b { display: block; font: 700 11px/1.2 var(--font-sans); color: #F5EFE4; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lps-duo__sc { display: flex; justify-content: space-between; align-items: baseline; white-space: nowrap; }
-    .lps-duo__sc em { font: 700 14px/1 var(--font-mono); font-style: normal; }
-    .lps-duo__sc i { font: 500 13px/1 var(--font-mono); font-style: normal; color: #9E988A; }
-    .lps-tabs3 { display: flex; gap: 6px; padding: 0 16px 12px; }
-    .lps-tab3 {
-      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
-      padding: 9px 0 8px; border: 1px solid #2A3949; background: #162635; border-radius: 10px;
-    }
-    .lps-tab3 em { font: 500 16px/1 var(--font-mono); font-style: normal; }
-    .lps-tab3 span { font: 500 10px/1 var(--font-sans); letter-spacing: 0.06em; color: #9E988A; white-space: nowrap; }
-    .lps-tab3--on { border-color: var(--split); background: var(--split-soft); }
-    .lps-tab3--on em, .lps-tab3--on span { color: var(--split); }
-    .lps-plist { display: flex; flex-direction: column; gap: 8px; padding: 0 16px; }
-    .lps-prow2 {
-      display: flex; align-items: center; justify-content: space-between;
-      background: #162635; border: 1px solid #2A3949; border-left: 3px solid var(--split);
-      border-radius: 10px; padding: 12px 14px;
-    }
-    .lps-prow2__id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-    .lps-prow2__id b { font: 700 14px/1.1 var(--font-sans); color: #F5EFE4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lps-prow2__id i { font: 400 10px/1 var(--font-mono); font-style: normal; letter-spacing: 0.06em; color: #9E988A; }
-    .lps-prow2__pill { flex: none; margin-left: 10px; background: var(--split-soft); color: var(--split); font: 500 10px/1 var(--font-mono); letter-spacing: 0.05em; padding: 5px 9px; border-radius: 999px; white-space: nowrap; }
-    /* Bottom tab bar */
-    .lps-nav { margin-top: auto; border-top: 1px solid #2A3949; display: flex; padding: 12px 0 28px; }
-    .lps-nav__it { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .lps-nav__it i { width: 4px; height: 4px; border-radius: 50%; background: transparent; }
-    .lps-nav__it span { font: 500 10px/1 var(--font-sans); color: #9E988A; }
-    .lps-nav__it--on i { background: var(--coral-500); }
-    .lps-nav__it--on span { font-weight: 700; color: var(--coral-500); }
     @media (max-width: 880px) {
-      /* Mock mobile: scale .42, tighter offsets, shorter stage. */
-      .lp-stage { height: 430px; }
-      .lp-ph-slot { top: 24px; width: 169px; height: 367px; }
-      .lp-ph-slot--left  { transform: translateX(-192px); }
-      .lp-ph-slot--right { transform: translateX(24px); }
-      .lp-ph-scale { transform: scale(0.42); }
-      .lp-stage__seam { top: 10px; }
+      .lp-stage { margin-top: 6px; padding-bottom: 16px; }
+      .lp-hx-phl { padding: 4px; border-radius: 16px; box-shadow: 0 24px 48px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.25); }
+      .lp-hx-scr { border-radius: 12px; }
     }
 
     /* Sign-in card + 1B demo panel */
@@ -5234,86 +5181,36 @@
     </div>
   </div>
 
-  <!-- Phone stage (1B) — static, decorative previews of the app's Loyalties and
-       Scoreboard views, split by the brand seam. Faithful port of Claude Design's
-       "Phone Loyalties" / "Phone Scoreboard" mockups: authored at native 402×874
-       inside an iOS shell, scaled down with transforms exactly like the mock.
-       Not interactive, not live data. -->
-  <div class="lp-stage" aria-hidden="true">
-    <div class="lp-stage__seam"></div>
-    <div class="lp-ph-slot lp-ph-slot--left">
-      <div class="lp-ph-scale">
-        <div class="lp-ph-tilt lp-ph-tilt--left">
-          <div class="lp-dev">
-            <div class="lp-dev__island"></div>
-            <div class="lp-dev__status"><span>9:41</span><span class="lp-dev__sicons"><svg width="19" height="12" viewBox="0 0 19 12"><rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7" fill="currentColor"/><rect x="4.8" y="5" width="3.2" height="7" rx="0.7" fill="currentColor"/><rect x="9.6" y="2.5" width="3.2" height="9.5" rx="0.7" fill="currentColor"/><rect x="14.4" y="0" width="3.2" height="12" rx="0.7" fill="currentColor"/></svg><svg width="27" height="13" viewBox="0 0 27 13"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5" stroke="currentColor" stroke-opacity="0.35" fill="none"/><rect x="2" y="2" width="20" height="9" rx="2" fill="currentColor"/></svg></span></div>
-            <div class="lp-dev__home"></div>
-            <div class="lp-scr">
-              <div class="lps-top">
-                <svg class="lps-wm" viewBox="0 0 480 78" role="img"><defs><clipPath id="lpwmL1"><rect x="0" y="0" width="240" height="78"/></clipPath><clipPath id="lpwmR1"><rect x="240" y="0" width="240" height="78"/></clipPath></defs><text x="240" y="54" text-anchor="middle" clip-path="url(#lpwmL1)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em" fill="#7AA8D1">CONFLICTED</text><text x="240" y="54" text-anchor="middle" clip-path="url(#lpwmR1)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em" fill="#E88761">CONFLICTED</text><line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>
-                <span class="lps-live"><i></i>WEEK 14 · LIVE</span>
+  <!-- Hero device (2026-10-13) — Maniac Mode on a phone turned sideways, from
+       mocks/hero-phone-sideways.html. Screenshot + a live-looking stat ticker /
+       touchdown flood overlay (decorative). Replaced the two tilted portrait
+       phones (Loyalties / Scoreboard). -->
+  <div class="lp-stage">
+    <div class="lp-hx-phl">
+      <div class="lp-hx-scr">
+        <img src="/icons/hero-phone-sideways.webp" width="1688" height="780" fetchpriority="high" decoding="async" alt="Maniac Mode on a phone turned sideways: your matchups, the Dynasty Royale lineups at a 90% win chance, and Who to root for">
+        <div class="lp-hx-tkw" aria-hidden="true">
+              <div class="lp-hx-run">
+                <div class="lp-hx-track">
+                  <span class="lp-hx-ti x"><i class="bk"></i><span class="nm">Josh Allen</span><span class="mt">BUF · QB</span><span class="ln">71 PASS YD · 1 TD</span></span>
+                  <span class="lp-hx-ti"><i class="bk"></i><span class="nm">Patrick Mahomes</span><span class="mt">KC · QB</span><span class="ln">38 PASS YD</span></span>
+                  <span class="lp-hx-ti"><i class="bk"></i><span class="nm">Derrick Henry</span><span class="mt">BAL · RB</span><span class="ln">17 CAR · 122 YD · 1 TD</span></span>
+                  <span class="lp-hx-ti x"><i class="bk"></i><span class="nm">Justin Jefferson</span><span class="mt">MIN · WR</span><span class="ln">7 REC · 94 YD</span></span>
+                  <span class="lp-hx-ti x"><i class="bk"></i><span class="nm">Amon-Ra St. Brown</span><span class="mt">DET · WR</span><span class="ln">6 REC · 81 YD</span></span>
+                  <span class="lp-hx-ti x"><i class="bk"></i><span class="nm">CeeDee Lamb</span><span class="mt">DAL · WR</span><span class="ln">1 REC · 12 YD</span></span>
+                  <span class="lp-hx-ti x"><i class="bk"></i><span class="nm">Josh Allen</span><span class="mt">BUF · QB</span><span class="ln">71 PASS YD · 1 TD</span></span>
+                  <span class="lp-hx-ti"><i class="bk"></i><span class="nm">Patrick Mahomes</span><span class="mt">KC · QB</span><span class="ln">38 PASS YD</span></span>
+                  <span class="lp-hx-ti"><i class="bk"></i><span class="nm">Derrick Henry</span><span class="mt">BAL · RB</span><span class="ln">17 CAR · 122 YD · 1 TD</span></span>
+                  <span class="lp-hx-ti x"><i class="bk"></i><span class="nm">Justin Jefferson</span><span class="mt">MIN · WR</span><span class="ln">7 REC · 94 YD</span></span>
+                  <span class="lp-hx-ti x"><i class="bk"></i><span class="nm">Amon-Ra St. Brown</span><span class="mt">DET · WR</span><span class="ln">6 REC · 81 YD</span></span>
+                  <span class="lp-hx-ti x"><i class="bk"></i><span class="nm">CeeDee Lamb</span><span class="mt">DAL · WR</span><span class="ln">1 REC · 12 YD</span></span>
+                </div>
               </div>
-              <div class="lps-duo">
-                <div class="lps-duo__cell" style="border-top-color:var(--cheer)"><b>The Gridiron</b><span class="lps-duo__sc"><em style="color:var(--cheer)">121.5</em><i>108.2</i></span></div>
-                <div class="lps-duo__cell" style="border-top-color:var(--navy-700)"><b>Money League</b><span class="lps-duo__sc"><em style="color:var(--navy-700)">87.3</em><i>86.9</i></span></div>
-              </div>
-              <div class="lps-sechead"><i></i><b><span class="w">LOYAL</span><span class="c">TIES</span></b></div>
-              <div class="lps-tabs3">
-                <div class="lps-tab3"><em style="color:var(--cheer)">14</em><span>CHEER FOR</span></div>
-                <div class="lps-tab3 lps-tab3--on"><em>4</em><span>CONFLICTED</span></div>
-                <div class="lps-tab3"><em style="color:var(--enemy)">9</em><span>ENEMIES</span></div>
-              </div>
-              <div class="lps-plist">
-                <div class="lps-prow2"><span class="lps-prow2__id"><b>Ja'Marr Chase</b><i>WR · CIN</i></span><span class="lps-prow2__pill">2 FOR · 1 VS</span></div>
-                <div class="lps-prow2"><span class="lps-prow2__id"><b>Bijan Robinson</b><i>RB · ATL</i></span><span class="lps-prow2__pill">1 FOR · 1 VS</span></div>
-                <div class="lps-prow2"><span class="lps-prow2__id"><b>Puka Nacua</b><i>WR · LAR</i></span><span class="lps-prow2__pill">2 FOR · 1 VS</span></div>
-                <div class="lps-prow2"><span class="lps-prow2__id"><b>Trey McBride</b><i>TE · ARI</i></span><span class="lps-prow2__pill">1 FOR · 2 VS</span></div>
-              </div>
-              <div class="lps-nav">
-                <div class="lps-nav__it lps-nav__it--on"><i></i><span>Dashboard</span></div>
-                <div class="lps-nav__it"><i></i><span>Exposure</span></div>
-                <div class="lps-nav__it"><i></i><span>Watch</span></div>
-                <div class="lps-nav__it"><i></i><span>More</span></div>
+              <div class="lp-hx-td">
+                <span class="big">Touchdown</span>
+                <span class="rest"><i class="dot"></i><span class="nm2"><span class="full">Justin Jefferson</span><span class="short">J. Jefferson</span></span><span class="pl">72 YD REC TD</span><i class="dot hl-dot"></i><span class="hl"><b>Helps</b>Dynasty Royale</span><span class="hl"><b>Hurts</b>Redraft Chaos</span></span>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="lp-ph-slot lp-ph-slot--right">
-      <div class="lp-ph-scale">
-        <div class="lp-ph-tilt lp-ph-tilt--right">
-          <div class="lp-dev">
-            <div class="lp-dev__island"></div>
-            <div class="lp-dev__status"><span>9:41</span><span class="lp-dev__sicons"><svg width="19" height="12" viewBox="0 0 19 12"><rect x="0" y="7.5" width="3.2" height="4.5" rx="0.7" fill="currentColor"/><rect x="4.8" y="5" width="3.2" height="7" rx="0.7" fill="currentColor"/><rect x="9.6" y="2.5" width="3.2" height="9.5" rx="0.7" fill="currentColor"/><rect x="14.4" y="0" width="3.2" height="12" rx="0.7" fill="currentColor"/></svg><svg width="27" height="13" viewBox="0 0 27 13"><rect x="0.5" y="0.5" width="23" height="12" rx="3.5" stroke="currentColor" stroke-opacity="0.35" fill="none"/><rect x="2" y="2" width="20" height="9" rx="2" fill="currentColor"/></svg></span></div>
-            <div class="lp-dev__home"></div>
-            <div class="lp-scr">
-              <div class="lps-top">
-                <svg class="lps-wm" viewBox="0 0 480 78" role="img"><defs><clipPath id="lpwmL2"><rect x="0" y="0" width="240" height="78"/></clipPath><clipPath id="lpwmR2"><rect x="240" y="0" width="240" height="78"/></clipPath></defs><text x="240" y="54" text-anchor="middle" clip-path="url(#lpwmL2)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em" fill="#7AA8D1">CONFLICTED</text><text x="240" y="54" text-anchor="middle" clip-path="url(#lpwmR2)" style="font-family:Inter,sans-serif;font-weight:900;font-size:50px;letter-spacing:-.04em" fill="#E88761">CONFLICTED</text><line x1="240" y1="12" x2="240" y2="66" stroke="#F5EFE4" stroke-width="1.2"/></svg>
-                <span class="lps-live"><i></i>WEEK 14 · LIVE</span>
-              </div>
-              <div class="lps-sechead" style="padding-top:10px"><i></i><b><span class="w">SCORE</span><span class="c">BOARD</span></b><svg class="lps-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></div>
-              <div class="lps-grid">
-                <div class="lps-cell" style="border-top-color:var(--cheer)"><b>The Gridiron</b><span class="lps-sc"><em style="color:var(--cheer)">121.5</em><i>108.2</i></span><span class="lps-bar"><i style="background:var(--cheer);width:53%"></i><u style="left:53%"></u></span><span class="lps-st" style="color:var(--cheer)">WINNING · LIVE</span></div>
-                <div class="lps-cell" style="border-top-color:var(--navy-700)"><b>Money League</b><span class="lps-sc"><em style="color:var(--navy-700)">87.3</em><i>86.9</i></span><span class="lps-bar"><i style="background:var(--navy-700);width:50%"></i><u style="left:50%"></u></span><span class="lps-st" style="color:var(--navy-700)">TOSS-UP · LIVE</span></div>
-                <div class="lps-cell" style="border-top-color:var(--cheer)"><b>Dynasty Royale</b><span class="lps-sc"><em style="color:var(--cheer)">104.0</em><i>96.0</i></span><span class="lps-bar"><i style="background:var(--cheer);width:55%"></i><u style="left:55%"></u></span><span class="lps-st" style="color:var(--cheer)">WINNING · LIVE</span></div>
-                <div class="lps-cell" style="border-top-color:var(--enemy)"><b>The Underdogs</b><span class="lps-sc"><em style="color:var(--enemy)">70.0</em><i>84.0</i></span><span class="lps-bar"><i style="background:var(--enemy);width:47%"></i><u style="left:47%"></u></span><span class="lps-st" style="color:var(--enemy)">LOSING · LIVE</span></div>
-              </div>
-              <div class="lps-sechead lps-sechead--sm"><i></i><b><span class="w">LIVE</span><span class="c">&nbsp;UPDATES</span></b></div>
-              <div class="lps-updlist">
-                <div class="lps-upd"><span class="lps-upd__id"><b>Ja'Marr Chase · 42-yd TD</b><i>THE GRIDIRON</i></span><em style="color:var(--cheer)">+10.2</em></div>
-                <div class="lps-upd"><span class="lps-upd__id"><b>Ja'Marr Chase · 42-yd TD</b><i>MONEY LEAGUE · OPPONENT</i></span><em style="color:var(--enemy)">−10.2</em></div>
-                <div class="lps-upd"><span class="lps-upd__id"><b>Josh Jacobs · 12-yd rush</b><i>DYNASTY ROYALE</i></span><em style="color:var(--cheer)">+1.2</em></div>
-              </div>
-              <div class="lps-nav">
-                <div class="lps-nav__it lps-nav__it--on"><i></i><span>Dashboard</span></div>
-                <div class="lps-nav__it"><i></i><span>Exposure</span></div>
-                <div class="lps-nav__it"><i></i><span>Watch</span></div>
-                <div class="lps-nav__it"><i></i><span>More</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
