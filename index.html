@@ -7654,7 +7654,7 @@ function cfJerseyNum(player){
 }
 function cfJerseyChip(player){
   var n = cfJerseyNum(player);
-  return n ? '<span class="cf-jersey" title="#' + n + '" aria-label="Number ' + n + '"><i>#</i>' + n + '</span>' : '';
+  return n ? '<span class="cf-jersey" aria-label="Number ' + n + '"><i>#</i>' + n + '</span>' : '';
 }
 window.cfJerseyChip = cfJerseyChip;
 /* Inner HTML for a round avatar element: a headshot <img> layered over the
@@ -26104,7 +26104,7 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-rr.st-pre .nm{color:var(--ink-500)}
 #cfm .cfm-rr-nr{display:flex;align-items:center;gap:6px;min-width:0}
 #cfm .cfm-rr-nr .nm{flex:0 1 auto;min-width:0}
-#cfm .cfm-rr .cf-jersey{font-size:var(--txs)}
+#cfm .cfm-rr .cf-jersey{font-size:var(--txs);margin-left:auto} /* right-justified in Maniac only: the chips form one column down the list */
 #cfm .cfm-rr.st-pre .cf-jersey{color:var(--ink-500);border-color:var(--line)}
 #cfm .cfm-rr.st-post{background:var(--paper-deep);border-top-color:var(--line-soft);border-right-color:var(--line-soft);border-bottom-color:var(--line-soft)}
 #cfm .cfm-rr.open{background:color-mix(in oklab,var(--tile-bg) 70%,var(--navy-300))}
