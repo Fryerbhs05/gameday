@@ -10287,10 +10287,10 @@ function buildCardInner(player,isHist){
 /* Stamp a Loyalties card as a box-score tap target. The player object rides on
    the NODE (_cfPlayer), never in the markup, so the rendered HTML is untouched
    and no export can pick it up. No visible affordance by design — the CSS adds
-   cursor + tap-highlight only. Suppressed in demo/sample mode, where the
-   players are synthetic and every drawer would come back empty. */
+   cursor + tap-highlight only. In demo the drawer builds a synthetic box
+   score from the demo points (see the PLAYER BOX SCORE DRAWER demo block). */
 function cfStampTap(node,player){
-  try{ if(typeof window.inDemoMode==='function' && window.inDemoMode()) return; }catch(e){}
+  /* Demo stamps too (2026-10-13): the drawer synthesizes a demo box score. */
   node._cfPlayer=player;
   node.dataset.cfTap='1';
   node.setAttribute('role','button');
@@ -11700,10 +11700,22 @@ function getDemoData(){
     /* Leagues > Standings sample (fake, seeded); no divisions so Division Watch stays hidden. */
     try{if(typeof window.cfDemoStandings==='function')dctx.div=window.cfDemoStandings(dctx,li);}catch(e){}
     contexts.push(dctx);
+    /* Lineup Check-In sample (2026-10-13): the same lg.ci shape the live pipeline
+       builds. Pregame projection = the demo's own proj, else a position baseline
+       (L3/L4 carry no proj). Platform is a display-only label for the sheet's
+       logo column — never set lg.platform on demo leagues (League Scores and
+       Leagues key real Yahoo/ESPN fetches off it). */
+    const ciBase={QB:18.5,RB:12.5,WR:11.5,TE:8.5,K:8.0,DEF:7.0};
+    const ciRow=(x,slot)=>{
+      let pj=x.proj;
+      if(pj==null){let h=0;for(const ch of String(x.id))h=(h*31+ch.charCodeAt(0))%997;pj=(ciBase[x.pos]||8)+((h%40)-20)/10;}
+      return{slot,name:x.name,team:x.team,pos:x.pos,st:x.inj||null,pts:x.pts!=null?+x.pts:null,proj:+(+pj).toFixed(2)};
+    };
     demoLeagues.push({
       leagueName:lg.name,fmt:lg.fmt,hasMatchup:true,
       myPlayers:lg.my.map(toDP),oppPlayers:lg.opp.map(toDP),
       myBench:(lg.myBench||[]).map(toDP),oppBench:(lg.oppBench||[]).map(toDP),
+      ci:{starters:lg.my.map(x=>ciRow(x,x.slot)),bench:(lg.myBench||[]).map(x=>ciRow(x,'BN')),link:null,demoPlat:['sleeper','espn','yahoo','sleeper'][li]||'sleeper'},
     });
     // accumulate cross-league membership + per-league points for the buckets
     lg.my.forEach(x=>{const e=ensure(x);if(!e.myLeagues.includes(lg.name))e.myLeagues.push(lg.name);e.leaguePoints[lg.name]={pts:x.pts,proj:x.proj??null,fmt:lg.fmt};});
@@ -15937,7 +15949,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 })();
 </script>
 
-<!-- ============ Manual matchups (admin-only preview, 2026-10-13) ============ -->
+<!-- ============ Manual matchups (all signed-in users since v364; preview 2026-10-13) ============ -->
 <style>
 /* "Add matchup manually" — leagues the user types in for platforms Conflicted
    can't connect to. Mock: mocks/manual-matchup-mock.html. Gated to cfIsAdmin()
@@ -16082,6 +16094,12 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 .mmw-imp .c b{color:var(--cheer)}.mmw-imp .e b{color:var(--enemy)}.mmw-imp .s b{color:var(--split)}
 .mmw-impcap{font:600 9.5px/1 var(--font-sans);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-500);margin-top:18px}
 .mmw-fine{font:500 11.5px/1.45 var(--font-sans);color:var(--ink-500);margin-top:14px}
+/* Demo mode (2026-10-13): wizard runs, nothing saves. */
+.mmw-demo-note{margin-top:14px;padding:10px 12px;border-radius:10px;border:1px dashed var(--line);font:600 12px/1.4 var(--font-sans);color:var(--ink-700);background:color-mix(in oklab,var(--paper-deep) 60%,transparent)}
+.mmw-demo-end{text-align:center;padding:26px 8px 10px}
+.mmw-demo-end .ic{width:46px;height:46px;margin:0 auto 14px;border-radius:50%;display:grid;place-items:center;background:var(--cheer-soft);color:var(--cheer)}
+.mmw-demo-end h4{margin:0 0 8px;font:800 18px/1.25 var(--font-sans);color:var(--ink-900)}
+.mmw-demo-end p{margin:0 auto;max-width:340px;font:500 13.5px/1.5 var(--font-sans);color:var(--ink-500)}
 .mmw-del{display:block;width:100%;margin-top:18px;padding:10px;background:none;border:0;color:var(--enemy);font:700 12.5px/1 var(--font-sans);cursor:pointer}
 .mmw-delbox{margin-top:14px;padding:12px;border:1px solid color-mix(in oklab,var(--enemy) 45%,transparent);border-radius:10px}
 .mmw-delbox p{font:500 13px/1.45 var(--font-sans);color:var(--ink-700);margin:0 0 10px}
@@ -16097,7 +16115,7 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 (function(){
 'use strict';
 /* ════════════════════════════════════════════════════════════════════════════
-   MANUAL MATCHUPS — admin-only preview (Matt, 2026-10-13)
+   MANUAL MATCHUPS — open to all signed-in users (v364; was admin preview 2026-10-13)
    A league the user types in by hand (CBS, NFL.com, office leagues…). Players are
    Sleeper IDs (DEF = team abbr), so once loaded they flow through the exact same
    post-provider assembly as a Sleeper league: canonical identity, buckets,
@@ -16124,21 +16142,26 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 var LS_KEY='cf_manual_v1', PEND_KEY='cf_manual_pending_v1', OWNER='manual-wizard';
 var S={leagues:[], email:null};
 
-/* Who sees manual matchups while it's in beta: Matt (via cfIsAdmin) + named testers.
-   Add an email here to widen the beta; lowercase. */
-var MANUAL_BETA_EMAILS=['randonfoldhazi@yahoo.com'];
+/* Manual matchups are open to every signed-in user (beta gate removed v364).
+   Still off in demo mode and for signed-out visitors (saves go to the account). */
 function isOn(){
   try{
     if(isDemoMode) return false;
-    if(typeof window.cfIsAdmin==='function' && window.cfIsAdmin()) return true;
     var a=window.__account||{};
-    return !!(a.signedIn && a.email && MANUAL_BETA_EMAILS.indexOf(String(a.email).trim().toLowerCase())>=0);
+    return !!a.signedIn;
   }catch(e){ return false; }
 }
+/* Demo (2026-10-13, Matt): the Add matchup manually button + the whole 5-step
+   wizard show in demo so prospects see the flow, but NOTHING is saved — the
+   Save step ends on a "that's the setup" panel with a sign-up CTA. isOn() stays
+   false in demo, so load/persist/drawer/account paths never run there. */
+function demoOn(){ try{ return !!isDemoMode; }catch(e){ return false; } }
+function wizOn(){ return isOn()||demoOn(); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 function f2(v){ return (Math.round((+v||0)*100)/100).toFixed(2); }
 function track(n,p){ try{ if(typeof window.cfTrack==='function') window.cfTrack(n,p||{}); }catch(e){} }
 var PENCIL='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+var CHECKMARK_SVG='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 var XICON='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
 /* ── persistence ─────────────────────────────────────────────────────────── */
@@ -16313,7 +16336,7 @@ function placeAdd(strip,count){
   lastStrip=strip; lastCount=count;
   var tile=strip.querySelector('.mm-add-tile'), bar=document.getElementById('mm-add-bar');
   var show=false;
-  try{ var a=activeSW(), l=liveSW(); show=isOn()&&a.season===l.season&&a.week===l.week; }catch(e){ show=false; }
+  try{ var a=activeSW(), l=liveSW(); show=wizOn()&&a.season===l.season&&a.week===l.week; }catch(e){ show=false; }
   if(!show){ if(tile) tile.remove(); if(bar) bar.remove(); return; }
   var visible=strip.classList.contains('visible')&&count>0;
   var hole=visible&&(count%gridCols(strip)!==0);
@@ -16452,7 +16475,8 @@ function ini(id){ var p=dbInfo(id); if(posOf(id)==='DEF') return teamOf(id); var
 function projOf(id){ var p0=PROJ[id]; if(!p0||!W) return null; try{ return scoreProjectionStats(p0,toSleeper(W.d.sc)); }catch(e){ return null; } }
 
 function openWizard(mode,id,step){
-  if(!isOn()) return;
+  if(!wizOn()) return;
+  if(demoOn()&&mode!=='new') return;
   var lw=liveSW(), d;
   if(mode==='new'){
     d={name:'',team:'',host:null,sc:Object.assign({},DEF_SC),slots:DEF_SLOTS.slice(),mine:blankArr(DEF_SLOTS.length),oppName:'',opp:blankArr(DEF_SLOTS.length),oppSkipped:false};
@@ -16464,7 +16488,7 @@ function openWizard(mode,id,step){
        oppName:e.oppName||'',opp:(e.opp||blankArr(e.slots.length)).map(function(x){return x||null;}),oppSkipped:!!e.oppSkipped,carried:r&&!r.stored?r.carriedFrom:null};
   }
   W={mode:mode,id:id||null,step:step||1,d:d,search:null,editSlots:false,more:false,delAsk:false,season:lw.season,week:lw.week};
-  track('manual_matchup_open',{mode:mode,step:W.step});
+  track('manual_matchup_open',demoOn()?{mode:mode,step:W.step,demo:true}:{mode:mode,step:W.step});
   render(true);
   /* Player list + this week's projections for the search rows. Both cached app-wide. */
   Promise.resolve().then(async function(){
@@ -16488,6 +16512,13 @@ function render(first){
   if(W&&W.search){ var q=document.getElementById('mmw-q'); if(q){ try{ q.focus({preventScroll:true}); }catch(e){ q.focus(); } } }
 }
 function wizardHtml(){
+  if(W.demoDone){
+    return '<div class="mmw"><div class="mmw-hd" style="position:sticky"><div class="mmw-title">Add manual matchup</div><div class="mmw-sub">Demo mode</div>'
+      +'<button type="button" class="mmw-x" data-mm="close" aria-label="Close">'+XICON+'</button></div>'
+      +'<div class="mmw-body"><div class="mmw-demo-end"><div class="ic">'+CHECKMARK_SVG+'</div><h4>That’s the whole setup</h4>'
+      +'<p>Nothing was saved in demo mode. Get started (it’s free) and you can add leagues from CBS, NFL.com or anywhere else. They score live right next to your Sleeper, ESPN and Yahoo leagues.</p></div></div>'
+      +'<div class="mmw-foot"><button type="button" class="mmw-btn2" data-mm="close">Keep exploring</button><button type="button" class="mmw-btn1" data-mm="demosignup">Get started</button></div></div>';
+  }
   var d=W.d, s=W.step;
   var prog='<div class="mmw-prog">'+STEPS.map(function(_,i){ return '<i class="'+(i<s?'on':'')+'"></i>'; }).join('')+'</div>';
   var hd='<div class="mmw-hd" style="position:sticky"><div class="mmw-title">'+esc(wizTitle())+'</div><div class="mmw-sub">Step '+s+' of 5 · <b>'+STEPS[s-1]+'</b></div>'
@@ -16499,7 +16530,8 @@ function wizardHtml(){
       +'<label class="mmw-fld"><span class="mmw-fl">Your team name</span><input class="mmw-inp" data-mm-bind="team" value="'+esc(d.team)+'" placeholder="e.g. Fourth &amp; Fryer" maxlength="40" autocomplete="off"></label>'
       +'<div class="mmw-fld"><span class="mmw-fl">Where is this league hosted?<em>optional</em></span><div class="mmw-chips">'
       +HOSTS.map(function(h){ return '<button type="button" class="mmw-chip" data-mm="host" data-v="'+esc(h)+'" aria-pressed="'+(d.host===h)+'">'+esc(h)+'</button>'; }).join('')+'</div>'
-      +'<div class="mmw-hint">'+(W.mode==='new'?'Starts in Week '+W.week+'. Each week you confirm your lineup and add that week’s opponent.':'Helps us decide which platform to connect next.')+'</div></div>';
+      +'<div class="mmw-hint">'+(W.mode==='new'?'Starts in Week '+W.week+'. Each week you confirm your lineup and add that week’s opponent.':'Helps us decide which platform to connect next.')+'</div></div>'
+      +(demoOn()?'<div class="mmw-demo-note">Demo mode: try every step. Nothing gets saved.</div>':'');
   }
   if(s===2){
     var seg=function(k,opts){ return '<div class="mmw-seg">'+opts.map(function(o){ return '<button type="button" data-mm="sc" data-k="'+k+'" data-v="'+o[0]+'" aria-pressed="'+(d.sc[k]===o[0])+'">'+o[1]+'</button>'; }).join('')+'</div>'; };
@@ -16520,7 +16552,7 @@ function wizardHtml(){
       +(s===3&&W.editSlots?'<div class="mmw-addslots"><span class="mmw-fl">Add a slot</span><div class="mmw-chips">'+ORDER.map(function(o){ return '<button type="button" class="mmw-chip" data-mm="addslot" data-v="'+o+'">+ '+(o==='SUPER_FLEX'?'Superflex':(o==='DEF'?'D/ST':o))+'</button>'; }).join('')+'</div></div>':'')
       +'<div class="mmw-fill">'+filled+' of '+d.slots.length+' filled</div>';
   }
-  if(s===5) body=reviewHtml();
+  if(s===5) body=reviewHtml()+(demoOn()?'<div class="mmw-demo-note">Demo mode: saving is turned off, so this league won’t be added.</div>':'');
   var foot;
   if(s===1) foot='<div class="mmw-foot"><button type="button" class="mmw-btn2" data-mm="close">Cancel</button><button type="button" class="mmw-btn1" data-mm="next" id="mmw-next" '+(d.name.trim()&&d.team.trim()?'':'disabled')+'>Next</button></div>';
   else if(s===4) foot='<div class="mmw-foot three"><button type="button" class="mmw-btn2" data-mm="back">Back</button><button type="button" class="mmw-btn2" data-mm="skip">Skip</button><button type="button" class="mmw-btn1" data-mm="next">Next</button></div>';
@@ -16626,6 +16658,11 @@ function reviewHtml(){
 }
 function realign(oldSlots,arr,newSlots){ var pool={}; oldSlots.forEach(function(s,i){ (pool[s]=pool[s]||[]).push(arr[i]); }); return newSlots.map(function(s){ return pool[s]&&pool[s].length?pool[s].shift():null; }); }
 function save(){
+  if(demoOn()){
+    W.demoDone=true;
+    track('manual_matchup_demo_finish',{starters:W.d.mine.filter(function(x){return x!=null;}).length,opp:W.d.opp.some(function(x){return x!=null;}),demo:true});
+    render(); return;
+  }
   var d=W.d, key=wkKey(W.season,W.week);
   var hasOpp=d.opp.some(function(x){ return x!=null; });
   var entry={slots:d.slots.slice(),mine:d.mine.slice(),oppName:hasOpp?String(d.oppName||'').trim():'',opp:hasOpp?d.opp.slice():blankArr(d.slots.length),oppSkipped:!hasOpp,confirmed:true};
@@ -16700,6 +16737,7 @@ document.addEventListener('click',function(ev){
     case 'wdelask': W.delAsk=true; break;
     case 'wdelcancel': W.delAsk=false; break;
     case 'save': save(); return;
+    case 'demosignup': W=null; window.BottomSheet.close(); track('manual_matchup_demo_signup',{demo:true}); if(typeof window.exitDemo==='function') window.exitDemo(); return;
     default: return;
   }
   render();
@@ -16875,6 +16913,28 @@ try{
   function clearRet(){lsSet(RET_KEY,'0');}
   try{ forced=/[?&]checkin=1\b/.test(location.search); }catch(e){}
 
+  /* ── Demo mode (2026-10-13, Matt) ──────────────────────────────────────────
+     Demo can open the check-in from …More / the rail (never auto-shown). The demo
+     has no ESPN slate, so kickoffs come from a fixed sample slate laid on the
+     CURRENT NFL week (Tue→Mon, same week boundary as the Looks-good reset): early
+     in the week everything is open; on Sunday/Monday the played games lock for
+     real. NE + JAX are on bye, so Stefon Diggs (Devy Masters) shows the red
+     bye-week flag. "Looks good" lives in memory only; "Adjust lineup" explains
+     itself instead of leaving the app. */
+  function isDemo(){try{return !!(window.inDemoMode&&window.inDemoMode());}catch(e){return false;}}
+  var DEMO_CHK={}, DEMO_SLATE=null, DEMO_SLATE_WK='';
+  var DEMO_GAMES=[['CHI','GB',2,19,15],
+    ['MIN','DET',5,12,0],['PIT','BAL',5,12,0],['MIA','BUF',5,12,0],['TB','ATL',5,12,0],['CLE','CIN',5,12,0],['IND','HOU',5,12,0],['CAR','NO',5,12,0],['WAS','TEN',5,12,0],
+    ['SEA','LAR',5,15,5],['DEN','LAC',5,15,5],['ARI','SF',5,15,25],['DAL','PHI',5,15,25],
+    ['NYG','NYJ',5,19,20],['LV','KC',6,19,15]];
+  function demoSlate(now){
+    var wk=weekKey(now); if(DEMO_SLATE&&DEMO_SLATE_WK===wk)return DEMO_SLATE;
+    var t=new Date(now);t.setHours(0,0,0,0);t.setDate(t.getDate()-((t.getDay()-2+7)%7));
+    var m={};
+    DEMO_GAMES.forEach(function(g){var d=new Date(t.getTime());d.setDate(d.getDate()+g[2]);d.setHours(g[3],g[4],0,0);var k=d.getTime();m[g[0]]={k:k,opp:g[1],home:false};m[g[1]]={k:k,opp:g[0],home:true};});
+    DEMO_SLATE=m;DEMO_SLATE_WK=wk;return m;
+  }
+
   function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
   function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
@@ -16903,10 +16963,10 @@ try{
     if(s==='COV'||/COVID/.test(s))return'COV';
     return null;
   }
-  function kick(team){try{var iso=window.__cfKickoff&&window.__cfKickoff(team);var t=iso?Date.parse(iso):NaN;return isFinite(t)?t:null;}catch(e){return null;}}
-  function gstate(team){try{return window.__cfGameState?window.__cfGameState(team):null;}catch(e){return null;}}
+  function kick(team){if(isDemo()){var dg=demoSlate(Date.now())[team];return dg?dg.k:null;}try{var iso=window.__cfKickoff&&window.__cfKickoff(team);var t=iso?Date.parse(iso):NaN;return isFinite(t)?t:null;}catch(e){return null;}}
+  function gstate(team){if(isDemo())return null;try{return window.__cfGameState?window.__cfGameState(team):null;}catch(e){return null;}}
   /* "KC vs LV" (home) / "KC @ LV" (away); just "KC" when the slate has no opponent. */
-  function tmVs(team){try{var o=window.__cfOpponent?window.__cfOpponent(team):null;return o&&o.opp?team+(o.home?' vs ':' @ ')+o.opp:team;}catch(e){return team;}}
+  function tmVs(team){if(isDemo()){var dg=demoSlate(Date.now())[team];return dg?team+(dg.home?' vs ':' @ ')+dg.opp:team;}try{var o=window.__cfOpponent?window.__cfOpponent(team):null;return o&&o.opp?team+(o.home?' vs ':' @ ')+o.opp:team;}catch(e){return team;}}
 
   /* Latest Sunday kickoff before 5pm local across the whole slate = the cutoff. */
   function sundayCutoff(now){
@@ -16954,8 +17014,8 @@ try{
   /* "Looks good" checks live for the NFL week: they reset Tuesday 12:00 AM local
      (Matt, 2026-09-26). weekKey = the date of the most recent Tuesday midnight. */
   function weekKey(ms){var d=new Date(ms);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()-2+7)%7));return dayKey(d.getTime());}
-  function loadChecked(now){var raw=lsGet(CHK_KEY);try{var o=raw?JSON.parse(raw):null;if(o&&o.week===weekKey(now)&&o.ids)return o.ids;}catch(e){}return{};}
-  function saveChecked(now,ids){lsSet(CHK_KEY,JSON.stringify({week:weekKey(now),ids:ids}));}
+  function loadChecked(now){if(isDemo())return DEMO_CHK;var raw=lsGet(CHK_KEY);try{var o=raw?JSON.parse(raw):null;if(o&&o.week===weekKey(now)&&o.ids)return o.ids;}catch(e){}return{};}
+  function saveChecked(now,ids){if(isDemo()){DEMO_CHK=ids;return;}lsSet(CHK_KEY,JSON.stringify({week:weekKey(now),ids:ids}));}
 
   /* Which player positions each lineup slot accepts. Slot labels arrive already run
      through slotLabel() (Sleeper SUPER_FLEX → "SUPER FLEX", Yahoo W/R/T → "FLEX",
@@ -17012,7 +17072,8 @@ try{
           if(isFinite(mp)&&isFinite(op)&&(mp>0||op>0))margin=+(mp-op).toFixed(2);
         }
       }catch(e){}
-      out.push({id:lg.platform+':'+lg.leagueName,ix:ix,name:lg.leagueName,plat:lg.platform||'',link:lg.ci.link||null,starters:st,bench:bn,margin:margin,mid:lg.manualId||null});
+      var plat=lg.platform||(lg.ci&&lg.ci.demoPlat)||'';
+      out.push({id:plat+':'+lg.leagueName,ix:ix,name:lg.leagueName,plat:plat,link:lg.ci.link||null,starters:st,bench:bn,margin:margin,mid:lg.manualId||null});
     });
     /* Focus day: today if any of your playable players play today, else the next day one does. */
     var today=dayStart(now), focus=null, days=[];
@@ -17050,6 +17111,7 @@ try{
   var PLAT={sleeper:'Sleeper',espn:'ESPN',yahoo:'Yahoo',manual:'Manual'};
 
   function linkFor(L){
+    if(isDemo())return L.plat?'demo:'+L.plat:null;
     var l=L.link||{};
     if(L.plat==='sleeper'&&l.leagueId)return'https://sleeper.com/leagues/'+encodeURIComponent(l.leagueId)+'/team';
     if(L.plat==='espn'&&l.leagueId)return'https://fantasy.espn.com/football/team?leagueId='+encodeURIComponent(l.leagueId)+(l.teamId!=null?'&teamId='+encodeURIComponent(l.teamId):'')+(l.season?'&seasonId='+encodeURIComponent(l.season):'');
@@ -17108,7 +17170,7 @@ try{
     var focusLbl=M.focus==null?'today':(isToday?'today':DOW[new Date(M.focus).getDay()]);
     var nChecked=M.leagues.filter(function(L){return checked[L.id];}).length;
     var wk=1;try{wk=window.getActiveWeek?window.getActiveWeek():1;}catch(e){}
-    var sub='Week '+esc(wk)+' · '+DOWFULL[new Date(now).getDay()]+(refreshing?' · <b>Updating lineups…</b>':'');
+    var sub='Week '+esc(wk)+' · '+DOWFULL[new Date(now).getDay()]+(isDemo()?' · Sample lineups':'')+(refreshing?' · <b>Updating lineups…</b>':'');
     lastDataRef=window.__conflictedLastData||null;
     var nextLbl='—', nextCd=false;
     if(M.next<Infinity){nextLbl=(dayStart(M.next)===M.today)?hmFull(M.next):(DOW[new Date(M.next).getDay()]+' '+hm(M.next));nextCd=M.next>now&&M.next-now<12*3600000;}
@@ -17157,7 +17219,7 @@ try{
      lineup_checkin_check  {platform, on}
      lineup_checkin_expand {open}
      lineup_checkin_prefs  {auto, mode, days} */
-  function track(n,p){try{if(window.cfTrack)window.cfTrack(n,p||null);}catch(e){}}
+  function track(n,p){try{if(isDemo())p=Object.assign({},p||{},{demo:true});if(window.cfTrack)window.cfTrack(n,p||null);}catch(e){}}
   var sess=null;
   /* Stat-tile labels never wrap or ellipsize: shrink the label's font until it fits
      its tile (floor 6px, letter-spacing tightened along with it). */
@@ -17230,7 +17292,7 @@ try{
   /* Manual entry (…More tile, desktop rail tab, console): any signed-in user with
      leagues; ignores the day window + seen flag. Un-gated 2026-09-26. */
   window.cfShowLineupCheckIn=function(trigger){
-    if(window.inDemoMode&&window.inDemoMode())return false;
+    /* Demo opens it too (sample slate above); only the AUTO-show stays off in demo. */
     if(isOpenMine())return true;
     if(window.BottomSheet&&window.BottomSheet.isOpen())window.BottomSheet.close();
     var pm=periodMsg();
@@ -17356,6 +17418,11 @@ try{
     var mu=t.closest('[data-ci-manual]');
     if(mu){if(window.cfManual)window.cfManual.openWizard('week',mu.getAttribute('data-ci-manual'),3);return;}
     var go=t.closest('[data-ci-go]');
+    if(go&&/^demo:/.test(go.getAttribute('data-ci-go')||'')){
+      var dp=PLAT[(go.getAttribute('data-ci-go')||'').slice(5)]||'your league';
+      try{showYahooToast('Demo mode — with your leagues connected, this opens your team in '+dp+'.');}catch(e){}
+      track('lineup_checkin_adjust',{platform:'demo'});return;
+    }
     if(go){var url=go.getAttribute('data-ci-go');lsSet(RET_KEY,String(Date.now()));if(sess)sess.adjusted++;try{var gc=go.closest('.ci-lg');track('lineup_checkin_adjust',{platform:gc?String(gc.getAttribute('data-ci-id')||'').split(':')[0]:null});}catch(e){}if(window.cfOpenExternal)window.cfOpenExternal(url);else window.open(url,'_blank','noopener');return;}
   });
 })();
@@ -17375,6 +17442,82 @@ try{
   'use strict';
   var OWNER='player-box';
   var timer=null, current=null;
+
+  /* ── Demo mode (2026-10-13, Matt) ──────────────────────────────────────────
+     Demo players are real names with made-up points, so a real Sleeper stat
+     line would contradict the card. Instead each demo player gets a SYNTHETIC
+     box score built backwards from his demo points (the LIVE league's points
+     when he's in one, under that league's PPR/Half/Std), deterministic per
+     name so it never jitters between opens. State: Live if any of his demo
+     leagues is still LIVE, else Final. No network, no Sleeper ids needed. */
+  function isDemo(){ try{ return !!(window.inDemoMode&&window.inDemoMode()); }catch(e){ return false; } }
+  function demoData(){ try{ return window.__conflictedLastData||{}; }catch(e){ return {}; } }
+  function demoEntry(player){
+    var pool=demoData().allRostered||[], nm=String((player&&player.full_name)||'');
+    for(var i=0;i<pool.length;i++){ if(pool[i]&&pool[i].full_name===nm) return pool[i]; }
+    return null;
+  }
+  function demoLiveLeague(name){
+    var cs=demoData().contexts||[];
+    for(var i=0;i<cs.length;i++){ if(cs[i]&&cs[i].leagueName===name) return cs[i].leagueState==='LIVE'; }
+    return false;
+  }
+  function demoPick(player){
+    var e=demoEntry(player), lp=(e&&e.leaguePoints)||{}, pick=null;
+    Object.keys(lp).forEach(function(nm){
+      var live=demoLiveLeague(nm);
+      if(!pick||(live&&!pick.live)) pick={pts:+lp[nm].pts||0,fmt:lp[nm].fmt,live:live};
+    });
+    return pick;
+  }
+  function demoState(player){ var pk=demoPick(player); return (pk&&pk.live)?'in':'post'; }
+  function hsh(t){ var h=7; t=String(t||''); for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))%100003; return h; }
+  function demoRow(player){
+    var pos=String((player&&player.position)||'').toUpperCase(); if(pos==='DST') pos='DEF';
+    var pk=demoPick(player), h=hsh(player&&player.full_name);
+    var base={QB:17,RB:11,WR:10,TE:7,K:7,DEF:6}[pos];
+    var P=pk?pk.pts:(base!=null?base:8), ppr=pk?(pk.fmt==='PPR'?1:(pk.fmt==='Half'?0.5:0)):1;
+    var R=Math.round;
+    if(pos==='QB'){
+      var ry=4+(h%24), ints=(h%3===0)?1:0, rem=P-ry*0.1+ints*2;
+      var td=Math.max(0,Math.min(4,Math.floor((rem-6)/5)));
+      var py=Math.max(0,R((rem-td*4)/0.04));
+      var att=Math.max(10,R(py/7.2)), cmp=Math.min(att,R(att*(0.6+(h%9)/100)));
+      return {pass_att:att,pass_cmp:cmp,pass_yd:py,pass_td:td,pass_int:ints,rush_att:Math.max(1,R(ry/5)),rush_yd:ry,rush_td:0,fum_lost:0};
+    }
+    if(pos==='RB'){
+      var rc=1+(h%4), ypc=5+(h%4), td2=P>=16?1:0, rem2=P-td2*6-rc*ppr-rc*ypc*0.1;
+      if(rem2<0){ rc=1; ypc=6; rem2=P-td2*6-ppr-0.6; }
+      if(rem2<0){ td2=0; rem2=P-ppr-0.6; }
+      if(rem2<0){ rc=0; ypc=0; rem2=Math.max(0,P); }
+      var rush=Math.max(0,R(rem2/0.1));
+      return {rush_att:Math.max(3,R(rush/4.4)),rush_yd:rush,rush_td:td2,rec_tgt:rc+(h%2),rec:rc,rec_yd:rc*ypc,rec_td:0,fum_lost:0};
+    }
+    if(pos==='WR'||pos==='TE'){
+      var td3=P>=(pos==='TE'?13:16)?1:0, rem3=Math.max(0,P-td3*6), ypr=9+(h%6);
+      var n=Math.max(1,R(rem3/(ppr+ypr*0.1))), yd=R((rem3-n*ppr)/0.1);
+      while(n>1&&yd<n*4){ n--; yd=R((rem3-n*ppr)/0.1); }
+      if(yd<0){ yd=0; }
+      return {rec_tgt:n+1+(h%3),rec:n,rec_yd:yd,rec_td:td3,fum_lost:0};
+    }
+    if(pos==='K'){
+      var xp=1+(h%4), left=Math.max(0,R(P)-xp), n52=0,n44=0,n33=0;
+      if(left>=8&&h%2){ n52=1; left-=5; }
+      if(left>=4&&left%3!==0){ n44=1; left-=4; }
+      while(left>=3){ n33++; left-=3; }
+      xp+=left;
+      var fgm=n52+n44+n33, lng=n52?52:(n44?44:(n33?33+(h%6):0));
+      return {fgm:fgm,fgmiss:(h%5===0)?1:0,xpm:xp,xpmiss:0,fgm_lng:lng,fgm_0_19:0,fgm_20_29:0,fgm_30_39:n33,fgm_40_49:n44,fgm_50_59:n52,fgm_50p:n52,fgm_60p:0};
+    }
+    if(pos==='DEF'){
+      var td4=P>=14?1:0, rem4=P-td4*6, tiers=[[4,10],[1,17],[0,24],[7,3],[-1,30]], tier=null, x=0;
+      for(var i=0;i<tiers.length&&!tier;i++){ x=rem4-tiers[i][0]; if(x>=0&&x<=8) tier=tiers[i]; }
+      if(!tier){ tier=[-4,38]; x=Math.max(0,rem4+4); }
+      var it=x>=4?1:0, fr=x>=6?1:0;
+      return {sack:Math.max(0,R(x-2*(it+fr))),int:it,fum_rec:fr,def_td:td4,pts_allow:tier[1]};
+    }
+    return null;
+  }
 
   function n(v){ return (typeof v==='number' && isFinite(v)) ? v : 0; }
   /* Team-DEF stat: Sleeper's short key, falling back to the def_-prefixed one. */
@@ -17530,6 +17673,7 @@ try{
      "Game starts at Sun 12:00 PM" with an empty body while a complete stat line
      sat in the payload. On a past week the stat row IS the state. */
   function resolveState(player,hasRow){
+    if(isDemo()) return demoState(player);
     if(!statKey(player)) return 'none';
     if(isHistoric()) return hasRow?'post':'none';
     var gs=null; try{ gs=window.__cfGameState?window.__cfGameState(player.team||''):null; }catch(e){}
@@ -17621,6 +17765,7 @@ try{
   }
 
   function fill(player){
+    if(isDemo()){ if(mine()&&current===player) window.BottomSheet.setBody(bodyHTML(player,demoRow(player))); return; }
     var season,week;
     try{ season=window.getActiveSeason?window.getActiveSeason():null; }catch(e){}
     try{ week=window.getActiveWeek?window.getActiveWeek():null; }catch(e){}
@@ -17646,6 +17791,7 @@ try{
   var lastSync=0;
   function liveOpen(){ return mine() && !!current && !isHistoric(); }
   window.cfPlayerDrawerPrefetch=function(){
+    if(isDemo()) return;
     if(!liveOpen()||typeof window.__cfWeekStats!=='function') return;
     var season,week;
     try{ season=window.getActiveSeason?window.getActiveSeason():null; }catch(e){}
@@ -17666,6 +17812,7 @@ try{
   window.cfPlayerBoxHTML=function(player,opts,cb){
     if(!player||typeof cb!=='function') return;
     var between=(opts&&opts.between)||'';
+    if(isDemo()){ cb(bodyHTML(player,demoRow(player),between),true); return; }
     var season,week;
     try{ season=window.getActiveSeason?window.getActiveSeason():null; }catch(e){}
     try{ week=window.getActiveWeek?window.getActiveWeek():null; }catch(e){}
@@ -26155,11 +26302,11 @@ if(typeof window.cfRegisterView==='function'){
      object is kept in a map by canonical key -- never in markup -- and reused
      across refreshes so "tap the open player again to dismiss" keeps working.
      Prefers the app's own roster entry (it carries sleeperId); otherwise builds
-     the drawer's {full_name, position, team, sleeperId} shape. Suppressed in
-     demo, exactly like cfStampTap (synthetic players = empty drawers). */
+     the drawer's {full_name, position, team, sleeperId} shape. Works in demo
+     too: the drawer synthesizes a demo box score, same as cfStampTap. */
   var PLOBJ={};
   function plStamp(p,e){
-    try{if(typeof W.inDemoMode==='function'&&W.inDemoMode())return null;}catch(x){}
+    /* Demo allowed since 2026-10-13: the drawer synthesizes demo box scores. */
     if(typeof W.cfOpenPlayerDrawer!=='function')return null;
     var k=p.key||('nm:'+p.name+'|'+p.team);
     var m=/^sl:(\d+)$/.exec(p.key||''),o=PLOBJ[k];
@@ -27537,7 +27684,10 @@ body.cf-maniac-lock{overflow:hidden}
     var el=$('#cfm-nfl'); if(!el)return;
     var src=null; try{ src=window.__cfNflGames&&window.__cfNflGames(); }catch(e){}
     var gl=(src&&Array.isArray(src.games))?src.games:[], html;
-    if(!gl.length) html='<div class="cfm-empty">'+(src&&src.key?'No games this week.':'Loading scores…')+'</div>';
+    var dmo=false; try{ dmo=!!(window.inDemoMode&&window.inDemoMode()); }catch(e){}
+    /* Demo never pulls the ESPN slate (it would flip the demo board's players to
+       real pre-kickoff states), so say what fills this instead of "Loading" forever. */
+    if(!gl.length) html='<div class="cfm-empty">'+(dmo&&!(src&&src.key)?'Live NFL scores show here once your leagues are connected.':(src&&src.key?'No games this week.':'Loading scores…'))+'</div>';
     else html=gl.slice().sort(function(a,b){
         return ((a.state==='post'?1:0)-(b.state==='post'?1:0))||((a.kickMs||0)-(b.kickMs||0))||String(a.id).localeCompare(String(b.id));
       }).map(function(g){
@@ -28416,6 +28566,10 @@ body.cf-maniac-lock{overflow:hidden}
 #cfmx-tip .tt{font:600 14px/1.3 var(--font-sans)}
 #cfmx-tip .tt b{color:var(--live-ice);font-weight:800}
 #cfmx-tip .ts{font:500 12px/1.3 var(--font-sans);color:var(--ink-500);margin-top:3px}
+#cfmx-tip .go{margin-left:auto;flex:none;height:34px;padding:0 14px;border-radius:999px;border:0;background:var(--live-ice);color:#0A1A2A;font:800 12.5px/1 var(--font-sans);cursor:pointer}
+#cfmx-tip .go+.x{margin-left:0}
+#cfmx-tip .rot.bolt{animation:none}
+#cfmx-tip .rot.bolt svg{fill:currentColor;stroke:none;width:26px;height:26px}
 #cfmx-tip .x{margin-left:auto;flex:none;width:40px;height:40px;border:0;background:none;color:var(--ink-500);font-size:22px;line-height:1;cursor:pointer}
 /* Desktop / iPad rail tip */
 #cfmx-rtip{position:fixed;z-index:95;display:none;width:280px;padding:14px 14px 12px;border-radius:14px;background:#12283C;border:1px solid color-mix(in oklab,var(--live-ice) 50%,transparent);box-shadow:0 18px 40px -12px rgba(0,0,0,.7);font-family:var(--font-sans);color:var(--ink-900);transform:translateY(-50%)}
@@ -28440,12 +28594,21 @@ body.cf-maniac-lock{overflow:hidden}
   var K_TIP='cf_maniac_rotate_tip_v1', K_RTIP='cf_maniac_railtip_day', K_UP='cf_maniac_uphint_n';
   var ROT='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="2.5" width="9" height="15" rx="1.8"/><path d="M10 14.5h.01"/><path d="M20.5 11a8 8 0 0 1-7 9.5"/><path d="M15.6 22.3 13.4 20.6l1.8-2.1"/></svg>';
   function ls(k,v){ try{ if(v===undefined)return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){} return null; }
-  function track(n,p){ try{ cfTrack(n,p||{}); }catch(e){} }
+  function track(n,p){ try{ if(demo())p=Object.assign({},p||{},{demo:true}); cfTrack(n,p||{}); }catch(e){} }
+  /* Demo (2026-10-13, Matt): the demo is a live Sunday, so it always counts as the
+     hot window — the desktop rail shows the Maniac tab — and every demo visit gets
+     the prompt (phone: rotate tip; narrow non-phone: Try Maniac Mode + Open;
+     desktop: rail tip) a few seconds after the board lands. Demo dismissals live in
+     memory only, so they never suppress the real tips once the user signs up. */
+  function demo(){ try{ return !!(window.inDemoMode&&window.inDemoMode()); }catch(e){ return false; } }
+  var DEMO_DELAY=3500, demoSince=0, demoTipDone=false;
+  var BOLT='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2z"/></svg>';
   function slate(){ try{ var g=window.__cfNflGames&&window.__cfNflGames(); return (g&&g.games)||[]; }catch(e){ return []; } }
   /* Hot = a game in progress, or a kickoff within 30 min. Pure time math on the
      slate's kickoffs, so the window opens on its own without a fresh pull; the 5h
      cap keeps a stale slate (board parked on a past week) from holding it open. */
   function hotInfo(){
+    if(demo())return { hot:true, live:2, next:Infinity, demo:true };
     var now=Date.now(), live=0, next=Infinity;
     slate().forEach(function(x){
       var k=x.kickMs||0;
@@ -28482,7 +28645,7 @@ body.cf-maniac-lock{overflow:hidden}
     if(ok&&!document.getElementById('cfm')&&typeof window.__cfManiacStage==='function')window.__cfManiacStage();
     if(ok&&!window.__cfManiacOpen&&!openT&&!lastLand&&typeof window.__cfManiacWarm==='function'){ var r=document.getElementById('cfm'); if(r&&!r.classList.contains('cfm-warm'))window.__cfManiacWarm(); }
   }
-  function checkOrient(){ orient(); arm(); }
+  function checkOrient(){ orient(); arm(); tipGuard(); }
   /* sw v356: the board's first render (~200ms of layout on a phone) used to run the
      instant the phone turned, freezing the main thread mid-rotation so iOS's rotation
      animation stuttered. Now the rotation runs on the CSS shell alone (top bar + empty
@@ -28512,7 +28675,8 @@ body.cf-maniac-lock{overflow:hidden}
       if(!inApp())return;                       /* app not ready: retry on the next check */
       lastLand=true;
       if(typeof window.showManiac!=='function')return;
-      if(ls(K_TIP)!=='1')ls(K_TIP,'1');         /* they found it — the tip has done its job */
+      if(demo())demoTipDone=true;
+      else if(ls(K_TIP)!=='1')ls(K_TIP,'1');    /* they found it — the tip has done its job */
       openAfterRotate();
     }else{
       lastLand=false;
@@ -28523,18 +28687,34 @@ body.cf-maniac-lock{overflow:hidden}
   }
 
   /* ---- phone tip (once, hot window only) ---- */
-  var tip=null;
-  function phoneTip(show){
+  var tip=null, tipKind='';
+  /* kind: 'rotate' (real phone tip) | 'demo-rotate' (phone, demo: same tip, every demo visit —
+     no Open button since Maniac is landscape-only on phones) | 'demo-open' (narrow non-phone, demo: + Open) */
+  function phoneTip(show,kind){
+    kind=kind||'rotate';
     if(show&&!tip){
       tip=document.createElement('div'); tip.id='cfmx-tip'; tip.setAttribute('role','status');
-      tip.innerHTML='<span class="rot">'+ROT+'</span><div><div class="tt">Turn your phone sideways for <b>Maniac Mode</b></div><div class="ts">Every matchup, live, on one screen.</div></div><button type="button" class="x" aria-label="Dismiss">×</button>';
       document.body.appendChild(tip);
-      tip.querySelector('.x').addEventListener('click',function(){ ls(K_TIP,'1'); phoneTip(false); track('maniac_tip',{kind:'rotate',action:'dismiss'}); });
+      tip.addEventListener('click',function(e){
+        var b=e.target.closest&&e.target.closest('button'); if(!b)return;
+        var k=tipKind;
+        if(k.indexOf('demo')===0)demoTipDone=true; else ls(K_TIP,'1');
+        phoneTip(false);
+        if(b.classList.contains('go')){ track('maniac_tip',{kind:k,action:'open'}); if(typeof window.showManiac==='function')window.showManiac({via:'tip'}); }
+        else track('maniac_tip',{kind:k,action:'dismiss'});
+      });
     }
     if(!tip)return;
+    if(show&&tipKind!==kind){
+      tipKind=kind;
+      var rot=kind!=='demo-open';
+      tip.innerHTML='<span class="rot'+(rot?'':' bolt')+'">'+(rot?ROT:BOLT)+'</span><div><div class="tt">'+(rot?'Turn your phone sideways for <b>Maniac Mode</b>':'Try <b>Maniac Mode</b>')+'</div><div class="ts">Every matchup, live, on one screen.</div></div>'
+        +(kind==='demo-open'?'<button type="button" class="go">Open</button>':'')
+        +'<button type="button" class="x" aria-label="Dismiss">×</button>';
+    }
     var was=tip.classList.contains('on');
     tip.classList.toggle('on',!!show);
-    if(show&&!was)track('maniac_tip',{kind:'rotate',action:'shown'});
+    if(show&&!was)track('maniac_tip',{kind:kind,action:'shown'});
   }
 
   /* ---- desktop / iPad rail tip (once per game day) ---- */
@@ -28548,32 +28728,45 @@ body.cf-maniac-lock{overflow:hidden}
       document.body.appendChild(rt);
       rt.addEventListener('click',function(e){
         var b=e.target.closest('button'); if(!b)return;
-        ls(K_RTIP,today()); railTip(false);
+        if(demo())demoTipDone=true; else ls(K_RTIP,today()); railTip(false);
         if(b.classList.contains('go')){ if(typeof window.showManiac==='function')window.showManiac({via:'railtip'}); }
         else track('maniac_tip',{kind:'rail',action:'dismiss'});
       });
     }
     if(!rt)return;
     if(!show){ rt.classList.remove('on'); return; }
-    var k=info.live?(info.live+(info.live===1?' game live':' games live')):('Kickoff in '+Math.max(1,Math.ceil(info.next/60000))+' min');
+    var k=info.demo?'Demo · live matchups':(info.live?(info.live+(info.live===1?' game live':' games live')):('Kickoff in '+Math.max(1,Math.ceil(info.next/60000))+' min'));
     rt.querySelector('.k span').textContent=k;
+    rt.querySelector('.h').textContent=info.demo?'Try Maniac Mode':'Maniac Mode moved up top';
     var r=tab.getBoundingClientRect();
     rt.style.left=Math.round(r.right+14)+'px'; rt.style.top=Math.round(r.top+r.height/2)+'px';
     if(!rt.classList.contains('on')){ rt.classList.add('on'); track('maniac_tip',{kind:'rail',action:'shown'}); }
   }
   /* Clicking the rail tab itself also counts as seeing the tip for today. */
   document.addEventListener('click',function(e){
-    if(e.target.closest&&e.target.closest('#cf-side-rail [data-rail-tab="maniac"]')){ ls(K_RTIP,today()); railTip(false); }
+    if(e.target.closest&&e.target.closest('#cf-side-rail [data-rail-tab="maniac"]')){ if(demo())demoTipDone=true; else ls(K_RTIP,today()); railTip(false); }
   },true);
 
   function paint(){
     var b=document.body; if(!b)return;
-    var info=hotInfo();
+    var info=hotInfo(), dm=!!info.demo;
+    if(dm&&!demoSince){ demoSince=Date.now(); setTimeout(paint,DEMO_DELAY+60); }
+    if(!dm)demoSince=0;
+    if(dm&&window.__cfManiacOpen)demoTipDone=true;
+    var demoReady=dm&&!demoTipDone&&Date.now()-demoSince>=DEMO_DELAY;
     b.classList.toggle('cf-maniac-hot',info.hot);
     var ok=info.hot&&inApp()&&!window.__cfManiacOpen&&!sheetOpen();
-    phoneTip(ok&&isPhone()&&!isLand()&&ls(K_TIP)!=='1');
     var desk=false; try{ desk=window.matchMedia('(min-width: 900px)').matches; }catch(e){}
-    railTip(ok&&desk&&ls(K_RTIP)!==today(),info);
+    var ph=isPhone();
+    if(dm)phoneTip(ok&&demoReady&&!desk&&!(ph&&isLand()),ph?'demo-rotate':'demo-open');
+    else phoneTip(ok&&ph&&!isLand()&&ls(K_TIP)!=='1','rotate');
+    railTip(ok&&desk&&(dm?demoReady:ls(K_RTIP)!==today()),info);
+  }
+  /* Cheap 1s check: a tip never outlives the board (exit demo → landing) or a sheet opening over it. */
+  function tipGuard(){
+    var on=(tip&&tip.classList.contains('on'))||(rt&&rt.classList.contains('on'));
+    if(on&&(!inApp()||window.__cfManiacOpen||sheetOpen()))paint();
+    if(!on&&demo()&&!demoTipDone&&(!demoSince||Date.now()-demoSince>=DEMO_DELAY))paint();
   }
 
   try{ if(screen.orientation&&screen.orientation.addEventListener)screen.orientation.addEventListener('change',function(){ setTimeout(checkOrient,60); }); }catch(e){}
