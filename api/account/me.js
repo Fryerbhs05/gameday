@@ -5,6 +5,7 @@
 //   POST /api/account/me?action=logout     -> clear the account cookie
 //   POST /api/account/me?action=delete     -> permanently delete account + data
 //   POST /api/account/me?action=sleeper    -> save/clear the Sleeper username
+//   POST /api/account/me?action=manual     -> save the manually entered leagues
 //        body { username } saves it; empty/missing username clears it.
 
 const A = require('../_lib/accounts');
@@ -64,12 +65,18 @@ async function handleMe(req, res) {
   // Account-level "global exclude" list — leagues the user switched OFF in the
   // Account view. The client drops these from the calculation layer on load so
   // the exclusion follows across devices. Best-effort: failure → empty list.
+  // Read the disabled list and the manual leagues in PARALLEL and independently:
+  // a failure in one (e.g. the manual_leagues column missing) must never cost the
+  // other. manualLeagues stays undefined on failure so the client keeps its own
+  // copy instead of treating the account as empty.
   let disabledLeagues = [];
-  try {
-    disabledLeagues = await A.getDisabledLeagues(acct.uid);
-  } catch (e) {
-    console.error('account/me disabled-leagues read:', e.message);
-  }
+  let manualLeagues;
+  await Promise.all([
+    A.getDisabledLeagues(acct.uid).then((v) => { disabledLeagues = v; })
+      .catch((e) => console.error('account/me disabled-leagues read:', e.message)),
+    A.getManualLeagues(acct.uid).then((v) => { manualLeagues = v; })
+      .catch((e) => console.error('account/me manual-leagues read:', e.message))
+  ]);
   // ── Rolling session ────────────────────────────────────────────
   // The account cookie was issued at sign-in with a hard 30-day Max-Age and
   // never refreshed, so an actively-used device got silently signed out exactly
@@ -96,7 +103,7 @@ async function handleMe(req, res) {
   }
   res
     .status(200)
-    .json({ signedIn: true, enabled: true, email: acct.email, name, platforms, sleeper: sleeperUsername, disabledLeagues });
+    .json({ signedIn: true, enabled: true, email: acct.email, name, platforms, sleeper: sleeperUsername, disabledLeagues, manualLeagues });
 }
 
 // ── POST ?action=logout: end session on this device ──────────────
@@ -238,6 +245,31 @@ async function handleLeagues(req, res) {
   }
 }
 
+// ── POST ?action=manual: save the account's manually entered leagues ──
+// Body { manualLeagues: [ ... ] }. Replaces the stored array wholesale (the
+// client always sends the full current set, including deletions).
+async function handleManual(req, res) {
+  if (!A.accountsConfigured()) {
+    res.status(503).json({ error: 'Accounts are not enabled.' });
+    return;
+  }
+  const acct = A.readAccount(req);
+  if (!acct) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+  try {
+    const body = await readJsonBody(req);
+    const list = Array.isArray(body && body.manualLeagues) ? body.manualLeagues : [];
+    const saved = await A.setManualLeagues(acct.uid, list);
+    res.status(200).json({ ok: true, manualLeagues: saved || [] });
+  } catch (e) {
+    if (e && e.code === 'TOO_LARGE') { res.status(413).json({ error: 'Too much league data.' }); return; }
+    console.error('account/manual error:', e.message);
+    res.status(500).json({ error: 'Could not save your manual leagues.' });
+  }
+}
+
 module.exports = async (req, res) => {
   // Identity is per-cookie and must never be cached — otherwise a browser can
   // re-render a stale account after the session cookie changes (e.g. clicking a
@@ -251,6 +283,7 @@ module.exports = async (req, res) => {
     if (action === 'sleeper') return handleSleeper(req, res);
     if (action === 'profile') return handleProfile(req, res);
     if (action === 'leagues') return handleLeagues(req, res);
+    if (action === 'manual') return handleManual(req, res);
     res.status(400).json({ error: 'Unknown action' });
     return;
   }
