@@ -25875,6 +25875,37 @@ body.cf-maniac-lock{overflow:hidden}
 @keyframes cfmScPulse{0%,100%{opacity:1}50%{opacity:.25}}
 #cfm .cfm-ti .sc-what{font:800 var(--txs) var(--font-mono);color:var(--live-ice);letter-spacing:.02em;text-transform:uppercase}
 @media (prefers-reduced-motion:reduce){#cfm .cfm-ti .sc-chip i{animation:none}}
+/* TOUCHDOWN ALERT (2026-10-13, "Flood"): the ticker well fills green (Cheer) / gold
+   (Conflicted) left to right for 10s, then hands back to the ticker. */
+#cfm .cfm-tk{position:relative}
+#cfm .cfm-tk-run{transition:opacity .2s}
+#cfm.tk-td .cfm-tk-run,#cfm.tk-td .cfm-tk-empty{opacity:0}
+#cfm .cfm-td{position:absolute;inset:0;z-index:5;display:none;border:0;padding:0;margin:0;border-radius:var(--radius-pill);background:var(--cheer);color:#08140D;cursor:pointer;text-align:left;font:inherit;clip-path:inset(0 100% 0 0)}
+#cfm .cfm-td.b-x{background:var(--split);color:#1A1206}
+#cfm .cfm-td.in,#cfm .cfm-td.out{display:block}
+#cfm .cfm-td.in{animation:cfmTdIn .42s cubic-bezier(.3,.8,.2,1) forwards}
+#cfm .cfm-td.out{clip-path:inset(0 0 0 0);animation:cfmTdOut .42s cubic-bezier(.6,0,.8,.2) forwards}
+@keyframes cfmTdIn{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes cfmTdOut{from{clip-path:inset(0 0 0 0)}to{clip-path:inset(0 0 0 100%)}}
+#cfm .cfm-td .row{position:absolute;inset:0;display:flex;align-items:center;gap:10px;padding:0 18px;white-space:nowrap;overflow:hidden}
+#cfm.compact .cfm-td .row{gap:8px;padding:0 13px}
+#cfm .cfm-td .big{font:900 var(--b)/1 var(--font-sans);letter-spacing:.16em;text-transform:uppercase;flex:none}
+#cfm.compact .cfm-td .big{letter-spacing:.1em}
+#cfm .cfm-td.in .big{animation:cfmTdBlink .9s steps(1) .35s 2}
+@keyframes cfmTdBlink{50%{opacity:.15}}
+#cfm .cfm-td .dt{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.5;flex:none}
+#cfm .cfm-td .nm{font:800 calc(var(--b)*.92)/1 var(--font-sans);flex:none}
+#cfm .cfm-td .nm .ab,#cfm .cfm-td .row.short .nm .fu{display:none}
+#cfm .cfm-td .row.short .nm .ab{display:inline}
+#cfm .cfm-td .pl,#cfm .cfm-td .fr{font:700 calc(var(--b)*.76)/1 var(--font-mono);letter-spacing:.04em;text-transform:uppercase;flex:none}
+#cfm .cfm-td .fr{opacity:.75}
+#cfm .cfm-td .hl{font:600 calc(var(--b)*.76)/1 var(--font-sans);flex:none;opacity:.85}
+#cfm .cfm-td .hl b{font-weight:800;letter-spacing:.08em;font-size:.86em;text-transform:uppercase;margin-right:4px}
+#cfm .cfm-td .hl .ct,#cfm .cfm-td .row.cnt .hl .ls{display:none}
+#cfm .cfm-td .row.cnt .hl .ct{display:inline}
+#cfm .cfm-td.in .row>*:not(.big){opacity:0;animation:cfmTdFade .35s ease .55s forwards}
+@keyframes cfmTdFade{to{opacity:1}}
+@media (prefers-reduced-motion:reduce){#cfm .cfm-td.in,#cfm .cfm-td.out,#cfm .cfm-td.in .row>*{animation-duration:.01s;animation-delay:0s}#cfm .cfm-td.in .big{animation:none}}
 #cfm .cfm-ctrls{display:flex;align-items:center;gap:8px;transition:opacity .4s}
 #cfm .cfm-ib{height:40px;min-width:40px;padding:0 12px;border:1px solid var(--line);border-radius:var(--radius-pill);display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:var(--txs);font-weight:600;color:var(--ink-700)}
 #cfm .cfm-ib svg{width:20px;height:20px}
@@ -26845,7 +26876,7 @@ body.cf-maniac-lock{overflow:hidden}
     if(!M||M.status!=='ok')return;
     var wk=''; try{ wk=String((window.getActiveSeason&&window.getActiveSeason())||'')+'-'+String((window.getActiveWeek&&window.getActiveWeek())||''); }catch(e){}
     if(wk!==TK.wk){ TK.wk=wk; TK.base={}; TK.fresh=[]; }
-    var gate=null, now=Date.now();
+    var gate=null, now=Date.now(), tdEv=[];
     rootingList().forEach(function(r){
       if(r.st!=='in'&&r.st!=='post')return;
       var p=r.p, row=(typeof window.cfStatRow==='function')?window.cfStatRow(p):null;
@@ -26853,6 +26884,12 @@ body.cf-maniac-lock{overflow:hidden}
       var cur={}; TK_KEYS.forEach(function(k){ cur[k]=sv(row,k); });
       var b=TK.base[p.id]; TK.base[p.id]=cur;
       if(!b)return;                                          // first sight = baseline only
+      /* Touchdown alert: Cheer + Conflicted only, any ticker bucket filter, ticker on. */
+      if(r.b!=='e'&&P.ticker.on){
+        var tdd={}, tdAny=false;
+        TD_KEYS.forEach(function(k){ var dv=cur[k]-b[k]; if(dv>0.5){ tdd[k]=Math.round(dv); tdAny=true; } });
+        if(tdAny)tdEv.push({r:r, d:tdd, yd:{pass:cur.pass_yd-b.pass_yd, rush:cur.rush_yd-b.rush_yd, rec:cur.rec_yd-b.rec_yd}});
+      }
       if(!gate)gate=tkGate();
       var d={}, any=false;
       TK_KEYS.forEach(function(k){ if(!gate[k])return; var dv=cur[k]-b[k]; if(Math.abs(dv)>1e-9){ d[k]=dv; any=true; } });
@@ -26860,6 +26897,7 @@ body.cf-maniac-lock{overflow:hidden}
       /* Card content is captured NOW and never repainted. */
       TK.fresh.push({pid:p.id, html:tkItemHTML(r,{d:d,label:tkLabel(d)}), b:r.b, t:now});
     });
+    if(tdEv.length)tdQueue(tdEv);
   }
   function tkWants(r){ return !((r.b==='x'&&!P.ticker.x)||(r.b==='e'&&!P.ticker.e)); }
   function tkList(){
@@ -26914,7 +26952,7 @@ body.cf-maniac-lock{overflow:hidden}
   }
   function tkPlayState(){
     var a=TK.anim; if(!a)return;
-    var run=!!(TK.iv&&!TK.paused&&!TK_REDUCED&&document.visibilityState!=='hidden');
+    var run=!!(TK.iv&&!TK.paused&&!TD.on&&!TK_REDUCED&&document.visibilityState!=='hidden');   // frozen under a TD alert, resumes from the same spot
     try{ if(run&&a.playState!=='running')a.play(); else if(!run&&a.playState==='running')a.pause(); }catch(e){}
   }
   /* Shift every card back by the distance scrolled and zero the animation, in one task. */
@@ -27045,7 +27083,108 @@ body.cf-maniac-lock{overflow:hidden}
   function tkReset(){
     TK.cur=0; TK.base={}; TK.fresh=[]; TK.rows={}; TK.order=[]; TK.wk='';
     tkClear();
+    TD.q=[]; TD.on=false; clearTimeout(TD.tm); tdShow(false);
   }
+  /* ---------- TOUCHDOWN ALERT (2026-10-13, sw v353) ---------------------
+     A Cheer or Conflicted player's TD (rush, catch, pass, defensive, return)
+     turns the ticker well into the "Flood" alert for 10s: the well fills green
+     (Cheer) or gold (Conflicted) left to right, TOUCHDOWN flashes twice, then
+     the player and the play. Helps / Hurts leagues show ONLY for a Conflicted
+     player and come LAST: when the well is too narrow (phone sideways) they are
+     the first thing dropped, then "from QB", then the full name becomes
+     F. Lastname — the TD stat itself is never dropped (Matt, 2026-10-13).
+     A pass from one Cheer/Conflicted player to another on the same team in the
+     same sync is ONE alert naming the receiver ("from J. Allen"). The ticker
+     freezes underneath (tkPlayState) and resumes from the same spot; several TDs
+     queue back-to-back. Detected in tkDetect from the same Sleeper /stats diff as
+     the STAT CHANGE cards (which still run afterwards). Tap = player drawer. */
+  var TD_HOLD=10000, TD_KEYS=['pass_td','rush_td','rec_td','def_td','def_st_td'];
+  var TD={q:[], on:false, tm:0};
+  function tdPlay(e){
+    var d=e.d, y=function(v){ v=Math.round(v||0); return v>0?v+' yd ':''; };
+    if(d.rec_td)  return d.rec_td>1 ?d.rec_td+' rec TDs'  :y(e.yd.rec)+'rec TD';
+    if(d.rush_td) return d.rush_td>1?d.rush_td+' rush TDs':y(e.yd.rush)+'rush TD';
+    if(d.pass_td) return d.pass_td>1?d.pass_td+' pass TDs':y(e.yd.pass)+'pass TD';
+    if(d.def_td)  return 'Defensive TD';
+    return 'Return TD';
+  }
+  function tdQueue(evs){
+    var team=function(e){ return String(e.r.p.team||''); }, used={};
+    /* Pass + catch in the same sync on the same team = one play: name the receiver. */
+    evs.forEach(function(e,i){
+      if(!e.d.rec_td||!team(e))return;
+      for(var j=0;j<evs.length;j++){
+        var q=evs[j]; if(j===i||used[j]||!q.d.pass_td||team(q)!==team(e))continue;
+        used[j]=1; e.qb=q; break;
+      }
+    });
+    evs.forEach(function(e,i){
+      if(used[i])return;
+      var r=e.r, p=r.p, mine=r.mine.slice(), theirs=r.theirs.slice();
+      if(e.qb){
+        e.qb.r.mine.forEach(function(n){ if(mine.indexOf(n)<0)mine.push(n); });
+        e.qb.r.theirs.forEach(function(n){ if(theirs.indexOf(n)<0)theirs.push(n); });
+      }
+      var qp=e.qb&&e.qb.r.p;
+      TD.q.push({pid:p.id, name:p.full_name||'Player', short:shortName(p.full_name,p.position,p.team), play:tdPlay(e),
+        from:qp?shortName(qp.full_name,qp.position,qp.team):'', b:(mine.length&&theirs.length)?'x':'c', helps:mine, hurts:theirs});
+    });
+    if(TD.q.length>6)TD.q.splice(0,TD.q.length-6);
+    if(!TD.on)tdNext();
+  }
+  /* Shrink, in order, until the row fits: league names -> counts ("Helps 2"),
+     drop Helps/Hurts, drop "from QB", full name -> F. Lastname. */
+  function tdFit(row){
+    var over=function(){ return row.scrollWidth>row.clientWidth+1; };
+    var steps=[
+      function(){ row.classList.add('cnt'); },
+      function(){ [].forEach.call(row.querySelectorAll('.hh'),function(x){ x.style.display='none'; }); },
+      function(){ var f=row.querySelector('.fr'); if(f)f.style.display='none'; },
+      function(){ row.classList.add('short'); }
+    ];
+    for(var i=0;i<steps.length&&over();i++)steps[i]();
+  }
+  function tdShow(on){
+    if(!root)return;
+    if(!on){ root.classList.remove('tk-td'); var el=root.querySelector('.cfm-td'); if(el){ el.className='cfm-td'; el.innerHTML=''; } }
+    tkPlayState();
+  }
+  function tdNext(){
+    var a=TD.q.shift(), tk=$('#cfm-tk');
+    if(!a||!root||!window.__cfManiacOpen||!tk||!P.ticker.on){ TD.on=false; TD.q=[]; tdShow(false); return; }
+    TD.on=true;
+    var el=tk.querySelector('.cfm-td');
+    if(!el){ el=document.createElement('button'); el.type='button'; tk.appendChild(el); }
+    var lg=function(arr){ return arr.map(function(n){ return esc(maskL(n)); }).join(', '); };
+    el.className='cfm-td '+(a.b==='x'?'b-x':'b-c');
+    el.setAttribute('data-cfm-player',a.pid);
+    el.setAttribute('aria-label','Touchdown: '+a.name+', '+a.play+(a.from?' from '+a.from:''));
+    el.innerHTML='<span class="row"><span class="big">Touchdown</span><span class="dt"></span>'
+      +'<span class="nm"><span class="fu">'+esc(a.name)+'</span><span class="ab">'+esc(a.short)+'</span></span>'
+      +'<span class="pl">'+esc(a.play)+'</span>'
+      +(a.from?'<span class="fr">from '+esc(a.from)+'</span>':'')
+      +(a.b==='x'?'<span class="dt hh"></span>'
+        +(a.helps.length?'<span class="hl hh"><b>Helps</b><span class="ls">'+lg(a.helps)+'</span><span class="ct">'+a.helps.length+'</span></span>':'')
+        +(a.hurts.length?'<span class="hl hh"><b>Hurts</b><span class="ls">'+lg(a.hurts)+'</span><span class="ct">'+a.hurts.length+'</span></span>':''):'')
+      +'</span>';
+    root.classList.add('tk-td');
+    void el.offsetWidth; el.classList.add('in');
+    tdFit(el.querySelector('.row'));
+    tkPlayState();
+    try{ cfTrack('maniac_td_alert',{b:a.b}); }catch(_){}
+    clearTimeout(TD.tm);
+    TD.tm=setTimeout(function(){
+      el.classList.remove('in'); el.classList.add('out');
+      TD.tm=setTimeout(function(){
+        if(TD.q.length){ el.className='cfm-td'; tdNext(); return; }
+        TD.on=false; tdShow(false);
+      },450);
+    },TD_HOLD);
+  }
+  window.__cfManiacTestTD=function(kind){   /* console preview: __cfManiacTestTD('x') */
+    var l=rootingList().filter(function(r){ return kind==='x'?r.b==='x':r.b==='c'; })[0]; if(!l)return 'no '+(kind==='x'?'Conflicted':'Cheer')+' player';
+    tdQueue([{r:l, d:{rush_td:1}, yd:{rush:12}}]); return l.p.full_name;
+  };
   document.addEventListener('visibilitychange',tkPlayState);   // hidden tab: hold position instead of jumping ahead on return
 
   /* ---------- side drawer: player box score / settings ---------- */
@@ -27247,6 +27386,7 @@ body.cf-maniac-lock{overflow:hidden}
     S.sheet=null; S.heroAt=Date.now(); S.pausedAt=0; S.lastHero=null; S.last={}; S.chg={}; S.railFl={}; S.wk=''; S.nflHtml='';
     tkReset();
     root.classList.add('is-open');
+    root.classList.toggle('via-rot',opts.via==='rotate');
     document.body.classList.add('cf-maniac-lock');
     /* Opened by turning a phone sideways: never lock — turning it back upright is the exit. */
     if(opts.via!=='rotate'){ try{ if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(function(){}); }catch(e){} }
@@ -27268,8 +27408,8 @@ body.cf-maniac-lock{overflow:hidden}
     if(!root)return;
     window.__cfManiacOpen=false;
     if(root.classList.contains('wall'))setWall(false);
-    root.classList.remove('is-open');
-    document.body.classList.remove('cf-maniac-lock');
+    root.classList.remove('is-open','via-rot');
+    document.body.classList.remove('cf-maniac-lock','cf-mx-armed');
     S.sheet=null; renderSheet(); S.pausedAt=0;
     if(ticker){ clearInterval(ticker); ticker=null; }
     tkStop();
@@ -27304,6 +27444,18 @@ body.cf-maniac-lock{overflow:hidden}
 .cfrail-maniac svg{fill:currentColor;stroke:none}
 .cfrail-maniac .cfmx-dot{position:absolute;top:8px;left:calc(50% + 9px);width:7px;height:7px;border-radius:50%;background:var(--live-ice);animation:cfmxPing 2s infinite}
 @keyframes cfmxPing{0%{box-shadow:0 0 0 0 color-mix(in oklab,var(--live-ice) 65%,transparent)}100%{box-shadow:0 0 0 7px transparent}}
+/* Rotation handoff (sw v354): CSS media queries flip in the SAME layout pass as the
+   rotation, before any JS event fires. Sideways: a Maniac-colored cover hides the
+   landscape dashboard until showManiac paints (body.cf-mx-armed = phone, in app, Maniac
+   closed or open — never after an explicit Exit while sideways). Upright: a rotate-opened
+   Maniac vanishes at once instead of flashing "Turn it sideways". Aspect guard keeps an
+   Android portrait keyboard from reading as landscape. */
+@media (orientation:landscape) and (min-aspect-ratio:3/2) and (max-height:520px){
+  body.cf-mx-armed:not(.nav-landing)::after{content:"";position:fixed;inset:0;z-index:9499;background:var(--paper)}
+}
+@media (orientation:portrait){ #cfm.via-rot{display:none!important} }
+#cfm.via-rot.is-open>.cfm-top,#cfm.via-rot.is-open>.cfm-main{animation:cfmxRotIn .18s ease-out both}
+@keyframes cfmxRotIn{from{opacity:0}}
 /* Phone first-open tip */
 #cfmx-tip{position:fixed;left:12px;right:12px;bottom:calc(var(--cbnav-h,87px) + var(--exp-ribbon-h,0px) + 12px);z-index:9000;display:none;align-items:center;gap:12px;padding:13px 6px 13px 14px;border-radius:16px;background:#12283C;border:1px solid color-mix(in oklab,var(--live-ice) 50%,transparent);box-shadow:0 18px 40px -12px rgba(0,0,0,.7);color:var(--ink-900);font-family:var(--font-sans);max-width:520px;margin:0 auto}
 #cfmx-tip.on{display:flex;animation:cfmxIn .45s var(--ease-out) both}
@@ -27374,7 +27526,13 @@ body.cf-maniac-lock{overflow:hidden}
       r.appendChild(h); setTimeout(function(){ if(h.parentNode)h.parentNode.removeChild(h); },3800);
     },400);
   }
-  function checkOrient(){
+  function arm(){
+    var b=document.body; if(!b)return;
+    var ok=isPhone()&&inApp()&&(typeof window.cfCanManiac!=='function'||window.cfCanManiac())&&(!lastLand||window.__cfManiacOpen);
+    b.classList.toggle('cf-mx-armed',!!ok);
+  }
+  function checkOrient(){ orient(); arm(); }
+  function orient(){
     if(!isPhone())return;
     var land=isLand();
     if(land===lastLand)return;
@@ -27449,11 +27607,13 @@ body.cf-maniac-lock{overflow:hidden}
 
   try{ if(screen.orientation&&screen.orientation.addEventListener)screen.orientation.addEventListener('change',function(){ setTimeout(checkOrient,60); }); }catch(e){}
   window.addEventListener('orientationchange',function(){ setTimeout(checkOrient,150); });
-  window.addEventListener('resize',function(){ setTimeout(checkOrient,60); if(rt&&rt.classList.contains('on'))paint(); });
+  window.addEventListener('resize',function(){ checkOrient(); setTimeout(checkOrient,60); if(rt&&rt.classList.contains('on'))paint(); });
+  try{ var mqO=window.matchMedia('(orientation: landscape)'); var onMq=function(){ checkOrient(); }; if(mqO.addEventListener)mqO.addEventListener('change',onMq); else if(mqO.addListener)mqO.addListener(onMq); }catch(e){}
   document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'){ checkOrient(); paint(); } });
   setInterval(checkOrient,1000);
   setInterval(paint,5000);
   setTimeout(paint,1200);
+  setTimeout(arm,1200);
 })();
 </script>
 
