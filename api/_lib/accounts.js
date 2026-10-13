@@ -435,6 +435,40 @@ async function setDisabledLeagues(uid, keys) {
   });
   return clean;
 }
+/* ── Manual leagues ("Add matchup manually", 2026-10-13) ───────────
+   Leagues the user typed in by hand for platforms Conflicted can't connect to.
+   Stored as one jsonb array on the profile row (column manual_leagues). The
+   client always sends the FULL array, so this replaces wholesale. Sanitized to
+   plain JSON objects and capped so a malformed client can't bloat the row. */
+const MANUAL_MAX_BYTES = 200 * 1024;
+async function getManualLeagues(uid) {
+  if (!uid) return [];
+  const rows = await sbFetch(
+    `user_profiles?user_id=eq.${uid}&select=manual_leagues`
+  );
+  const v = rows && rows[0] ? rows[0].manual_leagues : null;
+  return Array.isArray(v) ? v : [];
+}
+async function setManualLeagues(uid, leagues) {
+  if (!uid) return;
+  const clean = (Array.isArray(leagues) ? leagues : [])
+    .filter((l) => l && typeof l === 'object' && !Array.isArray(l) && typeof l.id === 'string' && typeof l.name === 'string')
+    .slice(0, 25);
+  const json = JSON.stringify(clean);
+  if (json.length > MANUAL_MAX_BYTES) {
+    const e = new Error('Manual leagues too large');
+    e.code = 'TOO_LARGE';
+    throw e;
+  }
+  await sbFetch('user_profiles', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify([
+      { user_id: uid, manual_leagues: clean, updated_at: new Date().toISOString() }
+    ])
+  });
+  return clean;
+}
 // Full account erasure (GDPR/CCPA "delete my data").
 async function deleteUserData(uid, email) {
   await sbFetch(`platform_sessions?user_id=eq.${uid}`, {
@@ -520,6 +554,8 @@ module.exports = {
   getProfile,
   getDisabledLeagues,
   setDisabledLeagues,
+  getManualLeagues,
+  setManualLeagues,
   saveMagicToken,
   consumeMagicToken,
   saveSignInCode,
