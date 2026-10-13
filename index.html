@@ -16124,7 +16124,17 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
 var LS_KEY='cf_manual_v1', PEND_KEY='cf_manual_pending_v1', OWNER='manual-wizard';
 var S={leagues:[], email:null};
 
-function isOn(){ try{ return typeof window.cfIsAdmin==='function' && !!window.cfIsAdmin() && !isDemoMode; }catch(e){ return false; } }
+/* Who sees manual matchups while it's in beta: Matt (via cfIsAdmin) + named testers.
+   Add an email here to widen the beta; lowercase. */
+var MANUAL_BETA_EMAILS=['randonfoldhazi@yahoo.com'];
+function isOn(){
+  try{
+    if(isDemoMode) return false;
+    if(typeof window.cfIsAdmin==='function' && window.cfIsAdmin()) return true;
+    var a=window.__account||{};
+    return !!(a.signedIn && a.email && MANUAL_BETA_EMAILS.indexOf(String(a.email).trim().toLowerCase())>=0);
+  }catch(e){ return false; }
+}
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 function f2(v){ return (Math.round((+v||0)*100)/100).toFixed(2); }
 function track(n,p){ try{ if(typeof window.cfTrack==='function') window.cfTrack(n,p||{}); }catch(e){} }
@@ -16355,7 +16365,7 @@ function drawerFoot(ctx){
       ?'<div class="mm-dfoot__row"><button type="button" data-mm="edit" data-id="'+esc(L.id)+'" data-step="3">Edit lineup</button><button type="button" data-mm="edit" data-id="'+esc(L.id)+'" data-step="4">'+(hasOpp?'Edit opponent':'Add opponent')+'</button></div>'
       :'<p class="mm-dfoot__note">Lineups and opponents are edited from the current week.</p>')
     +'<button type="button" class="mm-dfoot__del" data-mm="delask">Delete this league</button></div>'
-    +'<div class="mm-dfoot__confirm" data-mm-confirm hidden><p>Delete <b>'+esc(L.name)+'</b>? It leaves My Matchups and Loyalties for every week. This can’t be undone.</p>'
+    +'<div class="mm-dfoot__confirm" data-mm-confirm hidden><p>Delete <b>'+esc(L.name)+'</b>? This can’t be undone.</p>'
     +'<div class="mm-dfoot__row"><button type="button" class="mm-ghost" data-mm="delcancel">Cancel</button><button type="button" class="mm-danger" data-mm="delgo" data-id="'+esc(L.id)+'">Delete league</button></div></div>'
     +'</div>';
 }
@@ -16609,7 +16619,7 @@ function reviewHtml(){
     +'<p class="mmw-fine">Conflicted calculates this score from live NFL stats using your settings, so it can be a little off from your league’s site.</p>';
   if(W.mode!=='new'){
     h+=W.delAsk
-      ?'<div class="mmw-delbox"><p>Delete <b>'+esc(d.name)+'</b>? It leaves My Matchups and Loyalties for every week. This can’t be undone.</p><div class="row"><button type="button" data-mm="wdelcancel">Cancel</button><button type="button" class="go" data-mm="delgo" data-id="'+esc(W.id)+'">Delete league</button></div></div>'
+      ?'<div class="mmw-delbox"><p>Delete <b>'+esc(d.name)+'</b>? This can’t be undone.</p><div class="row"><button type="button" data-mm="wdelcancel">Cancel</button><button type="button" class="go" data-mm="delgo" data-id="'+esc(W.id)+'">Delete league</button></div></div>'
       :'<button type="button" class="mmw-del" data-mm="wdelask">Delete this league</button>';
   }
   return h;
