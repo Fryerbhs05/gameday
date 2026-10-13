@@ -27542,11 +27542,31 @@ body.cf-maniac-lock{overflow:hidden}
   }
   function arm(){
     var b=document.body; if(!b)return;
-    var ok=isPhone()&&inApp()&&(typeof window.cfCanManiac!=='function'||window.cfCanManiac())&&(!lastLand||window.__cfManiacOpen);
+    var ok=isPhone()&&inApp()&&(typeof window.cfCanManiac!=='function'||window.cfCanManiac())&&(!lastLand||window.__cfManiacOpen||openT);
     b.classList.toggle('cf-mx-armed',!!ok);
     if(ok&&!document.getElementById('cfm')&&typeof window.__cfManiacStage==='function')window.__cfManiacStage();
   }
   function checkOrient(){ orient(); arm(); }
+  /* sw v356: the board's first render (~200ms of layout on a phone) used to run the
+     instant the phone turned, freezing the main thread mid-rotation so iOS's rotation
+     animation stuttered. Now the rotation runs on the CSS shell alone (top bar + empty
+     panes) and the render waits until it has settled; the data then fades in. */
+  var openT=0, ROT_SETTLE=280;
+  function openAfterRotate(){
+    if(openT)return;
+    openT=-1;
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      if(openT!==-1)return;
+      openT=setTimeout(function(){
+        openT=0;
+        if(!lastLand||window.__cfManiacOpen||!inApp()||typeof window.showManiac!=='function'){ arm(); return; }
+        window.showManiac({via:'rotate'});
+        upHint();
+        arm();
+      },ROT_SETTLE);
+    }); });
+  }
+  function cancelOpen(){ if(openT>0)clearTimeout(openT); openT=0; }
   function orient(){
     if(!isPhone())return;
     var land=isLand();
@@ -27557,10 +27577,10 @@ body.cf-maniac-lock{overflow:hidden}
       lastLand=true;
       if(typeof window.showManiac!=='function')return;
       if(ls(K_TIP)!=='1')ls(K_TIP,'1');         /* they found it — the tip has done its job */
-      window.showManiac({via:'rotate'});
-      upHint();
+      openAfterRotate();
     }else{
       lastLand=false;
+      cancelOpen();
       if(window.__cfManiacOpen&&typeof window.hideManiac==='function')window.hideManiac();
     }
     paint();
