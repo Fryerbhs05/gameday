@@ -38,8 +38,10 @@ function okEndpoint(ep) {
 // HERE as well as in the app (the app's list is cfCanManiac / MANIAC_EMAILS).
 // Remove this check to open alerts to everyone.
 const PREVIEW_EMAILS = ['fryerm@net.elmhurst.edu', 'riedjeremy@yahoo.com', 'tjboyer90@gmail.com'];
+// Released to ALL signed-in accounts 2026-10-13 (Matt) along with Maniac Mode.
+// PREVIEW_EMAILS is kept only for reference; previewOk now passes every account.
 function previewOk(acct) {
-  return !!(acct && acct.email && PREVIEW_EMAILS.includes(String(acct.email).trim().toLowerCase()));
+  return !!acct;
 }
 
 // Alert types a device can switch on/off. Missing = on.
