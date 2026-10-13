@@ -25735,8 +25735,14 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm:not(.tk-off) .cfm-tsp{display:none}
 #cfm.tk-off .cfm-tk{display:none}
 #cfm .cfm-tk{flex:1;min-width:0;height:40px;display:flex;border:1px solid var(--line-soft);border-radius:var(--radius-pill);background:var(--paper-deep);overflow:hidden}
-#cfm .cfm-tk-run{flex:1;min-width:0;position:relative;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22px,#000 calc(100% - 22px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 22px,#000 calc(100% - 22px),transparent 100%)}
-#cfm .cfm-tk-track{position:absolute;left:0;top:0;bottom:0;display:flex;align-items:center;white-space:nowrap;will-change:transform}
+/* Edge fades are overlays in the well's own color (was a CSS mask, which repaints the whole strip every frame on some browsers). */
+#cfm .cfm-tk-run{flex:1;min-width:0;position:relative;overflow:hidden;contain:layout paint}
+#cfm .cfm-tk-run::before,#cfm .cfm-tk-run::after{content:'';position:absolute;top:0;bottom:0;width:22px;z-index:2;pointer-events:none}
+#cfm .cfm-tk-run::before{left:0;background:linear-gradient(90deg,var(--paper-deep),color-mix(in oklab,var(--paper-deep) 0%,transparent))}
+#cfm .cfm-tk-run::after{right:0;background:linear-gradient(270deg,var(--paper-deep),color-mix(in oklab,var(--paper-deep) 0%,transparent))}
+/* v348: cards are absolutely placed (own left); the track is moved by a compositor animation. */
+#cfm .cfm-tk-track{position:absolute;left:0;top:0;bottom:0;width:1px;white-space:nowrap;will-change:transform;backface-visibility:hidden}
+#cfm .cfm-tk-track>.cfm-ti{position:absolute;top:50%;transform:translateY(-50%);margin-right:0}
 #cfm .cfm-tk-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:var(--txs);color:var(--ink-500);white-space:nowrap}
 #cfm .cfm-ti{display:inline-flex;align-items:center;gap:7px;margin-right:30px;font-size:var(--txs);padding:3px 0;border-radius:var(--radius-pill);flex:none}
 #cfm .cfm-ti .bk{width:3px;height:14px;border-radius:2px;flex:none}
@@ -26356,8 +26362,8 @@ body.cf-maniac-lock{overflow:hidden}
     root.addEventListener('input',onInput);
     root.addEventListener('pointermove',function(){ if(root.classList.contains('wall'))showChrome(); });
     var tkr=root.querySelector('#cfm-tk-run');
-    tkr.addEventListener('pointerenter',function(){ TK.paused=true; });
-    tkr.addEventListener('pointerleave',function(){ TK.paused=false; });
+    tkr.addEventListener('pointerenter',function(){ TK.paused=true; tkPlayState(); });
+    tkr.addEventListener('pointerleave',function(){ TK.paused=false; tkPlayState(); });
     root.addEventListener('pointerdown',function(){ if(root.classList.contains('wall'))showChrome(); },true);
     try{ new ResizeObserver(function(){ applyLayout(); }).observe(root); }catch(e){ window.addEventListener('resize',applyLayout); }
     try{ document.fonts&&document.fonts.ready&&document.fonts.ready.then(function(){ fitNames(); }); }catch(e){}
@@ -26613,9 +26619,9 @@ body.cf-maniac-lock{overflow:hidden}
      nothing on screen changes in place; only cards still waiting off the right
      edge pick up new numbers. Regular cards for that player still waiting
      off-screen are dropped so the change card is his next appearance.
-     45 px/s. Baselines live in memory; reopening Maniac starts fresh. */
+     45 px/s on the compositor (v348, see SMOOTH SCROLL below). Baselines live in memory; reopening Maniac starts fresh. */
   var TK_SPEED=45, TK_GAP=30;
-  var TK={x:0, last:0, raf:0, paused:false, order:[], cur:0, rows:{}, base:{}, fresh:[], wk:'', step:0};
+  var TK={anim:null, iv:0, paused:false, order:[], cur:0, rows:{}, base:{}, fresh:[], wk:'', step:0};
   var TK_KEYS=['pass_yd','pass_td','pass_int','pass_2pt','pass_sack','rush_yd','rush_td','rush_2pt','rec','rec_yd','rec_td','rec_2pt',
     'fum_lost','fum','fgm','fgmiss','xpm','xpmiss','def_sack','def_int','def_fum_rec','def_td','def_st_td','def_safe','def_blk_kick','pts_allow','yds_allow'];
   /* Sleeper team-DEF rows / scoring use the short names. */
@@ -26769,10 +26775,57 @@ body.cf-maniac-lock{overflow:hidden}
     tkPaint(n,TK.rows[pid]); return n;
   }
   function tkEls(){ return {run:$('#cfm-tk-run'), track:$('#cfm-tk-track'), empty:$('#cfm-tk-empty')}; }
-  /* The first node still entirely off the right edge = "next in line". */
+  /* SMOOTH SCROLL (v348): the strip is moved by ONE long linear Web Animation
+     on the track, which the browser runs on the compositor — so a sync, the
+     center rotation or any other main-thread work can no longer stall or jump
+     it (the old per-frame requestAnimationFrame loop stuttered whenever the
+     page was busy and re-measured every card every frame). Each card sits at
+     its own absolute left (n._l, track coordinates) and never moves relative
+     to the track; adding or dropping a card never shifts the others. A 250ms
+     housekeeping timer drops cards that have passed the left edge, keeps the
+     queue topped up 2 screens ahead and rebases coordinates every ~7 min. */
+  var TK_SPAN=1000000, TK_REBASE=20000, TK_TICK=250;
+  function tkX(){ var a=TK.anim; return a?((+a.currentTime||0)*TK_SPEED/1000):0; }   // px scrolled so far
+  function tkAnim(track){
+    if(TK.anim&&TK.anim.effect&&TK.anim.effect.target===track)return TK.anim;
+    if(!track||typeof track.animate!=='function')return null;
+    try{
+      TK.anim=track.animate([{transform:'translate3d(0,0,0)'},{transform:'translate3d(-'+TK_SPAN+'px,0,0)'}],
+        {duration:TK_SPAN/TK_SPEED*1000, easing:'linear', fill:'both'});
+      TK.anim.pause(); TK.anim.currentTime=0;
+    }catch(e){ TK.anim=null; }
+    return TK.anim;
+  }
+  function tkPlayState(){
+    var a=TK.anim; if(!a)return;
+    var run=!!(TK.iv&&!TK.paused&&!TK_REDUCED&&document.visibilityState!=='hidden');
+    try{ if(run&&a.playState!=='running')a.play(); else if(!run&&a.playState==='running')a.pause(); }catch(e){}
+  }
+  /* Shift every card back by the distance scrolled and zero the animation, in one task. */
+  function tkRebase(){
+    var a=TK.anim, e=tkEls(); if(!a||!e.track)return;
+    var X=tkX(); if(!(X>0))return;
+    [].forEach.call(e.track.children,function(n){ if(n._l!=null){ n._l-=X; n.style.left=n._l+'px'; } });
+    a.currentTime=0;
+  }
+  /* Place every card that is not yet on screen (unplaced, or entirely past the
+     right edge) end to end after the last card that is. Widths are read in one
+     pass, then lefts written, so it costs one layout. Never pulls a card into view. */
+  function tkFlow(){
+    var e=tkEls(); if(!e.track||!e.run)return;
+    var W=e.run.clientWidth; if(!W)return;
+    var X=tkX(), kids=[].slice.call(e.track.children), i=0;
+    while(i<kids.length&&kids[i]._l!=null&&kids[i]._l-X<W)i++;
+    if(i>=kids.length)return;
+    var mv=kids.slice(i), prev=kids[i-1];
+    mv.forEach(function(n){ n._w=n.offsetWidth; });
+    var at=prev?Math.max(prev._l+prev._w+TK_GAP,X+W):X;
+    mv.forEach(function(n){ if(n._l!==at){ n._l=at; n.style.left=at+'px'; } at+=n._w+TK_GAP; });
+  }
+  /* The first card still entirely off the right edge = "next in line". */
   function tkNextSlot(track,W){
-    var kids=track.children;
-    for(var i=0;i<kids.length;i++){ if(kids[i].offsetLeft+TK.x>=W)return kids[i]; }
+    var X=tkX(), kids=track.children;
+    for(var i=0;i<kids.length;i++){ if(kids[i]._l==null||kids[i]._l-X>=W)return kids[i]; }
     return null;
   }
   function tkAlertNode(a){
@@ -26785,25 +26838,35 @@ body.cf-maniac-lock{overflow:hidden}
      (detection order). A card on screen — his included — is left alone. */
   function tkQueueAlert(a){
     var e=tkEls(); if(!e.track||!e.run)return;
-    var W=e.run.clientWidth;
+    var W=e.run.clientWidth, X=tkX();
     [].slice.call(e.track.children).forEach(function(k){
-      if(k.getAttribute('data-tk')===a.pid&&!k.hasAttribute('data-tka')&&k.offsetLeft+TK.x>=W)e.track.removeChild(k);
+      if(k.getAttribute('data-tk')===a.pid&&!k.hasAttribute('data-tka')&&(k._l==null||k._l-X>=W))e.track.removeChild(k);
     });
     var slot=tkNextSlot(e.track,W);
     while(slot&&slot.hasAttribute('data-tka'))slot=slot.nextElementSibling;
     var n=tkAlertNode(a);
     if(slot)e.track.insertBefore(n,slot); else e.track.appendChild(n);
   }
+  /* Top the queue up to two screens past the right edge. On an empty strip the
+     first cards start at the left edge (the strip fills the moment it opens). */
   function tkFill(){
-    var e=tkEls(); if(!e.track||!TK.order.length)return;
-    var W=e.run.clientWidth, guard=0;
-    if(!W)return;
+    var e=tkEls(); if(!e.track||!e.run||!TK.order.length)return;
+    var W=e.run.clientWidth; if(!W)return;
+    var X=tkX(), guard=0, first=true;
     while(guard++<60){
-      var lc=e.track.lastElementChild, end=lc?lc.offsetLeft+lc.offsetWidth+TK_GAP+TK.x:0;
-      if(end>=W*2)break;
+      var lc=e.track.lastElementChild;
+      if(lc&&lc._l==null){ tkFlow(); lc=e.track.lastElementChild; }
+      var end=lc?lc._l+lc._w+TK_GAP:X;
+      if(lc&&end>=X+W*2)break;
+      var at=!lc?X:first?Math.max(end,X+W):end;
       var pid=TK.order[TK.cur%TK.order.length]; TK.cur=(TK.cur+1)%TK.order.length;
-      e.track.appendChild(tkNode(pid));
+      var n=tkNode(pid); n._l=at; n.style.left=at+'px';
+      e.track.appendChild(n); n._w=n.offsetWidth; first=false;
     }
+  }
+  function tkClear(){
+    var e=tkEls(); if(e.track)e.track.innerHTML='';
+    TK.cur=0; if(TK.anim){ try{ TK.anim.currentTime=0; }catch(_){} }
   }
   function tkSync(){
     if(!root)return;
@@ -26813,53 +26876,61 @@ body.cf-maniac-lock{overflow:hidden}
     var list=tkList();
     TK.rows={}; TK.order=list.map(function(r){ TK.rows[r.p.id]=r; return r.p.id; });
     if(!list.length&&!TK.fresh.length&&!e.track.querySelector('[data-tka]')){
-      e.track.innerHTML=''; TK.x=0; TK.cur=0; e.track.style.transform='';
+      tkClear();
       e.empty.textContent=(M&&M.status==='ok')?'No one on the field right now':'Loading…';
       e.empty.style.display=''; tkStop(); TK.fresh=[]; return;
     }
     e.empty.style.display='none';
+    tkAnim(e.track);
     /* Drop anyone who left (game final, filter change) and refresh cards still
        waiting off the right edge. Anything on screen is frozen until it scrolls
-       off; change cards are never repainted or dropped here. A node removed
-       while fully off the left edge shifts the strip, so pay it back. */
-    var W=e.run?e.run.clientWidth:0;
+       off; change cards are never repainted or dropped here. Cards keep their
+       own left, so dropping one never shifts the strip. */
+    var W=e.run?e.run.clientWidth:0, X=tkX();
     [].slice.call(e.track.children).forEach(function(n){
       if(n.hasAttribute('data-tka'))return;
-      var r=TK.rows[n.getAttribute('data-tk')], l=n.offsetLeft+TK.x;
+      var r=TK.rows[n.getAttribute('data-tk')], l=n._l==null?Infinity:n._l-X;
       if(r){ if(W&&l>=W)tkPaint(n,r); return; }
-      if(W&&l<W&&l+n.offsetWidth>0)return;                  // on screen: let it finish its run
-      var w=n.offsetWidth+TK_GAP, gone=l+w<=0;
-      e.track.removeChild(n); if(gone)TK.x+=w;
+      if(W&&l<W&&l+(n._w||0)>0)return;                    // on screen: let it finish its run
+      e.track.removeChild(n);
     });
     TK.fresh.forEach(tkQueueAlert); TK.fresh=[];
-    tkFill(); tkStart();
+    tkFlow(); tkFill(); tkStart();
   }
-  function tkFrame(t){
-    TK.raf=0;
-    if(!root||!window.__cfManiacOpen||!P.ticker.on)return;
-    var e=tkEls();
-    if(e.run&&e.run.clientWidth&&!e.track.firstElementChild&&TK.order.length)tkFill();   // strip came up empty (no width yet at sync): fill now, not at the next poll
-    if(!e.run||!e.run.clientWidth||!e.track.firstElementChild){
-      if(e.run&&e.empty&&!e.track.firstElementChild&&!TK.order.length&&M&&M.status==='ok'){ e.empty.textContent='No one on the field right now'; e.empty.style.display=''; TK.x=0; e.track.style.transform=''; }
-      TK.last=t; TK.raf=requestAnimationFrame(tkFrame); return; }
-    if(e.empty&&e.empty.style.display!=='none')e.empty.style.display='none';
-    var dt=TK.last?Math.min(0.1,(t-TK.last)/1000):0; TK.last=t;
-    if(TK_REDUCED){ if(!TK.paused&&t-TK.step>4000){ TK.step=t; TK.x-=e.run.clientWidth*0.8; } }
-    else if(!TK.paused) TK.x-=TK_SPEED*dt;
-    var f=e.track.firstElementChild, guard=0;
-    while(f&&guard++<40&&f.offsetWidth+TK_GAP+TK.x<0){
-      TK.x+=f.offsetWidth+TK_GAP; e.track.removeChild(f);   // off the left edge: gone (change cards included — one pass only)
-      tkFill(); f=e.track.firstElementChild;
+  /* Housekeeping only — the motion itself never waits on this. */
+  function tkMaint(){
+    if(!root||!window.__cfManiacOpen||!P.ticker.on){ tkStop(); return; }
+    var e=tkEls(); if(!e.run||!e.track)return;
+    var W=e.run.clientWidth;
+    if(W&&!e.track.firstElementChild&&TK.order.length)tkFill();   // strip came up empty (no width yet at sync): fill now, not at the next poll
+    if(!W||!e.track.firstElementChild){
+      if(e.empty&&!e.track.firstElementChild&&!TK.order.length&&M&&M.status==='ok'){ e.empty.textContent='No one on the field right now'; e.empty.style.display=''; tkClear(); }
+      return;
     }
-    e.track.style.transform='translateX('+TK.x.toFixed(1)+'px)';
-    TK.raf=requestAnimationFrame(tkFrame);
+    if(e.empty&&e.empty.style.display!=='none')e.empty.style.display='none';
+    tkAnim(e.track); tkPlayState();
+    if(TK_REDUCED&&!TK.paused&&TK.anim){ var now=Date.now(); if(now-TK.step>4000){ TK.step=now; TK.anim.currentTime=(+TK.anim.currentTime||0)+W*0.8/TK_SPEED*1000; } }
+    var X=tkX(), f=e.track.firstElementChild;
+    while(f&&f._l!=null&&f._l+f._w+TK_GAP<=X){            // off the left edge: gone (change cards included — one pass only)
+      var nx=f.nextElementSibling; e.track.removeChild(f); f=nx;
+    }
+    tkFill();
+    if(X>TK_REBASE)tkRebase();
   }
-  function tkStart(){ if(!TK.raf){ TK.last=0; TK.raf=requestAnimationFrame(tkFrame); } }
-  function tkStop(){ if(TK.raf){ cancelAnimationFrame(TK.raf); TK.raf=0; } }
+  function tkStart(){
+    if(!TK.iv)TK.iv=setInterval(tkMaint,TK_TICK);
+    var e=tkEls(); if(e.track)tkAnim(e.track);
+    tkPlayState(); tkMaint();
+  }
+  function tkStop(){
+    if(TK.iv){ clearInterval(TK.iv); TK.iv=0; }
+    tkRebase(); tkPlayState();
+  }
   function tkReset(){
-    TK.x=0; TK.cur=0; TK.base={}; TK.fresh=[]; TK.rows={}; TK.order=[]; TK.wk='';
-    var e=tkEls(); if(e.track){ e.track.innerHTML=''; e.track.style.transform=''; }
+    TK.cur=0; TK.base={}; TK.fresh=[]; TK.rows={}; TK.order=[]; TK.wk='';
+    tkClear();
   }
+  document.addEventListener('visibilitychange',tkPlayState);   // hidden tab: hold position instead of jumping ahead on return
 
   /* ---------- side drawer: player box score / settings ---------- */
   function playerBetween(p){
@@ -26988,7 +27059,7 @@ body.cf-maniac-lock{overflow:hidden}
     var tg=t.getAttribute('data-cfm-tog');
     if(tg){ if(tg==='wall'){ setWall(!root.classList.contains('wall')); renderSheet(); return; }
       if(tg==='ticker'||tg==='tkx'||tg==='tke'){ var tf=tg==='ticker'?'on':tg==='tkx'?'x':'e'; P.ticker[tf]=!P.ticker[tf]; savePrefs();
-        if(tf!=='on'){ var te=tkEls(); if(te.track){ te.track.innerHTML=''; te.track.style.transform=''; } TK.x=0; TK.cur=0; }   // new mix starts now, not after the queue
+        if(tf!=='on')tkClear();   // new mix starts now, not after the queue
         tkSync(); renderSheet(); return; }
       if(tg==='live'){ P.liveOnly=!P.liveOnly; savePrefs(); render(); renderSheet(); try{cfTrack('maniac_live_only',{on:P.liveOnly});}catch(_){} return; }
       if(tg==='bench'){ P.bench=!P.bench; savePrefs(); renderHero(); renderSheet(); try{cfTrack('maniac_bench_toggle',{on:P.bench});}catch(_){} return; }
