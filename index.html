@@ -3662,6 +3662,19 @@
       font: 500 9px/1 var(--font-mono); letter-spacing: .1em; color: var(--ink-500);
       border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px 5px;
     }
+    /* Jersey number chip (2026-10-13) — the position chip's shape, a size up and
+       bright: sits right after the name (Loyalties card, box-score drawer, Maniac
+       Who to root for). The name row is flex with the name at flex 0 1 auto, so a
+       long name ellipsizes and the chip is never pushed off or clipped. */
+    .cf-nmrow { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .cf-nmrow > .player-name, .cf-nmrow > .pd__name { flex: 0 1 auto; min-width: 0; }
+    .cf-jersey {
+      flex: none; display: inline-flex; align-items: baseline;
+      font: 700 11px/1 var(--font-mono); letter-spacing: .02em; color: var(--ink-900);
+      background: color-mix(in oklab, var(--ink-900) 8%, transparent);
+      border: 1px solid var(--ink-300); border-radius: var(--radius-sm); padding: 2px 5px;
+    }
+    .cf-jersey i { font-style: normal; font-weight: 500; opacity: .55; margin-right: 1px; }
     .pd__close {
       margin-left: auto; background: transparent; border: 0; cursor: pointer;
       color: var(--ink-500); font: 500 11px/1 var(--font-mono);
@@ -7623,6 +7636,27 @@ function resolveSleeperId(player){
 function sleeperHeadshotUrl(sleeperId){
   return sleeperId ? 'https://sleepercdn.com/content/nfl/players/thumb/' + sleeperId + '.jpg' : '';
 }
+/* Jersey number chip (Matt, 2026-10-13). Source is Sleeper's /players/nfl
+   `number` field, already in window.playerDB (the 12h-cached player DB), so it
+   costs no request and works for ESPN/Yahoo players too via resolveSleeperId.
+   No chip for team defenses, for anyone we can't resolve, or on prior seasons
+   (the DB holds his CURRENT number — same reason the team chip is suppressed). */
+function cfJerseyNum(player){
+  if (!player || typeof player !== 'object') return '';
+  var pos = String(player.position || '').toUpperCase();
+  if (pos === 'DEF' || pos === 'DST' || pos === 'D/ST') return '';
+  try { if (typeof isPriorSeason === 'function' && isPriorSeason()) return ''; } catch (e) {}
+  var db = window.playerDB; if (!db) return '';
+  var sid = resolveSleeperId(player); if (!sid) return '';
+  var rec = db[sid]; if (!rec || rec.number == null) return '';
+  var n = String(rec.number).trim();
+  return /^\d{1,2}$/.test(n) ? n : '';
+}
+function cfJerseyChip(player){
+  var n = cfJerseyNum(player);
+  return n ? '<span class="cf-jersey" title="#' + n + '" aria-label="Number ' + n + '"><i>#</i>' + n + '</span>' : '';
+}
+window.cfJerseyChip = cfJerseyChip;
 /* Inner HTML for a round avatar element: a headshot <img> layered over the
    initials. On image error the <img> hides itself and the initials show
    through. `initials` is expected to already be safe (letters only). */
@@ -10222,7 +10256,7 @@ function buildCardInner(player,isHist){
   return `<div class="card-ledger${pend?' card-ledger--pend':''}">`+
       `<div class="card-head">`+
         `<div class="card-shot">${avatarInnerHtml(player, initials)}</div>`+
-        `<div class="card-id"><span class="player-name">${player.full_name||`Player ${player.id}`}</span><span class="card-sub">${sub}</span></div>`+
+        `<div class="card-id"><span class="cf-nmrow"><span class="player-name">${player.full_name||`Player ${player.id}`}</span>${cfJerseyChip(player)}</span><span class="card-sub">${sub}</span></div>`+
         `${injBadge}`+
       `</div>`+
       `${hd}<div class="card-ledger__rule"></div>${rowsHTML}`+
@@ -16616,7 +16650,8 @@ try{localStorage.removeItem('conflicted_experiment');localStorage.removeItem('co
     var teamTxt=showTeam?('<span class="pd__team">'+esc(player.team)+'</span>'):'';
     return '<div class="pd__head">'
       +'<div class="pd__avatar">'+avatar+'</div>'
-      +'<div class="pd__id"><p class="pd__name">'+esc(player.full_name||'Player')+'</p>'
+      +'<div class="pd__id"><div class="cf-nmrow"><p class="pd__name">'+esc(player.full_name||'Player')+'</p>'
+      +(typeof window.cfJerseyChip==='function'?window.cfJerseyChip(player):'')+'</div>'
       +'<div class="pd__meta">'+logo+teamTxt
       +'<span class="pd__pos">'+esc(pos||'—')+'</span></div></div>'
       +'<button class="pd__close" type="button" data-pd-close>Close</button></div>';
@@ -26067,6 +26102,10 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-rr.b-x{border-left:3px solid var(--split)}#cfm .cfm-rr.b-c{border-left:3px solid var(--cheer)}#cfm .cfm-rr.b-e{border-left:3px solid var(--enemy)}
 #cfm .cfm-rr .nm{display:block;font-weight:700;font-size:var(--tsm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #cfm .cfm-rr.st-pre .nm{color:var(--ink-500)}
+#cfm .cfm-rr-nr{display:flex;align-items:center;gap:6px;min-width:0}
+#cfm .cfm-rr-nr .nm{flex:0 1 auto;min-width:0}
+#cfm .cfm-rr .cf-jersey{font-size:var(--txs)}
+#cfm .cfm-rr.st-pre .cf-jersey{color:var(--ink-500);border-color:var(--line)}
 #cfm .cfm-rr.st-post{background:var(--paper-deep);border-top-color:var(--line-soft);border-right-color:var(--line-soft);border-bottom-color:var(--line-soft)}
 #cfm .cfm-rr.open{background:color-mix(in oklab,var(--tile-bg) 70%,var(--navy-300))}
 #cfm .cfm-empty{padding:22px 14px;text-align:center;color:var(--ink-500);font-size:var(--tsm);line-height:1.5}
@@ -26745,7 +26784,7 @@ body.cf-maniac-lock{overflow:hidden}
         var st=r.st==='in'?'st-in':r.st==='post'?'st-post':r.st==='pre'?'st-pre':'st-unk';
         var first=r.pos!==last; last=r.pos;
         html+='<div class="cfm-prow'+(first?' first':'')+'"><span class="cfm-pos">'+(first?esc(r.pos):'')+'</span>'
-          +'<button type="button" class="cfm-rr b-'+b+' '+st+open+'" data-cfm-player="'+esc(r.p.id)+'"><span class="nm">'+esc(r.p.full_name||'Player')+'</span></button></div>';
+          +'<button type="button" class="cfm-rr b-'+b+' '+st+open+'" data-cfm-player="'+esc(r.p.id)+'"><span class="cfm-rr-nr"><span class="nm">'+esc(r.p.full_name||'Player')+'</span>'+(typeof window.cfJerseyChip==='function'?window.cfJerseyChip(r.p):'')+'</span></button></div>';
       });
       return html+'</div>';
     }
