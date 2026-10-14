@@ -735,16 +735,63 @@
       padding: 32px 32px;
       max-width: 460px; width: 100%; box-sizing: border-box;
     }
-    .lp-demo-panel {
-      border: 1px dashed var(--line); border-radius: 16px;
-      padding: 30px 34px; max-width: 460px; width: 100%; box-sizing: border-box;
-      display: flex; flex-direction: column; gap: 13px;
-      justify-content: center; align-items: flex-start;
+    /* ── Get started section (redesign 2026-10-14, mocks/get-started-mock.html) ──
+       Connect card (numbered steps: 1 platforms, 2 identity) + demo panel with a
+       phone peek of the real demo board. Scoped to #get-started-section so the
+       shared .signin-card / .btn-primary styles elsewhere are untouched. */
+    #get-started-section { grid-template-columns: 1fr; gap: 24px; max-width: 600px; }
+    @media (min-width: 861px) {
+      #get-started-section { grid-template-columns: 1.15fr 1fr; max-width: 1080px; }
     }
-    .lp-demo-eyebrow { font: 500 11px/1 var(--font-sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-500); }
-    .lp-demo-head { font: 700 22px/1.3 var(--font-sans); letter-spacing: -0.01em; color: var(--ink-900); }
-    .lp-demo-sub { font: 400 14px/1.6 var(--font-sans); color: var(--ink-500); }
-    .btn-demo-panel { width: auto; padding: 13px 22px; font-weight: 700; margin-top: 2px; }
+    #get-started-section .signin-card { max-width: none; border-radius: 16px; padding: 36px 36px 28px; }
+    #get-started-section .signin-card h3 { font: 800 30px/1.1 var(--font-sans); letter-spacing: -0.02em; margin: 0; }
+    #get-started-section .signin-card-sub { font: 400 15px/1.55 var(--font-sans); color: var(--ink-500); margin: 10px 0 0; }
+    #get-started-section #connect-step { margin-top: 26px; }
+    .gs-step + .gs-step { margin-top: 28px; }
+    .gs-step-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+    .gs-step-num { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 700 11px/1 var(--font-mono); background: var(--tile-bg); border: 1px solid var(--tile-line); color: var(--navy-700); transform: translateY(-1px); box-sizing: border-box; transition: background .2s var(--ease-out), border-color .2s var(--ease-out), color .2s var(--ease-out); }
+    .gs-step.done .gs-step-num { background: var(--cheer); border-color: var(--cheer); color: var(--paper); }
+    .gs-step-title { font: 700 15px/1.2 var(--font-sans); color: var(--ink-900); }
+    .gs-step-hint { margin-left: auto; font: 500 12px/1 var(--font-sans); color: var(--ink-500); }
+    .gs-field-note { margin: 10px 2px 0; display: flex; gap: 8px; align-items: flex-start; font: 400 12.5px/1.45 var(--font-sans); color: var(--ink-500); }
+    .gs-field-note svg { flex: 0 0 auto; margin-top: 2px; color: var(--navy-700); }
+    #get-started-section .wiz-identity { margin-bottom: 0; }
+    #get-started-section .wiz-identity .signin-field-row { gap: 10px; }
+    #get-started-section .wiz-identity .signin-field-row + .signin-input { margin-top: 10px; }
+    #get-started-section .wiz-identity .signin-input { padding: 14px 16px; border-width: 1.5px; border-radius: 10px; font-size: 15px; }
+    #get-started-section .gs-cta { width: 100%; margin-top: 24px; padding: 16px 20px; border-radius: 10px; font: 600 16px/1 var(--font-sans); letter-spacing: -0.01em; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    #get-started-section .gs-cta:disabled { background: var(--tile-bg); color: var(--navy-700); cursor: default; box-shadow: inset 0 0 0 1px var(--tile-line); }
+    .gs-cta .gs-arr { transition: transform .15s var(--ease-out); }
+    .gs-cta:hover:not(:disabled) .gs-arr { transform: translateX(3px); }
+
+    .lp-demo-panel {
+      position: relative; overflow: hidden; box-sizing: border-box; width: 100%;
+      border: 1px solid var(--line-soft); border-radius: 16px;
+      background: radial-gradient(120% 70% at 85% 100%, rgba(43,111,168,.28), transparent 60%),
+                  linear-gradient(180deg, var(--paper-deep), var(--paper));
+      padding: 36px 36px 0; display: flex; flex-direction: column; align-items: flex-start; min-height: 560px;
+    }
+    .lp-demo-eyebrow { font: 600 11px/1 var(--font-sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-500); }
+    .lp-demo-head { margin-top: 12px; font: 800 26px/1.2 var(--font-sans); letter-spacing: -0.02em; color: var(--ink-900); }
+    .lp-demo-sub { margin-top: 12px; max-width: 380px; font: 400 15px/1.55 var(--font-sans); color: var(--ink-500); }
+    .lp-demo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+    .lp-demo-chips span { font: 500 12px/1 var(--font-sans); color: var(--ink-700); padding: 7px 10px; border-radius: 999px; background: rgba(255,255,255,.04); border: 1px solid var(--line); }
+    .btn-demo-panel { margin-top: 22px; display: inline-flex; align-items: center; gap: 8px; padding: 13px 20px; border-radius: 10px; background: transparent; border: 1.5px solid var(--navy-700); color: var(--ink-900); font: 600 15px/1 var(--font-sans); cursor: pointer; transition: background var(--duration-fast) var(--ease-out); }
+    .btn-demo-panel:hover { background: rgba(122,168,209,.1); }
+    .btn-demo-panel .gs-arr { transition: transform .15s var(--ease-out); }
+    .btn-demo-panel:hover .gs-arr { transform: translateX(3px); }
+    .lp-demo-peek { position: relative; align-self: center; margin-top: 28px; width: 270px; flex: 1; min-height: 240px;
+      -webkit-mask-image: linear-gradient(#000 55%, transparent 98%); mask-image: linear-gradient(#000 55%, transparent 98%); }
+    .lp-demo-phone { position: absolute; inset: 0; border-radius: 34px 34px 0 0; padding: 9px 9px 0; background: #0b141d; border: 1px solid #2a3b4d; border-bottom: none; box-sizing: border-box; }
+    .lp-demo-screen { height: 100%; border-radius: 26px 26px 0 0; overflow: hidden; background: var(--paper); }
+    .lp-demo-screen img { display: block; width: 100%; height: auto; }
+    @media (max-width: 860px) {
+      #get-started-section .signin-card { padding: 26px 18px 22px; }
+      #get-started-section .signin-card h3 { font-size: 26px; }
+      .lp-demo-panel { padding: 26px 20px 0; min-height: 0; }
+      .lp-demo-head { font-size: 22px; }
+      .lp-demo-peek { width: 230px; height: 250px; flex: none; }
+    }
     .lp-foot {
       display: flex; justify-content: space-between; align-items: center;
       max-width: var(--max-width); margin: 16px auto 0; width: calc(100% - var(--gutter) * 2);
@@ -815,18 +862,42 @@
     .wiz-identity .signin-field-row + .signin-input { margin-top: 8px; }
     /* ── Connect wizard ── */
     .wiz-select-label { font: 600 13px/1.4 var(--font-sans); color: var(--ink-700); margin: 0 0 10px; }
-    .wiz-pick-grid { display: flex; flex-direction: column; gap: 8px; }
+    /* Platform picker — 3-up tiles on desktop, aligned rows on phones (2026-10-14). */
+    .wiz-pick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
     .wiz-pick {
-      display: flex; align-items: center; gap: 10px; width: 100%;
-      background: var(--paper); border: 1px solid var(--line);
-      border-radius: var(--radius-md); padding: 12px 14px; cursor: pointer;
-      text-align: left; transition: border-color var(--duration-base) var(--ease-out), background var(--duration-base) var(--ease-out);
+      position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px;
+      padding: 18px 10px 14px; background: var(--paper); border: 1.5px solid var(--line); border-radius: 12px;
+      cursor: pointer; color: inherit; font: inherit; text-align: center; min-width: 0;
+      transition: border-color .15s var(--ease-out), background .15s var(--ease-out), transform 80ms var(--ease-out);
     }
-    .wiz-pick:hover { border-color: var(--ink-500); }
+    .wiz-pick:hover { border-color: var(--navy-300); }
+    .wiz-pick:active { transform: scale(.98); }
     .wiz-pick.selected { border-color: var(--cheer); background: var(--cheer-soft); }
-    .wiz-pick-name { flex: 1; font: 700 14px/1 var(--font-sans); color: var(--ink-900); display: flex; align-items: center; gap: 8px; }
-    .wiz-pick-tag { font: 600 10px/1 var(--font-sans); color: var(--ink-500); border: 1px solid var(--line); border-radius: 999px; padding: 3px 7px; letter-spacing: .02em; }
-    .wiz-pick-check { color: var(--cheer); font-weight: 700; font-size: 15px; width: 16px; text-align: center; }
+    .wiz-pick-logo { height: 44px; display: flex; align-items: center; justify-content: center; }
+    .wiz-pick-logo .plat-mark { --pm: 44px; }
+    .wiz-pick-logo .plat-mark img { border-radius: 11px; }
+    .wiz-pick-logo .plat-mark-wm { padding: 0 12px; border-radius: 11px; }
+    .wiz-pick-logo .plat-mark-wm svg { width: 76px; height: 11px; }
+    .wiz-pick-text { display: contents; }
+    .wiz-pick-name { font: 700 15px/1 var(--font-sans); color: var(--ink-900); }
+    .wiz-pick-how { font: 500 11.5px/1.3 var(--font-sans); color: var(--ink-500); }
+    .wiz-pick.selected .wiz-pick-how { color: var(--cheer); }
+    .wiz-pick-tick { position: absolute; top: 9px; right: 9px; width: 20px; height: 20px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid var(--ink-300); display: grid; place-items: center; transition: background .15s var(--ease-out), border-color .15s var(--ease-out); }
+    .wiz-pick-tick svg { width: 11px; height: 11px; opacity: 0; transform: scale(.6); transition: opacity .15s, transform .15s; }
+    .wiz-pick.selected .wiz-pick-tick { background: var(--cheer); border-color: var(--cheer); }
+    .wiz-pick.selected .wiz-pick-tick svg { opacity: 1; transform: none; }
+    @media (max-width: 520px) {
+      .gs-step-hint { display: none; }
+      .wiz-pick-grid { grid-template-columns: 1fr; gap: 8px; }
+      .wiz-pick { flex-direction: row; align-items: center; gap: 14px; padding: 12px 14px; text-align: left; }
+      .wiz-pick-logo { flex: 0 0 84px; height: 40px; justify-content: flex-start; }
+      .wiz-pick-logo .plat-mark { --pm: 40px; }
+      .wiz-pick-logo .plat-mark img { border-radius: 10px; }
+      .wiz-pick-logo .plat-mark-wm { padding: 0 9px; border-radius: 10px; }
+      .wiz-pick-logo .plat-mark-wm svg { width: 64px; height: 9px; }
+      .wiz-pick-text { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+      .wiz-pick-tick { order: 3; position: static; flex: 0 0 auto; width: 22px; height: 22px; }
+    }
     .wiz-progress { font: 600 11px/1 var(--font-sans); color: var(--ink-500); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 10px; }
     .wiz-step { display: flex; flex-direction: column; gap: 12px; }
     .wiz-step-head { display: flex; align-items: center; gap: 10px; }
@@ -838,12 +909,23 @@
     .wiz-note { font: 500 12px/1.45 var(--font-sans); color: var(--coral-500, #FF6B5A); min-height: 0; }
     .wiz-link { background: none; border: 0; color: var(--coral-500, #FF6B5A); font: 600 12px/1 var(--font-sans); cursor: pointer; padding: 0; text-decoration: underline; }
     /* "Don't see your platform?" — quiet, collapsed demand-capture below the picker. */
-    .wiz-req { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
-    .wiz-req-summary { font: 600 12px/1.4 var(--font-sans); color: var(--ink-500); cursor: pointer; list-style: none; }
+    /* "Don't see your platform?" — info row pointing at manual matchups; the
+       summary toggles the demand-capture checkboxes underneath. */
+    .wiz-req { margin-top: 12px; border-radius: 10px; background: var(--paper-deep); border: 1px solid var(--line-soft); }
+    .wiz-req-summary { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 10px; padding: 11px 14px; font: 400 13px/1.45 var(--font-sans); color: var(--ink-500); cursor: pointer; list-style: none; }
     .wiz-req-summary::-webkit-details-marker { display: none; }
-    .wiz-req-summary::before { content: '+ '; color: var(--ink-500); }
-    .wiz-req[open] .wiz-req-summary::before { content: '\2212  '; }
-    .wiz-req-summary:hover { color: var(--ink-700); }
+    .wiz-req-summary > svg { color: var(--navy-700); }
+    .wiz-req-summary b { color: var(--ink-700); font-weight: 600; }
+    .wiz-req-link { color: var(--navy-700); font-weight: 600; white-space: nowrap; }
+    .wiz-req-summary:hover .wiz-req-link { text-decoration: underline; }
+    .wiz-req[open] .wiz-req-summary { border-bottom: 1px solid var(--line-soft); }
+    .wiz-req[open] .wiz-req-link::after { content: ' \2212'; }
+    .wiz-req .wiz-req-body { padding: 0 14px 14px; }
+    @media (max-width: 520px) {
+      .wiz-req-summary { grid-template-columns: auto 1fr; align-items: start; }
+      .wiz-req-summary > svg { margin-top: 2px; }
+      .wiz-req-link { grid-column: 2; }
+    }
     .wiz-req-body { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
     .wiz-req-hint { font: 400 12px/1.5 var(--font-sans); color: var(--ink-500); margin: 0; }
     .wiz-req-grid { display: flex; flex-direction: column; gap: 7px; }
@@ -5476,7 +5558,7 @@
   <div class="lp-signin" id="get-started-section" style="padding-top:56px">
     <div class="signin-card">
       <h3>Get started</h3>
-      <p class="signin-card-sub" id="getstarted-sub">Connect at least one fantasy platform to load your leagues.</p>
+      <p class="signin-card-sub" id="getstarted-sub">About a minute. Pick where your leagues live, then save your setup so it follows you to any device.</p>
 
       <!-- Connect wizard renders here: name/email + platform picker on one screen,
            then the per-platform connect steps. Legacy grid is a hidden fallback. -->
@@ -5496,8 +5578,10 @@
     <div class="lp-demo-panel" id="demo-tryfirst">
       <span class="lp-demo-eyebrow">Not ready to connect?</span>
       <span class="lp-demo-head">Watch a live Sunday with someone else's problems.</span>
-      <span class="lp-demo-sub">Demo mode loads 4 sample leagues — no account, no email, nothing to undo.</span>
-      <button class="btn-demo-full btn-demo-panel" onclick="handleDemo()">Try demo mode</button>
+      <span class="lp-demo-sub">Demo mode drops you into four sample leagues mid-game. No account, no email, nothing to undo.</span>
+      <div class="lp-demo-chips"><span>4 leagues</span><span>Live scoring</span><span>Nothing saved</span></div>
+      <button class="btn-demo-panel" onclick="handleDemo()">Try demo mode <span class="gs-arr" aria-hidden="true">&rarr;</span></button>
+      <div class="lp-demo-peek" aria-hidden="true"><div class="lp-demo-phone"><div class="lp-demo-screen"><img src="/landing/lp-matchups.webp" alt="" loading="lazy" decoding="async"></div></div></div>
     </div>
   </div>
 
@@ -13748,26 +13832,30 @@ function renderWizardSelection(){
   window.__wizIdentityShown = needIdentity;
   const sub = document.getElementById('getstarted-sub');
   if(sub) sub.textContent = needIdentity
-    ? 'Add your details and pick your leagues — your email saves your setup so it follows you to any device.'
-    : 'Pick the platforms you want to connect.';
-  const mobile = isMobileDevice();
+    ? 'About a minute. Pick where your leagues live, then save your setup so it follows you to any device.'
+    : 'Pick where your leagues live.';
+  const HOW = { sleeper:'Just your username', yahoo:'Sign in with Yahoo', espn:'Quick desktop setup' };
+  const tickSvg = '<svg viewBox="0 0 12 12" fill="none" stroke="#0F1B26" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.3 2.3 4.7-5"/></svg>';
   const cards = Object.values(PROVIDERS).map(p=>{
     const sel = window.__wizSelected.has(p.id);
-    const tag = (p.id==='espn' && mobile) ? '<span class="wiz-pick-tag">desktop setup</span>' : '';
-    return `<button type="button" class="wiz-pick${sel?' selected':''}" onclick="toggleWizardPick('${p.id}')">
-      ${cfPlatMark(p.id,{slot:true})}
-      <span class="wiz-pick-name">${p.displayName}${tag}</span>
-      <span class="wiz-pick-check">${sel?'&#10003;':''}</span>
+    return `<button type="button" class="wiz-pick${sel?' selected':''}" aria-pressed="${sel}" onclick="toggleWizardPick('${p.id}')">
+      <span class="wiz-pick-tick">${tickSvg}</span>
+      <span class="wiz-pick-logo">${cfPlatMark(p.id)}</span>
+      <span class="wiz-pick-text"><span class="wiz-pick-name">${p.displayName}</span><span class="wiz-pick-how">${HOW[p.id]||''}</span></span>
     </button>`;
   }).join('');
   const identityHtml = needIdentity ? `
-    <div class="wiz-identity">
-      <div class="signin-field-row">
-        <input id="onb-first" class="signin-input" type="text" placeholder="First name" autocomplete="given-name" oninput="updateWizBeginEnabled()" />
-        <input id="onb-last" class="signin-input" type="text" placeholder="Last name" autocomplete="family-name" oninput="updateWizBeginEnabled()" />
+    <div class="gs-step" id="gs-step2">
+      <div class="gs-step-head"><span class="gs-step-num">2</span><span class="gs-step-title">Save your setup</span></div>
+      <div class="wiz-identity">
+        <div class="signin-field-row">
+          <input id="onb-first" class="signin-input" type="text" placeholder="First name" autocomplete="given-name" oninput="updateWizBeginEnabled()" />
+          <input id="onb-last" class="signin-input" type="text" placeholder="Last name" autocomplete="family-name" oninput="updateWizBeginEnabled()" />
+        </div>
+        <input id="onb-email" class="signin-input" type="email" placeholder="you@example.com" autocomplete="email" oninput="updateWizBeginEnabled()" onkeydown="if(event.key==='Enter')wizardBegin()" />
+        <p class="provider-error" id="onb-error" style="display:none"></p>
       </div>
-      <input id="onb-email" class="signin-input" type="email" placeholder="you@example.com" autocomplete="email" oninput="updateWizBeginEnabled()" onkeydown="if(event.key==='Enter')wizardBegin()" />
-      <p class="provider-error" id="onb-error" style="display:none"></p>
+      <p class="gs-field-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M4 7.5l8 5.5 8-5.5"/></svg>No password to remember. We email you a sign-in link whenever you need one.</p>
     </div>` : '';
   // "Don't see your platform?" — multi-select demand capture. No submit button:
   // the picks ride along with the Continue click (wizardBegin → maybeSubmitIntegrationRequests).
@@ -13785,7 +13873,7 @@ function renderWizardSelection(){
   }).join('');
   const reqHtml =
     `<details class="wiz-req"${rq.open?' open':''}>
-       <summary class="wiz-req-summary">Don't see your platform?</summary>
+       <summary class="wiz-req-summary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span><b>CBS, NFL.com or elsewhere?</b> Add those matchups manually once you're in.</span><span class="wiz-req-link">Request a platform</span></summary>
        <div class="wiz-req-body">
          <p class="wiz-req-hint">Check any you'd want — we'll log it when you continue and prioritize what to build next.</p>
          <div class="wiz-req-grid">${reqChecks}</div>
@@ -13794,11 +13882,13 @@ function renderWizardSelection(){
        </div>
      </details>`;
   root.innerHTML =
+    `<div class="gs-step" id="gs-step1">
+       <div class="gs-step-head"><span class="gs-step-num">1</span><span class="gs-step-title">Where are your leagues?</span><span class="gs-step-hint">Pick all that apply</span></div>
+       <div class="wiz-pick-grid">${cards}</div>
+       ${reqHtml}
+     </div>` +
     identityHtml +
-    `<p class="wiz-select-label">Which leagues do you want to connect?</p>
-     <div class="wiz-pick-grid">${cards}</div>
-     <button class="btn-primary" id="wiz-begin" style="width:100%;margin-top:14px"${window.__wizSelected.size?'':' disabled'}>${needIdentity?'Save &amp; continue':'Continue'}</button>
-     ${reqHtml}`;
+    `<button class="btn-primary gs-cta" id="wiz-begin" disabled></button>`;
   const begin = document.getElementById('wiz-begin');
   if(begin) begin.onclick = wizardBegin;
   if(needIdentity && window.__onbDraft){
@@ -13808,19 +13898,34 @@ function renderWizardSelection(){
   }
   updateWizBeginEnabled();
 }
-/* "Save & continue" is clickable only when a platform is picked AND — for new
-   users — first name, last name, and a valid email are all filled in. */
+/* The submit (#wiz-begin) is clickable only when a platform is picked AND — for
+   new users — first name, last name, and a valid email are all filled in. Its
+   label walks the user through: 'Pick at least one platform' → 'Add your name &
+   email' → 'Connect Sleeper + ESPN'. */
 function updateWizBeginEnabled(){
   const begin = document.getElementById('wiz-begin');
   if(!begin) return;
-  let ok = !!(window.__wizSelected && window.__wizSelected.size);
-  if(ok && onboardingGateActive()){
+  const s1 = !!(window.__wizSelected && window.__wizSelected.size);
+  const gate = onboardingGateActive();
+  let s2 = true;
+  if(gate){
     const f = (document.getElementById('onb-first') || {}).value || '';
     const l = (document.getElementById('onb-last') || {}).value || '';
     const e = (document.getElementById('onb-email') || {}).value || '';
-    ok = !!f.trim() && !!l.trim() && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.trim());
+    s2 = !!f.trim() && !!l.trim() && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.trim());
   }
-  begin.disabled = !ok;
+  begin.disabled = !(s1 && s2);
+  const st1 = document.getElementById('gs-step1'); if(st1) st1.classList.toggle('done', s1);
+  const st2 = document.getElementById('gs-step2'); if(st2) st2.classList.toggle('done', gate && s2);
+  // The button names what's missing, then what it will do.
+  let label;
+  if(!s1) label = 'Pick at least one platform';
+  else if(!s2) label = 'Add your name &amp; email';
+  else {
+    const names = Object.values(PROVIDERS).filter(p=>window.__wizSelected.has(p.id)).map(p=>p.displayName);
+    label = 'Connect ' + (names.length >= 3 ? 'all three' : names.join(' + ')) + ' <span class="gs-arr" aria-hidden="true">&rarr;</span>';
+  }
+  begin.innerHTML = label;
 }
 function toggleWizardPick(id){
   captureOnbDraft();           // keep any typed name/email across the re-render
@@ -14246,12 +14351,12 @@ async function submitIdentityInline(){
       return false;
     }else{
       showErr(j.error || 'Could not save. Please try again.');
-      if(btn){ btn.disabled=false; btn.textContent='Save & continue'; }
+      if(btn){ btn.disabled=false; updateWizBeginEnabled(); }
       return false;
     }
   }catch(e){
     showErr('Network error. Please try again.');
-    if(btn){ btn.disabled=false; btn.textContent='Save & continue'; }
+    if(btn){ btn.disabled=false; updateWizBeginEnabled(); }
     return false;
   }
 }
