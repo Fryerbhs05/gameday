@@ -27217,6 +27217,16 @@ body.cf-maniac-lock{overflow:hidden}
 #cfm .cfm-top{display:flex;align-items:center;gap:12px;padding:12px var(--pad);min-height:62px;border-bottom:1px solid var(--line-soft);flex:none}
 #cfm .cfm-wm{height:calc(var(--b)*1.6);width:auto;display:block;flex:none}
 #cfm .cfm-kick{font-size:var(--t2xs);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-500);font-weight:700;white-space:nowrap}
+/* Demo mode: an Exit Maniac Mode pill styled exactly like the ribbon's Exit Demo Mode
+   button takes the kicker's spot (2026-10-14). Real users keep the kicker. */
+#cfm .cfm-demo-exit{display:none}
+body.demo-active #cfm .cfm-kick{display:none}
+body.demo-active #cfm button.cfm-demo-exit{display:inline-flex;align-items:center;flex:none;background:#7AA8D1;color:var(--surf-panel-2);border:0;border-radius:var(--radius-md);cursor:pointer;font:600 12px/1 var(--font-sans);padding:9px 12px;white-space:nowrap;transition:background .15s var(--ease-out)}
+body.demo-active #cfm button.cfm-demo-exit:hover,body.demo-active #cfm button.cfm-demo-exit:active{background:#5790C0}
+#cfm .cfm-demo-exit .short{display:none}
+#cfm.compact .cfm-demo-exit .full{display:none}
+#cfm.compact .cfm-demo-exit .short{display:inline}
+body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10px}
 #cfm .cfm-fresh{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-pill);border:1px solid var(--line);font-size:var(--txs);color:var(--ink-700);white-space:nowrap;transition:background 1.3s var(--ease-out),border-color 1.3s var(--ease-out)}
 #cfm .cfm-fresh.synced-flash{transition:none;background:color-mix(in oklab,var(--live-ice) 16%,transparent);border-color:var(--live-ice)}
 #cfm .cfm-fresh .dot{width:7px;height:7px;border-radius:50%;background:var(--live-ice)}
@@ -27862,6 +27872,7 @@ body.cf-maniac-lock{overflow:hidden}
       +    '<text x="240" y="54" text-anchor="middle" clip-path="url(#cfmWmR)" style="font-family:Inter,system-ui,sans-serif;font-weight:900;font-size:50px;letter-spacing:-0.04em;fill:var(--coral-500,#E88761)">CONFLICTED</text>'
       +    '<line x1="240" y1="12" x2="240" y2="66" style="stroke:var(--ink-900,#F5EFE4);stroke-width:1.2"/></svg>'
       +  '<span class="cfm-kick" id="cfm-kick">Maniac Mode</span>'
+      +  '<button type="button" class="cfm-demo-exit" data-cfm="exit"><span class="full">Exit Maniac Mode</span><span class="short">Exit Maniac</span></button>'
       +  '<span class="cfm-fresh" id="cfm-fresh"><span class="dot"></span><span id="cfm-fresh-t">Synced</span></span>'
       +  '<div class="cfm-tk" id="cfm-tk" aria-label="Live stat ticker"><div class="cfm-tk-run" id="cfm-tk-run"><div class="cfm-tk-track" id="cfm-tk-track"></div><div class="cfm-tk-empty" id="cfm-tk-empty"></div></div></div>'
       +  '<span class="cfm-sp cfm-tsp"></span>'
