@@ -616,33 +616,34 @@
        with the lp-hx stat ticker + touchdown flood laid over its ticker well
        at left 28.55% / width 52.25%). Replace a screen by overwriting its file. ── */
     .lp-fx { position: relative; width: 100%; max-width: 1180px; margin: 22px auto 0; padding-bottom: 30px; --ph-w: 270px; --ls-w: 700px; --fx-gap: 36px; }
+    /* Stage = a clipped window; slides are absolutely placed and moved by JS
+       every frame (transform + opacity from each slide's live distance to the
+       center), so a drag follows the finger 1:1 and the release glides on a
+       spring with the finger's velocity. Infinite: positions wrap modulo N. */
     .lp-fx-track {
-      position: relative; display: flex; align-items: center; gap: var(--fx-gap);
-      overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
-      scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-      padding: 10px calc(50% - var(--ph-w) / 2) 16px;
+      position: relative; overflow: hidden; height: 680px;
+      touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
       -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%);
               mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 86%, transparent 100%);
     }
-    .lp-fx-track::-webkit-scrollbar { display: none; }
+    .lp-fx-track.is-drag { cursor: grabbing; }
     .lp-fx-slide {
-      flex: none; margin: 0; scroll-snap-align: center; scroll-snap-stop: always;
+      position: absolute; left: 50%; top: 50%; margin: 0;
       display: flex; flex-direction: column; align-items: center; gap: 18px;
-      opacity: .3; transform: scale(.9); cursor: pointer; user-select: none; -webkit-user-select: none;
-      transition: opacity .5s var(--ease-out, ease), transform .5s var(--ease-out, ease);
+      transform: translate(-50%, -50%); will-change: transform, opacity;
+      backface-visibility: hidden; -webkit-backface-visibility: hidden;
     }
-    .lp-fx-slide.is-on { opacity: 1; transform: none; cursor: default; }
     .lp-fx-slide--p { width: var(--ph-w); }
     .lp-fx-slide--l { width: var(--ls-w); }
-    .lp-fx-slide img { -webkit-user-drag: none; pointer-events: none; }
+    .lp-fx-slide img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
     .lp-fx-phone {
       width: 100%; padding: 7px; border-radius: 40px; box-sizing: border-box;
       background: linear-gradient(160deg, #1c2c3c, #0c151f); border: 1px solid #26384a;
       box-shadow: 0 40px 80px -30px rgba(0,0,0,.75), 0 0 0 1px rgba(0,0,0,.25);
     }
     .lp-fx-phone img { display: block; width: 100%; height: auto; border-radius: 33px; background: #0F1B26; }
-    .lp-fx-cap { text-align: center; max-width: 320px; transition: opacity .4s ease; }
-    .lp-fx-slide:not(.is-on) .lp-fx-cap { opacity: 0; }
+    .lp-fx-cap { text-align: center; max-width: 320px; will-change: opacity; }
     .lp-fx-cap b { display: block; font: 800 19px/1.2 var(--font-sans); letter-spacing: -.01em; color: var(--ink-900); }
     .lp-fx-cap span { display: block; margin-top: 5px; font: 400 14px/1.45 var(--font-sans); color: var(--ink-500); }
     .lp-fx-rot { display: inline-flex; align-items: center; gap: 8px; font: 600 11px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--live-ice, #8FC7F0); }
@@ -709,8 +710,7 @@
     }
     @media (max-width: 700px) {
       .lp-fx { margin-top: 10px; padding-bottom: 18px; --ph-w: min(62vw, 250px); --fx-gap: 14px; }
-      .lp-fx-track { -webkit-mask-image: none; mask-image: none; padding-top: 6px; }
-      .lp-fx-slide { transform: scale(.92); }
+      .lp-fx-track { -webkit-mask-image: none; mask-image: none; height: 600px; }
       .lp-fx-phone { padding: 5px; border-radius: 32px; }
       .lp-fx-phone img { border-radius: 27px; }
       .lp-fx-cap b { font-size: 17px; }
@@ -719,9 +719,6 @@
       .lp-fx-nav { gap: 6px; }
       .lp-fx-tab { flex: 0 0 34px; font-size: 0; padding-top: 6px; }
       .lp-fx-tab i { margin-bottom: 0; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .lp-fx-slide, .lp-fx-cap { transition: none; }
     }
 
     /* Sign-in card + 1B demo panel */
@@ -5243,27 +5240,27 @@
        autoplay that pauses on interaction. Script right after the markup. -->
   <section class="lp-fx" id="lp-fx" aria-roledescription="carousel" aria-label="Conflicted features">
     <div class="lp-fx-track">
-      <figure class="lp-fx-slide lp-fx-slide--p is-on" data-i="0" role="group" aria-roledescription="slide" aria-label="My Matchups">
-        <div class="lp-fx-phone"><img src="/landing/lp-matchups.webp" width="804" height="1748" fetchpriority="high" decoding="async" alt="My Matchups: four leagues with live scores, projected finals and win or loss status"></div>
+      <figure class="lp-fx-slide lp-fx-slide--p" data-i="0" role="group" aria-roledescription="slide" aria-label="My Matchups">
+        <div class="lp-fx-phone"><img src="/landing/lp-matchups.webp" draggable="false" width="804" height="1748" fetchpriority="high" decoding="async" alt="My Matchups: four leagues with live scores, projected finals and win or loss status"></div>
         <figcaption class="lp-fx-cap"><b>My Matchups</b><span>Every league, live, on one screen.</span></figcaption>
       </figure>
       <figure class="lp-fx-slide lp-fx-slide--p" data-i="1" role="group" aria-roledescription="slide" aria-label="Loyalties">
-        <div class="lp-fx-phone"><img src="/landing/lp-loyalties.webp" width="804" height="1748" loading="lazy" decoding="async" alt="Loyalties: players you have on both sides, with points in each league"></div>
+        <div class="lp-fx-phone"><img src="/landing/lp-loyalties.webp" draggable="false" width="804" height="1748" loading="lazy" decoding="async" alt="Loyalties: players you have on both sides, with points in each league"></div>
         <figcaption class="lp-fx-cap"><b>Loyalties</b><span>Know who you're really rooting for.</span></figcaption>
       </figure>
       <figure class="lp-fx-slide lp-fx-slide--p" data-i="2" role="group" aria-roledescription="slide" aria-label="Watch Priority">
-        <div class="lp-fx-phone"><img src="/landing/lp-watch.webp" width="804" height="1748" loading="lazy" decoding="async" alt="Watch Priority: this week's NFL games ranked by how many of your players are in each"></div>
+        <div class="lp-fx-phone"><img src="/landing/lp-watch.webp" draggable="false" width="804" height="1748" loading="lazy" decoding="async" alt="Watch Priority: this week's NFL games ranked by how many of your players are in each"></div>
         <figcaption class="lp-fx-cap"><b>Watch Priority</b><span>Which game to put on, ranked by your stake.</span></figcaption>
       </figure>
       <figure class="lp-fx-slide lp-fx-slide--p" data-i="3" role="group" aria-roledescription="slide" aria-label="Division Watch">
-        <div class="lp-fx-phone"><img src="/landing/lp-division.webp" width="804" height="1748" loading="lazy" decoding="async" alt="Division Watch: division rivals with their win chances this week"></div>
+        <div class="lp-fx-phone"><img src="/landing/lp-division.webp" draggable="false" width="804" height="1748" loading="lazy" decoding="async" alt="Division Watch: division rivals with their win chances this week"></div>
         <figcaption class="lp-fx-cap"><b>Division Watch</b><span>Your division race, and who to root against.</span></figcaption>
       </figure>
       <figure class="lp-fx-slide lp-fx-slide--l" data-i="4" role="group" aria-roledescription="slide" aria-label="Maniac Mode">
         <span class="lp-fx-rot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="11" rx="2"/><path d="M8 3.5c2.5-1.6 5.5-1.6 8 0"/><path d="M14.5 2.2 16 3.5l-1.5 1.6"/></svg>Turn it sideways</span>
         <div class="lp-hx-phl">
           <div class="lp-hx-scr">
-            <img src="/landing/lp-maniac.webp" width="1688" height="780" loading="lazy" decoding="async" alt="Maniac Mode on a phone turned sideways: your matchups, the Dynasty Royale lineups at a 90% win chance, and Who to root for">
+            <img src="/landing/lp-maniac.webp" draggable="false" width="1688" height="780" loading="lazy" decoding="async" alt="Maniac Mode on a phone turned sideways: your matchups, the Dynasty Royale lineups at a 90% win chance, and Who to root for">
             <div class="lp-hx-tkw" aria-hidden="true">
               <div class="lp-hx-run">
                 <div class="lp-hx-track">
@@ -5300,64 +5297,133 @@
     </div>
   </section>
 <script>
-/* Landing feature carousel — see the .lp-fx CSS block for the rules. */
+/* Landing feature carousel (infinite, 2026-10-13) — see the .lp-fx CSS block.
+   pos = continuous slide position (unbounded; slide index = pos mod N). Every
+   frame each slide is placed by its wrapped offset from pos, with variable
+   spacing (the landscape Maniac slide is wider). Drag follows the finger 1:1;
+   release hands the finger's velocity to a critically-damped spring that
+   settles on the nearest slide (a flick moves one). Autoplay / tabs drive the
+   same spring, so every transition is the same glide. */
 (function(){
   try{
     var root=document.getElementById('lp-fx');if(!root)return;
     var track=root.querySelector('.lp-fx-track');
     var slides=Array.prototype.slice.call(root.querySelectorAll('.lp-fx-slide'));
+    var caps=slides.map(function(s){return s.querySelector('.lp-fx-cap');});
     var tabs=Array.prototype.slice.call(root.querySelectorAll('.lp-fx-tab'));
-    var N=slides.length,DUR=5500,HOLD=8000;
-    var cur=0,el=0,last=0,hover=false,holdUntil=0,inView=false,raf=0,lockUntil=0,sTimer=0;
+    var N=slides.length,DUR=5500,HOLD=8000,OMEGA=11;
     var reduce=false;try{reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
-    function paint(){tabs.forEach(function(t,k){t.style.setProperty('--p',k===cur?(reduce?1:Math.min(1,el/DUR)):0);});}
-    function setActive(i){
-      if(i===cur&&slides[i].classList.contains('is-on'))return;
-      cur=i;el=0;
-      slides.forEach(function(s,k){s.classList.toggle('is-on',k===i);});
-      tabs.forEach(function(t,k){t.setAttribute('aria-current',k===i?'true':'false');});
-      paint();
+    var W=[],GAP=36,pos=0,vel=0,target=0,cur=-1,el=0,last=0,hover=false,holdUntil=0,inView=false,raf=0;
+    var drag=null;
+    function mod(a,n){return ((a%n)+n)%n;}
+    function measure(){
+      W=slides.map(function(s){return s.offsetWidth;});
+      GAP=parseFloat(getComputedStyle(root).getPropertyValue('--fx-gap'))||36;
+      var h=0;slides.forEach(function(s){h=Math.max(h,s.offsetHeight);});
+      if(h)track.style.height=(h+56)+'px';
     }
-    function go(i,smooth){
-      i=((i%N)+N)%N;var s=slides[i];
-      var left=s.offsetLeft+s.offsetWidth/2-track.clientWidth/2;
-      lockUntil=Date.now()+(smooth&&!reduce?900:60);
-      try{track.scrollTo({left:left,behavior:(smooth&&!reduce)?'smooth':'auto'});}catch(e){track.scrollLeft=left;}
-      setActive(i);
+    /* center distance from slide i to its right-hand neighbour */
+    function step(i){i=mod(i,N);return W[i]/2+GAP+W[mod(i+1,N)]/2;}
+    function render(){
+      var i0=Math.round(pos),f=pos-i0,half=Math.floor(N/2);
+      var shift=f>=0?f*step(i0):f*step(i0-1);          /* viewport center, px from slide i0 */
+      var cx={};cx[0]=0;
+      for(var j=1;j<=half;j++)cx[j]=cx[j-1]+step(i0+j-1);
+      for(var j=1;j<=N-1-half;j++)cx[-j]=cx[-j+1]-step(i0-j);
+      for(var j=-(N-1-half);j<=half;j++){
+        var k=mod(i0+j,N),x=cx[j]-shift;
+        var d=Math.abs(j-f),dd=Math.min(1,d);
+        var sc=1-0.1*dd,op=d<=1?1-0.68*d:Math.max(0,0.32*(1-(d-1)/0.7));
+        var s=slides[k];
+        s.style.transform='translate(-50%,-50%) translate3d('+x.toFixed(2)+'px,0,0) scale('+sc.toFixed(4)+')';
+        s.style.opacity=op.toFixed(3);
+        s.style.visibility=op<0.01?'hidden':'visible';
+        s.style.zIndex=String(10-Math.round(d*2));
+        if(caps[k])caps[k].style.opacity=Math.max(0,1-d*2.6).toFixed(3);
+      }
+      var a=mod(Math.round(pos),N);
+      if(a!==cur){cur=a;el=0;tabs.forEach(function(t,k){t.setAttribute('aria-current',k===a?'true':'false');});slides.forEach(function(s,k){s.setAttribute('aria-hidden',k===a?'false':'true');});}
+      tabs.forEach(function(t,k){t.style.setProperty('--p',k===cur?(reduce?1:Math.min(1,el/DUR)):0);});
     }
-    function nearest(){
-      var mid=track.scrollLeft+track.clientWidth/2,best=0,bd=1e9;
-      slides.forEach(function(s,k){var d=Math.abs(s.offsetLeft+s.offsetWidth/2-mid);if(d<bd){bd=d;best=k;}});
-      return best;
+    function goTo(k){                    /* shortest way round to slide k */
+      var base=Math.round(target),delta=mod(k-mod(base,N),N);if(delta>N/2)delta-=N;
+      target=base+delta;wake();
     }
     function hold(){holdUntil=Date.now()+HOLD;}
-    track.addEventListener('scroll',function(){
-      if(Date.now()<lockUntil)return;
-      clearTimeout(sTimer);sTimer=setTimeout(function(){var n=nearest();if(n!==cur)setActive(n);},80);
-    },{passive:true});
-    ['pointerdown','touchstart','wheel'].forEach(function(ev){track.addEventListener(ev,function(){hold();lockUntil=0;},{passive:true});});
-    track.addEventListener('mouseenter',function(){hover=true;});
-    track.addEventListener('mouseleave',function(){hover=false;});
-    slides.forEach(function(s,k){s.addEventListener('click',function(){if(k!==cur){hold();go(k,true);}});});
-    tabs.forEach(function(t,k){t.addEventListener('click',function(){hold();go(k,true);});});
-    function tick(t){
-      raf=requestAnimationFrame(tick);
-      var dt=last?Math.min(100,t-last):0;last=t;
-      if(reduce||hover||document.hidden||Date.now()<holdUntil)return;
-      el+=dt;
-      if(el>=DUR){go(cur+1,true);return;}
-      paint();
+    function frame(t){
+      raf=0;
+      var dt=last?Math.min(0.05,(t-last)/1000):0;last=t;
+      var moving=false;
+      if(!drag){
+        var x=pos-target;
+        if(Math.abs(x)>0.0005||Math.abs(vel)>0.0005){
+          if(reduce){pos=target;vel=0;}
+          else{var a=-OMEGA*OMEGA*x-2*OMEGA*vel;vel+=a*dt;pos+=vel*dt;}
+          moving=true;
+        }else{pos=target;vel=0;}
+      }
+      var auto=!reduce&&inView&&!hover&&!drag&&!document.hidden&&Date.now()>=holdUntil;
+      if(auto&&!moving){el+=dt*1000;if(el>=DUR){el=0;target=Math.round(target)+1;moving=true;}}
+      render();
+      if(inView&&(moving||auto||drag||Date.now()<holdUntil+50||!reduce))raf=requestAnimationFrame(frame);
     }
-    function start(){if(!raf){last=0;raf=requestAnimationFrame(tick);}}
-    function stop(){if(raf){cancelAnimationFrame(raf);raf=0;}}
+    function wake(){if(!raf){last=0;raf=requestAnimationFrame(frame);}}
+    function sleep(){if(raf){cancelAnimationFrame(raf);raf=0;}}
+
+    /* ── drag ── */
+    track.addEventListener('pointerdown',function(e){
+      if(e.pointerType==='mouse'&&e.button!==0)return;
+      drag={id:e.pointerId,x0:e.clientX,p0:pos,lx:e.clientX,lt:performance.now(),v:0,moved:0,tap:e.target.closest('.lp-fx-slide')};
+      vel=0;target=pos;hold();wake();
+    });
+    track.addEventListener('pointermove',function(e){
+      if(!drag||e.pointerId!==drag.id)return;
+      var dx=e.clientX-drag.x0;drag.moved=Math.max(drag.moved,Math.abs(dx));
+      if(drag.moved>4&&!track.classList.contains('is-drag')){track.classList.add('is-drag');try{track.setPointerCapture(e.pointerId);}catch(x){}}
+      var i0=Math.round(pos),px=dx<0?step(i0):step(i0-1);
+      pos=drag.p0-dx/px;
+      var now=performance.now(),dtm=now-drag.lt;
+      if(dtm>0){var inst=-(e.clientX-drag.lx)/px/(dtm/1000);drag.v=drag.v*0.6+inst*0.4;}
+      drag.lx=e.clientX;drag.lt=now;
+    });
+    function end(e){
+      if(!drag||(e&&e.pointerId!==drag.id))return;
+      var d=drag;drag=null;track.classList.remove('is-drag');hold();
+      if(d.moved<=4){                                  /* tap: go to the tapped slide */
+        if(d.tap){var k=slides.indexOf(d.tap);if(k>=0&&k!==cur)goTo(k);}
+        wake();return;
+      }
+      if(performance.now()-d.lt>120)d.v=0;           /* finger stopped before lifting */
+      vel=d.v;
+      var t=Math.round(pos);
+      if(Math.abs(d.v)>0.6)t=(d.v>0?Math.floor(pos)+1:Math.ceil(pos)-1);  /* flick = one more */
+      t=Math.max(Math.round(d.p0)-1,Math.min(Math.round(d.p0)+1,t));      /* one slide per swipe */
+      target=t;wake();
+    }
+    track.addEventListener('pointerup',end);
+    track.addEventListener('pointercancel',end);
+    track.addEventListener('lostpointercapture',function(e){if(drag&&e.pointerId===drag.id)end(e);});
+    track.addEventListener('mouseenter',function(){hover=true;});
+    track.addEventListener('mouseleave',function(){hover=false;wake();});
+    track.addEventListener('wheel',function(e){            /* trackpad side-swipe */
+      if(Math.abs(e.deltaX)<=Math.abs(e.deltaY)||Math.abs(e.deltaX)<2)return;
+      e.preventDefault();hold();
+      clearTimeout(track.__wt);
+      if(!track.__wl){track.__wl=1;target=Math.round(target)+(e.deltaX>0?1:-1);wake();}
+      track.__wt=setTimeout(function(){track.__wl=0;},260);
+    },{passive:false});
+    tabs.forEach(function(t,k){t.addEventListener('click',function(){hold();goTo(k);});});
+    document.addEventListener('visibilitychange',function(){if(!document.hidden)wake();});
+
     if('IntersectionObserver' in window){
       new IntersectionObserver(function(es){
-        var was=inView;inView=es[0].isIntersecting;
-        if(inView){if(!was)go(cur,false);start();}else stop();
-      },{threshold:0.35}).observe(root);
-    }else{start();}
-    var rz=0;window.addEventListener('resize',function(){clearTimeout(rz);rz=setTimeout(function(){go(cur,false);},120);});
-    go(0,false);paint();
+        inView=es[0].isIntersecting;
+        if(inView){measure();wake();}else sleep();
+      },{threshold:0.2}).observe(root);
+    }else{inView=true;wake();}
+    var rz=0;window.addEventListener('resize',function(){clearTimeout(rz);rz=setTimeout(function(){measure();render();},100);});
+    slides.forEach(function(s){var im=s.querySelector('img');if(im&&!im.complete)im.addEventListener('load',function(){measure();render();},{once:true});});
+    measure();render();
   }catch(e){try{console.warn('lp-fx',e);}catch(x){}}
 })();
 </script>
