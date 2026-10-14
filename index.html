@@ -28841,6 +28841,34 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
 })();
 </script>
 
+<!-- ============ LOGO → HOME (2026-10-14, sw v376) ============
+     Signed in or in demo mode, the CONFLICTED logos (header wordmark, desktop
+     rail mark, Maniac Mode wordmark) go to the dashboard (My Matchups) in-app —
+     no reload, so demo mode survives. Signed-out visitors keep href="/".
+     Routes through the bottom-nav Home tab so it shares its guards. -->
+<style>#cfm .cfm-wm{cursor:pointer}</style>
+<script>
+(function(){
+  function inApp(){
+    var signed=false; try{ signed=!!(window.__account&&window.__account.signedIn); }catch(e){}
+    var demo=false; try{ demo=typeof window.inDemoMode==='function'&&window.inDemoMode(); }catch(e){}
+    return signed||demo;
+  }
+  document.addEventListener('click',function(e){
+    var t=e.target&&e.target.closest&&e.target.closest('.site-header__brand,.cfrail-mark,#cfm .cfm-wm');
+    if(!t||!inApp())return;
+    if(e.metaKey||e.ctrlKey||e.shiftKey||e.button===1)return;   /* let open-in-new-tab work */
+    e.preventDefault(); e.stopPropagation();
+    try{ if(window.__cfManiacOpen&&typeof window.hideManiac==='function')window.hideManiac(); }catch(x){}
+    var home=document.querySelector('#exp-bottom-nav [data-exp-tab="dashboard"]');
+    if(home)home.click();
+    else if(typeof window.goToDashboardOrSetup==='function')window.goToDashboardOrSetup();
+    try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(x){ window.scrollTo(0,0); }
+    try{ cfTrack('logo_home',{from:t.classList.contains('cfm-wm')?'maniac':(t.classList.contains('cfrail-mark')?'rail':'header')}); }catch(x){}
+  },true);
+})();
+</script>
+
 <!-- ============ MANIAC MODE ENTRY POINTS (2026-10-13, sw v352) ============
      Maniac Mode is released to all users. "Hot" window = an NFL game is in
      progress, or one kicks off within 30 minutes (live week's ESPN slate).
