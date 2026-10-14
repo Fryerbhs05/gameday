@@ -603,10 +603,15 @@
     .lp-feat-ic svg { width: 18px; height: 18px; color: var(--navy-700); }
     .lp-feat-t { font: 700 15px/1.25 var(--font-sans); color: var(--ink-900); }
     .lp-feat-d { margin-top: 3px; font: 400 13.5px/1.45 var(--font-sans); color: var(--ink-500); }
-    .lp-pitch-more { margin: 18px 0 0; padding: 14px 16px; border-radius: 10px; background: var(--paper-deep); border: 1px solid var(--line-soft); font: 400 13.5px/1.5 var(--font-sans); color: var(--ink-500); text-align: center; }
+    .lp-pitch-more { margin: 18px 0 0; padding: 14px 16px; border-radius: 10px; background: transparent; border: 1px solid var(--line-soft); font: 400 13.5px/1.5 var(--font-sans); color: var(--ink-500); text-align: center; }
     .lp-pitch-more b { color: var(--ink-700); font-weight: 700; }
     .lp-pitch-ctas { display: flex; justify-content: center; gap: 10px; margin-top: 24px; }
     .lp-pitch-ctas .btn-hero { white-space: nowrap; }
+    /* Demo button matches the Get started section's .btn-demo-panel (navy outline + arrow). */
+    .btn-hero--demo { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: var(--ink-900); border: 1.5px solid var(--navy-700); padding: 13.5px 24px; font-weight: 600; }
+    .btn-hero--demo:hover { background: rgba(122,168,209,.1); }
+    .btn-hero--demo .gs-arr { transition: transform .15s var(--ease-out); }
+    .btn-hero--demo:hover .gs-arr { transform: translateX(3px); }
     @media (max-width: 760px) {
       .lp-pitch { padding: 26px 18px 22px; margin-top: 20px; }
       .lp-pitch-lead { font-size: 28px; }
@@ -5606,42 +5611,13 @@
     <p class="lp-pitch-more"><b>And more:</b> Maniac Mode, live league scores and standings, player box scores, and manual matchups for anywhere else.</p>
     <div class="lp-pitch-ctas">
       <button type="button" class="btn-hero btn-hero--primary" onclick="scrollToGetStarted()">Get started</button>
-      <button type="button" class="btn-hero btn-hero--ghost" onclick="handleDemo()">Try demo mode</button>
+      <button type="button" class="btn-hero btn-hero--demo" onclick="handleDemo()">Try demo mode <span class="gs-arr" aria-hidden="true">&rarr;</span></button>
     </div>
   </section>
   </div>
 
-  <!-- How it works -->
-  <div class="lp-how">
-    <div class="lp-how-inner">
-      <div class="lp-section-label">How it works</div>
-      <div class="how-grid">
-        <div class="how-step">
-          <div class="how-num">01</div>
-          <div class="how-title">Start in seconds</div>
-          <div class="how-desc">Sleeper, Yahoo, ESPN. Easy setup, no homework — connect a league and you're already running.</div>
-        </div>
-        <div class="how-step">
-          <div class="how-num">02</div>
-          <div class="how-title">Every league, one screen</div>
-          <div class="how-desc">We pull every roster and every opponent's lineup automatically. No tabs, no apps, no spreadsheet. Just your whole fantasy life in one place.</div>
-        </div>
-        <div class="how-step">
-          <div class="how-num">03</div>
-          <div class="how-title">Know who you're rooting for</div>
-          <div class="how-desc">Same player, three leagues, three feelings. We tag every guy on the field as cheer, conflicted, or enemy — so you finally know who to scream at the TV for.</div>
-        </div>
-        <div class="how-step">
-          <div class="how-num">04</div>
-          <div class="how-title">Loyalties shift in real time</div>
-          <div class="how-desc">Clinch a league and its players go neutral. Still fighting for a spot? Every yard counts. Conflicted updates as your season does — right down to the final whistle.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Sign-in (the how-it-works band's bottom border already separates sections;
-       the old .lp-divider was removed with the 1B redesign) -->
+  <!-- Sign-in / Get started. (How it works was removed 2026-10-14 — archived in
+       Archive/landing-how-it-works-section-2026-10-14.html.) -->
   <div class="lp-signin" id="get-started-section" style="padding-top:56px">
     <div class="signin-card">
       <h3>Get started</h3>
