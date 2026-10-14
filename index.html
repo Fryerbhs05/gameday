@@ -584,20 +584,36 @@
       font: 600 21px/1.4 var(--font-sans); color: var(--ink-900);
       max-width: 620px; margin: 0 auto; text-wrap: balance;
     }
-    /* Pitch strip under the carousel (2026-10-14): body copy left, CTAs right on
-       desktop; stacked + centered on phones. */
+    /* Pitch strip under the carousel (2026-10-14, mocks/pitch-strip-v2-mock.html):
+       hook + sub, two-column feature grid (one column on phones), "And more"
+       bar, CTAs. */
     .lp-pitch {
       max-width: var(--max-width); width: calc(100% - var(--gutter) * 2); box-sizing: border-box;
-      margin: 28px auto 8px; padding: 26px 30px;
-      display: flex; align-items: center; gap: 28px;
+      margin: 28px auto 8px; padding: 36px 36px 30px;
       background: var(--paper-soft); border: 1px solid var(--line); border-radius: 16px;
     }
-    .lp-pitch-sub { flex: 1 1 auto; margin: 0; font: 400 16.5px/1.6 var(--font-sans); color: var(--ink-700); max-width: 520px; }
-    .lp-pitch-ctas { flex: 0 0 auto; display: flex; gap: 10px; }
+    .lp-pitch-head { text-align: center; }
+    .lp-pitch-lead { margin: 0; font: 900 34px/1.1 var(--font-sans); letter-spacing: -0.025em; color: var(--ink-900); text-wrap: balance; }
+    .lp-pitch-lead em { font-style: normal; color: var(--coral-500); }
+    .lp-pitch-sub { margin: 12px auto 0; font: 400 16.5px/1.5 var(--font-sans); color: var(--ink-700); }
+    .lp-feats { list-style: none; margin: 30px 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 40px; }
+    .lp-feat { display: grid; grid-template-columns: 36px 1fr; column-gap: 14px; align-items: start; padding: 14px 4px; border-top: 1px solid var(--line-soft); }
+    .lp-feat:nth-child(-n+2) { border-top: 0; }
+    .lp-feat-ic { width: 36px; height: 36px; box-sizing: border-box; border-radius: 10px; background: var(--tile-bg); border: 1px solid var(--tile-line); display: grid; place-items: center; }
+    .lp-feat-ic svg { width: 18px; height: 18px; color: var(--navy-700); }
+    .lp-feat-t { font: 700 15px/1.25 var(--font-sans); color: var(--ink-900); }
+    .lp-feat-d { margin-top: 3px; font: 400 13.5px/1.45 var(--font-sans); color: var(--ink-500); }
+    .lp-pitch-more { margin: 18px 0 0; padding: 14px 16px; border-radius: 10px; background: var(--paper-deep); border: 1px solid var(--line-soft); font: 400 13.5px/1.5 var(--font-sans); color: var(--ink-500); text-align: center; }
+    .lp-pitch-more b { color: var(--ink-700); font-weight: 700; }
+    .lp-pitch-ctas { display: flex; justify-content: center; gap: 10px; margin-top: 24px; }
     .lp-pitch-ctas .btn-hero { white-space: nowrap; }
     @media (max-width: 760px) {
-      .lp-pitch { flex-direction: column; align-items: stretch; text-align: center; gap: 18px; padding: 22px 18px; margin-top: 20px; }
-      .lp-pitch-sub { max-width: none; font-size: 15px; }
+      .lp-pitch { padding: 26px 18px 22px; margin-top: 20px; }
+      .lp-pitch-lead { font-size: 28px; }
+      .lp-pitch-sub { font-size: 15px; }
+      .lp-feats { grid-template-columns: 1fr; margin-top: 22px; }
+      .lp-feat:nth-child(2) { border-top: 1px solid var(--line-soft); }
+      .lp-feat { padding: 12px 2px; }
       .lp-pitch-ctas { flex-direction: column; }
       .lp-pitch-ctas .btn-hero { width: 100%; }
     }
@@ -5544,15 +5560,55 @@
   }catch(e){try{console.warn('lp-fx',e);}catch(x){}}
 })();
 </script>
-  <!-- Pitch strip (2026-10-14): the hero's body copy + CTAs moved BELOW the
-       carousel so the carousel sits above the fold. Sign in lives in the header
-       (.site-header__signin-r, signed-out landing only). -->
-  <div class="lp-pitch">
-    <p class="lp-pitch-sub">Conflicted connects to your fantasy football platforms, reads every roster in every league, and tells you live where you stand and who you're cheering for.</p>
+  <!-- Pitch strip (2026-10-14, mocks/pitch-strip-v2-mock.html): the first
+       context a visitor reads — app-hopping hook, platforms, feature grid, CTAs.
+       Sits below the carousel so the carousel stays above the fold. Sign in
+       lives in the header (.site-header__signin-r, signed-out landing only). -->
+  <section class="lp-pitch" aria-labelledby="lp-pitch-h">
+    <div class="lp-pitch-head">
+      <h2 class="lp-pitch-lead" id="lp-pitch-h"><em>Stop app-hopping</em> on Sunday.</h2>
+      <p class="lp-pitch-sub">Every league from Sleeper, Yahoo and ESPN, live on one screen.</p>
+    </div>
+    <ul class="lp-feats">
+          <li class="lp-feat">
+            <span class="lp-feat-ic"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg></span>
+            <div><div class="lp-feat-t">My Matchups</div><div class="lp-feat-d">Every matchup's live score and projected final, side by side.</div></div>
+          </li>
+          <li class="lp-feat">
+            <span class="lp-feat-ic"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 21h10"/><path d="M5 7h14"/><path d="M5 7l-3 7a3.5 3.5 0 0 0 6 0L5 7zM19 7l-3 7a3.5 3.5 0 0 0 6 0l-3-7z"/></svg></span>
+            <div><div class="lp-feat-t">Loyalties</div><div class="lp-feat-d">Every player in your week, sorted Cheer, Enemy or Conflicted.</div></div>
+          </li>
+          <li class="lp-feat">
+            <span class="lp-feat-ic"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
+            <div><div class="lp-feat-t">Score alerts</div><div class="lp-feat-d">A ping when one of your players scores, naming the leagues it helps and hurts.</div></div>
+          </li>
+          <li class="lp-feat">
+            <span class="lp-feat-ic"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M8 22h8M12 18v4"/></svg></span>
+            <div><div class="lp-feat-t">Watch Priority</div><div class="lp-feat-d">This week's NFL games ranked by how many of your players are in them.</div></div>
+          </li>
+          <li class="lp-feat">
+            <span class="lp-feat-ic"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+            <div><div class="lp-feat-t">Lineup Check-In</div><div class="lp-feat-d">Every lineup on every platform, with empty, Out and bye starters flagged before kickoff.</div></div>
+          </li>
+          <li class="lp-feat">
+            <span class="lp-feat-ic"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5L5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></span>
+            <div><div class="lp-feat-t">Win percentage</div><div class="lp-feat-d">Your live odds in every matchup, updating as the games play.</div></div>
+          </li>
+          <li class="lp-feat">
+            <span class="lp-feat-ic"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></span>
+            <div><div class="lp-feat-t">Division Watch</div><div class="lp-feat-d">Which of your rivals' games to root for to win your division.</div></div>
+          </li>
+          <li class="lp-feat">
+            <span class="lp-feat-ic"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12M6 22h12M7 2v4a5 5 0 0 0 10 0V2M7 22v-4a5 5 0 0 1 10 0v4"/></svg></span>
+            <div><div class="lp-feat-t">Weekend Snapshot</div><div class="lp-feat-d">Who's still to play on both sides of every close matchup.</div></div>
+          </li>
+    </ul>
+    <p class="lp-pitch-more"><b>And more:</b> Maniac Mode, live league scores and standings, player box scores, and manual matchups for anywhere else.</p>
     <div class="lp-pitch-ctas">
       <button type="button" class="btn-hero btn-hero--primary" onclick="scrollToGetStarted()">Get started</button>
       <button type="button" class="btn-hero btn-hero--ghost" onclick="handleDemo()">Try demo mode</button>
     </div>
+  </section>
   </div>
 
   <!-- How it works -->
