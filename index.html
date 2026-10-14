@@ -562,28 +562,56 @@
     #setup-panel { display: flex; flex-direction: column; }
 
     .lp-hero {
-      padding: 80px var(--gutter) 28px;
+      padding: 44px var(--gutter) 6px;
       max-width: var(--max-width); margin: 0 auto; width: 100%;
       text-align: center;
     }
     .lp-eyebrow {
       font: 500 11px/1.4 var(--font-sans); letter-spacing: 0.14em;
-      text-transform: uppercase; color: var(--ink-500); margin-bottom: 24px;
+      text-transform: uppercase; color: var(--ink-500); margin-bottom: 16px;
       display: inline-flex; align-items: center; gap: 14px;
     }
     .lp-eyebrow::before, .lp-eyebrow::after {
       content: ''; display: block; width: 32px; height: 1px; background: var(--coral-500); opacity: 0.6;
     }
     .lp-hero h1 {
-      font: 900 64px/1.03 var(--font-sans); letter-spacing: -0.028em;
-      color: var(--ink-900); margin-bottom: 22px; text-wrap: balance;
+      font: 900 58px/1.03 var(--font-sans); letter-spacing: -0.028em;
+      color: var(--ink-900); margin-bottom: 14px; text-wrap: balance;
       max-width: 900px; margin-left: auto; margin-right: auto;
     }
     .lp-hero h1 em { font-style: normal; color: var(--coral-500); }
     .lp-hero-tag {
       font: 600 21px/1.4 var(--font-sans); color: var(--ink-900);
-      max-width: 620px; margin: 0 auto 14px; text-wrap: balance;
+      max-width: 620px; margin: 0 auto; text-wrap: balance;
     }
+    /* Pitch strip under the carousel (2026-10-14): body copy left, CTAs right on
+       desktop; stacked + centered on phones. */
+    .lp-pitch {
+      max-width: var(--max-width); width: calc(100% - var(--gutter) * 2); box-sizing: border-box;
+      margin: 28px auto 8px; padding: 26px 30px;
+      display: flex; align-items: center; gap: 28px;
+      background: var(--paper-soft); border: 1px solid var(--line); border-radius: 16px;
+    }
+    .lp-pitch-sub { flex: 1 1 auto; margin: 0; font: 400 16.5px/1.6 var(--font-sans); color: var(--ink-700); max-width: 520px; }
+    .lp-pitch-ctas { flex: 0 0 auto; display: flex; gap: 10px; }
+    .lp-pitch-ctas .btn-hero { white-space: nowrap; }
+    @media (max-width: 760px) {
+      .lp-pitch { flex-direction: column; align-items: stretch; text-align: center; gap: 18px; padding: 22px 18px; margin-top: 20px; }
+      .lp-pitch-sub { max-width: none; font-size: 15px; }
+      .lp-pitch-ctas { flex-direction: column; }
+      .lp-pitch-ctas .btn-hero { width: 100%; }
+    }
+    /* Header Sign in (right side) — only on the signed-out landing page. */
+    .site-header__signin-r {
+      display: none; align-items: center; height: 38px; padding: 0 16px;
+      background: transparent; color: var(--ink-900);
+      border: 1.5px solid var(--navy-700); border-radius: 10px;
+      font: 600 14px/1 var(--font-sans); cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      transition: background var(--duration-fast) var(--ease-out);
+    }
+    .site-header__signin-r:hover { background: rgba(122,168,209,.12); }
+    body.nav-can-signin .site-header__signin-r { display: inline-flex; }
+    @media (max-width: 600px) { .site-header__signin-r { height: 34px; padding: 0 12px; font-size: 13px; } }
     .lp-hero-sub {
       font: 400 17px/1.6 var(--font-sans); color: var(--ink-500);
       max-width: 560px; margin: 0 auto;
@@ -615,7 +643,7 @@
        (804×1748 portrait webp; lp-maniac.webp is the 1688×780 sideways shot,
        with the lp-hx stat ticker + touchdown flood laid over its ticker well
        at left 28.55% / width 52.25%). Replace a screen by overwriting its file. ── */
-    .lp-fx { position: relative; width: 100%; max-width: 1180px; margin: 22px auto 0; padding-bottom: 30px; --ph-w: 270px; --ls-w: 700px; --fx-gap: 36px; }
+    .lp-fx { position: relative; width: 100%; max-width: 1180px; margin: 4px auto 0; padding-bottom: 30px; --ph-w: 270px; --ls-w: 700px; --fx-gap: 36px; }
     /* Stage = a clipped window; slides are absolutely placed and moved by JS
        every frame (transform + opacity from each slide's live distance to the
        center), so a drag follows the finger 1:1 and the release glides on a
@@ -3315,10 +3343,10 @@
     ═══════════════════════════════════════════════════════════ */
     @media (max-width: 640px) {
       :root { --gutter: 18px; }
-      .lp-hero { padding: 56px var(--gutter) 40px; }
-      .lp-hero h1 { font-size: 38px; }
-      .lp-hero-tag { font-size: 17px; }
-      .lp-hero-sub { font-size: 15px; }
+      .lp-hero { padding: 26px var(--gutter) 4px; }
+      .lp-eyebrow { margin-bottom: 12px; }
+      .lp-hero h1 { font-size: 36px; margin-bottom: 10px; }
+      .lp-hero-tag { font-size: 16px; }
       .lp-scenario { padding: 24px 22px; }
       .sc-headline { font-size: 24px; }
       .sc-closing-main { font-size: 16px; }
@@ -4686,6 +4714,7 @@
       </svg>
     </a>
     <nav class="site-header__nav">
+      <button class="site-header__signin-r" type="button" onclick="openSignInModal()">Sign in</button>
       <span class="site-header__week" id="week-label" style="display:none"></span>
       <button class="btn-ghost" id="change-user-btn" onclick="showConnections()" style="display:none">Connections</button>
       <button class="btn-live" id="refresh-btn" onclick="handleRefresh()" style="display:none"><span class="dot-live"></span> LIVE</button>
@@ -5321,14 +5350,6 @@
     <div class="lp-eyebrow">Multi-league fantasy football</div>
     <h1>All your leagues, <em>one place.</em></h1>
     <p class="lp-hero-tag">An app that experiences fantasy football like you do</p>
-    <p class="lp-hero-sub">Conflicted connects to your fantasy football platforms, reads every roster in every league, and tells you live where you stand and who you're cheering for.</p>
-    <div class="lp-cta-row">
-      <button type="button" class="btn-hero btn-hero--signin" onclick="openSignInModal()">Sign in</button>
-      <button type="button" class="btn-hero btn-hero--primary" onclick="scrollToGetStarted()">Get started</button>
-    </div>
-    <div class="lp-cta-row lp-cta-row--secondary">
-      <button type="button" class="btn-hero btn-hero--ghost" onclick="handleDemo()">Try demo mode — 4 sample leagues</button>
-    </div>
   </div>
 
   <!-- Feature carousel (2026-10-13) — replaced the single sideways hero phone.
@@ -5523,6 +5544,16 @@
   }catch(e){try{console.warn('lp-fx',e);}catch(x){}}
 })();
 </script>
+  <!-- Pitch strip (2026-10-14): the hero's body copy + CTAs moved BELOW the
+       carousel so the carousel sits above the fold. Sign in lives in the header
+       (.site-header__signin-r, signed-out landing only). -->
+  <div class="lp-pitch">
+    <p class="lp-pitch-sub">Conflicted connects to your fantasy football platforms, reads every roster in every league, and tells you live where you stand and who you're cheering for.</p>
+    <div class="lp-pitch-ctas">
+      <button type="button" class="btn-hero btn-hero--primary" onclick="scrollToGetStarted()">Get started</button>
+      <button type="button" class="btn-hero btn-hero--ghost" onclick="handleDemo()">Try demo mode</button>
+    </div>
+  </div>
 
   <!-- How it works -->
   <div class="lp-how">
