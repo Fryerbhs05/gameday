@@ -6,6 +6,8 @@
 //   POST /api/account/me?action=delete     -> permanently delete account + data
 //   POST /api/account/me?action=sleeper    -> save/clear the Sleeper username
 //   POST /api/account/me?action=manual     -> save the manually entered leagues
+//   POST /api/account/me?action=leaguemap  -> record which real leagues this
+//        account is in (league_connections) for league-reach analytics
 //        body { username } saves it; empty/missing username clears it.
 
 const A = require('../_lib/accounts');
@@ -270,6 +272,62 @@ async function handleManual(req, res) {
   }
 }
 
+// ── POST ?action=leaguemap: record the real leagues this account is in ──
+// Body { season, leagues: [{ platform, league_id, name, size, team_id, co }] }.
+// UPSERT only (never deletes): one row per (user, platform, league, season),
+// refreshing name/size/team + last_seen_at. Feeds the league_reach view
+// ("12-team league, 3 Conflicted accounts"). Analytics — never an error the
+// user sees, so failures still answer 204.
+const LM_PLATFORMS = new Set(['espn', 'yahoo', 'sleeper']);
+function lmStr(v, max) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s ? s.slice(0, max) : null;
+}
+async function handleLeagueMap(req, res) {
+  if (!A.accountsConfigured()) { res.status(204).end(); return; }
+  const acct = A.readAccount(req);
+  if (!acct) { res.status(204).end(); return; }
+  try {
+    const body = await readJsonBody(req);
+    const season = parseInt(body && body.season, 10);
+    if (!(season >= 2015 && season <= 2100)) { res.status(204).end(); return; }
+    const list = Array.isArray(body && body.leagues) ? body.leagues.slice(0, 60) : [];
+    const now = new Date().toISOString();
+    const seen = new Set();
+    const rows = [];
+    for (const l of list) {
+      if (!l || !LM_PLATFORMS.has(l.platform)) continue;
+      const lid = lmStr(l.league_id, 64);
+      if (!lid || seen.has(l.platform + '|' + lid)) continue;
+      seen.add(l.platform + '|' + lid);
+      const size = parseInt(l.size, 10);
+      rows.push({
+        user_id: acct.uid,
+        platform: l.platform,
+        league_id: lid,
+        season,
+        league_name: lmStr(l.name, 120),
+        league_size: size > 0 && size <= 64 ? size : null,
+        team_id: lmStr(l.team_id, 64),
+        is_co_mgr: !!l.co,
+        last_seen_at: now
+      });
+    }
+    if (rows.length) {
+      await A.sbFetch('league_connections?on_conflict=user_id,platform,league_id,season', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(rows)
+      });
+    }
+    res.status(204).end();
+  } catch (e) {
+    console.error('account/leaguemap error:', e.message);
+    res.status(204).end();
+  }
+}
+
 module.exports = async (req, res) => {
   // Identity is per-cookie and must never be cached — otherwise a browser can
   // re-render a stale account after the session cookie changes (e.g. clicking a
@@ -284,6 +342,7 @@ module.exports = async (req, res) => {
     if (action === 'profile') return handleProfile(req, res);
     if (action === 'leagues') return handleLeagues(req, res);
     if (action === 'manual') return handleManual(req, res);
+    if (action === 'leaguemap') return handleLeagueMap(req, res);
     res.status(400).json({ error: 'Unknown action' });
     return;
   }
