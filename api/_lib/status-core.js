@@ -206,7 +206,69 @@ function mnfMessage(matchups, games, mondayTeams) {
   };
 }
 
+// First game of the week lineup alert (Matt, 2026-10-15). Sent 5 hours before
+// the week's FIRST kickoff (usually Thursday night). Locked copy (option B):
+//   title "A Thursday night lineup check"   (iOS finishes it: "from Conflicted")
+//   body  "6 of your players are in Rams–Seahawks tonight. Make sure the right ones are starting."
+// Who counts: YOUR players only — starters + bench (not IR / taxi slots) — whose
+// team plays on that first day, each player counted ONCE however many leagues
+// he's in. Out-type statuses (the same set Lineup Check-In hides) don't count.
+// Day = ET date of the first kickoff, so Thanksgiving / Week 18 Saturday count
+// every game that day; the body names only the games you have players in, in
+// kickoff order ("…in Bears–Lions and Chiefs–Cowboys today."). Kickoff at or
+// after 5pm ET → "night" / "tonight"; earlier → "A Thursday lineup check" / "today".
+// No players that day → null (no alert).
+const OUT_CODES = new Set(['O', 'IR', 'PUP', 'NFI', 'SUS', 'NA', 'DNR', 'CEL', 'COV']);
+// Same normalizer as Lineup Check-In's stCode (index.html).
+function stCode(raw) {
+  const s = String(raw || '').trim().toUpperCase().replace(/[_]+/g, ' ');
+  if (!s || s === 'ACTIVE' || s === 'NORMAL' || s === 'HEALTHY') return null;
+  if (s === 'Q' || s === 'QUESTIONABLE') return 'Q';
+  if (s === 'D' || s === 'DOUBTFUL') return 'D';
+  if (s === 'O' || s === 'OUT' || s === 'OUT FOR SEASON') return 'O';
+  if (s === 'IR' || /RESERVE/.test(s)) return 'IR';
+  if (/^PUP/.test(s) || /UNABLE/.test(s)) return 'PUP';
+  if (/^NFI/.test(s) || /NON.?FOOTBALL/.test(s)) return 'NFI';
+  if (/^SUS/.test(s)) return 'SUS';
+  if (s === 'CEL' || /EXEMPT/.test(s)) return 'CEL';
+  if (s === 'NA' || s === 'N/A' || s === 'NOT ACTIVE') return 'NA';
+  if (s === 'DNR') return 'DNR';
+  if (s === 'COV' || /COVID/.test(s)) return 'COV';
+  return null;
+}
+function isOut(p) { return OUT_CODES.has(stCode(p && p.inj)); }
+const NUM_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+// slate = { kickoff, weekday:'Thursday', night:bool, hoursOut:5,
+//           events:[{ ms, teams:[away, home], label:'Rams–Seahawks' }] } (kickoff order)
+function thuMessage(matchups, slate) {
+  if (!slate || !slate.events || !slate.events.length) return null;
+  const teamGame = new Map();
+  slate.events.forEach((e, i) => (e.teams || []).forEach((t) => teamGame.set(normTeam(t), i)));
+  const seen = new Set(), games = new Set();
+  (matchups || []).forEach((m) => {
+    (m.mine || []).concat(m.bench || []).forEach((p) => {
+      if (!p || isOut(p)) return;
+      const g = teamGame.get(normTeam(p.team));
+      if (g === undefined) return;
+      const k = mnfKey(p);
+      if (seen.has(k)) return;
+      seen.add(k); games.add(g);
+    });
+  });
+  if (!seen.size) return null;
+  const n = seen.size;
+  const labels = [...games].sort((a, b) => a - b).map((i) => slate.events[i].label).filter(Boolean);
+  const when = slate.night ? 'tonight' : 'today';
+  return {
+    title: `A ${slate.weekday}${slate.night ? ' night' : ''} lineup check`,
+    body: `${n} of your players ${n === 1 ? 'is' : 'are'} in ${andJoin(labels)} ${when}. Make sure the right ones are starting.`,
+    count: n,
+    games: labels
+  };
+}
+
 module.exports = {
   CF_FLOOR_DEF, CF_FLOOR_PENALTY, CF_FLOOR_PENALTY_DEFAULT, LOTS_PER_SIDE, NAME_TO_GO_MAX,
-  normTeam, nf, isDone, buildRow, detail, toGoTxt, names, shortName, snfMessage, tuesdayMessage, mnfMessage, andJoin
+  normTeam, nf, isDone, buildRow, detail, toGoTxt, names, shortName, snfMessage, tuesdayMessage, mnfMessage, andJoin,
+  thuMessage, stCode, isOut
 };

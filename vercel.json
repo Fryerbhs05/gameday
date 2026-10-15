@@ -28,6 +28,10 @@
       "schedule": "*/5 14-18 * * 0"
     },
     {
+      "path": "/api/push/status?job=thu",
+      "schedule": "*/5 11-21 * * 3-6"
+    },
+    {
       "path": "/api/push/td",
       "schedule": "* * * * *"
     },

@@ -7,6 +7,10 @@
 //             before the FIRST Monday kickoff, naming every starter (either side) in
 //             a Monday game whose matchup is still in play. One alert covers a
 //             doubleheader. Accounts with nothing in play on Monday get nothing.
+//   ?job=thu  every 5 min Wed–Sat daytime (UTC) → "A Thursday night lineup check" 5 hours
+//             before the week's FIRST kickoff: how many of YOUR players (starters +
+//             bench, Out types excluded, each counted once) play that first day and
+//             in which game(s). Opens Lineup Check-In. No players that day = no alert.
 // Each account's matchups are read live from its own Sleeper / ESPN / Yahoo
 // connections (api/_lib/league-reader.js) — no dependence on the app being open.
 // One alert per device per week per job (push_sends dedupe).
@@ -111,6 +115,30 @@ async function runMnf(now) {
   return { job: 'mnf', key, kickoff: new Date(slate.kickoff).toISOString(), ...out };
 }
 
+// First game of the week: the first run that lands 4½h to 5h02m before kickoff
+// does the work (cron is every 5 min; the 30-min tail only covers a missed run).
+const THU_HOURS = 5, THU_WINDOW_MAX = THU_HOURS * 3600000 + 2 * 60000, THU_WINDOW_MIN = THU_HOURS * 3600000 - 30 * 60000, THU_LOCK_MS = 10 * 60000;
+async function runThu(now) {
+  const ns = await S.nflState();
+  if (!ns.season || !ns.week || (ns.type !== 'regular' && ns.type !== 'post')) return { skipped: `season_type ${ns.type}` };
+  let week = ns.week, games = await S.weekGames(ns.season, week, ns.type), slate = S.firstSlate(games, THU_HOURS);
+  // Sleeper's week hasn't rolled yet (its first game is long gone) → look at next week.
+  if (slate && now - slate.kickoff > 86400000) {
+    week = ns.week + 1; games = await S.weekGames(ns.season, week, ns.type); slate = S.firstSlate(games, THU_HOURS);
+  }
+  if (!slate) return { skipped: 'no games found' };
+  const lead = slate.kickoff - now;
+  if (lead > THU_WINDOW_MAX || lead < THU_WINDOW_MIN) return { waiting: 'outside window', kickoff: new Date(slate.kickoff).toISOString() };
+  const key = `${ns.season}-${week}`, jid = `thu:${key}`;
+  const st = (await jobState(jid)) || {};
+  if (st.doneAt || (st.startedAt && now - st.startedAt < THU_LOCK_MS)) return { skipped: 'already running or sent' };
+  await setJobState(jid, { startedAt: now });
+  const out = await sendToSubs(await subsFor('thu'), 'thu', key, { ns: { ...ns, week }, week, games, hoursOut: THU_HOURS },
+    { ttl: Math.max(60, Math.round((slate.kickoff - Date.now()) / 1000)) });
+  await setJobState(jid, { startedAt: now, doneAt: Date.now(), ...out });
+  return { job: 'thu', key, kickoff: new Date(slate.kickoff).toISOString(), ...out };
+}
+
 function localParts(tz, now) {
   try {
     const o = {};
@@ -139,7 +167,7 @@ module.exports = async (req, res) => {
   try {
     const job = (req.query && req.query.job) || '';
     const now = Date.now();
-    const out = job === 'tue' ? await runTue(now) : job === 'snf' ? await runSnf(now) : job === 'mnf' ? await runMnf(now) : { error: 'unknown job' };
+    const out = job === 'tue' ? await runTue(now) : job === 'snf' ? await runSnf(now) : job === 'mnf' ? await runMnf(now) : job === 'thu' ? await runThu(now) : { error: 'unknown job' };
     res.status(200).json(out);
   } catch (e) {
     console.error('status cron error:', e.message);
@@ -149,4 +177,4 @@ module.exports = async (req, res) => {
 };
 
 module.exports = require('../_lib/observe').wrap(module.exports, 'push:status');
-module.exports._test = { runSnf, runTue, runMnf, localParts };
+module.exports._test = { runSnf, runTue, runMnf, runThu, localParts };
