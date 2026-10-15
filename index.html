@@ -156,7 +156,7 @@
   <link rel="icon" href="/icons/favicon.ico?v=78" sizes="any" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=Chivo+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- ============ PWA: manifest, theme color, iOS support ============ -->
   <link rel="manifest" href="/manifest.json" />
@@ -264,7 +264,8 @@
       --surf-coral:#D85A30;       --surf-coral-bright:#F0997B; --surf-coral-deep:#C44E27;
       --success:var(--cheer); --warning:var(--split); --danger:var(--enemy); --info:var(--navy-500);
       --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-      --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
+      /* Chivo Mono replaced JetBrains Mono 2026-10-15 (Matt): JetBrains' zero has a dot in it and Google Fonts' copy has no plain-zero alternate. Same 0.6em digit width, so layouts don't shift. */
+      --font-mono:'Chivo Mono',ui-monospace,'SF Mono',Menlo,monospace;
       --radius-sm:4px; --radius-md:8px; --radius-lg:12px; --radius-pill:999px;
       /* Navy tile — shared card surface for score-strip cells + player cards
          (2026-07 scoreboard/loyalties redesign, Claude Design 2a/3a/4a). */
@@ -726,14 +727,14 @@
     .lp-hx-ti .bk { width: calc(var(--tf)*.22cqw); height: calc(var(--tf)*1.1cqw); border-radius: 2px; background: #6BBF8C; }
     .lp-hx-ti.x .bk { background: #D9A445; }
     .lp-hx-ti .nm { font-weight: 700; color: #F5EFE4; font-size: calc(var(--tf)*1cqw); font-family: Inter, system-ui, sans-serif; }
-    .lp-hx-ti .mt { font: 600 calc(var(--tf)*.8cqw) 'JetBrains Mono', monospace; color: #9E988A; letter-spacing: .04em; }
-    .lp-hx-ti .ln { font: 500 calc(var(--tf)*.92cqw) 'JetBrains Mono', monospace; color: #E0DACA; }
+    .lp-hx-ti .mt { font: 600 calc(var(--tf)*.8cqw) 'Chivo Mono', monospace; color: #9E988A; letter-spacing: .04em; }
+    .lp-hx-ti .ln { font: 500 calc(var(--tf)*.92cqw) 'Chivo Mono', monospace; color: #E0DACA; }
     .lp-hx-td { position: absolute; inset: 0; background: #D9A445; color: #1A1206; display: flex; align-items: center; gap: calc(var(--tf)*.8cqw); padding: 0 calc(var(--tf)*1.3cqw); white-space: nowrap; overflow: hidden; clip-path: inset(0 100% 0 0); animation: lphx-flood 18s cubic-bezier(.3,.8,.2,1) infinite; }
     .lp-hx-td .big { font: 900 calc(var(--tf)*1.2cqw)/1 Inter, sans-serif; letter-spacing: .16em; text-transform: uppercase; animation: lphx-blink 18s steps(1) infinite; }
     .lp-hx-td .rest { display: flex; align-items: center; gap: calc(var(--tf)*.8cqw); animation: lphx-restin 18s linear infinite; }
     .lp-hx-td .dot { width: calc(var(--tf)*.3cqw); height: calc(var(--tf)*.3cqw); border-radius: 50%; background: currentColor; opacity: .5; flex: none; }
     .lp-hx-td .nm2 { font: 800 calc(var(--tf)*1.08cqw)/1 Inter, sans-serif; }
-    .lp-hx-td .pl { font: 700 calc(var(--tf)*.9cqw)/1 'JetBrains Mono', monospace; letter-spacing: .04em; }
+    .lp-hx-td .pl { font: 700 calc(var(--tf)*.9cqw)/1 'Chivo Mono', monospace; letter-spacing: .04em; }
     .lp-hx-td .hl { font: 600 calc(var(--tf)*.9cqw)/1 Inter, sans-serif; opacity: .85; }
     .lp-hx-td .hl b { font-weight: 800; letter-spacing: .08em; font-size: .86em; text-transform: uppercase; margin-right: .35em; }
     .lp-hx-td .short { display: none; }
@@ -26162,10 +26163,10 @@ if(typeof window.cfRegisterView==='function'){
       +'.cf-ls-team{font:700 12px/16px var(--font-sans,Inter,sans-serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-900,#F5EFE4);}'
       +'.cf-ls-team.l{color:var(--ink-500,#9E988A);font-weight:500;}'
       +'.cf-ls-proj{min-width:0;text-align:right;}'
-      +'.cf-ls-proj>div{font:500 11px/16px var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-500,#9E988A);white-space:nowrap;}'
+      +'.cf-ls-proj>div{font:500 11px/16px var(--font-mono,\'Chivo Mono\',monospace);color:var(--ink-500,#9E988A);white-space:nowrap;}'
       +'.cf-ls-final{font:600 8px/1 var(--font-sans,Inter,sans-serif);letter-spacing:.08em;color:var(--ink-500,#9E988A);}'
       +'.cf-ls-scores{min-width:0;text-align:right;}'
-      +'.cf-ls-scores>div{font:700 13px/16px var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-900,#F5EFE4);white-space:nowrap;}'
+      +'.cf-ls-scores>div{font:700 13px/16px var(--font-mono,\'Chivo Mono\',monospace);color:var(--ink-900,#F5EFE4);white-space:nowrap;}'
       +'.cf-ls-scores>div.l{font-weight:500;color:var(--ink-500,#9E988A);}'
       +'.cf-ls-chevr{display:inline-flex;justify-content:flex-end;color:var(--ink-300,#5F5E5A);}'
       /* Rank mode (2026-09-27) */
@@ -26184,12 +26185,12 @@ if(typeof window.cfRegisterView==='function'){
       +'.cf-ls-row.is-me{background:color-mix(in oklab,var(--navy-300,#2B6FA8) 18%,transparent);box-shadow:inset 2px 0 0 var(--navy-500,#5790C0);border-radius:6px;}'
       +'.cf-ls-row.is-me.is-tap:hover{background:color-mix(in oklab,var(--navy-300,#2B6FA8) 24%,transparent);}'
       +'.cf-ls-rkname{display:flex;align-items:center;gap:6px;min-width:0;}'
-      +'.cf-ls-rkn{flex:none;width:18px;font:600 10.5px/16px var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-500,#9E988A);}'
+      +'.cf-ls-rkn{flex:none;width:18px;font:600 10.5px/16px var(--font-mono,\'Chivo Mono\',monospace);color:var(--ink-500,#9E988A);}'
       +'.cf-ls-row.is-me .cf-ls-rkn{color:var(--navy-700,#7AA8D1);}'
       +'.cf-ls-rktm{min-width:0;font:600 12px/16px var(--font-sans,Inter,sans-serif);color:var(--ink-700,#E0DACA);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
       +'.cf-ls-row.is-me .cf-ls-rktm{color:var(--ink-900,#F5EFE4);font-weight:700;}'
       +'.cf-ls-rk .cf-ls-proj{line-height:16px;}'
-      +'.cf-ls-mv{flex:none;display:inline-flex;align-items:center;gap:1px;font:600 9.5px/16px var(--font-mono,\'JetBrains Mono\',monospace);color:var(--ink-500,#9E988A);}'
+      +'.cf-ls-mv{flex:none;display:inline-flex;align-items:center;gap:1px;font:600 9.5px/16px var(--font-mono,\'Chivo Mono\',monospace);color:var(--ink-500,#9E988A);}'
       +'.cf-ls-mv svg{display:block;}'
       /* Median divider (2026-10-11) */
       +'.cf-ls-row.pre-med{border-bottom:0;}'
