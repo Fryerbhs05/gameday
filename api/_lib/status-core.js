@@ -209,7 +209,7 @@ function mnfMessage(matchups, games, mondayTeams) {
 // First game of the week lineup alert (Matt, 2026-10-15). Sent 5 hours before
 // the week's FIRST kickoff (usually Thursday night). Locked copy (option B):
 //   title "A Thursday night lineup check"   (iOS finishes it: "from Conflicted")
-//   body  "6 of your players are in Rams–Seahawks tonight. Make sure the right ones are starting."
+//   body  "6 of your players are in Rams–Seahawks tonight. Tap here to check your lineups."
 // Who counts: YOUR players only — starters + bench (not IR / taxi slots) — whose
 // team plays on that first day, each player counted ONCE however many leagues
 // he's in. Out-type statuses (the same set Lineup Check-In hides) don't count.
@@ -261,7 +261,7 @@ function thuMessage(matchups, slate) {
   const when = slate.night ? 'tonight' : 'today';
   return {
     title: `A ${slate.weekday}${slate.night ? ' night' : ''} lineup check`,
-    body: `${n} of your players ${n === 1 ? 'is' : 'are'} in ${andJoin(labels)} ${when}. Make sure the right ones are starting.`,
+    body: `${n} of your players ${n === 1 ? 'is' : 'are'} in ${andJoin(labels)} ${when}. Tap here to check your lineups.`,
     count: n,
     games: labels
   };
