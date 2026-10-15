@@ -9543,6 +9543,31 @@ function renderScoresStrip(contexts){
    time. When the DB lands we re-render the open drawer in place from the current
    context so those labels fill in, without the user closing and reopening.
    No-op unless a matchup drawer is actually open. */
+/* Rebuild an OPEN matchup drawer's body in place WITHOUT losing what the user
+   did inside it: the Bench section's open/closed state and the scroll position.
+   Bench state lives only in the DOM (.is-open on the toggle + wrap), so a bare
+   setBody() wipes it -- and rerenderOpenMatchupDrawer runs inside EVERY loadData()
+   (the 30s live sync), which is why an open Bench "closed by itself" (2026-10-15).
+   Bench stays open until the user taps it shut or the drawer closes (close()
+   clears the body, so the next open starts collapsed). Every in-place rebuild of
+   the SAME drawer must go through here, never a bare setBody(). */
+function cfRebuildMatchupDrawerBody(html){
+  const BS=window.BottomSheet;if(!BS)return;
+  let body=null;try{body=BS.getSheetEl().querySelector('[data-sheet-body]');}catch(e){}
+  const benchOpen=!!(body&&body.querySelector('[data-matchup-bench-toggle].is-open'));
+  const st=body?body.scrollTop:0;
+  BS.setBody(html);
+  if(!body)return;
+  if(benchOpen){
+    const tog=body.querySelector('[data-matchup-bench-toggle]');
+    const wrap=body.querySelector('[data-matchup-bench]');
+    if(tog){tog.classList.add('is-open');tog.setAttribute('aria-expanded','true');}
+    if(wrap)wrap.classList.add('is-open');
+  }
+  body.scrollTop=st;
+}
+window.cfRebuildMatchupDrawerBody=cfRebuildMatchupDrawerBody;
+
 function rerenderOpenMatchupDrawer(){
   try{
     if(!window.BottomSheet||!window.BottomSheet.isOpen())return;
@@ -9552,7 +9577,7 @@ function rerenderOpenMatchupDrawer(){
     const ctx=(window.currentContexts||[]).find(c=>c.leagueName===leagueName);
     const lg =(window.currentLeagues ||[]).find(l=>l.leagueName===leagueName);
     if(!ctx||typeof window.renderMatchupDrawer!=='function')return;
-    window.BottomSheet.setBody(window.renderMatchupDrawer(ctx,lg));
+    cfRebuildMatchupDrawerBody(window.renderMatchupDrawer(ctx,lg));
   }catch(e){}
 }
 window.rerenderOpenMatchupDrawer=rerenderOpenMatchupDrawer;
@@ -10177,7 +10202,7 @@ function cfApplyNameMask(){
         const nm=owner.slice('matchup:'.length);
         const ctx=(window.currentContexts||[]).find(c=>c.leagueName===nm);
         const lg =(window.currentLeagues ||[]).find(l=>l.leagueName===nm);
-        if(ctx&&typeof window.renderMatchupDrawer==='function')window.BottomSheet.setBody(window.renderMatchupDrawer(ctx,lg));
+        if(ctx&&typeof window.renderMatchupDrawer==='function')cfRebuildMatchupDrawerBody(window.renderMatchupDrawer(ctx,lg));
       }
     }
   }catch(e){}
