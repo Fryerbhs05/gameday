@@ -27691,7 +27691,9 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
 #cfm.compact .cfm-hnav button{width:22px;height:22px;font-size:13px}
 #cfm.compact .cfm-rot{margin-top:4px}
 #cfm.compact .cfm-hs{margin-top:4px;align-items:center}
-#cfm.compact .cfm-hs .team,#cfm.compact .cfm-wp small,#cfm.compact .cfm-key{display:none}
+#cfm.compact .cfm-wp small,#cfm.compact .cfm-key{display:none}
+/* Team names stay on phones too (Matt, 2026-10-15) -- small, one line, ellipsis if long */
+#cfm.compact .cfm-hs .team{font-size:var(--txs);min-height:0;line-height:1.15;margin-bottom:1px}
 /* Team projected totals stay on phones (Matt, 2026-10-08) -- small, tight, no reserved line when empty */
 #cfm.compact .cfm-hs .proj{font-size:var(--t2xs);margin-top:2px;min-height:0;line-height:1.1}
 #cfm.compact .cfm-hs .proj:empty{display:none}
