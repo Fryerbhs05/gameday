@@ -29290,5 +29290,243 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
 })();
 </script>
 
+<!-- ═══ BOYER WEEK 6 GATE (Matt, 2026-10-15) ═════════════════════════════════
+     Prank for Tyler Boyer — Matt's Week 6 Mantasy Footbrawl opponent. Mock:
+     mocks/boyer-loss-slider-mock.html. Self-contained: delete this whole block
+     (style + markup + script) and the boyer_ping action in api/push/subscribe.js
+     to remove it.
+     • WHO: account email tjboyer90@gmail.com OR Sleeper username HoodiePrime.
+       Nobody else ever sees it. Matt can preview with ?bp=1.
+     • WHEN: every app open (cold load, or back after 5+ min away) until
+       Tue 2026-10-20 4:00 AM CT, then it switches itself off.
+     • WHAT: "How much will you lose to Fryer by this week?" slider 0–50; Continue
+       stays locked until 10.00. First lock-in pings Matt's devices (server checks
+       it's really Tyler's account and sends once). His number is not stored.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<style>
+  #bp-gate{position:fixed;inset:0;z-index:20000;background:var(--paper);color:var(--ink-700);font-family:var(--font-sans);
+    display:flex;justify-content:center;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:calc(env(safe-area-inset-top,0px) + 20px) 24px calc(env(safe-area-inset-bottom,0px) + 20px);
+    opacity:1;transition:opacity .35s cubic-bezier(.2,.8,.2,1)}
+  #bp-gate[hidden]{display:none}
+  #bp-gate.bp-out{opacity:0;pointer-events:none}
+  #bp-gate .bp-col{width:100%;max-width:400px;min-height:100%;display:flex;flex-direction:column;position:relative}
+  #bp-gate .bp-scr{display:flex;flex-direction:column;flex:1;animation:bpIn .35s cubic-bezier(.2,.8,.2,1)}
+  #bp-gate .bp-scr[hidden]{display:none}
+  @keyframes bpIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  #bp-gate .bp-wm{font:900 22px/1 var(--font-sans);letter-spacing:-0.04em;text-align:center;margin-top:8px;
+    background:linear-gradient(90deg,var(--navy-700) 0 50%,var(--coral-500) 50% 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  #bp-gate .bp-eye{margin-top:32px;font:500 11px/1.4 var(--font-sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-500);text-align:center}
+  #bp-gate .bp-eye b{color:var(--ink-700);font-weight:700}
+  #bp-gate h1{margin:14px 0 0;font:800 30px/1.12 var(--font-sans);letter-spacing:-0.015em;color:var(--ink-900);text-align:center;text-wrap:balance}
+  #bp-gate h1 em{font-style:normal;color:var(--coral-500)}
+  #bp-gate .bp-read{margin-top:36px;text-align:center}
+  #bp-gate .bp-num{font:700 64px/1 var(--font-mono);color:var(--ink-500);letter-spacing:-0.03em;transition:color .2s}
+  #bp-gate .bp-read.ok .bp-num{color:var(--ink-900)}
+  #bp-gate .bp-unit{font:500 13px/1 var(--font-mono);color:var(--ink-500);letter-spacing:.08em;margin-top:8px;text-transform:uppercase}
+  #bp-gate .bp-quip{margin-top:18px;min-height:44px;text-align:center;font:500 15px/1.4 var(--font-sans);color:var(--ink-700);text-wrap:balance}
+  #bp-gate .bp-quip.denial{color:var(--enemy)}
+  #bp-gate .bp-sl{margin-top:18px;padding:0 2px}
+  #bp-gate .bp-zones{position:relative;height:18px;font:500 10px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+  #bp-gate .bp-zones span{position:absolute;top:0}
+  #bp-gate .bp-zd{left:0;color:var(--enemy)}
+  #bp-gate .bp-za{left:20%;color:var(--ink-500)}
+  #bp-gate input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:44px;margin:0;background:transparent;cursor:pointer;touch-action:none}
+  #bp-gate input[type=range]:focus{outline:none}
+  #bp-gate input[type=range]::-webkit-slider-runnable-track{height:10px;border-radius:999px;background:var(--bp-trk,var(--line))}
+  #bp-gate input[type=range]::-moz-range-track{height:10px;border-radius:999px;background:var(--bp-trk,var(--line))}
+  #bp-gate input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;margin-top:-10px;border-radius:50%;
+    background:var(--ink-900);border:3px solid var(--paper);box-shadow:0 0 0 2px var(--bp-ring,var(--enemy)),0 4px 12px rgba(0,0,0,.4)}
+  #bp-gate input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;background:var(--ink-900);border:3px solid var(--paper);box-shadow:0 0 0 2px var(--bp-ring,var(--enemy))}
+  #bp-gate .bp-ticks{display:flex;justify-content:space-between;font:400 11px/1 var(--font-mono);color:var(--ink-300);margin-top:2px}
+  #bp-gate .bp-sp{flex:1;min-height:24px}
+  #bp-gate .bp-btn{width:100%;height:54px;border:0;border-radius:var(--radius-md);font:700 16px/1 var(--font-sans);cursor:pointer;
+    background:var(--coral-500);color:var(--paper);transition:background .2s,color .2s,transform .15s;-webkit-tap-highlight-color:transparent}
+  #bp-gate .bp-btn:active{transform:scale(.98)}
+  #bp-gate .bp-btn.locked{background:var(--line);color:var(--ink-500);cursor:not-allowed}
+  #bp-gate .bp-btn.pop{animation:bpPop .45s cubic-bezier(.2,.8,.2,1)}
+  #bp-gate .bp-btn.shake{animation:bpShake .4s}
+  @keyframes bpPop{0%{transform:scale(1)}40%{transform:scale(1.04)}100%{transform:scale(1)}}
+  @keyframes bpShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+  #bp-gate .bp-ghost{margin-top:10px;background:none;border:0;width:100%;font:500 13px/1.4 var(--font-sans);color:var(--ink-500);cursor:pointer;padding:8px}
+  #bp-gate .bp-fine{margin-top:8px;text-align:center;font:400 11px/1.4 var(--font-sans);color:var(--ink-300)}
+  #bp-gate .bp-stamp{margin-top:64px;align-self:center;border:2px solid var(--coral-500);color:var(--coral-500);border-radius:var(--radius-md);
+    padding:10px 16px;font:800 13px/1 var(--font-sans);letter-spacing:.14em;text-transform:uppercase;transform:rotate(-4deg)}
+  #bp-gate .bp-ch{margin-top:28px;font:800 26px/1.2 var(--font-sans);color:var(--ink-900);text-align:center;text-wrap:balance}
+  #bp-gate .bp-card{margin-top:28px;background:var(--tile-bg);border:1px solid var(--tile-line);border-radius:var(--radius-lg);padding:18px}
+  #bp-gate .bp-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px solid var(--tile-line)}
+  #bp-gate .bp-row:last-child{border-bottom:0}
+  #bp-gate .bp-k{font:500 12px/1.3 var(--font-sans);color:var(--ink-500)}
+  #bp-gate .bp-v{font:700 15px/1 var(--font-mono);color:var(--ink-900);white-space:nowrap}
+  #bp-gate .bp-v.neg{color:var(--enemy)}
+  #bp-gate .bp-csub{margin-top:18px;text-align:center;font:400 14px/1.5 var(--font-sans);color:var(--ink-500);text-wrap:balance}
+  #bp-gate .bp-toast{position:absolute;left:50%;bottom:150px;transform:translate(-50%,10px);background:var(--paper-soft);border:1px solid var(--line);
+    color:var(--ink-900);font:500 13px/1.3 var(--font-sans);padding:10px 14px;border-radius:999px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+  #bp-gate .bp-toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+<div id="bp-gate" role="dialog" aria-modal="true" aria-labelledby="bp-q" hidden>
+  <div class="bp-col">
+    <section class="bp-scr" id="bp-s1">
+      <div class="bp-wm">CONFLICTED</div>
+      <div class="bp-eye">Week 6 · <b>Mantasy Footbrawl</b></div>
+      <h1 id="bp-q">How much will you lose to <em>Fryer</em> by this week?</h1>
+      <div class="bp-read" id="bp-read"><div class="bp-num" id="bp-num">0.00</div><div class="bp-unit">points</div></div>
+      <div class="bp-quip denial" id="bp-quip">Bold. Wrong, but bold.</div>
+      <div class="bp-sl">
+        <div class="bp-zones"><span class="bp-zd">Denial</span><span class="bp-za">Acceptance →</span></div>
+        <input type="range" id="bp-rng" min="0" max="50" step="0.25" value="0" aria-label="Projected margin of defeat, in points">
+        <div class="bp-ticks"><span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50+</span></div>
+      </div>
+      <div class="bp-sp"></div>
+      <button type="button" class="bp-btn locked" id="bp-go" aria-disabled="true">Enter at least 10.00 to continue</button>
+      <button type="button" class="bp-ghost" id="bp-cheat">I'm going to win, actually</button>
+      <div class="bp-fine">This screen is personalized for Tyler Boyer.</div>
+    </section>
+    <section class="bp-scr" id="bp-s2" hidden>
+      <div class="bp-wm">CONFLICTED</div>
+      <div class="bp-stamp">Prediction locked</div>
+      <div class="bp-ch">Thank you for your honesty, Tyler.</div>
+      <div class="bp-card">
+        <div class="bp-row"><span class="bp-k">Your predicted margin of defeat</span><span class="bp-v neg" id="bp-c1">−10.00</span></div>
+        <div class="bp-row"><span class="bp-k">Fryer's predicted margin of victory</span><span class="bp-v" id="bp-c2">+10.00</span></div>
+        <div class="bp-row"><span class="bp-k">Conflicted's confidence</span><span class="bp-v">Very</span></div>
+      </div>
+      <div class="bp-csub" id="bp-csub">We'll check your work Monday night.</div>
+      <div class="bp-sp"></div>
+      <button type="button" class="bp-btn" id="bp-enter">Continue to Conflicted</button>
+      <div class="bp-fine">You'll be asked again next time you open the app.</div>
+    </section>
+    <div class="bp-toast" id="bp-toast" role="status"></div>
+  </div>
+</div>
+<script>
+(function(){
+  var END = Date.UTC(2026, 9, 20, 9, 0, 0);          /* Tue 2026-10-20 4:00 AM CT */
+  var EMAIL = 'tjboyer90@gmail.com', SLEEPER = 'hoodieprime';
+  var MIN = 10, AWAY_MS = 5 * 60 * 1000, PING_KEY = 'cf_bp_pinged_w6';
+  var FORCE = /[?&]bp=1\b/.test(location.search);
+  if (Date.now() > END && !FORCE) return;
+
+  var $ = function(id){ return document.getElementById(id); };
+  var gate = $('bp-gate'), rng = $('bp-rng'), num = $('bp-num'), read = $('bp-read'), quip = $('bp-quip'),
+      go = $('bp-go'), toast = $('bp-toast'), s1 = $('bp-s1'), s2 = $('bp-s2');
+  if (!gate || !rng) return;
+  var open = false, wasOk = false, toastT = 0, hiddenAt = 0, prevOverflow = '';
+
+  function isBoyer(){
+    if (FORCE) return true;
+    try{ var a = window.__account; if (a && a.signedIn && String(a.email||'').trim().toLowerCase() === EMAIL) return true; }catch(e){}
+    try{ if (typeof connectionState !== 'undefined' && connectionState.sleeper && String(connectionState.sleeper.identity||'').trim().toLowerCase() === SLEEPER) return true; }catch(e){}
+    try{ if (String(localStorage.getItem('gd_sleeper_username')||'').trim().toLowerCase() === SLEEPER) return true; }catch(e){}
+    return false;
+  }
+  function demo(){ try{ return !!(window.inDemoMode && window.inDemoMode()); }catch(e){ return false; } }
+
+  function quipFor(v){
+    if (v === 0)  return ['Bold. Wrong, but bold.', true];
+    if (v < 3)    return ['Cute.', true];
+    if (v < 6)    return ['Keep going. We believe in you.', true];
+    if (v < 9)    return ['Almost honest.', true];
+    if (v < MIN)  return ['So close to self-awareness.', true];
+    if (v < 18)   return ['There it is.', false];
+    if (v < 30)   return ['Now we’re being realistic.', false];
+    if (v < 45)   return ['Respect. Self-aware king.', false];
+    return ['Okay, have some dignity.', false];
+  }
+  function render(){
+    var v = parseFloat(rng.value) || 0, ok = v >= MIN;
+    num.textContent = v.toFixed(2);
+    read.classList.toggle('ok', ok);
+    var q = quipFor(v); quip.textContent = q[0]; quip.classList.toggle('denial', q[1]);
+    var pct = v / 50 * 100, d = MIN / 50 * 100;
+    rng.style.setProperty('--bp-trk', ok
+      ? 'linear-gradient(90deg, var(--enemy) 0 '+d+'%, var(--coral-500) '+d+'% '+pct+'%, var(--line) '+pct+'% 100%)'
+      : 'linear-gradient(90deg, var(--enemy) 0 '+pct+'%, var(--line) '+pct+'% 100%)');
+    rng.style.setProperty('--bp-ring', ok ? 'var(--coral-500)' : 'var(--enemy)');
+    go.classList.toggle('locked', !ok);
+    go.setAttribute('aria-disabled', String(!ok));
+    go.textContent = ok ? 'Lock in my ' + v.toFixed(2) + '-point loss' : 'Enter at least 10.00 to continue';
+    if (ok && !wasOk){
+      go.classList.remove('pop'); void go.offsetWidth; go.classList.add('pop');
+      try{ if (navigator.vibrate) navigator.vibrate(15); }catch(e){}
+    }
+    wasOk = ok;
+  }
+  function showToast(msg){
+    toast.textContent = msg; toast.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(function(){ toast.classList.remove('show'); }, 1800);
+  }
+
+  function show(){
+    if (open || demo() || !isBoyer()) return;
+    if (Date.now() > END && !FORCE) return;
+    open = true;
+    rng.value = 0; wasOk = false; render();
+    s2.hidden = true; s1.hidden = false;
+    gate.classList.remove('bp-out'); gate.hidden = false;
+    prevOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+  }
+  function hide(){
+    if (!open) return;
+    gate.classList.add('bp-out');
+    setTimeout(function(){ gate.hidden = true; gate.classList.remove('bp-out'); open = false;
+      document.documentElement.style.overflow = prevOverflow; }, 350);
+  }
+
+  /* First lock-in only: tell the server, which checks it's really Tyler's account,
+     sends once, and pushes to Matt's devices. The number rides along for the alert
+     text only — nothing is stored. A failed send (signed out, offline) retries on
+     the next lock-in. */
+  function ping(v){
+    if (FORCE && !isBoyerReal()) return;
+    try{ if (localStorage.getItem(PING_KEY)) return; }catch(e){}
+    try{
+      fetch('/api/push/subscribe?action=boyer_ping', {
+        method:'POST', credentials:'include', keepalive:true,
+        headers:{'Content-Type':'application/json'}, body: JSON.stringify({ pts: v })
+      }).then(function(r){ if (r.ok){ try{ localStorage.setItem(PING_KEY, '1'); }catch(e){} } }).catch(function(){});
+    }catch(e){}
+  }
+  function isBoyerReal(){ var f = FORCE; FORCE = false; var r = isBoyer(); FORCE = f; return r; }
+
+  rng.addEventListener('input', render);
+  go.addEventListener('click', function(){
+    var v = parseFloat(rng.value) || 0;
+    if (v < MIN){
+      go.classList.remove('shake'); void go.offsetWidth; go.classList.add('shake');
+      showToast('Conflicted does not accept that answer.');
+      return;
+    }
+    $('bp-c1').textContent = '−' + v.toFixed(2);
+    $('bp-c2').textContent = '+' + v.toFixed(2);
+    $('bp-csub').textContent = v >= 30 ? 'Bold of you to admit it. We’ll check your work Monday night.' : 'We’ll check your work Monday night.';
+    clearTimeout(toastT); toast.classList.remove('show');
+    s1.hidden = true; s2.hidden = false;
+    ping(v);
+  });
+  $('bp-cheat').addEventListener('click', function(){ rng.value = 24.5; render(); showToast('Answer adjusted for accuracy.'); });
+  $('bp-enter').addEventListener('click', hide);
+
+  /* Cold open: the Sleeper name in localStorage is known instantly, so on his
+     usual device the gate covers the splash from the first paint. Otherwise wait
+     for account hydration (bootstrapAccount) and check again. */
+  show();
+  var tries = 0, poll = setInterval(function(){
+    tries++;
+    if (open || tries > 80){ clearInterval(poll); return; }   /* ~20s */
+    if (window.__account) show();
+  }, 250);
+
+  /* Back after 5+ min away counts as a new open (iPhone Home Screen apps resume
+     far more often than they cold-start). */
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden){ hiddenAt = Date.now(); return; }
+    if (hiddenAt && Date.now() - hiddenAt >= AWAY_MS) show();
+    hiddenAt = 0;
+  });
+})();
+</script>
+
 </body>
 </html>
