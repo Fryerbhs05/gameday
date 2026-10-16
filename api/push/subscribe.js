@@ -207,6 +207,41 @@ async function handleTestStatus(req, res, acct) {
   res.status(r.ok ? 200 : 502).json({ ok: r.ok, week: built.week, title: built.message.title, body: built.message.body });
 }
 
+// ── Boyer Week 6 gate ping (Matt, 2026-10-15) ─────────────────────────────
+// Tyler Boyer's app shows "How much will you lose to Fryer by this week?" (see the
+// BOYER WEEK 6 GATE block in index.html). The first time he locks in an answer,
+// push it to Matt's devices. Only Tyler's account can trigger it, it sends once
+// (rate-limit bucket, 1 hit per 14 days), and nothing is stored. Delete this
+// handler + its route line below to remove.
+const BP_TARGET = 'tjboyer90@gmail.com';
+const BP_OWNER = 'fryerm@net.elmhurst.edu';
+async function handleBoyerPing(req, res, acct) {
+  if (A.normEmail(acct.email) !== BP_TARGET) { res.status(403).json({ error: 'Not for you.' }); return; }
+  const body = await readJsonBody(req);
+  const pts = Math.min(50, Math.max(10, Number(body.pts) || 10));
+  if (!(await A.rateLimitOk('prank:boyer:2026w6', 1, 14 * 86400))) { res.status(200).json({ ok: true, dup: true }); return; }
+  const owner = await A.findUser(BP_OWNER);
+  if (!owner) { res.status(200).json({ ok: false }); return; }
+  const subs = (await A.sbFetch(`push_subscriptions?user_id=eq.${owner.id}&select=id,endpoint,p256dh,auth`)) || [];
+  const message = {
+    kind: 'prank',
+    title: 'Boyer took the bait.',
+    body: `He just admitted he'll lose to you by ${pts.toFixed(2)} points.`,
+    url: '/',
+    tag: 'cf-boyer'
+  };
+  let sent = 0;
+  for (const sub of subs) {
+    try {
+      const r = await W.sendPush(sub, message, { ttl: 86400 });
+      if (r.ok) sent++;
+      else if (r.gone) await A.sbFetch(`push_subscriptions?id=eq.${sub.id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } }).catch(() => {});
+      else console.error('boyer ping push failed', r.status, r.text);
+    } catch (e) { console.error('boyer ping push error', e.message); }
+  }
+  res.status(200).json({ ok: true });
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const enabled = A.accountsConfigured() && W.pushConfigured();
@@ -227,6 +262,7 @@ module.exports = async (req, res) => {
     if (action === 'unsubscribe') return await handleUnsubscribe(req, res, acct);
     if (action === 'status') return await handleStatus(req, res, acct);
     if (action === 'prefs') return await handlePrefs(req, res, acct);
+    if (action === 'boyer_ping') return await handleBoyerPing(req, res, acct);
     if (!previewOk(acct)) { res.status(403).json({ error: 'Alerts are in preview.' }); return; }
     if (action === 'roster') return await handleRoster(req, res, acct);
     if (action === 'test_status') return await handleTestStatus(req, res, acct);
