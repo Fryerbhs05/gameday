@@ -16839,13 +16839,18 @@ function placeAdd(strip,count){
     if(bar) bar.remove();
     if(!tile){ tile=document.createElement('button'); tile.type='button'; tile.className='mm-add-tile mm-add'; tile.setAttribute('data-mm','add');
       tile.innerHTML='<span class="mm-add-ic">+</span><b>Add matchup manually</b><small>CBS, NFL.com, office leagues</small>'; }
-    var tsm=tile.querySelector('small'); if(tsm) tsm.textContent=pkOn?'CBS, NFL.com, pick\u2019em':'CBS, NFL.com, office leagues';
+    /* With pick'em on (owner preview): one white label, no sub-line (Matt, 2026-10-17). */
+    var tb=tile.querySelector('b'), tsm=tile.querySelector('small');
+    if(tb) tb.textContent=pkOn?'Add Matchup or Pick\u2019em Manually':'Add matchup manually';
+    if(tsm){ tsm.textContent='CBS, NFL.com, office leagues'; tsm.hidden=pkOn; }
     strip.appendChild(tile);
   }else{
     if(tile) tile.remove();
     if(!bar){ bar=document.createElement('button'); bar.type='button'; bar.id='mm-add-bar'; bar.className='mm-add-bar mm-add'; bar.setAttribute('data-mm','add');
       bar.innerHTML='<span class="mm-add-ic">+</span><span class="lb">Add matchup manually</span><small>CBS, NFL.com &amp; more</small>'; }
-    var bsm=bar.querySelector('small'); if(bsm) bsm.innerHTML=pkOn?'CBS, NFL.com &amp; pick\u2019em':'CBS, NFL.com &amp; more';
+    var blb=bar.querySelector('.lb'), bsm=bar.querySelector('small');
+    if(blb) blb.textContent=pkOn?'Add Matchup or Pick\u2019em Manually':'Add matchup manually';
+    if(bsm){ bsm.innerHTML='CBS, NFL.com &amp; more'; bsm.hidden=pkOn; }
     var empty=document.getElementById('scores-empty');
     var after=(pkSub&&pkSub.parentNode===strip.parentNode)?pkSub:((empty&&!empty.hidden)?empty:strip);
     if(bar.previousSibling!==after) after.parentNode.insertBefore(bar,after.nextSibling);
@@ -17291,8 +17296,12 @@ try{
 .pk-sub{margin-top:14px}
 .pk-subhd{display:flex;align-items:center;gap:8px;margin:0 2px 8px;font:800 10px/1 var(--font-sans);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-500)}
 .pk-subhd::after{content:'';flex:1;height:1px;background:var(--line-soft)}
-.pk-card{display:block;width:100%;text-align:left;background:var(--tile-bg);border:1px solid var(--tile-line);border-radius:var(--radius-lg);padding:11px 12px 10px;position:relative;margin-bottom:8px;cursor:pointer;transition:background var(--duration-fast) var(--ease-out)}
-.pk-card:last-child{margin-bottom:0}
+/* Cards are exactly two matchup tiles wide (--pk-w is measured off the tile grid in
+   placeSub), so on desktop they line up with the tiles instead of stretching the
+   whole frame; on phones two tiles = the full width. Extra pools wrap side by side. */
+.pk-list{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
+@media (max-width:480px){.pk-list{gap:8px}}
+.pk-card{display:block;width:min(100%,var(--pk-w,420px));text-align:left;background:var(--tile-bg);border:1px solid var(--tile-line);border-radius:var(--radius-lg);padding:11px 12px 10px;position:relative;margin:0;cursor:pointer;transition:background var(--duration-fast) var(--ease-out)}
 .pk-card:hover{background:var(--paper)}
 .pk-card[data-st=live]{border-top:3px solid var(--live-ice)}
 .pk-card[data-st=final]{border-top:3px solid var(--neutral)}
@@ -17588,7 +17597,7 @@ function subHtml(){
   var sw=activeSW(), live=isLiveSW(sw);
   var cards=pools().filter(function(p){ return startedBy(p,sw); }).map(function(p){ return cardHtml(p,sw,live); }).filter(Boolean);
   if(!cards.length) return '';
-  return '<div class="pk-subhd">Pick'+APOS+'em</div>'+cards.join('');
+  return '<div class="pk-subhd">Pick'+APOS+'em</div><div class="pk-list">'+cards.join('')+'</div>';
 }
 var lastSub=null;
 /* Called from cfManual.placeAdd() on every scoreboard paint (and resize), BEFORE the
@@ -17601,8 +17610,22 @@ function placeSub(strip){
   var empty=document.getElementById('scores-empty'), after=(empty&&!empty.hidden)?empty:strip;
   if(el.previousSibling!==after) after.parentNode.insertBefore(el,after.nextSibling);
   if(html!==lastSub){ el.innerHTML=html; lastSub=html; }
+  sizeSub(el,strip);
   refreshOpenDrawer();
   return el;
+}
+/* Two tiles + the gap between them, read off the live tile grid. auto-fit reports
+   collapsed tracks as 0px, so only real (non-zero) tracks count. Fewer than two
+   real tracks (one tile, or no tiles) falls back to 420px, capped at 100%. */
+function sizeSub(el,strip){
+  var w='';
+  try{
+    if(strip.classList.contains('visible')){
+      var cs=getComputedStyle(strip), tr=String(cs.gridTemplateColumns||'').trim().split(/\s+/).map(parseFloat).filter(function(v){ return v>0; });
+      if(tr.length>=2) w=Math.round(tr[0]+tr[1]+(parseFloat(cs.columnGap)||0))+'px';
+    }
+  }catch(e){}
+  if(el._pkw!==w){ el._pkw=w; if(w) el.style.setProperty('--pk-w',w); else el.style.removeProperty('--pk-w'); }
 }
 
 /* ═════════ Drawer ═════════ */
