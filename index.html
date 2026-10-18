@@ -28152,6 +28152,18 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
 #cfm .cfm-rail .cfm-rail-list,#cfm .cfm-rail .cfm-nfl-list{overflow:visible}
 #cfm .cfm-rail-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:0;padding:0 10px 10px;scrollbar-width:none}
 #cfm .cfm-rail-list::-webkit-scrollbar{display:none}
+/* Fold (2026-10-18): header is the toggle. The 2px of header padding moves into
+   the list so the clip never shaves the selected card's 1px ring / flash. */
+#cfm .cfm-ph-tg{width:100%;text-align:left;padding-bottom:6px;-webkit-tap-highlight-color:transparent}
+#cfm .cfm-ph-tg .cfm-chev{margin-left:auto;display:inline-flex;color:var(--ink-500);transform:rotate(180deg);transition:transform .24s cubic-bezier(.2,.8,.2,1)}
+#cfm .cfm-pane[data-open="0"] .cfm-chev{transform:none}
+#cfm .cfm-pane[data-open="0"] .cfm-ph-tg{padding-bottom:8px}   /* +2px clip padding = 10px, matches the top */
+#cfm .cfm-cw{display:grid;grid-template-rows:1fr;transition:grid-template-rows .24s cubic-bezier(.2,.8,.2,1)}
+#cfm .cfm-pane[data-open="0"] .cfm-cw{grid-template-rows:0fr}
+#cfm .cfm-cc{overflow:hidden;min-height:0;padding-top:2px;transition:opacity .2s ease,visibility 0s linear 0s}
+#cfm .cfm-pane[data-open="0"] .cfm-cc{opacity:0;visibility:hidden;transition:opacity .2s ease,visibility 0s linear .24s}
+@media (hover:hover){#cfm .cfm-ph-tg:hover,#cfm .cfm-ph-tg:hover .cfm-chev{color:var(--ink-700)}}
+@media (prefers-reduced-motion:reduce){#cfm .cfm-cw,#cfm .cfm-cc,#cfm .cfm-chev{transition:none}}
 #cfm .cfm-hero-wrap{flex:1;min-width:0;min-height:0;display:flex}
 #cfm .cfm-hero{flex:1;min-height:0;overflow-y:auto;container:cfmhero/inline-size;position:relative}
 #cfm .cfm-side{width:320px;flex:none;display:flex;flex-direction:column}
@@ -28399,6 +28411,8 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
 #cfm.compact .cfm-ti .mt{display:none}
 #cfm.compact .cfm-rail{width:164px}
 #cfm.compact .cfm-ph{padding:7px 9px 5px}
+#cfm.compact .cfm-ph-tg{padding-bottom:3px}
+#cfm.compact .cfm-pane[data-open="0"] .cfm-ph-tg{padding-bottom:5px}
 #cfm.compact .cfm-rail-list{padding:0 6px 6px;gap:6px}
 #cfm.compact .cfm-nfl-list{padding:0 6px 6px;gap:5px}
 #cfm.compact .cfm-ng{padding:4px 8px;column-gap:6px}
@@ -28486,7 +28500,7 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
   }
 
   function loadPrefs(){
-    var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, bench:false, liveOnly:false, panels:{rail:true,side:true,nfl:true}, ticker:{on:true,x:false,e:false}, pk:true, pkPool:null};
+    var d={mode:'rotate', rotateSec:10, order:null, hidden:{}, txLg:false, bench:false, liveOnly:false, panels:{rail:true,side:true,nfl:true}, ticker:{on:true,x:false,e:false}, pk:true, pkPool:null, fold:{mu:false,nfl:false}};
     try{ var raw=localStorage.getItem(PREF_KEY); if(raw){ var o=JSON.parse(raw); if(o&&typeof o==='object'){
       if(o.mode==='pin'||o.mode==='rotate')d.mode=o.mode;
       if(+o.rotateSec>=5&&+o.rotateSec<=60)d.rotateSec=+o.rotateSec;
@@ -28496,6 +28510,7 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
       if(o.panels&&typeof o.panels==='object')d.panels={rail:o.panels.rail!==false,side:o.panels.side!==false,nfl:o.panels.nfl!==false};
       if(o.ticker&&typeof o.ticker==='object')d.ticker={on:o.ticker.on!==false,x:!!o.ticker.x,e:!!o.ticker.e};
       d.pk=o.pk!==false; if(typeof o.pkPool==='string')d.pkPool=o.pkPool;
+      if(o.fold&&typeof o.fold==='object')d.fold={mu:!!o.fold.mu,nfl:!!o.fold.nfl};
     }}}catch(e){}
     return d;
   }
@@ -28738,6 +28753,19 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
   }
 
   /* ---------- render ---------- */
+  /* Left-column fold (Matt, 2026-10-18): tap YOUR MATCHUPS / NFL SCORES to
+     collapse that list. Same chevron + 0fr/1fr slide as Lineup Check-In
+     (up = open, down = closed). Saved per device with the other Maniac prefs. */
+  var FOLD_CHEV='<span class="cfm-chev" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>';
+  function applyFold(){
+    if(!root)return;
+    ['mu','nfl'].forEach(function(k){
+      var sec=root.querySelector('.cfm-'+k); if(!sec)return;
+      var open=!P.fold[k], b=sec.querySelector('.cfm-ph-tg');
+      sec.setAttribute('data-open',open?'1':'0');
+      if(b)b.setAttribute('aria-expanded',open?'true':'false');
+    });
+  }
   function ensureRoot(){
     if(root)return root;
     root=document.createElement('div');
@@ -28761,8 +28789,8 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
       +'</header>'
       +'<div class="cfm-main">'
       +  '<div class="cfm-rail">'
-      +    '<section class="cfm-pane cfm-mu"><div class="cfm-ph">Your matchups</div><div class="cfm-rail-list" id="cfm-rail"></div></section>'
-      +    '<section class="cfm-pane cfm-nfl" aria-label="NFL scores"><div class="cfm-ph">NFL scores</div><div id="cfm-pk"></div><div class="cfm-nfl-list" id="cfm-nfl"></div></section>'
+      +    '<section class="cfm-pane cfm-mu" data-open="1"><button type="button" class="cfm-ph cfm-ph-tg" data-cfm="fold" data-v="mu" aria-expanded="true" aria-controls="cfm-mu-b"><span>Your matchups</span>'+FOLD_CHEV+'</button><div class="cfm-cw" id="cfm-mu-b"><div class="cfm-cc"><div class="cfm-rail-list" id="cfm-rail"></div></div></div></section>'
+      +    '<section class="cfm-pane cfm-nfl" aria-label="NFL scores" data-open="1"><button type="button" class="cfm-ph cfm-ph-tg" data-cfm="fold" data-v="nfl" aria-expanded="true" aria-controls="cfm-nfl-b"><span>NFL scores</span>'+FOLD_CHEV+'</button><div class="cfm-cw" id="cfm-nfl-b"><div class="cfm-cc"><div id="cfm-pk"></div><div class="cfm-nfl-list" id="cfm-nfl"></div></div></div></section>'
       +  '</div>'
       +  '<div class="cfm-hero-wrap"><section class="cfm-pane cfm-hero" id="cfm-hero"></section></div>'
       +  '<aside class="cfm-pane cfm-side"><div class="cfm-side-body"><div class="cfm-ph">Who to root for</div><div class="cfm-root-ctl" id="cfm-rootctl"></div><div class="cfm-root-body" id="cfm-root"></div></div></aside>'
@@ -28793,6 +28821,7 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
     cl.toggle('wide',wide); cl.toggle('xwide',wide&&W>=1500);
     cl.toggle('tx-lg',!!P.txLg);
     cl.toggle('rail-off',!P.panels.rail); cl.toggle('nfl-off',!P.panels.nfl); cl.toggle('side-off',!P.panels.side);
+    applyFold();
     fitNames();
   }
 
@@ -29581,6 +29610,7 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
     if(t.hasAttribute('data-cfm-pkpool')){ try{ P.pkPool=window.cfPickem.maniacNextPool(window.cfPickem.maniacPoolId(P.pkPool)); savePrefs(); window.cfManiacPkRefresh(); cfTrack('maniac_pickem_switch',{}); }catch(_){} return; }
     var a=t.getAttribute('data-cfm');
     if(a==='exit'){ window.hideManiac(); return; }
+    if(a==='fold'){ var fk=t.getAttribute('data-v'); if(fk==='mu'||fk==='nfl'){ P.fold[fk]=!P.fold[fk]; savePrefs(); applyFold(); try{cfTrack('maniac_fold',{pane:fk,open:!P.fold[fk]});}catch(_){} } return; }
     if(a==='live'){ liveRefresh(t); return; }
     if(a==='wall'){ setWall(!root.classList.contains('wall')); return; }
     if(a==='settings'){ S.sheet=S.sheet==='settings'?null:'settings'; renderSheet(); renderRoot(); return; }
