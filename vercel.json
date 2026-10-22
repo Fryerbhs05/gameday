@@ -50,6 +50,10 @@
     {
       "path": "/api/push/status?job=tue",
       "schedule": "0 * * * 2"
+    },
+    {
+      "path": "/api/stats/snapshot",
+      "schedule": "17 * * * *"
     }
   ],
   "functions": {
@@ -61,6 +65,9 @@
     },
     "api/push/subscribe.js": {
       "maxDuration": 60
+    },
+    "api/stats/snapshot.js": {
+      "maxDuration": 300
     }
   }
 }
