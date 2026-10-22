@@ -17283,10 +17283,10 @@ try{
 })();
 </script>
 
-<!-- ============ Pick'em pools (owner-only preview, 2026-10-17) ============ -->
+<!-- ============ Pick'em pools (released to all signed-in users 2026-10-21) ============ -->
 <style>
 /* Pick'em pools — a second kind of manual entry ("Add matchup manually" → Pick'em
-   pool). Mock: mocks/pickem-mock.html. Gated to the owner + PICKEM_BETA_EMAILS while Matt tests it.
+   pool). Mock: mocks/pickem-mock.html. Open to every signed-in user (not demo) since 2026-10-21.
    Stored in the SAME account column as manual leagues (user_profiles.manual_leagues)
    as {type:'pickem'} entries; cfManual splits them out on hydrate. Grading reads the
    ESPN scoreboard pull the board already makes (window.__cfNflGames). The wizard
@@ -17445,17 +17445,11 @@ var IC_FX='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="c
 var IC_PK='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 12.5l2.7 2.7L16.5 9"/></svg>';
 var CHEV_SM='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10l4-4 4 4M8 14l4 4 4-4"/></svg>';
 
-/* Preview while Matt tests it: owner (cfIsAdmin) + the tester accounts below.
-   Signed in (cfManual.isOn) + not demo. Jeremy Ried added 2026-10-18 (Matt). */
-var PICKEM_BETA_EMAILS=['riedjeremy@yahoo.com'];
+/* Released to ALL signed-in users 2026-10-21 (Matt) — owner + PICKEM_BETA_EMAILS gate
+   removed. Same rule as manual matchups (cfManual.isOn): signed in + not demo. */
 function isOn(){
   try{ if(isDemoMode) return false; }catch(e){}
-  try{
-    if(!(window.cfManual&&window.cfManual.isOn())) return false;
-    if(typeof window.cfIsAdmin==='function'&&window.cfIsAdmin()) return true;
-    var a=window.__account||{};
-    return !!(a.signedIn&&a.email&&PICKEM_BETA_EMAILS.indexOf(String(a.email).trim().toLowerCase())>=0);
-  }catch(e){ return false; }
+  try{ return !!(window.cfManual&&window.cfManual.isOn()); }catch(e){ return false; }
 }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 function track(n,p){ try{ if(typeof window.cfTrack==='function') window.cfTrack(n,p||{}); }catch(e){} }
