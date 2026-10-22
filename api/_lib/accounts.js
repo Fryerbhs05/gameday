@@ -469,6 +469,25 @@ async function setManualLeagues(uid, leagues) {
   });
   return clean;
 }
+/* ── Social shoutouts opt-out (Settings → "Do not share my wins", 2026-10-22) ──
+   true = never name this account's fantasy teams in Conflicted's social posts
+   (top scorers, blowouts, comebacks). Off by default. The private stats views
+   read it live (db/shoutout-optout.sql), so turning it on also covers past weeks. */
+async function getNoShoutouts(uid) {
+  if (!uid) return false;
+  const rows = await sbFetch(`user_profiles?user_id=eq.${uid}&select=no_shoutouts`);
+  return !!(rows && rows[0] && rows[0].no_shoutouts);
+}
+async function setNoShoutouts(uid, on) {
+  if (!uid) return false;
+  const v = !!on, now = new Date().toISOString();
+  await sbFetch('user_profiles', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify([{ user_id: uid, no_shoutouts: v, no_shoutouts_at: now, updated_at: now }])
+  });
+  return v;
+}
 // Full account erasure (GDPR/CCPA "delete my data").
 async function deleteUserData(uid, email) {
   await sbFetch(`platform_sessions?user_id=eq.${uid}`, {
@@ -556,6 +575,8 @@ module.exports = {
   setDisabledLeagues,
   getManualLeagues,
   setManualLeagues,
+  getNoShoutouts,
+  setNoShoutouts,
   saveMagicToken,
   consumeMagicToken,
   saveSignInCode,

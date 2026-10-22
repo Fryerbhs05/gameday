@@ -21,6 +21,19 @@
 //   • Yahoo: scoreboard team points; starters = selected_position not BN/IR;
 //     never-drafted ('predraft') leagues and empty shells are skipped.
 //   • Sleeper: matchup points + starters, taxi excluded on the opponent side.
+//
+// opts (optional 4th argument; the alerts pass none, so nothing changes for them):
+//   meta: true → each matchup also carries m.meta = {
+//       settings: { teams, rec, teRec, passTd, qb, sf, flex, starters, idp, bestBall } | null,
+//       teams:    { <team id>: <team name> } for EVERY team in the league,
+//       scoring:  Sleeper's raw scoring_settings (to score projections) | null,
+//       myProjTeam / oppProjTeam: Yahoo's own pregame team projections | null }
+//     Extra calls: Sleeper +1 per league (/users); ESPN none (settings and teams are
+//     already in the read); Yahoo +1 per league for settings, skipped for leagues in
+//     opts.knownSettings (a Set of 'yahoo|<league_key>').
+//   lite: true → Yahoo skips the two roster calls per league (for projection and
+//     name reads that only need the scoreboard).
+// ESPN starters always carry P.proj = ESPN's own projection for the week (null if none).
 
 const A = require('./accounts');
 
@@ -35,6 +48,91 @@ async function getJson(url, opts) {
   const r = await fetch(url, opts || { headers: { Accept: 'application/json' } });
   if (!r.ok) { const e = new Error(`${new URL(url).hostname} ${r.status}`); e.status = r.status; throw e; }
   return r.json();
+}
+
+/* ── League format (opts.meta) ────────────────────────────────────────────── */
+// One shape for all three platforms. rec = points per reception, teRec = extra per
+// TE reception (TE premium), passTd = points per passing TD; qb / sf / flex = starting
+// QB, superflex and flex slots; starters = every starting slot; idp = individual
+// defensive players start; bestBall = lineups set automatically.
+const num = (v) => (v == null || v === '' || !Number.isFinite(+v) ? null : +v);
+const IDP_SLOTS = new Set(['DL', 'LB', 'DB', 'IDP_FLEX', 'DE', 'DT', 'CB', 'S', 'SS', 'FS', 'D']);
+
+function sleeperSettings(lg) {
+  const s = lg.scoring_settings, rp = Array.isArray(lg.roster_positions) ? lg.roster_positions.map(String) : [];
+  const st = rp.filter((p) => p !== 'BN' && p !== 'IR' && p !== 'TAXI');
+  const cnt = (f) => st.filter(f).length;
+  return {
+    teams: num(lg.total_rosters),
+    rec: s ? num(s.rec) || 0 : null, teRec: s ? num(s.bonus_rec_te) || 0 : null, passTd: s ? num(s.pass_td) : null,
+    qb: rp.length ? cnt((p) => p === 'QB') : null, sf: rp.length ? cnt((p) => p === 'SUPER_FLEX') : null,
+    flex: rp.length ? cnt((p) => /FLEX/.test(p) && p !== 'SUPER_FLEX' && p !== 'IDP_FLEX') : null,
+    starters: rp.length ? st.length : null, idp: st.some((p) => IDP_SLOTS.has(p)),
+    bestBall: !!(lg.settings && +lg.settings.best_ball === 1)
+  };
+}
+
+// ESPN: scoring statId 53 = reception, 4 = passing TD (pointsOverrides keyed by lineup
+// slot; 6 = TE). Lineup slots: 0 QB, 7 OP (superflex), 3 RB/WR, 5 WR/TE, 23 FLEX,
+// 8–15 IDP, 20 bench, 21 IR.
+function espnSettings(data) {
+  const st = (data && data.settings) || {}, sc = st.scoringSettings || {}, rs = st.rosterSettings || {};
+  const items = Array.isArray(sc.scoringItems) ? sc.scoringItems : null;
+  const item = (id) => (items || []).find((x) => +x.statId === id);
+  const rec = item(53), ptd = item(4);
+  const slots = rs.lineupSlotCounts && typeof rs.lineupSlotCounts === 'object' ? rs.lineupSlotCounts : null;
+  const c = (k) => (slots ? +slots[k] || 0 : 0);
+  const recPts = rec ? num(rec.points) || 0 : (items ? 0 : null);
+  const teOver = rec && rec.pointsOverrides && rec.pointsOverrides['6'] != null ? num(rec.pointsOverrides['6']) : null;
+  return {
+    teams: num(st.size) || (Array.isArray(data.teams) ? data.teams.length : null),
+    rec: recPts, teRec: teOver != null && recPts != null ? Math.max(0, teOver - recPts) : (items ? 0 : null),
+    passTd: ptd ? num(ptd.points) : null,
+    qb: slots ? c('0') : null, sf: slots ? c('7') : null, flex: slots ? c('3') + c('5') + c('23') : null,
+    starters: slots ? Object.keys(slots).filter((k) => k !== '20' && k !== '21').reduce((t, k) => t + c(k), 0) : null,
+    idp: slots ? ['8', '9', '10', '11', '12', '13', '14', '15'].some((k) => c(k) > 0) : false,
+    bestBall: false
+  };
+}
+function espnTeamName(t) {
+  return t ? (t.name || [t.location, t.nickname].filter(Boolean).join(' ').trim() || t.abbrev || null) : null;
+}
+
+// Yahoo: stat 11 = reception, 5 = passing TD; roster position 'Q/W/R/T' = superflex.
+// The settings JSON nests differently league to league, so search it by key.
+function yhFind(o, key, depth = 0) {
+  if (!o || typeof o !== 'object' || depth > 8) return undefined;
+  if (Object.prototype.hasOwnProperty.call(o, key)) return o[key];
+  for (const k of Object.keys(o)) { const v = yhFind(o[k], key, depth + 1); if (v !== undefined) return v; }
+  return undefined;
+}
+function yhList(node, inner) {
+  const out = [];
+  const visit = (x) => {
+    if (!x || typeof x !== 'object') return;
+    if (x[inner]) { out.push(Array.isArray(x[inner]) ? yhFlatten(x[inner]) : x[inner]); return; }
+    (Array.isArray(x) ? x : Object.values(x)).forEach(visit);
+  };
+  visit(node);
+  return out;
+}
+function yhSettings(json, numTeams) {
+  const lg = json && json.fantasy_content && json.fantasy_content.league;
+  const pos = yhList(yhFind(lg, 'roster_positions'), 'roster_position')
+    .map((r) => ({ p: String(r.position || ''), n: +r.count || 0 }))
+    .filter((r) => r.p && r.p !== 'BN' && r.p !== 'IR');
+  const mods = yhList(yhFind(lg, 'stat_modifiers'), 'stat');
+  const mod = (id) => { const m = mods.find((x) => String(x.stat_id) === String(id)); return m ? num(m.value) : null; };
+  const n = (f) => pos.filter(f).reduce((t, r) => t + r.n, 0);
+  const meta = Array.isArray(lg) ? yhFlatten(lg[0]) : {};
+  return {
+    teams: num(numTeams) || num(meta.num_teams),
+    rec: mods.length ? mod(11) || 0 : null, teRec: mods.length ? 0 : null, passTd: mod(5),
+    qb: pos.length ? n((r) => r.p === 'QB') : null, sf: pos.length ? n((r) => r.p === 'Q/W/R/T') : null,
+    flex: pos.length ? n((r) => /^[WRT](\/[WRT])+$/.test(r.p)) : null,
+    starters: pos.length ? n(() => true) : null, idp: pos.some((r) => IDP_SLOTS.has(r.p)),
+    bestBall: false
+  };
 }
 
 /* ── Sleeper ──────────────────────────────────────────────────────────────── */
@@ -57,7 +155,8 @@ function sleeperP(id, pp, db) {
     pid: String(id)
   };
 }
-async function readSleeper(uid, season, week) {
+async function readSleeper(uid, season, week, opts) {
+  const meta = !!(opts && opts.meta);
   const blob = await A.getPlatformSession(uid, 'sleeper');
   if (!blob) return [];
   let username = null;
@@ -72,9 +171,10 @@ async function readSleeper(uid, season, week) {
   out.failed = 0; // leagues whose read threw (lineup-history snapshot retries those)
   await Promise.all(leagues.map(async (lg) => {
     try {
-      const [rosters, matchups] = await Promise.all([
+      const [rosters, matchups, users] = await Promise.all([
         getJson(`${SLEEPER}/league/${lg.league_id}/rosters`),
-        getJson(`${SLEEPER}/league/${lg.league_id}/matchups/${week}`)
+        getJson(`${SLEEPER}/league/${lg.league_id}/matchups/${week}`),
+        meta ? getJson(`${SLEEPER}/league/${lg.league_id}/users`).catch(() => null) : Promise.resolve(null) // names are optional
       ]);
       const mineR = (rosters || []).find((r) => r.owner_id === user.user_id || (Array.isArray(r.co_owners) && r.co_owners.includes(user.user_id)));
       if (!mineR) return;
@@ -89,7 +189,7 @@ async function readSleeper(uid, season, week) {
       const msSet = new Set(ms), myHold = new Set([...((mineR.reserve) || []), ...((mineR.taxi) || [])].filter(Boolean));
       const bench = clean(me.players && me.players.length ? me.players : mineR.players).filter((id) => !msSet.has(id) && !myHold.has(id));
       if (op && !os.length && oppR) os = clean(oppR.starters).filter((id) => !taxi.has(id));
-      out.push({
+      const m = {
         key: `sleeper|${lg.name}`, name: lg.name, platform: 'sleeper',
         leagueId: String(lg.league_id), teamId: String(mineR.roster_id), oppTeamId: op ? String(op.roster_id) : null,
         myPts: +me.points || 0, oppPts: op ? (+op.points || 0) : 0,
@@ -97,7 +197,16 @@ async function readSleeper(uid, season, week) {
         mine: ms.map((id) => sleeperP(id, me.players_points, db)),
         opp: os.map((id) => sleeperP(id, op && op.players_points, db)),
         bench: bench.map((id) => sleeperP(id, me.players_points, db))
-      });
+      };
+      if (meta) {
+        // A team's name is its manager's team_name, else the manager's display name (what Sleeper shows).
+        const byUser = {};
+        (Array.isArray(users) ? users : []).forEach((u) => { if (u && u.user_id) byUser[u.user_id] = (u.metadata && u.metadata.team_name) || u.display_name || null; });
+        const teams = {};
+        (rosters || []).forEach((r) => { if (r && r.roster_id != null) teams[String(r.roster_id)] = (r.owner_id && byUser[r.owner_id]) || null; });
+        m.meta = { settings: sleeperSettings(lg), teams, scoring: lg.scoring_settings || null, myProjTeam: null, oppProjTeam: null };
+      }
+      out.push(m);
     } catch (e) { out.failed++; console.error('reader sleeper league failed', lg.league_id, e.message); }
   }));
   return out;
@@ -117,10 +226,12 @@ function espnP(entry, week) {
     team: ESPN_PRO_TEAMS[p.proTeamId] || '',
     pts: espnStat(entry, week, 0) || 0,
     inj: String(p.injuryStatus || (entry && entry.injuryStatus) || ''),
-    pid: String(p.id != null ? p.id : (entry && entry.playerId != null ? entry.playerId : ''))
+    pid: String(p.id != null ? p.id : (entry && entry.playerId != null ? entry.playerId : '')),
+    proj: espnStat(entry, week, 1) // ESPN's own projection for the week (statSourceId 1), null if none
   };
 }
-async function readEspn(uid, season, week) {
+async function readEspn(uid, season, week, opts) {
+  const meta = !!(opts && opts.meta);
   const blob = await A.getPlatformSession(uid, 'espn');
   if (!blob) return [];
   let s;
@@ -149,13 +260,19 @@ async function readEspn(uid, season, week) {
       const opp = starters(opE).map((e) => espnP(e, week));
       const sum = (arr) => +arr.reduce((t, p) => t + (+p.pts || 0), 0).toFixed(2);
       const name = (data.settings && data.settings.name) || `ESPN league ${lid}`;
-      out.push({
+      const m = {
         key: `espn|${name}`, name, platform: 'espn',
         leagueId: String(lid), teamId: String(myTeam.id), oppTeamId: opE && opE.teamId != null ? String(opE.teamId) : null,
         myPts: mine.length ? sum(mine) : (+meE.totalPoints || 0),
         oppPts: opp.length ? sum(opp) : (+(opE && opE.totalPoints) || 0),
         hasOpp: !!(opE && opE.teamId != null && opp.length), mine, opp, bench
-      });
+      };
+      if (meta) {
+        const teams = {};
+        (data.teams || []).forEach((t) => { if (t && t.id != null) teams[String(t.id)] = espnTeamName(t); });
+        m.meta = { settings: espnSettings(data), teams, scoring: null, myProjTeam: null, oppProjTeam: null };
+      }
+      out.push(m);
     } catch (e) { out.failed++; console.error('reader espn league failed', lid, e.message); }
   }));
   return out;
@@ -182,7 +299,7 @@ function yhLeagues(json, season) {
         const lm = Array.isArray(lArr) ? yhFlatten(lArr[0]) : lArr;
         if (lm.game_code && lm.game_code !== 'nfl') return;
         if (String(lm.season || meta.season || '') !== String(season)) return;
-        out.push({ league_key: lm.league_key, name: lm.name, draft_status: lm.draft_status || '' });
+        out.push({ league_key: lm.league_key, name: lm.name, draft_status: lm.draft_status || '', num_teams: lm.num_teams != null ? +lm.num_teams : null });
       });
     });
   });
@@ -212,7 +329,8 @@ function yhScoreboard(json) {
       const tArr = tw && tw.team; if (!Array.isArray(tArr)) return;
       const meta = yhFlatten(tArr[0]);
       const ex = Array.isArray(tArr[1]) ? yhFlatten(tArr[1]) : (tArr[1] || {});
-      teams.push({ team_key: meta.team_key, points: parseFloat((ex.team_points || {}).total) || 0 });
+      const proj = parseFloat((ex.team_projected_points || {}).total);
+      teams.push({ team_key: meta.team_key, points: parseFloat((ex.team_points || {}).total) || 0, name: meta.name || null, proj: Number.isFinite(proj) ? proj : null });
     });
     out.push({ status: m.status || '', teams });
   });
@@ -266,7 +384,9 @@ async function yahooToken(uid) {
   try { await A.savePlatformSession(uid, 'yahoo', A.encrypt(JSON.stringify(fresh))); } catch (e) { console.error('reader yahoo writeback failed', e.message); }
   return fresh.at;
 }
-async function readYahoo(uid, season, week) {
+async function readYahoo(uid, season, week, opts) {
+  const meta = !!(opts && opts.meta), lite = !!(opts && opts.lite);
+  const known = (opts && opts.knownSettings) || new Set();
   const at = await yahooToken(uid);
   if (!at) {
     // Throw (not return []) so the lineup-history snapshot can tell "token refresh
@@ -284,22 +404,36 @@ async function readYahoo(uid, season, week) {
     try {
       const myKey = yhMyTeamKey(await yget(`league/${encodeURIComponent(lg.league_key)}/standings`));
       if (!myKey) return;
-      const mu = yhScoreboard(await yget(`league/${encodeURIComponent(lg.league_key)}/scoreboard;week=${week}`))
-        .find((m) => m.teams.some((t) => t.team_key === myKey));
+      const board = yhScoreboard(await yget(`league/${encodeURIComponent(lg.league_key)}/scoreboard;week=${week}`));
+      const mu = board.find((m) => m.teams.some((t) => t.team_key === myKey));
       if (!mu) return;
       const me = mu.teams.find((t) => t.team_key === myKey), op = mu.teams.find((t) => t.team_key !== myKey);
-      const roster = async (k) => yhRoster(await yget(`team/${encodeURIComponent(k)}/roster;week=${week}/players/stats;type=week;week=${week}`));
-      const [mineAll, oppAll] = await Promise.all([roster(myKey), op ? roster(op.team_key) : Promise.resolve([])]);
-      if (!mineAll.length && (!op || !oppAll.length)) return; // empty shell (app's backstop)
       const strip = ({ starter, slot, ...p }) => p;
-      const st = (arr) => { const s = arr.filter((p) => p.starter); return (s.length ? s : arr).map(strip); };
-      const mine = st(mineAll), opp = st(oppAll);
-      const bench = mineAll.some((p) => p.starter) ? mineAll.filter((p) => !p.starter && p.slot === 'BN').map(strip) : [];
-      out.push({
+      let mine = [], opp = [], bench = [];
+      if (!lite) {
+        const roster = async (k) => yhRoster(await yget(`team/${encodeURIComponent(k)}/roster;week=${week}/players/stats;type=week;week=${week}`));
+        const [mineAll, oppAll] = await Promise.all([roster(myKey), op ? roster(op.team_key) : Promise.resolve([])]);
+        if (!mineAll.length && (!op || !oppAll.length)) return; // empty shell (app's backstop)
+        const st = (arr) => { const s = arr.filter((p) => p.starter); return (s.length ? s : arr).map(strip); };
+        mine = st(mineAll); opp = st(oppAll);
+        bench = mineAll.some((p) => p.starter) ? mineAll.filter((p) => !p.starter && p.slot === 'BN').map(strip) : [];
+      }
+      const m = {
         key: `yahoo|${lg.name}`, name: lg.name, platform: 'yahoo',
         leagueId: String(lg.league_key), teamId: String(myKey), oppTeamId: op ? String(op.team_key) : null,
-        myPts: me.points, oppPts: op ? op.points : 0, hasOpp: !!(op && opp.length), mine, opp, bench
-      });
+        myPts: me.points, oppPts: op ? op.points : 0, hasOpp: !!(op && (lite || opp.length)), mine, opp, bench
+      };
+      if (meta) {
+        const teams = {};
+        board.forEach((x) => x.teams.forEach((t) => { if (t.team_key) teams[String(t.team_key)] = t.name || null; }));
+        let settings = null;
+        if (!known.has(`yahoo|${lg.league_key}`)) {
+          // Settings are optional: a failed settings call leaves the format unknown for now.
+          settings = await yget(`league/${encodeURIComponent(lg.league_key)}/settings`).then((j) => yhSettings(j, lg.num_teams), () => null);
+        }
+        m.meta = { settings, teams, scoring: null, myProjTeam: me.proj, oppProjTeam: op ? op.proj : null };
+      }
+      out.push(m);
     } catch (e) { out.failed++; console.error('reader yahoo league failed', lg.league_key, e.message); }
   }));
   return out;
@@ -323,4 +457,4 @@ async function readAccountMatchups(uid, season, week) {
   return all;
 }
 
-module.exports = { readAccountMatchups, sleeperPlayers, readSleeper, readEspn, readYahoo, yhLeagues, yhMyTeamKey, yhScoreboard, yhRoster };
+module.exports = { readAccountMatchups, sleeperPlayers, readSleeper, readEspn, readYahoo, yhLeagues, yhMyTeamKey, yhScoreboard, yhRoster, sleeperSettings, espnSettings, yhSettings };

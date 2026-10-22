@@ -8,6 +8,8 @@
 //   POST /api/account/me?action=manual     -> save the manually entered leagues
 //   POST /api/account/me?action=leaguemap  -> record which real leagues this
 //        account is in (league_connections) for league-reach analytics
+//   POST /api/account/me?action=shoutouts  -> Settings "Do not share my wins"
+//        body { noShoutouts: true|false }
 //        body { username } saves it; empty/missing username clears it.
 
 const A = require('../_lib/accounts');
@@ -73,7 +75,10 @@ async function handleMe(req, res) {
   // copy instead of treating the account as empty.
   let disabledLeagues = [];
   let manualLeagues;
+  let noShoutouts; // undefined on a failed read → the client keeps what it has
   await Promise.all([
+    A.getNoShoutouts(acct.uid).then((v) => { noShoutouts = v; })
+      .catch((e) => console.error('account/me shoutouts read:', e.message)),
     A.getDisabledLeagues(acct.uid).then((v) => { disabledLeagues = v; })
       .catch((e) => console.error('account/me disabled-leagues read:', e.message)),
     A.getManualLeagues(acct.uid).then((v) => { manualLeagues = v; })
@@ -105,7 +110,7 @@ async function handleMe(req, res) {
   }
   res
     .status(200)
-    .json({ signedIn: true, enabled: true, email: acct.email, name, platforms, sleeper: sleeperUsername, disabledLeagues, manualLeagues });
+    .json({ signedIn: true, enabled: true, email: acct.email, name, platforms, sleeper: sleeperUsername, disabledLeagues, manualLeagues, noShoutouts });
 }
 
 // ── POST ?action=logout: end session on this device ──────────────
@@ -272,6 +277,34 @@ async function handleManual(req, res) {
   }
 }
 
+// ── POST ?action=shoutouts: Settings → "Do not share my wins" ──
+// Body { noShoutouts: true|false }. true = never name this account's teams in
+// Conflicted's social posts. Must be a boolean — anything else is rejected so a
+// malformed request can't silently flip someone back to sharing.
+async function handleShoutouts(req, res) {
+  if (!A.accountsConfigured()) {
+    res.status(503).json({ error: 'Accounts are not enabled.' });
+    return;
+  }
+  const acct = A.readAccount(req);
+  if (!acct) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+  try {
+    const body = await readJsonBody(req);
+    if (!body || typeof body.noShoutouts !== 'boolean') {
+      res.status(400).json({ error: 'noShoutouts must be true or false.' });
+      return;
+    }
+    const saved = await A.setNoShoutouts(acct.uid, body.noShoutouts);
+    res.status(200).json({ ok: true, noShoutouts: saved });
+  } catch (e) {
+    console.error('account/shoutouts error:', e.message);
+    res.status(500).json({ error: 'Could not save your sharing setting.' });
+  }
+}
+
 // ── POST ?action=leaguemap: record the real leagues this account is in ──
 // Body { season, leagues: [{ platform, league_id, name, size, team_id, co }] }.
 // UPSERT only (never deletes): one row per (user, platform, league, season),
@@ -343,6 +376,7 @@ module.exports = async (req, res) => {
     if (action === 'leagues') return handleLeagues(req, res);
     if (action === 'manual') return handleManual(req, res);
     if (action === 'leaguemap') return handleLeagueMap(req, res);
+    if (action === 'shoutouts') return handleShoutouts(req, res);
     res.status(400).json({ error: 'Unknown action' });
     return;
   }

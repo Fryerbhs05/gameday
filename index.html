@@ -6235,7 +6235,7 @@
 </div>
 
 <!-- ══ SETTINGS VIEW (Account → Settings) ═════════════════════
-     Grouped by category (sw v384): Leagues · Display · Lineup Check-In · Alerts.
+     Grouped by category (sw v384): Leagues · Display · Lineup Check-In · Sharing (v394) · Alerts.
      Each group = uppercase label (.set-group-label) + its own framed panel.
      The Alerts group (#cf-push-group) only shows for signed-in users — the push
      block's paint() owns its visibility; status/error copy lands in #cf-push-sub
@@ -6243,7 +6243,7 @@
 <div id="view-settings" style="display:none;max-width:var(--max-width);margin:0 auto;padding:28px var(--gutter) 80px;">
   <div style="margin-bottom:22px;">
     <h2 style="font:700 24px/1.2 var(--font-sans);letter-spacing:-0.01em;color:var(--ink-900);margin:0 0 6px;">Settings</h2>
-    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">League priority, display, Lineup Check-In and alerts.</p>
+    <p style="font:400 13px/1.5 var(--font-sans);color:var(--ink-500);margin:0;">League priority, display, Lineup Check-In, sharing and alerts.</p>
   </div>
 
   <!-- Leagues -->
@@ -6293,6 +6293,23 @@
         </div>
         <div class="settings-row" id="ci-settings-row" style="display:block;">
           <div id="ci-settings-opts"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sharing (signed-in only; account-level). "Do not share my wins" (2026-10-22):
+       ON = Conflicted never names this account's teams in its social shoutouts. -->
+  <div class="set-group" id="cf-share-group" style="display:none;">
+    <div class="set-group-label">Sharing</div>
+    <div class="settings-panel">
+      <div class="settings-body">
+        <div class="settings-row">
+          <div class="settings-row-meta">
+            <div class="settings-row-title">Do not share my wins</div>
+            <div class="settings-row-sub">We celebrate comebacks, blowouts, and achievements on social media</div>
+          </div>
+          <button class="live-toggle" id="cf-noshout-toggle" onclick="cfNoShoutToggle()" type="button" role="switch" aria-checked="false" aria-label="Do not share my wins"></button>
         </div>
       </div>
     </div>
@@ -8428,6 +8445,7 @@ function showSettings(){
   if(v)v.style.display='block';
   try{updateSettingsPanel();}catch(e){}
   try{if(window.cfPushPaint)window.cfPushPaint();}catch(e){}
+  try{cfNoShoutPaint();}catch(e){}
 }
 window.showSettings = showSettings;
 
@@ -13519,6 +13537,67 @@ async function flushSleeperPending(){
   catch(e){ return null; }   /* still undeliverable — keep it queued, try next load */
 }
 
+/* ══ Settings → Sharing → "Do not share my wins" (sw v394, 2026-10-22) ══════════
+   Account-level: user_profiles.no_shoutouts via api/account/me.js?action=shoutouts,
+   read back as window.__account.noShoutouts. ON = Conflicted never names this
+   account's fantasy teams in its social shoutouts (top scorers, blowouts,
+   comebacks); OFF by default. Signed-in only — the group hides otherwise.
+   Undelivered saves are queued (cf_noshout_pending, tagged with the account email)
+   and replayed on the next signed-in load of the SAME account, never dropped — a
+   lost opt-out would be the worst kind of silent failure. Saves are sent one at a
+   time so a quick on/off can't land out of order. */
+const NOSHOUT_PENDING_KEY='cf_noshout_pending';
+let _noShoutChain=Promise.resolve();
+function cfNoShoutPending(){
+  try{ const p=JSON.parse(localStorage.getItem(NOSHOUT_PENDING_KEY)||'null'); return (p&&typeof p.v==='boolean')?p:null; }catch(e){ return null; }
+}
+function cfNoShoutClearPending(){ try{ localStorage.removeItem(NOSHOUT_PENDING_KEY); }catch(e){} }
+function cfNoShoutQueue(v){
+  try{ localStorage.setItem(NOSHOUT_PENDING_KEY,JSON.stringify({v:!!v,email:String((window.__account||{}).email||''),ts:Date.now()})); }catch(e){}
+}
+function cfNoShoutPost(v){
+  return fetch('/api/account/me?action=shoutouts',{
+    method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({noShoutouts:!!v})
+  }).then(function(r){ if(!r.ok) throw new Error('save failed: '+r.status); return true; });
+}
+function cfNoShoutPaint(){
+  const acct=window.__account||{};
+  const g=document.getElementById('cf-share-group');
+  if(g) g.style.display=acct.signedIn?'':'none';
+  const t=document.getElementById('cf-noshout-toggle');
+  if(!t) return;
+  const on=!!acct.noShoutouts;
+  t.classList.toggle('on',on);
+  t.setAttribute('aria-checked',on?'true':'false');
+}
+function cfNoShoutToggle(){
+  const acct=window.__account||{};
+  if(!acct.signedIn) return; // the row only shows when signed in
+  const v=!acct.noShoutouts;
+  window.__account={...acct,noShoutouts:v};
+  cfNoShoutPaint();
+  cfNoShoutQueue(v); // held until the server confirms
+  try{ if(typeof window.cfTrack==='function') window.cfTrack('shoutouts_optout',{on:v}); }catch(e){}
+  _noShoutChain=_noShoutChain.then(function(){ return cfNoShoutPost(v); }).then(function(){
+    const p=cfNoShoutPending(); if(p&&p.v===v) cfNoShoutClearPending();
+  }).catch(function(){ /* stays queued; replayed on the next signed-in load */ });
+}
+/* From bootstrapAccount, signed in: replay a queued save for this account. Returns
+   the value to show (the queued intent), or null when nothing was queued. */
+async function cfNoShoutFlush(info){
+  const p=cfNoShoutPending();
+  if(!p) return null;
+  if(p.email && info && info.email && p.email.toLowerCase()!==String(info.email).toLowerCase()){
+    cfNoShoutClearPending(); return null; // another account's setting — never apply it here
+  }
+  try{ await cfNoShoutPost(p.v); cfNoShoutClearPending(); }catch(e){ /* keep queued */ }
+  return p.v;
+}
+window.cfNoShoutToggle=cfNoShoutToggle;
+window.cfNoShoutPaint=cfNoShoutPaint;
+
 /* Count the leagues loaded for a given provider from the last dashboard pull
    (window.__conflictedLastData.leagues, each tagged with .provider). Used to
    show "· N leagues" on the connect cards — Sleeper/Yahoo don't carry a count
@@ -14719,6 +14798,8 @@ async function bootstrapAccount(){
      at sign-in, so devices that were already signed in when this shipped pick it
      up on their next open instead of having to lapse first. */
   try{ if(info && info.signedIn) cfRememberSession(info.email||''); }catch(e){}
+  /* "Do not share my wins": replay a save this device couldn't deliver (same account only). */
+  try{ if(info && info.signedIn){ const ns=await cfNoShoutFlush(info); if(ns!==null) info.noShoutouts=ns; } }catch(e){}
   // Hydrate the account-level disabled-league set from the server so the "global
   // exclude" is in place BEFORE the first loadData() filters the calc layer.
   try{
@@ -15369,7 +15450,8 @@ function cfForgetSession(){ try{ localStorage.removeItem('cf_acct_seen'); localS
   /* A deliberate sign-out/delete also retires any queued write — replaying a
      username from before an intentional exit would be the same stale-value bug
      in the other direction. */
-  try{ clearSleeperPending(); }catch(e){} }
+  try{ clearSleeperPending(); }catch(e){}
+  try{ cfNoShoutClearPending(); }catch(e){} }
 
 function cfSessionLapsed(){
   try{
