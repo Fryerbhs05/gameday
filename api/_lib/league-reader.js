@@ -3,9 +3,14 @@
 // Sleeper / ESPN / Yahoo using the connections saved to the account — so status
 // alerts use the REAL current lineups and never depend on the app being open.
 //
-// Returns [{ key, name, platform, myPts, oppPts, hasOpp, mine:[P], opp:[P] }]
-//   P = { name, pos, team, pts, inj } for each STARTER (inj = raw injury/status
-//   string from the platform, '' when healthy).
+// Returns [{ key, name, platform, myPts, oppPts, hasOpp, mine:[P], opp:[P],
+//            leagueId, teamId, oppTeamId }]
+//   P = { name, pos, team, pts, inj, pid } for each STARTER (inj = raw injury/status
+//   string from the platform, '' when healthy; pid = the platform's own player id —
+//   the Sleeper id on Sleeper, which is what the lineup-history snapshot keys on).
+//   leagueId / teamId / oppTeamId are the platform's own ids (Sleeper league_id +
+//   roster_id, ESPN league id + team id, Yahoo league_key + team_key), same formats
+//   as league_connections. Additive — the alert builders ignore them.
 //   bench:[P] = MY bench only (not IR / taxi slots) — used by the first-game
 //   lineup alert to count every player of yours in a game, starters + bench.
 // key = "platform|rawLeagueName" — the same key the app uses for the per-league
@@ -48,7 +53,8 @@ function sleeperP(id, pp, db) {
     pos: String(info.position || (isDef ? 'DEF' : '')).toUpperCase(),
     team: String(info.team || (isDef ? id : '')).toUpperCase(),
     pts: +((pp || {})[id]) || 0,
-    inj: String(info.injury_status || '')
+    inj: String(info.injury_status || ''),
+    pid: String(id)
   };
 }
 async function readSleeper(uid, season, week) {
@@ -63,6 +69,7 @@ async function readSleeper(uid, season, week) {
   if (!leagues.length) return [];
   const db = await sleeperPlayers();
   const out = [];
+  out.failed = 0; // leagues whose read threw (lineup-history snapshot retries those)
   await Promise.all(leagues.map(async (lg) => {
     try {
       const [rosters, matchups] = await Promise.all([
@@ -84,13 +91,14 @@ async function readSleeper(uid, season, week) {
       if (op && !os.length && oppR) os = clean(oppR.starters).filter((id) => !taxi.has(id));
       out.push({
         key: `sleeper|${lg.name}`, name: lg.name, platform: 'sleeper',
+        leagueId: String(lg.league_id), teamId: String(mineR.roster_id), oppTeamId: op ? String(op.roster_id) : null,
         myPts: +me.points || 0, oppPts: op ? (+op.points || 0) : 0,
         hasOpp: !!(op && os.length),
         mine: ms.map((id) => sleeperP(id, me.players_points, db)),
         opp: os.map((id) => sleeperP(id, op && op.players_points, db)),
         bench: bench.map((id) => sleeperP(id, me.players_points, db))
       });
-    } catch (e) { console.error('reader sleeper league failed', lg.league_id, e.message); }
+    } catch (e) { out.failed++; console.error('reader sleeper league failed', lg.league_id, e.message); }
   }));
   return out;
 }
@@ -108,7 +116,8 @@ function espnP(entry, week) {
     pos: ESPN_POSITIONS[p.defaultPositionId] || '',
     team: ESPN_PRO_TEAMS[p.proTeamId] || '',
     pts: espnStat(entry, week, 0) || 0,
-    inj: String(p.injuryStatus || (entry && entry.injuryStatus) || '')
+    inj: String(p.injuryStatus || (entry && entry.injuryStatus) || ''),
+    pid: String(p.id != null ? p.id : (entry && entry.playerId != null ? entry.playerId : ''))
   };
 }
 async function readEspn(uid, season, week) {
@@ -119,6 +128,7 @@ async function readEspn(uid, season, week) {
   const lids = Array.isArray(s.lids) && s.lids.length ? s.lids.map(String) : (s.lid ? [String(s.lid)] : []);
   const swid = String(s.sw || '').toLowerCase();
   const out = [];
+  out.failed = 0;
   await Promise.all(lids.map(async (lid) => {
     try {
       const qs = ['mBoxscore', 'mMatchupScore', 'mTeam', 'mRoster', 'mSettings'].map((v) => `view=${v}`).join('&');
@@ -141,11 +151,12 @@ async function readEspn(uid, season, week) {
       const name = (data.settings && data.settings.name) || `ESPN league ${lid}`;
       out.push({
         key: `espn|${name}`, name, platform: 'espn',
+        leagueId: String(lid), teamId: String(myTeam.id), oppTeamId: opE && opE.teamId != null ? String(opE.teamId) : null,
         myPts: mine.length ? sum(mine) : (+meE.totalPoints || 0),
         oppPts: opp.length ? sum(opp) : (+(opE && opE.totalPoints) || 0),
         hasOpp: !!(opE && opE.teamId != null && opp.length), mine, opp, bench
       });
-    } catch (e) { console.error('reader espn league failed', lid, e.message); }
+    } catch (e) { out.failed++; console.error('reader espn league failed', lid, e.message); }
   }));
   return out;
 }
@@ -231,7 +242,8 @@ function yhRoster(json) {
       name: (meta.name && meta.name.full) || '',
       pos: String(meta.display_position || meta.primary_position || '').toUpperCase(),
       team: String(meta.editorial_team_abbr || '').toUpperCase(),
-      pts: pts || 0
+      pts: pts || 0,
+      pid: String(meta.player_id || '')
     });
   });
   return out;
@@ -256,12 +268,18 @@ async function yahooToken(uid) {
 }
 async function readYahoo(uid, season, week) {
   const at = await yahooToken(uid);
-  if (!at) return [];
+  if (!at) {
+    // Throw (not return []) so the lineup-history snapshot can tell "token refresh
+    // failed" from "no leagues". readAccountMatchups catches it → [] exactly as before.
+    if (await A.getPlatformSession(uid, 'yahoo')) throw new Error('yahoo token unavailable');
+    return [];
+  }
   const Y = 'https://fantasysports.yahooapis.com/fantasy/v2';
   const yget = (path) => getJson(`${Y}/${path}${path.includes('?') ? '&' : '?'}format=json`, { headers: { Authorization: `Bearer ${at}` } });
   const leagues = yhLeagues(await yget(`users;use_login=1/games;game_codes=nfl;seasons=${season}/leagues`), season)
     .filter((l) => l.draft_status !== 'predraft'); // never-drafted / moved leagues (app's dormant gate)
   const out = [];
+  out.failed = 0;
   await Promise.all(leagues.map(async (lg) => {
     try {
       const myKey = yhMyTeamKey(await yget(`league/${encodeURIComponent(lg.league_key)}/standings`));
@@ -279,9 +297,10 @@ async function readYahoo(uid, season, week) {
       const bench = mineAll.some((p) => p.starter) ? mineAll.filter((p) => !p.starter && p.slot === 'BN').map(strip) : [];
       out.push({
         key: `yahoo|${lg.name}`, name: lg.name, platform: 'yahoo',
+        leagueId: String(lg.league_key), teamId: String(myKey), oppTeamId: op ? String(op.team_key) : null,
         myPts: me.points, oppPts: op ? op.points : 0, hasOpp: !!(op && opp.length), mine, opp, bench
       });
-    } catch (e) { console.error('reader yahoo league failed', lg.league_key, e.message); }
+    } catch (e) { out.failed++; console.error('reader yahoo league failed', lg.league_key, e.message); }
   }));
   return out;
 }
@@ -304,4 +323,4 @@ async function readAccountMatchups(uid, season, week) {
   return all;
 }
 
-module.exports = { readAccountMatchups, readSleeper, readEspn, readYahoo, yhLeagues, yhMyTeamKey, yhScoreboard, yhRoster };
+module.exports = { readAccountMatchups, sleeperPlayers, readSleeper, readEspn, readYahoo, yhLeagues, yhMyTeamKey, yhScoreboard, yhRoster };
