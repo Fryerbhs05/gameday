@@ -23124,6 +23124,11 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
 <script>
 (function(){
   var SD={QB:7.5,RB:6.5,WR:6.5,TE:5.0,DST:6.0,DEF:6.0,K:3.0,FLEX:6.5,PK:3.0};
+  /* Win% calibration (2026-11-03, backtest on 1,291 real wk7-8 matchups, db/winprob-calibration.sql):
+     the positional-SD-only sigma was ~25% too narrow pregame (said 90%+ and lost 21% of the time).
+     Sigma now adds a term proportional to REMAINING projected points (bigger lineups/superflex =
+     more uncertainty), and the remaining projected edge is shrunk slightly. Late-day accuracy unchanged. */
+  var PROJ_VAR_K=3.0, PROJ_W=0.95;
   var TUNE=1.1;                 // global decisiveness knob (raise => softer %). 1.0->1.1 (Matt, 2026-09-15): a slight, deliberate softening — widens sigma ~10%, nudges every live % toward 50. Not calibrated against outcomes; a feel adjustment.
   var COL={win:'#5DCAA5',loss:'#E07A6E',flip:'#7AA8D1',cwin:'#5DCAA5',closs:'#E07A6E'};
   /* The LIVE badge is a BROADCAST signal, not a rooting outcome (Matt, 2026-09-13).
@@ -23236,14 +23241,14 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
       else if(noScores&&!hasProj){ state='flip'; prob=0.5; }   // no projections + no scores → true unknown, not 0%
       else {
         var myRem=Math.max(0,projMy-curMy), oppRem=Math.max(0,projOpp-curOpp);
-        var mu=(curMy-curOpp)+(myRem-oppRem), v=0;
+        var mu=(curMy-curOpp)+PROJ_W*(myRem-oppRem), v=0;
         function addVar(list,remFrac){ list.forEach(function(p){
           var gs=gameState(p.team);
           var frac=(gs==='post')?0:(gs==='in')?clockFrac(p.team):(gs==='pre'?1:remFrac);
           if(frac<=0)return; var sd=SD[(p.position||'').toUpperCase()]||6.5; v+=sd*sd*frac;
         }); }
         addVar(mine,myRemFrac); addVar(opp,oppRemFrac);
-        var sigma=Math.sqrt(v)*TUNE;
+        var sigma=Math.sqrt(v*TUNE*TUNE + PROJ_VAR_K*(myRem+oppRem));
         prob=sigma<0.5?(mu>0?1:0):ncdf(mu/sigma);
         prob=Math.max(0,Math.min(1,prob));
         state=prob>=0.51?'win':(prob<=0.49?'loss':'flip');  // coin-toss band tightened 0.55/0.45 -> 0.51/0.49 (Matt, 2026-09-15): 'flip' now only within ~+-0.7 projected pts of dead-even; a projected +3.35 reads as favored, not toss-up
@@ -27452,7 +27457,11 @@ if(typeof window.cfRegisterView==='function'){
     var add=function(list,rf){(list||[]).forEach(function(p){if(!p)return;var g=gs(p.team);var f=(g==='post')?0:(g==='in')?clockFrac(p.team):(g==='pre'?1:rf);if(f<=0)return;var sd=SD[pjPos(p)]||6.5;v+=sd*sd*f;});};
     if(all.length){add(ps.home,rem(hs,H));add(ps.away,rem(as,A));}
     else v=9*6.5*6.5*(rem(hs,H)+rem(as,A));
-    var sg=Math.sqrt(v)*TUNE;
+    /* Same calibration as the Weekend Snapshot (2026-11-03): sigma adds 3x remaining projected
+       points, remaining projected edge weighted 0.95. Keep the two copies in step. */
+    var hRem=Math.max(0,H-hs),aRem=Math.max(0,A-as);
+    mu=(hs-as)+0.95*(hRem-aRem);
+    var sg=Math.sqrt(v*TUNE*TUNE+3*(hRem+aRem));
     var pr=sg<0.5?(mu>0?1:(mu<0?0:0.5)):ncdf(mu/sg);
     return {fin:false,p:Math.max(0,Math.min(1,pr))};
   }
