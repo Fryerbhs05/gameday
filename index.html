@@ -2918,6 +2918,23 @@
       background: color-mix(in oklab, var(--live-ice) 14%, var(--tile-bg));
       box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--live-ice) 60%, transparent); }
     .loy-scope-pill[data-sel="tofinish"] .loy-scope-thumb { transform: translateX(200%); }
+    /* Game-window option (owner-only preview, 2026-11-05) — 4th equal slot. */
+    .loy-scope-pill.has-win .loy-scope-thumb { width: calc((100% - 6px) / 4); }
+    .loy-scope-pill[data-sel="win"] .loy-scope-thumb { transform: translateX(300%); box-shadow: inset 0 0 0 1px var(--navy-300); }
+    .loy-scope-pill button.loy-scope-win svg { width: 14px; height: 14px; flex: none; }
+    .loy-scope-pill button.loy-scope-win .car { font-size: 9px; opacity: .75; }
+    .loy-win-menu { position: fixed; z-index: 9000; min-width: 210px; max-height: min(340px, 70vh); overflow-y: auto; background: #13263A; border: 1px solid var(--tile-line); border-radius: 10px; box-shadow: 0 14px 34px rgba(0,0,0,.55); padding: 5px; }
+    .loy-win-menu .mh { font: 800 10px/1 var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500); padding: 7px 8px 5px; }
+    .loy-win-menu .mi { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 14px; padding: 8px; border: 0; border-radius: 6px; background: none; font: 600 13px/1.1 var(--font-sans); color: var(--ink-900); text-align: left; cursor: pointer; }
+    .loy-win-menu .mi:hover:not([disabled]) { background: color-mix(in oklab, var(--tile-bg) 70%, transparent); }
+    .loy-win-menu .mi.on { background: var(--tile-bg); box-shadow: inset 0 0 0 1px var(--navy-300); }
+    .loy-win-menu .mi.on .lab::before { content: "✓ "; color: var(--navy-700); }
+    .loy-win-menu .mi.dim { color: var(--ink-500); }
+    .loy-win-menu .mi[disabled] { cursor: default; }
+    .loy-win-menu .mi .m { font: 500 11px/1 var(--font-mono); color: var(--ink-500); white-space: nowrap; }
+    .loy-win-menu .mi .m.live { color: var(--live-ice); }
+    .loy-win-menu .mi.clr { color: var(--ink-500); font-weight: 500; }
+    .loy-win-menu .sep { height: 1px; background: var(--line); margin: 4px 6px; }
     .loy-scope-pill button { flex: 1 1 0; min-width: 0; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
       padding: 7px 0; background: transparent; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; white-space: nowrap;
       color: var(--ink-500); font: 700 12px/1 var(--font-sans); transition: color var(--duration-fast) var(--ease-out); }
@@ -5854,6 +5871,7 @@
           <button type="button" role="radio" data-scope="all" aria-checked="true" class="on">All</button>
           <button type="button" role="radio" data-scope="live" aria-checked="false"><span class="loy-scope-dot" aria-hidden="true"></span>Live</button>
           <button type="button" role="radio" data-scope="tofinish" aria-checked="false">Remaining</button>
+          <button type="button" role="radio" data-scope="win" aria-checked="false" aria-haspopup="menu" aria-expanded="false" aria-label="Filter by game window" class="loy-scope-win" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 4.6V8l2.4 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="car" aria-hidden="true">▾</span></button>
         </div>
       </div>
     </div>
@@ -7700,8 +7718,8 @@ function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1'
    live-only is a strict subset of yet-to-finish, so ANDing them would leave the
    broader switch visibly on while doing nothing. Turning either one on turns
    the other off; both off = show everything. */
-function toggleLiveOnly(){liveOnly=!liveOnly;if(liveOnly)toFinishOnly=false;saveLiveOnlyState();applyFilters();cfSyncScopeToggles();}
-function toggleToFinishOnly(){toFinishOnly=!toFinishOnly;if(toFinishOnly)liveOnly=false;saveLiveOnlyState();applyFilters();cfSyncScopeToggles();}
+function toggleLiveOnly(){liveOnly=!liveOnly;if(liveOnly){toFinishOnly=false;loyWin=null;}saveLiveOnlyState();applyFilters();cfSyncScopeToggles();}
+function toggleToFinishOnly(){toFinishOnly=!toFinishOnly;if(toFinishOnly){liveOnly=false;loyWin=null;}saveLiveOnlyState();applyFilters();cfSyncScopeToggles();}
 /* Repaint BOTH switches from state rather than flipping the clicked one, so the
    exclusion is visible the instant either is tapped. */
 function cfSyncScopeToggles(){
@@ -7711,7 +7729,11 @@ function cfSyncScopeToggles(){
     /* Loyalties scope pill — the same two flags as one pick-one control. */
     const pill=document.getElementById('loy-scope-pill');
     if(pill){
-      const sel=liveOnly?'live':toFinishOnly?'tofinish':'all';
+      const own=cfLoyWinOwner();
+      if(!own){loyWin=null;cfLoyWinClose();}
+      pill.classList.toggle('has-win',own);
+      const wb=pill.querySelector('.loy-scope-win'); if(wb){wb.hidden=!own;wb.setAttribute('aria-expanded',document.getElementById('loy-win-menu')?'true':'false');}
+      const sel=loyWin?'win':liveOnly?'live':toFinishOnly?'tofinish':'all';
       pill.dataset.sel=sel;
       pill.querySelectorAll('button[data-scope]').forEach(b=>{const on=b.dataset.scope===sel;b.classList.toggle('on',on);b.setAttribute('aria-checked',on?'true':'false');});
     }
@@ -7721,15 +7743,107 @@ function cfSyncScopeToggles(){
    Reuses the drawer togglers so persistence (live-only only) and the mutual
    exclusion stay in exactly one place. */
 function cfSetScope(v){
+  if(v==='win'){cfLoyWinToggle();return;}
+  cfLoyWinClose();
   if(v==='live'){if(!liveOnly)toggleLiveOnly();return;}
   if(v==='tofinish'){if(!toFinishOnly)toggleToFinishOnly();return;}
-  if(!liveOnly&&!toFinishOnly)return;
-  liveOnly=false;toFinishOnly=false;saveLiveOnlyState();applyFilters();cfSyncScopeToggles();
+  if(!liveOnly&&!toFinishOnly&&!loyWin)return;
+  liveOnly=false;toFinishOnly=false;loyWin=null;saveLiveOnlyState();applyFilters();cfSyncScopeToggles();
+}
+/* ── Loyalties GAME-WINDOW filter (owner-only preview, 2026-11-05, Matt) ──
+   Same option as Maniac's Who to root for: a clock slot (4th, equal width) on
+   the All / Live / Remaining pill opens a menu — All of today, then this week's
+   windows in kickoff order named the Watch Priority way (TNF, Sunday Early,
+   Sunday Afternoon, SNF, MNF; London Game / Wednesday Special… for irregular
+   games), via __cfEnsureSlots/__cfTeamSlotMap. Pick-one with Live/Remaining.
+   In-memory only (never persisted — feedback_filter_persistence). Gate: cfIsAdmin. */
+var loyWin=null;
+function cfLoyWinOwner(){try{return typeof window.cfIsAdmin==='function'&&!!window.cfIsAdmin();}catch(e){return false;}}
+function cfLoyWinSlot(team){try{return team&&typeof window.cfTeamSlot==='function'?window.cfTeamSlot(String(team).toUpperCase().trim()):null;}catch(e){return null;}}
+function cfLoyWinToday(ms){if(!ms)return false;try{return new Date(ms).toDateString()===new Date().toDateString();}catch(e){return false;}}
+function cfLoyInWin(team,w){const s=cfLoyWinSlot(team);if(!s)return false;return w==='today'?cfLoyWinToday(s.kickoffUtc):s.skey===w;}
+function cfLoyGameState(team){let st=nflGameStates.get(team);if(st===undefined){try{st=nflGameStates.get(cfNormTeam(team));}catch(e){}}return st;}
+var LOY_W_NAME={thu:'TNF',sun_e:'Sunday Early',sun_a:'Sunday Afternoon',sun_n:'SNF',mon:'MNF'};
+var loyWinAt=0,loyWinLoading=false;
+function cfLoyEnsureWins(){
+  if(loyWinLoading||typeof window.__cfEnsureSlots!=='function')return;
+  if(window.__cfTeamSlotMap&&loyWinAt&&Date.now()-loyWinAt<55000)return;
+  loyWinLoading=true;
+  window.__cfEnsureSlots().then(function(){loyWinAt=Date.now();loyWinLoading=false;if(document.getElementById('loy-win-menu'))cfLoyWinRender();if(loyWin)applyFilters();},function(){loyWinLoading=false;loyWinAt=Date.now();});
+}
+function cfLoyWinList(){
+  const m=window.__cfTeamSlotMap||null,out={ready:!!(m&&Object.keys(m).length),byKey:{},list:[],today:{has:false,n:0,st:'pre'}};
+  if(!out.ready)return out;
+  let tIn=false,tPre=false;
+  Object.keys(m).forEach(function(team){
+    const s=m[team];if(!s||!s.skey||s.skey==='unscheduled')return;
+    let w=out.byKey[s.skey];
+    if(!w){w=out.byKey[s.skey]={key:s.skey,name:LOY_W_NAME[s.skey]||s.slabel||s.skey,ko:s.kickoffUtc||Infinity,n:0,live:false,pre:false};out.list.push(w);}
+    if(s.kickoffUtc&&s.kickoffUtc<w.ko)w.ko=s.kickoffUtc;
+    const st=cfLoyGameState(team)||s.state||'pre';if(st==='in')w.live=true;else if(st!=='post')w.pre=true;
+    if(cfLoyWinToday(s.kickoffUtc)){out.today.has=true;if(st==='in')tIn=true;else if(st!=='post')tPre=true;}
+  });
+  out.list.forEach(function(w){w.st=w.live?'in':w.pre?'pre':'post';});
+  out.today.st=tIn?'in':tPre?'pre':'post';
+  out.list.sort(function(a,b){return (a.ko-b.ko)||String(a.name).localeCompare(String(b.name));});
+  /* Counts = Loyalties cards (all three buckets) that survive the league filter. */
+  const anyHidden=hiddenLeagues.size>0;
+  ['cheer-list','conflicted-list','enemy-list'].forEach(function(id){
+    const list=document.getElementById(id);if(!list)return;
+    list.querySelectorAll('.player-card').forEach(function(c){
+      if(c.style.display==='none')return;
+      if(anyHidden&&!c.dataset.leagues.split('|').some(lg=>!hiddenLeagues.has(lg)))return;
+      const s=cfLoyWinSlot(c.dataset.team);if(!s)return;
+      if(out.byKey[s.skey])out.byKey[s.skey].n++;
+      if(cfLoyWinToday(s.kickoffUtc))out.today.n++;
+    });
+  });
+  return out;
+}
+function cfLoyWinMeta(st,n){return st==='in'?'<span class="m live">Live · '+n+'</span>':st==='post'?'<span class="m">Final · '+n+'</span>':'<span class="m">'+n+'</span>';}
+function cfLoyWinRender(){
+  const menu=document.getElementById('loy-win-menu');if(!menu)return;
+  const WL=cfLoyWinList(),e=function(x){return String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));};
+  let h='<div class="mh">Game window</div>';
+  if(!WL.ready){h+='<div class="mi dim"><span>Loading schedule…</span></div>';}
+  else{
+    h+='<button type="button" role="menuitem" class="mi'+(loyWin==='today'?' on':'')+(!WL.today.has||WL.today.st==='post'?' dim':'')+'" data-loy-win="today"'+(WL.today.has?'':' disabled')+'><span class="lab">All of today</span>'+(WL.today.has?cfLoyWinMeta(WL.today.st,WL.today.n):'<span class="m">No games</span>')+'</button><div class="sep"></div>';
+    WL.list.forEach(function(w){h+='<button type="button" role="menuitem" class="mi'+(loyWin===w.key?' on':'')+(w.st==='post'?' dim':'')+'" data-loy-win="'+e(w.key)+'"><span class="lab">'+e(w.name)+'</span>'+cfLoyWinMeta(w.st,w.n)+'</button>';});
+    if(loyWin)h+='<div class="sep"></div><button type="button" role="menuitem" class="mi clr" data-loy-win="clear"><span class="lab">Clear window</span></button>';
+  }
+  menu.innerHTML=h;
+  cfLoyWinPlace();
+}
+function cfLoyWinPlace(){
+  const menu=document.getElementById('loy-win-menu'),btn=document.querySelector('#loy-scope-pill .loy-scope-win');if(!menu||!btn)return;
+  const r=btn.getBoundingClientRect(),vw=document.documentElement.clientWidth,mw=menu.offsetWidth;
+  let left=Math.min(r.right-mw,vw-mw-8);left=Math.max(8,left);
+  menu.style.left=left+'px';menu.style.top=(r.bottom+6)+'px';
+}
+function cfLoyWinClose(){const m=document.getElementById('loy-win-menu');if(m){m.remove();cfSyncScopeToggles();}}
+function cfLoyWinToggle(){
+  if(!cfLoyWinOwner())return;
+  if(document.getElementById('loy-win-menu')){cfLoyWinClose();return;}
+  const m=document.createElement('div');m.id='loy-win-menu';m.className='loy-win-menu';m.setAttribute('role','menu');
+  document.body.appendChild(m);cfLoyEnsureWins();cfLoyWinRender();cfSyncScopeToggles();
+  try{cfTrack('loy_window_menu',{});}catch(_){}
+}
+function cfLoyWinPick(v){
+  loyWin=v==='clear'?null:v;
+  if(loyWin){liveOnly=false;toFinishOnly=false;saveLiveOnlyState();}
+  cfLoyWinClose();applyFilters();cfSyncScopeToggles();
+  try{cfTrack('loy_window_pick',{w:v});}catch(_){}
 }
 document.addEventListener('click',function(e){
+  const wi=e.target.closest&&e.target.closest('#loy-win-menu [data-loy-win]');
+  if(wi){if(!wi.disabled)cfLoyWinPick(wi.dataset.loyWin);return;}
   const b=e.target.closest&&e.target.closest('#loy-scope-pill button[data-scope]');
-  if(b)cfSetScope(b.dataset.scope);
+  if(b){cfSetScope(b.dataset.scope);return;}
+  if(document.getElementById('loy-win-menu')&&!(e.target.closest&&e.target.closest('#loy-win-menu')))cfLoyWinClose();
 });
+/* Fixed-position menu follows its button while the page scrolls. */
+window.addEventListener('scroll',function(){if(document.getElementById('loy-win-menu'))cfLoyWinPlace();},{passive:true,capture:true});
+window.addEventListener('resize',function(){if(document.getElementById('loy-win-menu'))cfLoyWinPlace();});
 
 
 const getUser=(u)=>apiFetch(`${BASE}/user/${u}`);
@@ -10497,6 +10611,8 @@ function applyFilters(){
      nothing about a historic or demo week. Exclusive with liveActive by
      construction, but the && keeps this honest if state is ever forced. */
   const toFinishActive=toFinishOnly&&!liveOnly&&liveToggleAvailable;
+  const winActive=!!loyWin&&!liveOnly&&!toFinishOnly&&liveToggleAvailable&&cfLoyWinOwner();
+  if(winActive)cfLoyEnsureWins();
   const anyHidden=hiddenLeagues.size>0;
   ['cheer-list','conflicted-list','enemy-list'].forEach(id=>{
     const list=document.getElementById(id);const cards=list.querySelectorAll('.player-card');
@@ -10505,12 +10621,13 @@ function applyFilters(){
       const leagueOk=!anyHidden||c.dataset.leagues.split('|').some(lg=>!hiddenLeagues.has(lg));
       const liveOk=!liveActive||c.dataset.live==='1';
       const toFinishOk=!toFinishActive||c.dataset.tofinish==='1';
-      c.classList.toggle('filtered-out',!leagueOk||!liveOk||!toFinishOk);
+      const winOk=!winActive||cfLoyInWin(c.dataset.team,loyWin);
+      c.classList.toggle('filtered-out',!leagueOk||!liveOk||!toFinishOk||!winOk);
     });
     let e=list.querySelector('.filter-empty');const vis=[...cards].filter(c=>!c.classList.contains('filtered-out')&&c.style.display!=='none');
     if(!vis.length&&cards.length){
       if(!e){e=document.createElement('div');e.className='empty-state filter-empty';list.appendChild(e);}
-      e.textContent=liveActive&&anyHidden?'No matching players are in live games right now.':liveActive?'No players in this bucket are in live games right now.':toFinishActive&&anyHidden?'No matching players have a game left to play.':toFinishActive?'No players in this bucket have a game left to play.':'No players match this filter.';
+      e.textContent=liveActive&&anyHidden?'No matching players are in live games right now.':liveActive?'No players in this bucket are in live games right now.':toFinishActive&&anyHidden?'No matching players have a game left to play.':toFinishActive?'No players in this bucket have a game left to play.':winActive?'No players in this bucket play in that game window.':'No players match this filter.';
     }else if(e)e.remove();
   });
   updatePillCounts();
