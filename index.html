@@ -17989,7 +17989,7 @@ function cardHtml(p,sw,live){
     var x=grade(p,e,g), cf=p.fmt==='conf';
     return '<span class="pk-chip '+x.o+(cf?' cf':'')+'">'+(x.st==='in'&&x.pick?'<i class="lv"></i>':'')+esc(x.pick||'—')+(cf?'<em>'+confPts(e,g)+'</em>':'')+'</span>';
   }).join('');
-  var stTxt=st==='live'?'Live':(st==='final'?'Final':(nextKick(gl)?'Next: '+nextKick(gl):''));
+  var stTxt=st==='live'?'':(st==='final'?'Final':(nextKick(gl)?'Next: '+nextKick(gl):''));
   body='<div class="pk-mid">'+big+'<span class="pk-meta">'+metaHtml(p,r)+'</span></div><div class="pk-chips">'+chips+'</div>'+(stTxt?'<div class="pk-state '+st+'">'+esc(stTxt)+'</div>':'');
   return '<div class="pk-card" role="button" tabindex="0" data-pk="open" data-id="'+esc(p.id)+'" data-st="'+(st==='pre'?'':st)+'">'+head+body+'</div>';
 }
@@ -23432,6 +23432,23 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
       var started=!decided && (!noScores || anyStarted);
       var pending=!decided && !started;
       var live=!decided && started;
+      /* LIVE means a game is IN PROGRESS, not just "the week has started" (Matt,
+         2026-11-05). A started-but-undecided matchup between game windows (TNF over,
+         Sunday not yet) used to keep a pulsing LIVE all the way to Sunday. inPlay =
+         a starter on either side is positively 'in'; between windows the pill shows
+         the next kickoff among this matchup's starters still 'pre'. If the slate
+         gives us no positive state at all (demo, unloaded map), stay LIVE as before. */
+      var ms=mine.concat(opp), anyKnown=false, inPlay=false, nextKickMs=0;
+      ms.forEach(function(p){
+        var gs=gameState(p.team); if(gs)anyKnown=true;
+        if(gs==='in')inPlay=true;
+        else if(gs==='pre'){
+          var k=''; try{ k=(window.__cfKickoff&&window.__cfKickoff(p.team))||''; }catch(e){}
+          var km=typeof k==='number'?k:(Date.parse(k)||0);
+          if(km&&(!nextKickMs||km<nextKickMs))nextKickMs=km;
+        }
+      });
+      if(!anyKnown)inPlay=true;
       // per-side remaining fraction — the variance fallback for players whose NFL
       // game state is unknown (demo mode, or a team not in the scoreboard map yet)
       var myRemFrac=Math.max(0,Math.min(1,(projMy-curMy)/Math.max(1,projMy)));
@@ -23488,6 +23505,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
         curMy:curMy, curOpp:curOpp, projMy:projMy, projOpp:projOpp,
         hasProj:hasProj,
         pending:pending, live:live, noScores:noScores, remaining:remaining,
+        inPlay:inPlay, nextKickMs:nextKickMs,
         /* fully complete = platform says FINAL, or every player on both sides is post.
            Drives the "no commentary once it's over" rule in cardDetail(). Keyed on
            `started` so a never-kicked-off matchup can't be called done just because
@@ -23554,6 +23572,17 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
      Clamp the DISPLAYED integer to [1,99]; raw r.prob is untouched so state
      classification and the within-tier sort still see the true value. (Matt,
      2026-09-15: "0 and 100 are certain — right now there is uncertainty.") */
+  /* Between-windows label: 'NEXT: SUN 12:00 PM' (card) / 'NEXT SUN 12PM' (grid tile);
+     day dropped when the kickoff is today. Local time. */
+  function nextKickTxt(ms,compact){
+    try{
+      var d=new Date(ms), dy='';
+      if(d.toDateString()!==new Date().toDateString()) dy=d.toLocaleDateString([],{weekday:'short'})+' ';
+      var h=d.getHours(), m=d.getMinutes(), ap=h<12?'AM':'PM', h12=h%12||12;
+      var t=compact?(h12+(m?':'+(m<10?'0':'')+m:'')+ap):(h12+':'+(m<10?'0':'')+m+' '+ap);
+      return ((compact?'NEXT ':'NEXT: ')+dy+t).toUpperCase();
+    }catch(e){ return ''; }
+  }
   function pctDisp(r){ return Math.min(99, Math.max(1, Math.round(r.prob*100))); }
 
   /* ---- LIST card ---- */
@@ -23563,6 +23592,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
        a STRICT lock, so the honest word for a closs that isn't final is LOST. */
     if(r.state==='closs')return '<span class="cf-c-status" style="color:#E88A7F">&#10005; '+(r.isFinal?'FINAL':'LOST')+'</span>';
     if(r.pending)return '<span class="cf-c-status" style="color:#7AA8D1"><span class="dot" style="background:#7AA8D1"></span>PENDING</span>';
+    if(!r.inPlay&&r.nextKickMs)return '<span class="cf-c-status" style="color:#9E988A">'+nextKickTxt(r.nextKickMs,false)+'</span>';
     return '<span class="cf-c-status" style="color:'+LIVE_RED+'"><span class="dot pulse" style="background:'+LIVE_RED+'"></span>LIVE</span>';
   }
   function cardScore(r){
@@ -23645,11 +23675,12 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
        `!r.noScores` (not `r.live`) gates the actuals so a kicked-off-but-scoreless
        tile shows PROJ instead of 0.00 vs 0.00 — same rule as cardScore. */
     var showLive=r.live&&!r.noScores;
-    var you=clinched?r.curMy:(showLive?r.curMy:r.projMy), opp=clinched?r.curOpp:(showLive?r.curOpp:r.projOpp), lbl=clinched?'FINAL':(showLive?'LIVE':'PROJ');
+    var you=clinched?r.curMy:(showLive?r.curMy:r.projMy), opp=clinched?r.curOpp:(showLive?r.curOpp:r.projOpp), lbl=clinched?'FINAL':(showLive?(r.inPlay?'LIVE':'SCORE'):'PROJ');
     return '<div class="cf-t-score"><span class="lbl">'+lbl+'</span><span class="you">'+nf(you)+'</span><span class="dash">vs</span><span class="opp">'+nf(opp)+'</span></div>';
   }
   function gridStatus(r){
     if(r.pending)return '<span class="cf-t-status" style="color:#7AA8D1"><span class="dot" style="background:#7AA8D1"></span>PENDING</span>';
+    if(r.live&&!r.inPlay&&r.nextKickMs)return '<span class="cf-t-status" style="color:#9E988A">'+nextKickTxt(r.nextKickMs,true)+'</span>';
     if(r.live){return '<span class="cf-t-status" style="color:'+LIVE_RED+'"><span class="dot pulse" style="background:'+LIVE_RED+'"></span>LIVE</span>';}
     return '<span class="cf-t-status" style="color:#9E988A">UPCOMING</span>';
   }
