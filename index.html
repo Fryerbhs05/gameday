@@ -24127,7 +24127,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
        side in a game right now, and at least one starter's game already FINAL
        (e.g. after TNF, before Sunday). inPlay is forced true when the slate gives
        no game state, so demo / unloaded maps stay LIVE. */
-    if(r.live&&!r.inPlay&&r.anyPost)return '<span class="cf-t-status" style="color:#9E988A">IN PROGRESS</span>';
+    if(r.live&&!r.inPlay&&r.anyPost)return '<span class="cf-t-status" style="color:#7AA8D1"><span class="dot" style="background:#7AA8D1"></span>STARTED</span>';
     if(r.live){return '<span class="cf-t-status" style="color:'+LIVE_RED+'"><span class="dot pulse" style="background:'+LIVE_RED+'"></span>LIVE</span>';}
     return '<span class="cf-t-status" style="color:#9E988A">UPCOMING</span>';
   }
