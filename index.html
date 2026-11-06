@@ -6731,6 +6731,39 @@
   .cf-c-detail>span:last-child{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;}
   .cf-c-detail b{color:var(--cs-cream);font-weight:800;}
   .cf-c-detail .nm{color:var(--cs-cream);font-weight:800;}
+  /* LIST rows v2 — "split meter" (OWNER-ONLY preview, fryerm@ via cfIsAdmin; Matt
+     2026-11-05, mocks/snapshot-c-names-mock.html V4). Cards dissolve into hairline
+     rows: header (name + status), meter (you | win-% bar | opp), and a recessed
+     players-left tray split by a seam. ALIGNMENT INVARIANT: the bar's seam and the
+     tray's seam must sit on the exact row center. Both are guaranteed by symmetry —
+     the meter grid has EQUAL side tracks (--cfv2-side) so the bar is centered, and
+     the tray grid is 1fr|seam|1fr. Never make the side tracks unequal or auto. */
+  .cfv2{--cfv2-side:60px;--cfv2-seam:1.5px;padding:11px 0 12px;border-bottom:1px solid var(--cs-navy-line);}
+  .cfv2:last-child{border-bottom:0;}
+  .cfv2-t{display:flex;align-items:center;gap:7px;margin-bottom:7px;min-width:0;}
+  .cfv2-t .dot{width:6px;height:6px;border-radius:50%;flex:none;}
+  .cfv2-nm{font-size:13.5px;font-weight:800;color:var(--cs-cream);letter-spacing:-.01em;flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cfv2-st{flex:none;font-size:11px;font-weight:600;color:var(--cs-ink-500);white-space:nowrap;}
+  .cfv2-st b{font-family:var(--font-mono);font-weight:600;}
+  .cfv2-st.k{font-size:9.5px;font-weight:800;letter-spacing:.1em;}
+  .cfv2-m{display:grid;grid-template-columns:var(--cfv2-side) minmax(0,1fr) var(--cfv2-side);align-items:center;column-gap:8px;}
+  .cfv2-a,.cfv2-z{font-family:var(--font-mono);font-size:14px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;}
+  .cfv2-a{color:var(--cs-cream);text-align:left;}
+  .cfv2-z{color:var(--cs-ink-500);text-align:right;}
+  .cfv2-m.proj .cfv2-a,.cfv2-m.proj .cfv2-z{font-size:12px;color:var(--cs-ink-400);}
+  .cfv2-bar{position:relative;height:16px;border-radius:5px;background:var(--cs-navy-700);overflow:hidden;}
+  .cfv2-bar i{position:absolute;left:0;top:0;bottom:0;display:block;}
+  .cfv2-bar .seam{position:absolute;left:50%;top:0;bottom:0;width:var(--cfv2-seam);transform:translateX(-50%);background:var(--cs-cream);opacity:.55;}
+  .cfv2-bar .pc{position:absolute;top:0;bottom:0;display:flex;align-items:center;font-family:var(--font-mono);font-size:10px;font-weight:700;padding:0 6px;white-space:nowrap;}
+  .cfv2-tray{display:grid;grid-template-columns:minmax(0,1fr) var(--cfv2-seam) minmax(0,1fr);align-items:stretch;margin-top:9px;background:rgba(0,0,0,.25);border-radius:6px;min-height:24px;}
+  .cfv2-tray.one{grid-template-columns:minmax(0,1fr);}
+  /* ONE font for everything in the tray (Matt): same size, weight and color on both
+     sides, names, counts and "Done" alike — modeled on the "7 players to go" line. */
+  .cfv2-tray .sd{display:flex;align-items:center;padding:5px 9px;min-width:0;overflow:hidden;white-space:nowrap;font-family:var(--font-sans),'Inter',sans-serif;font-size:10.5px;font-weight:400;color:var(--cs-ink-400);}
+  .cfv2-tray .sd.L{justify-content:flex-start;}
+  .cfv2-tray .sd.R{justify-content:flex-end;}
+  .cfv2-tray.one .sd{justify-content:center;}
+  .cfv2-tray .sm{background:var(--cs-cream);opacity:.18;}
   /* GRID tiles */
   /* NARROW-PHONE FIT (2026-09-10). The tiles used to blow the frame apart on
      anything under ~430px: `1fr 1fr` tracks floor at each tile's MIN-CONTENT
@@ -24005,7 +24038,70 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
      under screenshot privacy: an attribute paints no pixels and the share
      artifact is a rasterised PNG, so the on-screen mask still holds. */
   function lgAttr(n){ return String(n==null?'':n).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  /* ---- LIST row v2 (OWNER-ONLY preview; see .cfv2 CSS) ---- */
+  function snapV2(){ try{ return typeof window.cfIsAdmin==='function'&&!!window.cfIsAdmin(); }catch(e){ return false; } }
+  function plainNames(arr){ return arr.length<=1?arr.join(''):arr.slice(0,-1).join(', ')+' & '+arr[arr.length-1]; }
+  function escT(t){ return String(t).replace(/[&<>]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  /* One tray side. Names only while that side is down to NAME_TO_GO_MAX and the
+     list is COMPLETE (shortName can drop a player); otherwise a count. data-n holds
+     the count so fitTrays() can swap names that don't fit on one line. */
+  function v2Side(list,n){
+    if(n<=0)return {t:'Done',n:'Done'};
+    var cnt=n+(n===1?' player':' players');
+    if(n<=NAME_TO_GO_MAX && list.length===n){ var t=plainNames(list); if(t.length<=26)return {t:t,n:cnt}; }
+    return {t:cnt,n:cnt};
+  }
+  function v2Tray(r){
+    if(r.done||r.pending||r.state==='cwin'||r.state==='closs')return '';
+    if(r.myLeft>LOTS_PER_SIDE && r.oppLeft>LOTS_PER_SIDE)return '';   // early: lots of game left, say nothing
+    if(r.myLeft>NAME_TO_GO_MAX && r.oppLeft>NAME_TO_GO_MAX){
+      var tot=r.myLeft+r.oppLeft;
+      return '<div class="cfv2-tray one"><div class="sd">'+tot+' players to go</div></div>';
+    }
+    var L=v2Side(r.myToGo,r.myLeft), R=v2Side(r.oppToGo,r.oppLeft);
+    return '<div class="cfv2-tray"><div class="sd L" data-n="'+L.n+'">'+escT(L.t)+'</div><div class="sm"></div><div class="sd R" data-n="'+R.n+'">'+escT(R.t)+'</div></div>';
+  }
+  /* Names that still overflow their half (narrow phones) fall back to the count.
+     Never wrap, never ellipsize a name. */
+  function fitTrays(root){
+    if(!root)return;
+    var els=root.querySelectorAll('.cfv2-tray .sd[data-n]');
+    for(var i=0;i<els.length;i++){ var el=els[i]; if(el.clientWidth>0&&el.scrollWidth>el.clientWidth+1)el.textContent=el.getAttribute('data-n'); }
+  }
+  function v2Status(r){
+    var m=nf(margin(r));
+    if(r.state==='cwin')return '<span class="cfv2-st k" style="color:#5DCAA5">'+(r.isFinal?'FINAL · ':'')+'WON BY +'+m+'</span>';
+    if(r.state==='closs')return '<span class="cfv2-st k" style="color:#E07A6E">'+(r.isFinal?'FINAL · ':'')+'LOST BY '+m+'</span>';
+    if(r.live&&!r.inPlay&&r.nextKickMs)return '<span class="cfv2-st k">'+nextKickTxt(r.nextKickMs,false)+'</span>';
+    if(r.hasProj){ var d=r.projMy-r.projOpp;
+      return '<span class="cfv2-st">'+(r.pending?'pending · ':'')+'proj <b style="color:'+COL[r.state]+'">'+(d>=0?'+':'&minus;')+nf(Math.abs(d))+'</b></span>'; }
+    if(r.pending)return '<span class="cfv2-st">pending</span>';
+    var g=r.curMy-r.curOpp;
+    return '<span class="cfv2-st">'+(g>=0?'Up':'Down')+' <b>'+nf(Math.abs(g))+'</b></span>';
+  }
+  function v2Dot(r){
+    if(r.pending)return '<span class="dot" style="background:#7AA8D1"></span>';
+    if(r.live&&r.inPlay)return '<span class="dot pulse" style="background:'+LIVE_RED+'"></span>';
+    return '';
+  }
+  function cardHTMLv2(r){
+    var clinched=(r.state==='cwin'||r.state==='closs');
+    var blank=!clinched&&r.noScores, noProj=blank&&!r.hasProj;
+    var you=clinched?r.curMy:(blank?r.projMy:r.curMy), opp=clinched?r.curOpp:(blank?r.projOpp:r.curOpp);
+    var a=noProj?'&mdash;':nf(you), z=noProj?'&mdash;':nf(opp);
+    var pct=pctDisp(r), w=clinched?100:pct, fill=COL[r.state];
+    var lbl=r.state==='cwin'?'W':(r.state==='closs'?'L':pct+'%');
+    var pc=(w>=18)
+      ? '<span class="pc" style="left:0;color:#0F2235">'+lbl+'</span>'
+      : '<span class="pc" style="left:'+w+'%;color:#9E988A">'+lbl+'</span>';
+    var bar='<div class="cfv2-bar"><i style="width:'+w+'%;background:'+fill+(r.state==='closs'?';opacity:.6':';opacity:.85')+'"></i><span class="seam"></span>'+pc+'</div>';
+    return '<div class="cfv2 '+r.state+'" data-cf-lg="'+lgAttr(r.name)+'">'
+      +'<div class="cfv2-t">'+v2Dot(r)+'<span class="cfv2-nm">'+snapMaskLg(r.name)+'</span>'+v2Status(r)+'</div>'
+      +'<div class="cfv2-m'+(blank?' proj':'')+'"><span class="cfv2-a">'+a+'</span>'+bar+'<span class="cfv2-z">'+z+'</span></div>'
+      +v2Tray(r)+'</div>';
+  }
   function cardHTML(r){
+    if(snapV2())return cardHTMLv2(r);
     return '<div class="cf-card '+r.state+(r.done?' no-detail':'')+'" data-cf-lg="'+lgAttr(r.name)+'"><div class="cf-c-row1"><span class="cf-c-name">'+snapMaskLg(r.name)+'</span>'+cardStatus(r)+'</div>'
       +cardScore(r)+cardBar(r)+cardDetail(r)+'</div>';
   }
@@ -24203,6 +24299,11 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     var heroHTML=allPending
       ? '<span>'+rows.length+'</span> Pending Kickoff'
       : (allFinal?'Won':'Winning')+' <span'+(wins===0?' style="color:var(--cs-cream)"':'')+'>'+wins+'</span> of '+rows.length;
+    /* OWNER-ONLY preview (snapV2): the live hero reads "Projected 3 – 2" (wins
+       include decided wins; spaces around the dash, Matt 2026-11-05). Pending-
+       kickoff and all-final heroes are unchanged. Applies to List AND Grid. */
+    if(snapV2()&&!allPending&&!allFinal)
+      heroHTML='Projected <span'+(wins===0?' style="color:var(--cs-cream)"':'')+'>'+wins+'</span> &ndash; '+(rows.length-wins);
     if(hero)hero.innerHTML=heroHTML;
     var parts=[],nC=rows.filter(function(r){return r.state==='cwin';}).length,
         nLive=rows.filter(function(r){return r.live;}).length,
@@ -24223,6 +24324,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     else content.innerHTML=rows.map(cardHTML).join('');
     stampTaps(content); wireTaps();
     paintSnapDesktop(false,rows,kickerText,heroHTML,subText,footText);
+    fitTrays(content); fitTrays(document.getElementById('cf-snap-deskcols'));
     startPulse();
   }
   window.__cfRenderSnapshot=render;
