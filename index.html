@@ -3958,8 +3958,7 @@
        grid-rows 0fr→1fr trick stepped on iOS); the card fades/slides in with it.
        Corner = the Loyalties Points Pending line (same cf-pend-cyc rhythm).
        No tap feedback at all (Matt, v410): no press tint, no iOS tap highlight. */
-    body.is-admin .matchup-drawer__paired-row .matchup-drawer__player-name:not(.matchup-drawer__placeholder),
-    body.is-admin .matchup-drawer__paired-row .matchup-drawer__player-pts[data-mp-pid] { cursor: pointer; }
+    body.is-admin .matchup-drawer__paired-row { cursor: pointer; } /* whole row is the target (v411) */
     .matchup-drawer__paired-row, .matchup-drawer__paired-row * { -webkit-tap-highlight-color: transparent; }
     .mpx { height: 0; overflow: hidden; transition: height .3s cubic-bezier(.25,.8,.25,1); will-change: height; }
     .mpx__in { display: flow-root; } /* contains the card's margins so offsetHeight is the full height */
@@ -19581,12 +19580,24 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
   function normPos(p){ p=String(p||'').toUpperCase().split(',')[0].trim(); return (p==='D/ST'||p==='DST')?'DEF':p; }
   function sideOf(cell){ return /__player-(name|pts)--opp\b/.test(cell.className||'')?'opp':'my'; }
   function isFiller(cell){ return cell.classList.contains('matchup-drawer__placeholder')||cell.classList.contains('matchup-drawer__player-pts--empty'); }
-  function tapCell(t){
-    if(!t||!t.closest) return null;
-    var cell=t.closest(CELL); if(!cell||isFiller(cell)) return null;
-    var row=cell.closest('.matchup-drawer__paired-row');
-    var drawer=cell.closest('.matchup-drawer[data-matchup-league]');
-    return (row&&drawer)?{cell:cell,row:row,drawer:drawer,side:sideOf(cell)}:null;
+  /* The WHOLE half-row is the target (Matt, sw v411), not just the name/points
+     text: a tap anywhere in a row — gaps, padding, the POS badge — picks the side
+     by which half of the row it landed in (split at the POS badge's center). A
+     one-sided (--solo) drawer is always 'my'. A side with no player (em-dash
+     filler) has no pid span, so ptsSpan() returns null and the tap does nothing. */
+  function tapCell(e){
+    var t=e&&e.target; if(!t||!t.closest) return null;
+    var row=t.closest('.matchup-drawer__paired-row'); if(!row) return null;
+    var drawer=row.closest('.matchup-drawer[data-matchup-league]'); if(!drawer) return null;
+    var side, cell=t.closest(CELL);
+    if(cell&&row.contains(cell)) side=sideOf(cell);
+    else{
+      var ref=row.querySelector('.matchup-drawer__paired-pos')||row, r=ref.getBoundingClientRect();
+      var x=(typeof e.clientX==='number')?e.clientX:(r.left+r.width/2-1);
+      side=(x<r.left+r.width/2)?'my':'opp';
+    }
+    if(drawer.classList.contains('matchup-drawer--solo')) side='my';
+    return {row:row,drawer:drawer,side:side};
   }
   function ptsSpan(scope,side,pid){
     var list=scope.querySelectorAll('.matchup-drawer__player-pts[data-mp-side="'+side+'"][data-mp-pid]');
@@ -19733,7 +19744,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
 
   document.addEventListener('click',function(e){
     if(!on()) return;
-    var t=tapCell(e&&e.target); if(!t) return;
+    var t=tapCell(e); if(!t) return;
     var span=ptsSpan(t.row,t.side,null); if(!span) return;
     var pid=span.getAttribute('data-mp-pid'), league=t.drawer.getAttribute('data-matchup-league')||'';
     var same=alive()&&st.league===league&&st.side===t.side&&st.pid===pid&&st.el.previousSibling===t.row;
