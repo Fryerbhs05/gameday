@@ -23897,17 +23897,14 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
         myLeft:remainingCount(mine), oppLeft:remainingCount(opp)
       });
     });
-    // sort: clinched wins top, clinched losses bottom; middle by tier → win → live → tiebreak
-    function rank(s){ return s==='cwin'?0:(s==='closs'?2:1); }
+    /* STABLE ORDER (Matt, 2026-11-05): league priority tier, then league name.
+       Nothing live (win %, live/decided state) feeds the sort, so List + Grid never
+       reshuffle on a refresh. Replaces the old clinched-top / win-before-loss /
+       prob-tiebreak sort, which swapped near-equal leagues every time a % moved.
+       Sorts on the RAW name so screenshot-privacy masking can't change the order. */
     rows.sort(function(a,b){
-      if(rank(a.state)!==rank(b.state))return rank(a.state)-rank(b.state);
       if(a.tier!==b.tier)return a.tier-b.tier;
-      if(rank(a.state)===1){
-        var aw=a.prob>0.5,bw=b.prob>0.5; if(aw!==bw)return aw?-1:1;
-        if(!!a.live!==!!b.live)return a.live?-1:1;
-        return aw?a.prob-b.prob:b.prob-a.prob;
-      }
-      return 0;
+      return String(a.name).localeCompare(String(b.name),undefined,{sensitivity:'base'});
     });
     return {rows:rows, week:(data.debugInfo&&data.debugInfo.week)||null, season:(data.debugInfo&&data.debugInfo.season)||null, nodata:false};
   }
