@@ -5871,7 +5871,7 @@
           <button type="button" role="radio" data-scope="all" aria-checked="true" class="on">All</button>
           <button type="button" role="radio" data-scope="live" aria-checked="false"><span class="loy-scope-dot" aria-hidden="true"></span>Live</button>
           <button type="button" role="radio" data-scope="tofinish" aria-checked="false">Remaining</button>
-          <button type="button" role="radio" data-scope="win" aria-checked="false" aria-haspopup="menu" aria-expanded="false" aria-label="Filter by game window" class="loy-scope-win" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 4.6V8l2.4 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="car" aria-hidden="true">▾</span></button>
+          <button type="button" role="radio" data-scope="win" aria-checked="false" aria-haspopup="menu" aria-expanded="false" aria-label="Filter by game window" class="loy-scope-win" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 4.6V8l2.4 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </div>
       </div>
     </div>
@@ -7678,7 +7678,7 @@ function cfClockFracRemaining(team){
 }
 window.__cfClockFracRemaining=cfClockFracRemaining;
 
-function cfLiveProj(team,staticProj,curPts){
+function cfLiveProj(team,staticProj,curPts,opt){
   if(staticProj==null)return null;
   const sp=+staticProj; if(!isFinite(sp))return null;
   const cur=+curPts||0;
@@ -7688,9 +7688,106 @@ function cfLiveProj(team,staticProj,curPts){
   if(gs!=='in')return null;                  // unknown state -> caller keeps static
   const f=cfClockFracRemaining(team);
   if(f==null)return null;
+  if(cfIsDefOpt(team,opt)){const d=cfDefLiveProj(team,sp,cur,f,opt);if(d!=null)return d;}
   return +(cur+sp*f).toFixed(2);
 }
 window.__cfLiveProj=cfLiveProj;
+
+/* ── TEAM DEFENSE LIVE PROJECTION (Matt, 2026-11-05) ─────────────────────────
+   The banked-points formula above is WRONG for a team defense. Its points-
+   allowed (and yards-allowed) tier is not banked: at kickoff the defense has
+   allowed 0, so every platform hands it the best tier (Sleeper/Yahoo default
+   +10 for 0 PA, ESPN +5 PA plus +5 for <100 yds) and that tier can only get
+   WORSE as the game goes on. Banking it double-counts, because the pregame
+   projection already contains the EXPECTED tier: a 7.0 DEF projected 17.0 at
+   0:00 of Q1. And since points allowed only ever rises, the error was always
+   upward -- every DEF kickoff pushed PROJECTED FINAL up.
+
+   Split the DEF score into its two kinds of points:
+     banked  = live score - live tier points        (sacks, INT, FR, TDs, safeties)
+     events  = pregame proj - pregame expected tier  (not-yet-made plays)
+     PA/YA   = allowed so far + pregame projected allowed x share left
+     tier    = f x pregameTier + (1-f) x tier(projected final PA/YA)
+     projFinal = banked + events x f + tier
+   f=1 (kickoff) -> exactly the pregame number, so no jump. f=0 -> the live
+   score. In between it falls as the defense gives up points.
+
+   Data: tier values come from the league's own scoring (Sleeper keys via
+   normalizeScoringForContext); live PA/YA from Sleeper's week stats (same pull
+   as the box score); pregame PA/YA from Sleeper's projection for the DEF.
+   FALLBACK when any of that is missing (demo, stats not loaded yet, no Sleeper
+   projection for the DEF): treat none of the live score as banked and blend
+       projFinal = pregame x f + live x (1-f)
+   -- also continuous at kickoff and exact at the final whistle. */
+const CF_PA_TIERS=[[0,0,'pts_allow_0'],[1,6,'pts_allow_1_6'],[7,13,'pts_allow_7_13'],[14,20,'pts_allow_14_20'],
+  [21,27,'pts_allow_21_27'],[28,34,'pts_allow_28_34'],[35,1e9,'pts_allow_35p']];
+const CF_YA_TIERS=[[0,99,'yds_allow_0_100'],[100,199,'yds_allow_100_199'],[200,299,'yds_allow_200_299'],
+  [300,349,'yds_allow_300_349'],[350,399,'yds_allow_350_399'],[400,449,'yds_allow_400_449'],
+  [450,499,'yds_allow_450_499'],[500,549,'yds_allow_500_549'],[550,1e9,'yds_allow_550p']];
+const CF_PA_MID={pts_allow_0:0,pts_allow_1_6:3.5,pts_allow_7_13:10,pts_allow_14_20:17,pts_allow_21_27:24,pts_allow_28_34:31,pts_allow_35p:38};
+const CF_YA_MID={yds_allow_0_100:75,yds_allow_100_199:150,yds_allow_200_299:250,yds_allow_300_349:325,yds_allow_350_399:375,
+  yds_allow_400_449:425,yds_allow_450_499:475,yds_allow_500_549:525,yds_allow_550p:575};
+function cfIsDefOpt(team,opt){
+  if(!opt)return false;
+  const pos=String(opt.pos||'').toUpperCase().replace(/[^A-Z]/g,'');
+  if(pos==='DEF'||pos==='DST'||pos==='D')return true;
+  return !pos&&typeof opt.sid==='string'&&/^[A-Z]{2,3}$/.test(opt.sid);  // Sleeper DEF ids ARE the team abbr
+}
+/* Tier points for an allowed total under one league's scoring (bucket + any linear per-point key). */
+function cfTierPts(sc,v,tiers,lin){
+  if(v==null||!isFinite(v))return 0;
+  let t=(+sc[lin]||0)*v;
+  const r0=Math.max(0,Math.round(v));                   // projected totals are fractional; real ones are whole
+  for(const r of tiers){if(r0>=r[0]&&r0<=r[1]){t+=(+sc[r[2]]||0);break;}}
+  return t;
+}
+/* Raw allowed total from a stat/projection line: the raw stat if present,
+   else the bucket-weighted midpoint (projections ship fractional buckets). */
+function cfAllowed(s,raw,mid){
+  if(!s)return null;
+  if(typeof s[raw]==='number')return s[raw];
+  let w=0,v=0;for(const k in mid){const p=+s[k]||0;if(p>0){w+=p;v+=p*mid[k];}}
+  return w>0?v/w:null;
+}
+function cfDefLiveProj(team,sp,cur,f,opt){
+  const blend=+(sp*f+cur*(1-f)).toFixed(2);
+  try{
+    if(typeof isDemoMode!=='undefined'&&isDemoMode)return blend;
+    let sc=opt.scoring||null;
+    if(!sc&&opt.ctx){try{sc=normalizeScoringForContext(opt.ctx);}catch(e){}}
+    if(!sc)return blend;
+    const hasTier=Object.keys(sc).some(k=>/^(pts|yds)_allow/.test(k)&&+sc[k]);
+    if(!hasTier)return +(cur+sp*f).toFixed(2);           // league doesn't score tiers: banked math is right
+    let sid=opt.sid||null;
+    const ids=[sid,team,(typeof cfNormTeam==='function')?cfNormTeam(team):null].filter(Boolean);
+    /* Live stats: Sleeper week stats for THIS week only. Never pull a stale week. */
+    const wk=`${activeSeason}-${activeWeek}`;
+    if(__wkStatsKey!==wk||!__wkStatsAt||Date.now()-__wkStatsAt>120000){
+      try{fetchWeekStats(activeSeason,activeWeek);}catch(e){}  // deduped + TTL'd; next sync uses it
+    }
+    const L=(__wkStatsKey===wk)?(ids.map(i=>__wkStats[i]).find(Boolean)||null):null;
+    let P=null;try{P=window.__cfProjStats?ids.map(i=>window.__cfProjStats(i)).find(Boolean)||null:null;}catch(e){}
+    if(P&&P.stats&&typeof P.stats==='object')P=P.stats;
+    if(!L||!P)return blend;
+    const paNow=cfAllowed(L,'pts_allow',CF_PA_MID), yaNow=cfAllowed(L,'yds_allow',CF_YA_MID);
+    if(paNow==null)return blend;
+    const paPre=cfAllowed(P,'pts_allow',CF_PA_MID), yaPre=cfAllowed(P,'yds_allow',CF_YA_MID);
+    const tierOf=(pa,ya)=>cfTierPts(sc,pa,CF_PA_TIERS,'pts_allow')+cfTierPts(sc,ya,CF_YA_TIERS,'yds_allow');
+    /* Pregame expected tier straight off the projection's fractional buckets
+       (what the projection actually priced in); raw-stat tier as fallback. */
+    let tierPre=0,anyB=false;
+    for(const k in sc){if(/^(pts|yds)_allow/.test(k)&&typeof P[k]==='number'){tierPre+=P[k]*(+sc[k]||0);anyB=true;}}
+    if(!anyB)tierPre=tierOf(paPre!=null?paPre:21.5,yaPre!=null?yaPre:320);
+    const tierLive=tierOf(paNow,yaNow);
+    const banked=Math.max(0,cur-tierLive);
+    const events=Math.max(0,sp-tierPre);
+    const paFin=paNow+(paPre!=null?paPre:21.5)*f;
+    const yaFin=(yaNow!=null)?yaNow+(yaPre!=null?yaPre:320)*f:null;
+    const tier=f*tierPre+(1-f)*tierOf(paFin,yaFin);
+    const out=banked+events*f+tier;
+    return isFinite(out)?+out.toFixed(2):blend;
+  }catch(e){return blend;}
+}
 /* Still to come: the player's game is either running or hasn't kicked off.
    DELIBERATELY NOT the inverse of isPlayerDone (Matt, 2026-09-13). !done is
    true for a bye week, an unfetched slate, a DEF with no team and any third
@@ -7759,7 +7856,8 @@ function cfSetScope(v){
    games), via __cfEnsureSlots/__cfTeamSlotMap. Pick-one with Live/Remaining.
    In-memory only (never persisted — feedback_filter_persistence). Gate: cfIsAdmin. */
 var loyWin=null;
-function cfLoyWinOwner(){try{return typeof window.cfIsAdmin==='function'&&!!window.cfIsAdmin();}catch(e){return false;}}
+/* Released to ALL users 2026-11-05 (Matt) — gate kept as a stub so callers don't change. */
+function cfLoyWinOwner(){return true;}
 function cfLoyWinSlot(team){try{return team&&typeof window.cfTeamSlot==='function'?window.cfTeamSlot(String(team).toUpperCase().trim()):null;}catch(e){return null;}}
 function cfLoyWinToday(ms){if(!ms)return false;try{return new Date(ms).toDateString()===new Date().toDateString();}catch(e){return false;}}
 function cfLoyInWin(team,w){const s=cfLoyWinSlot(team);if(!s)return false;return w==='today'?cfLoyWinToday(s.kickoffUtc):s.skey===w;}
@@ -11913,6 +12011,8 @@ async function loadData(){
   const projScoreP=(id,scoring)=>{const p0=sleeperProjections[id];if(!p0||!scoring)return null;return +scoreProjectionStats(p0,scoring).toFixed(2);};
   /* League-scored projection by Sleeper id, for surfaces outside this closure
      (Division Watch's on-demand Yahoo lineups). Null on historic weeks. */
+  /* Raw Sleeper projection line for one id (DEF live projection reads its PA/YA buckets). */
+  window.__cfProjStats=function(sid){try{return (!isHist&&hasProj&&sleeperProjections[sid])||null;}catch(e){return null;}};
   window.__cfProjForSid=function(sid,ctx){try{return (!isHist&&hasProj)?projScoreP(sid,normalizeScoringForContext(ctx)):null;}catch(e){return null;}};
   const projForPlayer=(p,scoring)=>(typeof p==='string'&&!isHist&&hasProj)?projScoreP(p,scoring):null;
   valid.forEach(lg=>{
@@ -11953,7 +12053,7 @@ async function loadData(){
       if(proj==null&&!isHist&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring); // Yahoo/ESPN fill-in via Sleeper
       if(!isHist)prePut(preMy,k,proj);
       const preV=proj;
-      if(liveOn){const lv=cfLiveProj(e.team,proj,pts);if(lv!=null)proj=lv;}
+      if(liveOn){const lv=cfLiveProj(e.team,proj,pts,{sid:e.sleeperId,pos:e.position,scoring:projScoring});if(lv!=null)proj=lv;}
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
       if(proj!=null)lpAnyProj=true;
       /* A starter with no projection at all contributes his BANKED points rather
@@ -11970,7 +12070,7 @@ async function loadData(){
       if(proj==null&&!isHist&&e.sleeperId)proj=projScoreP(e.sleeperId,projScoring); // Yahoo/ESPN fill-in via Sleeper
       if(!isHist)prePut(preOpp,k,proj);
       const preV=proj;
-      if(liveOn){const lv=cfLiveProj(e.team,proj,pts);if(lv!=null)proj=lv;}
+      if(liveOn){const lv=cfLiveProj(e.team,proj,pts,{sid:e.sleeperId,pos:e.position,scoring:projScoring});if(lv!=null)proj=lv;}
       if(pts!==null||proj!==null)e.leaguePoints[lg.leagueName]={pts:pts??0,proj,fmt:lg.fmt};
       if(proj!=null)lpAnyProj=true;
       lpOpp+=(proj!=null?proj:(pts??0));
@@ -12089,7 +12189,7 @@ async function loadData(){
           const pts=(p.pts!=null&&isFinite(+p.pts))?+p.pts:null;
           let proj=preProjOf(p);
           p.pre=proj;
-          if(lsLive&&proj!=null){const lv=cfLiveProj(p.team,proj,pts);if(lv!=null)proj=lv;}
+          if(lsLive&&proj!=null){const lv=cfLiveProj(p.team,proj,pts,{sid:p.sid||null,pos:p.pos||p.position,scoring:lsScoring});if(lv!=null)proj=lv;}
           p.lp=(proj!=null)?+(+proj).toFixed(2):null; /* per-player projected final, read by Division Watch's Root-for list */
           if(proj!=null)any=true;
           sum+=(proj!=null?proj:(pts||0));
@@ -24643,7 +24743,13 @@ if(typeof window.cfRegisterView==='function'){
   .rc-chip.on{color:#0F2235;background:var(--navy-700,#7AA8D1);border-color:var(--navy-700,#7AA8D1);}
   /* filter bar: pill-shaped dropdowns (week + bucket) + Include Bench toggle,
      side by side. Replaces the old always-visible slot chip strip (2026-08-26). */
-  .rc-fbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:12px;}
+  .rc-fbar{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;margin-bottom:12px;}
+  /* ONE row, never wrapped (Matt, 2026-11-05). fitFbar() sizes each select to
+     its SELECTED label (a native select otherwise sizes to its widest option —
+     CHEER was CONFLICTED-wide) and steps the whole bar down via --rcf (font px)
+     until it fits the sheet width. */
+  .rc-fbar>*{flex:0 0 auto;white-space:nowrap;}
+  .rc-fbar .rc-sel,.rc-fbar .rc-toggle{font-size:var(--rcf,10px);}
   /* Native <select> styled as an outline pill; the value IS the label ("All
      Week ▾"). appearance:none + a data-URI caret keeps it a pill in Safari/PWA
      while the OS supplies the familiar wheel picker on tap. .on = a non-default
@@ -25146,7 +25252,32 @@ if(typeof window.cfRegisterView==='function'){
       '<button type="button" class="rc-sharego" id="rc-sharego">&#x2197;&nbsp; Share</button>'+
       '</div>';
   }
+  /* One-row filter bar: fit each select to its selected label, then shrink
+     font/padding in small steps until the bar fits without wrapping. */
+  function rcFitSel(sel){
+    var o=sel.options[sel.selectedIndex];if(!o)return;
+    var cs=getComputedStyle(sel),m=document.createElement('span');
+    m.textContent=o.text;
+    m.style.cssText='position:absolute;visibility:hidden;white-space:nowrap;font:'+cs.font+';letter-spacing:'+cs.letterSpacing+';text-transform:'+cs.textTransform;
+    document.body.appendChild(m);
+    var w=m.getBoundingClientRect().width;m.remove();
+    sel.style.width=Math.ceil(w+parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight)+parseFloat(cs.borderLeftWidth)+parseFloat(cs.borderRightWidth)+2)+'px';
+  }
+  function fitFbar(){
+    var bar=document.getElementById('rc-fbar');if(!bar||!bar.clientWidth)return;
+    var steps=[[10,12,26],[9.5,10,23],[9,9,21],[8.5,8,19],[8,7,17]];
+    for(var i=0;i<steps.length;i++){
+      var f=steps[i];
+      bar.style.setProperty('--rcf',f[0]+'px');
+      Array.prototype.forEach.call(bar.children,function(el){
+        if(el.classList.contains('rc-sel')){el.style.paddingLeft=f[1]+'px';el.style.paddingRight=f[2]+'px';el.style.backgroundPosition='right '+(f[2]-16)+'px center';rcFitSel(el);}
+        else{el.style.paddingLeft=el.style.paddingRight=f[1]+'px';}
+      });
+      if(bar.scrollWidth<=bar.clientWidth+1)break;
+    }
+  }
   function fitPreview(){
+    fitFbar();
     var scale=document.getElementById('rc-prevscale');if(!scale)return;
     var wrap=scale.parentElement,frame=scale.firstChild;if(!wrap||!frame)return;
     var w=wrap.clientWidth-24; /* wrap padding 12+12 */
@@ -25244,6 +25375,7 @@ if(typeof window.cfRegisterView==='function'){
     if(bs){ bs.value=st.bucket||''; bs.classList.toggle('on',!!st.bucket); }
     var bp=document.getElementById('rc-bench');
     if(bp){ bp.hidden=(st.bucket!=='cheer'); bp.classList.toggle('on',st.bench); }
+    fitFbar();
   }
   /* The bucket in play on the Loyalties section, carried into the sheet on open
      (#1). null (All Starters) when the section is showing all bands. */
@@ -26991,7 +27123,7 @@ if(typeof window.cfRegisterView==='function'){
           var pr=(sid&&typeof window.__cfProjForSid==='function')?window.__cfProjForSid(sid,ctx):null;
           bank+=pts;
           if(pr!=null&&isFinite(+pr)){
-            var lv=(typeof window.__cfLiveProj==='function')?window.__cfLiveProj(p.team,+pr,pts):null;
+            var lv=(typeof window.__cfLiveProj==='function')?window.__cfLiveProj(p.team,+pr,pts,{sid:sid,pos:p.position,ctx:ctx}):null;
             rem+=((lv!=null)?lv:+pr)-pts;pre+=(+pr);
           }
         });
@@ -27788,7 +27920,7 @@ if(typeof window.cfRegisterView==='function'){
           key=key||('yh:'+p.player_key);
           var m=/^sl:(\d+)$/.exec(key),sid=m?m[1]:(/^DST\|/.test(key)?key.slice(4):null);
           var pts=pp[p.player_key],proj=(sid&&typeof W.__cfProjForSid==='function')?W.__cfProjForSid(sid,ctx):null;
-          if(proj!=null&&typeof W.__cfLiveProj==='function'){var lv=W.__cfLiveProj(p.team,proj,pts);if(lv!=null)proj=lv;}
+          if(proj!=null&&typeof W.__cfLiveProj==='function'){var lv=W.__cfLiveProj(p.team,proj,pts,{sid:sid,pos:p.position,ctx:ctx});if(lv!=null)proj=lv;}
           return {name:p.name,pos:String(p.position||'').split(',')[0],team:p.team,key:key,pts:pts,proj:proj};
         });
         yCache[k]={t:Date.now(),list:list,loading:false};render();
@@ -29446,7 +29578,8 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
      clears it. Filters Who to root for only. Not saved (resets per session).
      Gate: cfIsAdmin() (fryerm@ only). */
   var WS={loading:false, at:0};
-  function wOwner(){ try{ return typeof window.cfIsAdmin==='function'&&!!window.cfIsAdmin(); }catch(e){ return false; } }
+  /* Released to ALL users 2026-11-05 (Matt) — gate kept as a stub so callers don't change. */
+  function wOwner(){ return true; }
   function ensureWins(){
     if(WS.loading||typeof window.__cfEnsureSlots!=='function')return;
     if(window.__cfTeamSlotMap&&WS.at&&Date.now()-WS.at<55000)return;
@@ -29485,7 +29618,7 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
   function wBtnHTML(WL){
     var lbl=''; if(S.rootW){ lbl=S.rootW==='today'?'Today':((WL&&WL.byKey[S.rootW]&&WL.byKey[S.rootW].short)||''); }
     return '<button type="button" class="cfm-wbtn'+(S.rootW?' on':'')+'" data-cfm-wmenu="1" aria-haspopup="menu" aria-expanded="'+(S.wOpen?'true':'false')+'" aria-label="Filter by game window'+(lbl?': '+esc(lbl):'')+'" title="'+(lbl?esc(lbl):'Game window')+'">'
-      +W_CLOCK+'<span class="car">'+(S.wOpen?'▴':'▾')+'</span></button>';
+      +W_CLOCK+'</button>';
   }
   function wMeta(st,n){ return st==='in'?'<span class="m live">Live · '+n+'</span>':st==='post'?'<span class="m">Final · '+n+'</span>':'<span class="m">'+n+'</span>'; }
   function wMenuHTML(WL){
