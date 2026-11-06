@@ -20585,13 +20585,14 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
   function cfBuildSlotMap(games){
     var m = {};
     (games || []).forEach(function(g){
-      var slot = cfNormalizeSlot(slotIdentityForGame(g).key);
+      var sid = slotIdentityForGame(g);
+      var slot = cfNormalizeSlot(sid.key);
       var st = g.status || 'pre';
       /* Keyed by the alias-NORMALIZED abbr only (ESPN WSH → WAS), and
          cfTeamSlot normalizes its lookup the same way. One key per team on
          purpose: slotMetas counts keys/2 as games, so double-keying would
          inflate Washington's window. */
-      [g.away, g.home].forEach(function(t){ if(t) m[cfNormTeam(('' + t).trim())] = { slot: slot, state: st, kickoffUtc: g.kickoffUtc }; });
+      [g.away, g.home].forEach(function(t){ if(t) m[cfNormTeam(('' + t).trim())] = { slot: slot, state: st, kickoffUtc: g.kickoffUtc, skey: sid.key, slabel: sid.label, sshort: sid.shortLabel }; });
     });
     return m;
   }
@@ -28511,6 +28512,25 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
 #cfm .cfm-seg button{padding:5px 10px;border-radius:var(--radius-pill);font-size:var(--txs);font-weight:600;color:var(--ink-500);white-space:nowrap}
 #cfm .cfm-seg button.on{background:var(--tile-bg);color:var(--ink-900);box-shadow:inset 0 0 0 1px var(--tile-line)}
 #cfm .cfm-root-ctl{display:flex;gap:6px;padding:0 10px 8px;flex-wrap:wrap}
+/* Game-window filter (owner preview) — clock button continues the status bar */
+#cfm .cfm-wwrap{position:relative;max-width:100%;display:flex}
+#cfm .cfm-seg .cfm-wbtn{display:inline-flex;align-items:center;gap:4px;padding-left:8px;padding-right:8px}
+#cfm .cfm-wbtn svg{width:1.15em;height:1.15em;flex:none}
+#cfm .cfm-wbtn .car{font-size:.72em;opacity:.75}
+#cfm .cfm-seg.wsel button:not(.cfm-wbtn){opacity:.5}
+#cfm .cfm-seg .cfm-wbtn.on{color:var(--ink-900);background:var(--tile-bg);box-shadow:inset 0 0 0 1px var(--navy-300)}
+#cfm .cfm-wmenu{position:absolute;top:calc(100% + 4px);right:0;z-index:30;min-width:200px;max-height:min(300px,72vh);overflow-y:auto;background:#13263A;border:1px solid var(--tile-line);border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,.55);padding:5px}
+#cfm .cfm-wmenu .mh{font-size:var(--t2xs);font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-500);padding:6px 8px 4px}
+#cfm .cfm-wmenu .mi{display:flex;width:100%;align-items:center;justify-content:space-between;gap:14px;padding:7px 8px;border:0;border-radius:6px;background:none;font:inherit;font-size:var(--txs);font-weight:600;color:var(--ink-900);text-align:left;cursor:pointer}
+#cfm .cfm-wmenu .mi:hover:not([disabled]){background:color-mix(in oklab,var(--tile-bg) 70%,transparent)}
+#cfm .cfm-wmenu .mi.on{background:var(--tile-bg);box-shadow:inset 0 0 0 1px var(--navy-300)}
+#cfm .cfm-wmenu .mi.on .lab::before{content:"✓ ";color:var(--navy-700)}
+#cfm .cfm-wmenu .mi.dim{color:var(--ink-500)}
+#cfm .cfm-wmenu .mi[disabled]{cursor:default}
+#cfm .cfm-wmenu .mi .m{font-family:var(--font-mono);font-weight:500;font-size:var(--t2xs);color:var(--ink-500);white-space:nowrap}
+#cfm .cfm-wmenu .mi .m.live{color:var(--live-ice)}
+#cfm .cfm-wmenu .mi.clr{color:var(--ink-500);font-weight:500}
+#cfm .cfm-wmenu .sep{height:1px;background:var(--line);margin:4px 6px}
 #cfm .cfm-root-body{padding:0 10px 12px}
 #cfm .cfm-bh{display:flex;align-items:center;gap:8px;margin:10px 2px 6px;font-size:var(--t2xs);font-weight:800;letter-spacing:.14em;text-transform:uppercase}
 #cfm .cfm-bh .n{font-family:var(--font-mono);color:var(--ink-500)}
@@ -28683,7 +28703,7 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
   var PREF_KEY='cf_maniac_prefs_v1';
   var root=null, ticker=null, wake=null, chromeT=null;
   var P=loadPrefs();                 // persisted per device
-  var S={hero:null, heroAt:0, lastHero:null, sheet:null, rootF:'all', rootB:'all',
+  var S={hero:null, heroAt:0, lastHero:null, sheet:null, rootF:'all', rootB:'all', rootW:null, wOpen:false,
          pausedAt:0, renderedAt:0, wk:'', last:{}, chg:{}, railFl:{}, cells:{}};
   var FLASH_MS=1600;
   /* Rotation clock holds while a side drawer (player or settings) is open: the
@@ -29228,6 +29248,71 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
     fitNames();
   }
 
+  /* ---------- GAME-WINDOW FILTER (owner-only preview, 2026-11-05, Matt) ----
+     A clock button at the end of the All / On the field / Yet to play bar opens
+     a menu of this week's windows: All of today, then each window in kickoff
+     order, named the Watch Priority way (TNF, Sunday Early, Sunday Afternoon,
+     SNF, MNF; London Game / Wednesday Special etc. for irregular games).
+     Windows come from slotIdentityForGame via __cfEnsureSlots/__cfTeamSlotMap
+     (same classifier as Watch Priority, live week, cached fetch). One choice at
+     a time: picking a window dims the status buttons; tapping a status button
+     clears it. Filters Who to root for only. Not saved (resets per session).
+     Gate: cfIsAdmin() (fryerm@ only). */
+  var WS={loading:false, at:0};
+  function wOwner(){ try{ return typeof window.cfIsAdmin==='function'&&!!window.cfIsAdmin(); }catch(e){ return false; } }
+  function ensureWins(){
+    if(WS.loading||typeof window.__cfEnsureSlots!=='function')return;
+    if(window.__cfTeamSlotMap&&WS.at&&Date.now()-WS.at<55000)return;
+    WS.loading=true;
+    window.__cfEnsureSlots().then(function(){ WS.at=Date.now(); WS.loading=false; renderRoot(); },function(){ WS.loading=false; WS.at=Date.now(); });
+  }
+  function wSlot(team){ try{ return team&&typeof window.cfTeamSlot==='function'?window.cfTeamSlot(String(team).toUpperCase().trim()):null; }catch(e){ return null; } }
+  function wToday(ms){ if(!ms)return false; try{ return new Date(ms).toDateString()===new Date().toDateString(); }catch(e){ return false; } }
+  function inWin(team,w){ var s=wSlot(team); if(!s)return false; return w==='today'?wToday(s.kickoffUtc):s.skey===w; }
+  var W_NAME={thu:'TNF',sun_e:'Sunday Early',sun_a:'Sunday Afternoon',sun_n:'SNF',mon:'MNF'};
+  var W_SHORT={thu:'TNF',sun_e:'Sun Early',sun_a:'Sun Aft',sun_n:'SNF',mon:'MNF'};
+  function winList(){
+    var m=window.__cfTeamSlotMap||null, out={ready:!!(m&&Object.keys(m).length), byKey:{}, list:[], today:{has:false,n:0,st:'pre'}};
+    if(!out.ready)return out;
+    var tIn=false,tPre=false,tAny=false;
+    Object.keys(m).forEach(function(team){
+      var s=m[team]; if(!s||!s.skey||s.skey==='unscheduled')return;
+      var w=out.byKey[s.skey];
+      if(!w){ w=out.byKey[s.skey]={key:s.skey, name:W_NAME[s.skey]||s.slabel||s.skey, short:W_SHORT[s.skey]||s.sshort||s.slabel||s.skey, ko:s.kickoffUtc||Infinity, n:0, any:false, live:false, pre:false}; out.list.push(w); }
+      if(s.kickoffUtc&&s.kickoffUtc<w.ko)w.ko=s.kickoffUtc;
+      var st=gs(team)||s.state||'pre'; w.any=true; if(st==='in')w.live=true; else if(st!=='post')w.pre=true;
+      if(wToday(s.kickoffUtc)){ out.today.has=true; tAny=true; if(st==='in')tIn=true; else if(st!=='post')tPre=true; }
+    });
+    out.list.forEach(function(w){ w.st=w.live?'in':w.pre?'pre':'post'; });
+    out.today.st=tIn?'in':tPre?'pre':'post';
+    out.list.sort(function(a,b){ return (a.ko-b.ko)||String(a.name).localeCompare(String(b.name)); });
+    rootingList().forEach(function(r){
+      if(S.rootB!=='all'&&S.rootB!==r.b)return;
+      var s=wSlot(r.p.team); if(!s)return;
+      if(out.byKey[s.skey])out.byKey[s.skey].n++;
+      if(wToday(s.kickoffUtc))out.today.n++;
+    });
+    return out;
+  }
+  var W_CLOCK='<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 4.6V8l2.4 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function wBtnHTML(WL){
+    var lbl=''; if(S.rootW){ lbl=S.rootW==='today'?'Today':((WL&&WL.byKey[S.rootW]&&WL.byKey[S.rootW].short)||''); }
+    return '<button type="button" class="cfm-wbtn'+(S.rootW?' on':'')+'" data-cfm-wmenu="1" aria-haspopup="menu" aria-expanded="'+(S.wOpen?'true':'false')+'" aria-label="Filter by game window'+(lbl?': '+esc(lbl):'')+'" title="'+(lbl?esc(lbl):'Game window')+'">'
+      +W_CLOCK+'<span class="car">'+(S.wOpen?'▴':'▾')+'</span></button>';
+  }
+  function wMeta(st,n){ return st==='in'?'<span class="m live">Live · '+n+'</span>':st==='post'?'<span class="m">Final · '+n+'</span>':'<span class="m">'+n+'</span>'; }
+  function wMenuHTML(WL){
+    var h='<div class="cfm-wmenu" role="menu"><div class="mh">Game window</div>';
+    if(!WL||!WL.ready) return h+'<div class="mi dim"><span>Loading schedule…</span></div></div>';
+    h+='<button type="button" role="menuitem" class="mi'+(S.rootW==='today'?' on':'')+(!WL.today.has||WL.today.st==='post'?' dim':'')+'" data-cfm-rootw="today"'+(WL.today.has?'':' disabled')+'><span class="lab">All of today</span>'+(WL.today.has?wMeta(WL.today.st,WL.today.n):'<span class="m">No games</span>')+'</button>';
+    h+='<div class="sep"></div>';
+    WL.list.forEach(function(w){
+      h+='<button type="button" role="menuitem" class="mi'+(S.rootW===w.key?' on':'')+(w.st==='post'?' dim':'')+'" data-cfm-rootw="'+esc(w.key)+'"><span class="lab">'+esc(w.name)+'</span>'+wMeta(w.st,w.n)+'</button>';
+    });
+    if(S.rootW)h+='<div class="sep"></div><button type="button" role="menuitem" class="mi clr" data-cfm-rootw="clear"><span class="lab">Clear window</span></button>';
+    return h+'</div>';
+  }
+
   /* Rooting: one row per player, name only. Buckets by roster membership across
      the leagues switched on in Maniac Mode (a player on both sides of any
      matchup = Conflicted). Never sums points across leagues. */
@@ -29253,11 +29338,19 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
   function posRank(x){ var i=POS_ORDER.indexOf(x); return i<0?POS_ORDER.length:i; }
   function renderRoot(){
     var ctl=$('#cfm-rootctl'), el=$('#cfm-root'); if(!el)return;
-    if(ctl)ctl.innerHTML='<div class="cfm-seg">'+[['all','All'],['live','On the field'],['pre','Yet to play']].map(function(x){return '<button type="button" class="'+(S.rootF===x[0]?'on':'')+'" data-cfm-rootf="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div>'
+    var OWN=wOwner(); if(!OWN){ S.rootW=null; S.wOpen=false; } else ensureWins();
+    var WL=OWN?winList():null;
+    if(WL&&S.rootW&&WL.ready&&!(S.rootW==='today'?WL.today.has:WL.byKey[S.rootW])){ S.rootW=null; }
+    var statBtns=[['all','All'],['live','On the field'],['pre','Yet to play']].map(function(x){return '<button type="button" class="'+(!S.rootW&&S.rootF===x[0]?'on':'')+'" data-cfm-rootf="'+x[0]+'">'+x[1]+'</button>';}).join('');
+    if(ctl)ctl.innerHTML=(OWN
+        ? '<div class="cfm-wwrap"><div class="cfm-seg'+(S.rootW?' wsel':'')+'">'+statBtns+wBtnHTML(WL)+'</div>'+(S.wOpen?wMenuHTML(WL):'')+'</div>'
+        : '<div class="cfm-seg">'+statBtns+'</div>')
       +'<div class="cfm-seg">'+[['all','All'],['c','Cheer'],['e','Enemy'],['x','Conflicted']].map(function(x){return '<button type="button" class="'+(S.rootB===x[0]?'on':'')+'" data-cfm-rootb="'+x[0]+'">'+x[1]+'</button>';}).join('')+'</div>';
+    if(OWN&&S.rootW&&ctl){ try{ var wsg=ctl.querySelector('.cfm-seg.wsel'); if(wsg)wsg.scrollLeft=wsg.scrollWidth; }catch(e){} }
     if(!M||M.status!=='ok'){ el.innerHTML=''; return; }
     var ord={'in':0,'pre':1,'post':2};
     var list=rootingList().filter(function(r){
+      if(OWN&&S.rootW)return inWin(r.p.team,S.rootW);
       if(S.rootF==='live'&&r.st!=='in')return false;
       if(S.rootF==='pre'&&r.st!=='pre')return false;
       return true;
@@ -29832,6 +29925,7 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
   function step(dir){ if(!M||!M.show||!M.show.length)return; var i=M.show.indexOf(S.hero), k=M.show.length; setHero(M.show[(i+dir+k)%k]); }
   function onClick(e){
     var t=e.target.closest('button,[data-cfm-player]');
+    if(S.wOpen&&!e.target.closest('.cfm-wmenu,[data-cfm-wmenu]')){ S.wOpen=false; renderRoot(); }
     if(e.target.id==='cfm-scrim'){ S.sheet=null; renderSheet(); renderRoot(); return; }
     if(e.target.closest('[data-pd-close]')){ S.sheet=null; renderSheet(); renderRoot(); return; }
     if(!t)return;
@@ -29859,7 +29953,9 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
     if(a==='pin'){ P.mode=P.mode==='pin'?'rotate':'pin'; S.heroAt=Date.now(); savePrefs(); renderHero(); if(S.sheet==='settings')renderSheet(); return; }
     var h=t.getAttribute('data-cfm-hero'); if(h!=null){ setHero(h); return; }
     var pk=t.getAttribute('data-cfm-player'); if(pk!=null){ S.sheet=S.sheet==='p:'+pk?null:'p:'+pk; renderSheet(); renderRoot(); try{cfTrack('maniac_player_open',{});}catch(_){} return; }
-    var rf=t.getAttribute('data-cfm-rootf'); if(rf){ S.rootF=rf; renderRoot(); return; }
+    if(t.hasAttribute('data-cfm-wmenu')){ S.wOpen=!S.wOpen; renderRoot(); if(S.wOpen){ try{cfTrack('maniac_window_menu',{});}catch(_){} } return; }
+    var rw=t.getAttribute('data-cfm-rootw'); if(rw){ S.rootW=rw==='clear'?null:rw; S.wOpen=false; renderRoot(); try{cfTrack('maniac_window_pick',{w:rw});}catch(_){} return; }
+    var rf=t.getAttribute('data-cfm-rootf'); if(rf){ S.rootF=rf; S.rootW=null; S.wOpen=false; renderRoot(); return; }
     var rb=t.getAttribute('data-cfm-rootb'); if(rb){ S.rootB=rb; renderRoot(); return; }
     var sk=t.getAttribute('data-cfm-set');
     if(sk==='pkPool'){ P.pkPool=t.getAttribute('data-v'); savePrefs(); window.cfManiacPkRefresh(); renderSheet(); return; }
