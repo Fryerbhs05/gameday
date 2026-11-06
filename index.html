@@ -2895,34 +2895,42 @@
        ══════════════════════════════════════════════════════════════════════ */
     /* Controls cluster framed together in the section's light-blue chrome:
        Cheer/Conflicted/Enemy buckets on top, Player/Rooting toggle below. */
-    .loy-controls { border: 1px solid var(--navy-300); border-radius: var(--radius-lg); padding: 12px; margin-bottom: 12px; }
-    .loy-controls .exp-tabbar { margin: 0 0 10px; }
-    .loy-controls .loy-view-toggle { margin: 0; }
-    /* Scope pill (All / Live / Remaining) — sits BELOW the view toggle because it
-       only applies to Player Cards: in Rooting Card mode (or on a past week / demo)
-       it folds away, and since it's the bottom row nothing above it moves — the
-       toggle stays under the thumb (Matt, 2026-09-23; mock:
-       mocks/loyalties-scope-filter-mock-v2.html). Same state as the Filters
-       drawer's two switches (liveOnly / toFinishOnly), painted by
-       cfSyncScopeToggles. Fold = grid-rows 1fr→0fr, driven by .is-folded, which
-       __loyView sets at the START of a flip so it folds alongside the slide. */
-    .loy-scope { display: grid; grid-template-rows: 1fr; margin-top: 10px; opacity: 1;
-      transition: grid-template-rows .32s var(--ease-out), margin-top .32s var(--ease-out), opacity .2s var(--ease-out); }
-    .loy-scope > .loy-scope-inner { overflow: hidden; min-height: 0; }
-    .loy-scope.is-folded { grid-template-rows: 0fr; margin-top: 0; opacity: 0; pointer-events: none; }
-    .loy-scope-pill { position: relative; display: flex; background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 3px; }
-    .loy-scope-thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 3); border-radius: var(--radius-pill);
-      background: var(--tile-bg); box-shadow: inset 0 0 0 1px var(--tile-line);
-      transition: transform .26s var(--ease-out), background .2s, box-shadow .2s; }
-    .loy-scope-pill[data-sel="live"] .loy-scope-thumb { transform: translateX(100%);
-      background: color-mix(in oklab, var(--live-ice) 14%, var(--tile-bg));
-      box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--live-ice) 60%, transparent); }
-    .loy-scope-pill[data-sel="tofinish"] .loy-scope-thumb { transform: translateX(200%); }
-    /* Game-window option (owner-only preview, 2026-11-05) — 4th equal slot. */
-    .loy-scope-pill.has-win .loy-scope-thumb { width: calc((100% - 6px) / 4); }
-    .loy-scope-pill[data-sel="win"] .loy-scope-thumb { transform: translateX(300%); box-shadow: inset 0 0 0 1px var(--navy-300); }
-    .loy-scope-pill button.loy-scope-win svg { width: 14px; height: 14px; flex: none; }
-    .loy-scope-pill button.loy-scope-win .car { font-size: 9px; opacity: .75; }
+    .loy-controls { border: 1px solid var(--navy-300); border-radius: var(--radius-lg); padding: 12px; margin-bottom: 12px;
+      /* 4 equal tracks: buckets span 3, the scope tile owns the 4th. Gap = the
+         tabbar's own 6px gap so all four tiles come out the same width.
+         minmax(0,1fr) so no label can widen a track (min-content overflow). */
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 6px; row-gap: 10px; }
+    .loy-controls .exp-tabbar { margin: 0; }
+    .loy-controls > #exp-tabbar { grid-column: 1 / -1; grid-row: 1; min-width: 0; }
+    .loy-controls.loy-controls--scope > #exp-tabbar { grid-column: 1 / 4; }
+    .loy-controls > .loy-scope-tile { grid-column: 4; grid-row: 1; }
+    .loy-controls .loy-view-toggle { margin: 0; grid-column: 1 / -1; grid-row: 2; }
+    /* Desktop Player Cards: the bucket tabs are hidden (3-column board), so the
+       view toggle takes row 1 beside the scope tile. */
+    @media (min-width: 641px) {
+      .loyalties-section:not(.rc-mode) .loy-controls .loy-view-toggle { grid-row: 1; }
+      .loyalties-section:not(.rc-mode) .loy-controls.loy-controls--scope .loy-view-toggle { grid-column: 1 / 4; }
+    }
+    /* With the scope tile present, buckets stack count-over-label so four fit
+       across a phone. ID selector so it beats the rc-mode tab rules. */
+    .loy-controls--scope #exp-tabbar .exp-tab { flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+      min-width: 0; overflow: hidden; white-space: nowrap; padding: 7px 2px; font-size: 12.5px; line-height: 14px; }
+    .loy-controls--scope #exp-tabbar .exp-tab.is-active { padding: 6px 1px; }
+    /* Scope tile — see the markup comment. Same frame language as the bucket
+       tabs: 1px idle, 2px + tint when a filter is applied (padding absorbs the
+       extra border, so nothing moves). */
+    .loy-scope-tile { min-width: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+      padding: 7px 2px; background: transparent; border: 1px solid color-mix(in oklab, var(--navy-500) 80%, transparent); border-radius: var(--radius-md);
+      color: var(--navy-700); cursor: pointer; -webkit-tap-highlight-color: transparent; font-family: var(--font-sans);
+      transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+    .loy-scope-tile[hidden] { display: none; }
+    .loy-scope-tile .lst-k { font: 700 9px/1 var(--font-sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-500); }
+    .loy-scope-tile .lst-l { display: flex; align-items: center; justify-content: center; gap: 4px; max-width: 100%; white-space: nowrap; font: 700 12.5px/14px var(--font-sans); } /* fixed line box: shrinking the text never changes the tile height */
+    .loy-scope-tile .loy-scope-dot { display: none; }
+    .loy-scope-tile[data-sel="live"] .loy-scope-dot { display: block; animation: loyScopeDot 2.4s ease-in-out infinite; }
+    .loy-scope-tile.is-on { border-width: 2px; padding: 6px 1px; border-color: var(--navy-500); background: color-mix(in oklab, var(--navy-500) 16%, transparent); color: var(--ink-900); }
+    .loy-scope-tile[data-sel="live"].is-on { border-color: color-mix(in oklab, var(--live-ice) 70%, transparent); background: color-mix(in oklab, var(--live-ice) 12%, transparent); color: var(--live-ice); }
+    .loy-scope-tile[aria-expanded="true"]:not(.is-on) { border-color: var(--navy-500); }
     .loy-win-menu { position: fixed; z-index: 9000; min-width: 210px; max-height: min(340px, 70vh); overflow-y: auto; background: #13263A; border: 1px solid var(--tile-line); border-radius: 10px; box-shadow: 0 14px 34px rgba(0,0,0,.55); padding: 5px; }
     .loy-win-menu .mh { font: 800 10px/1 var(--font-sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-500); padding: 7px 8px 5px; }
     .loy-win-menu .mi { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 14px; padding: 8px; border: 0; border-radius: 6px; background: none; font: 600 13px/1.1 var(--font-sans); color: var(--ink-900); text-align: left; cursor: pointer; }
@@ -2935,18 +2943,13 @@
     .loy-win-menu .mi .m.live { color: var(--live-ice); }
     .loy-win-menu .mi.clr { color: var(--ink-500); font-weight: 500; }
     .loy-win-menu .sep { height: 1px; background: var(--line); margin: 4px 6px; }
-    .loy-scope-pill button { flex: 1 1 0; min-width: 0; position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
-      padding: 7px 0; background: transparent; border: none; cursor: pointer; -webkit-tap-highlight-color: transparent; white-space: nowrap;
-      color: var(--ink-500); font: 700 12px/1 var(--font-sans); transition: color var(--duration-fast) var(--ease-out); }
-    .loy-scope-pill button.on { color: var(--ink-900); }
-    .loy-scope-pill button[data-scope="live"].on { color: var(--live-ice); }
+    .loy-win-menu .mi .loy-scope-dot { display: inline-block; vertical-align: middle; margin: -2px 6px 0 0; }
+    .loy-win-menu .mi.live-on { color: var(--live-ice); }
     .loy-scope-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--live-ice); flex-shrink: 0; }
-    .loy-scope-pill button:not(.on) .loy-scope-dot { opacity: .55; }
-    .loy-scope-pill button.on .loy-scope-dot { animation: loyScopeDot 2.4s ease-in-out infinite; }
     @keyframes loyScopeDot { 0%, 100% { box-shadow: 0 0 0 0 rgba(143,199,240,.55); } 50% { box-shadow: 0 0 0 4px rgba(143,199,240,0); } }
     @media (prefers-reduced-motion: reduce) {
-      .loy-scope, .loy-scope-thumb { transition: none; }
-      .loy-scope-pill button.on .loy-scope-dot { animation: none; }
+      .loy-scope-tile { transition: none; }
+      .loy-scope-tile[data-sel="live"] .loy-scope-dot { animation: none; }
     }
     /* Stage: both views live here so the slide can cross them + morph height. */
     .loy-stage { position: relative; transition: height .32s var(--ease-out); }
@@ -2975,7 +2978,7 @@
     .loyalties-section.rc-mode:not(.collapsed) #exp-tabbar { display: flex; gap: 6px; margin-top: 0; margin-bottom: 12px; }
     /* Inside the controls box keep the SAME 10px gap as Player Cards mode, or the
        view toggle nudges 2px every flip (the scope pill work made that visible). */
-    .loyalties-section.rc-mode:not(.collapsed) .loy-controls #exp-tabbar { margin-bottom: 10px; }
+    .loyalties-section.rc-mode:not(.collapsed) .loy-controls #exp-tabbar { margin-bottom: 0; }
     .loyalties-section.rc-mode .exp-tab {
       flex: 1 1 0; display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 5px;
       padding: 11px 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -3949,6 +3952,49 @@
        The card hover lift already lives at .player-card:hover and is unchanged. */
     .player-card[data-cf-tap="1"] { cursor: pointer; -webkit-tap-highlight-color: rgba(232,135,97,.14); }
     .player-card[data-cf-tap="1"]:focus-visible { outline: 2px solid var(--coral-500); outline-offset: 2px; }
+    /* ── Matchup drawer → inline box score (owner preview, sw v409) ─────────
+       Compact stat card inserted under a tapped drawer row. Caret points at the
+       tapped side. Height animates via the grid-rows 0fr→1fr trick; .no-anim is
+       for the instant re-insert after an in-place drawer rebuild. Corner = the
+       Loyalties Points Pending line (same cf-pend-cyc rhythm), nothing else. */
+    body.is-admin .matchup-drawer__paired-row .matchup-drawer__player-name:not(.matchup-drawer__placeholder),
+    body.is-admin .matchup-drawer__paired-row .matchup-drawer__player-pts[data-mp-pid] { cursor: pointer; }
+    .mpx-press { background: rgba(143,199,240,.10); border-radius: 4px; }
+    .mpx { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .26s var(--ease-out); }
+    .mpx.is-open { grid-template-rows: 1fr; }
+    .mpx.no-anim { transition: none; }
+    .mpx__in { overflow: hidden; min-height: 0; }
+    .mpx-card {
+      position: relative; margin: 8px 0 10px; padding: 10px 10px 9px;
+      background: var(--paper-soft); border: 1px solid var(--tile-line); border-radius: 10px;
+    }
+    .mpx-card::before {
+      content: ''; position: absolute; top: -6px; width: 10px; height: 10px;
+      background: var(--paper-soft); border-left: 1px solid var(--tile-line); border-top: 1px solid var(--tile-line);
+      transform: rotate(45deg);
+    }
+    .mpx-card--my::before { left: 28px; }
+    .mpx-card--opp::before { right: 28px; }
+    .mpx-top { display: flex; align-items: center; gap: 7px; margin-bottom: 9px; min-width: 0; }
+    .mpx-nm { flex: 0 1 auto; min-width: 0; font: 600 12.5px/1.15 var(--font-sans); color: var(--ink-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mpx-meta { flex: none; font: 500 9px/1 var(--font-mono); letter-spacing: .08em; color: var(--ink-500); white-space: nowrap; }
+    .mpx-pend {
+      margin-left: auto; flex: none; display: grid; justify-items: end;
+      color: var(--live-ice); font: 600 9px/1 var(--font-mono); letter-spacing: .06em;
+      text-transform: uppercase; white-space: nowrap; animation: cfPendIn .6s ease-out both;
+      --pend-cyc-period: 10s;
+    }
+    .mpx .pd__grp { margin-bottom: 8px; }
+    .mpx .pd__grp:last-of-type { margin-bottom: 0; }
+    .mpx .pd__grph { margin-bottom: 6px; }
+    .mpx .pd__tiles { gap: 5px; }
+    .mpx .pd__tile { padding: 6px 4px 5px; }
+    .mpx .pd__tv { font-size: 14px; }
+    .mpx .pd__tl { font-size: 7px; margin-top: 4px; }
+    .mpx .pd__foot { margin-top: 8px; padding: 7px 4px 0; }
+    .mpx .pd__empty { padding: 6px 4px 4px; }
+    .mpx .pd__empty h5 { margin: 0; font-size: 12px; }
+    .mpx .pd__skel div { height: 38px; }
 
     /* Bottom-sheet overlay shell — shared between Exposure (player/team/settings)
        and Dashboard (matchup detail). Canonical class names are .sheet / .sheet-backdrop;
@@ -5847,6 +5893,13 @@
       <button class="exp-tab" data-tab="conflicted" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-conflicted">0</span><span>Conflicted</span></button>
       <button class="exp-tab" data-tab="enemy" role="tab" aria-selected="false"><span class="exp-tab-ct" id="exp-ct-enemy">0</span><span>Enemy</span></button>
     </div>
+    <!-- Scope tile (2026-11-05, Matt — option 3 of mocks/loyalties-filter-layout-mock.html):
+         a 4th tile beside the buckets that opens one menu — Show players
+         (All / Live / Remaining) + Game window. Its label always names what's
+         applied. Width is fixed by the .loy-controls grid; a long label shrinks
+         its own text (cfLoyFitScope), never the tile. Shown only where the scope
+         filter applies (current week, not demo) — __loyView.syncScope. -->
+    <button type="button" class="loy-scope-tile" id="loy-scope-tile" data-sel="all" aria-haspopup="menu" aria-expanded="false" aria-label="Show players: All" hidden><span class="lst-k">Scope</span><span class="lst-l"><span class="loy-scope-dot" aria-hidden="true"></span><span class="lst-t">All</span></span></button>
     <!-- View toggle (Player Cards ⇄ Rooting Card) — chrome cloned from the
          Snapshot List/Grid switch (.cf-snap-toggle). Hidden until data lands;
          __loyView shows it whenever the Rooting Card share is available (same
@@ -5860,20 +5913,6 @@
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3" y="1.8" width="10" height="12.4" rx="1.6"/><line x1="5.4" y1="5" x2="10.6" y2="5"/><line x1="5.4" y1="8" x2="10.6" y2="8"/><line x1="5.4" y1="11" x2="9" y2="11"/></svg>
         Rooting Card
       </button>
-    </div>
-    <!-- Scope pill (All / Live / Remaining) — Player Cards only, current week only.
-         Starts folded; __loyView.syncScope() opens it. Clicks route through
-         cfSetScope → the same liveOnly/toFinishOnly state as the Filters drawer. -->
-    <div class="loy-scope is-folded" id="loy-scope" inert>
-      <div class="loy-scope-inner">
-        <div class="loy-scope-pill" id="loy-scope-pill" role="radiogroup" aria-label="Show players" data-sel="all">
-          <span class="loy-scope-thumb" aria-hidden="true"></span>
-          <button type="button" role="radio" data-scope="all" aria-checked="true" class="on">All</button>
-          <button type="button" role="radio" data-scope="live" aria-checked="false"><span class="loy-scope-dot" aria-hidden="true"></span>Live</button>
-          <button type="button" role="radio" data-scope="tofinish" aria-checked="false">Remaining</button>
-          <button type="button" role="radio" data-scope="win" aria-checked="false" aria-haspopup="menu" aria-expanded="false" aria-label="Filter by game window" class="loy-scope-win" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 4.6V8l2.4 1.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        </div>
-      </div>
     </div>
     </div>
     <!-- Stage holds both views so the directional-slide flip can cross them and
@@ -7824,19 +7863,60 @@ function cfSyncScopeToggles(){
   try{
     document.querySelectorAll('[data-lf-live]').forEach(b=>{b.classList.toggle('on',liveOnly);b.setAttribute('aria-checked',liveOnly?'true':'false');});
     document.querySelectorAll('[data-lf-tofinish]').forEach(b=>{b.classList.toggle('on',toFinishOnly);b.setAttribute('aria-checked',toFinishOnly?'true':'false');});
-    /* Loyalties scope pill — the same two flags as one pick-one control. */
-    const pill=document.getElementById('loy-scope-pill');
-    if(pill){
+    /* Loyalties scope tile — the same flags as one pick-one control. */
+    const tile=document.getElementById('loy-scope-tile');
+    if(tile){
       const own=cfLoyWinOwner();
       if(!own){loyWin=null;cfLoyWinClose();}
-      pill.classList.toggle('has-win',own);
-      const wb=pill.querySelector('.loy-scope-win'); if(wb){wb.hidden=!own;wb.setAttribute('aria-expanded',document.getElementById('loy-win-menu')?'true':'false');}
       const sel=loyWin?'win':liveOnly?'live':toFinishOnly?'tofinish':'all';
-      pill.dataset.sel=sel;
-      pill.querySelectorAll('button[data-scope]').forEach(b=>{const on=b.dataset.scope===sel;b.classList.toggle('on',on);b.setAttribute('aria-checked',on?'true':'false');});
+      const lab=cfLoyScopeLabel(sel);
+      tile.dataset.sel=sel;tile.classList.toggle('is-on',sel!=='all');
+      tile.setAttribute('aria-expanded',document.getElementById('loy-win-menu')?'true':'false');
+      tile.setAttribute('aria-label',(sel==='win'?'Game window: ':'Show players: ')+lab);
+      const k=tile.querySelector('.lst-k'),t=tile.querySelector('.lst-t');
+      if(k)k.textContent=sel==='win'?'Window':'Scope';
+      if(t)t.textContent=lab;
+      cfLoyFitScope();
     }
   }catch(e){}
 }
+/* Tile label for the applied scope. Windows use the short Watch Priority name
+   (TNF / Sun Early / Sun Aft / SNF / MNF / London…) so it fits a quarter-width tile. */
+function cfLoyScopeLabel(sel){
+  if(sel==='live')return 'Live';
+  if(sel==='tofinish')return 'Remaining';
+  if(sel!=='win')return 'All';
+  if(loyWin==='today')return 'Today';
+  const W={thu:'TNF',sun_e:'Sun Early',sun_a:'Sun Aft',sun_n:'SNF',mon:'MNF'};
+  if(W[loyWin])return W[loyWin];
+  try{const m=window.__cfTeamSlotMap||{};for(const t in m){const x=m[t];if(x&&x.skey===loyWin)return x.sshort||x.slabel||loyWin;}}catch(e){}
+  return String(loyWin);
+}
+/* Never let a label resize the tile: the grid fixes its width, so a long
+   label shrinks its own text (8.5px floor). Never wraps, never ellipsizes. */
+function cfLoyFitScope(){
+  try{
+    const t=document.getElementById('loy-scope-tile');if(!t||t.hidden||!t.clientWidth)return;
+    const l=t.querySelector('.lst-l');if(!l)return;
+    let fs=12.5;l.style.fontSize=fs+'px';
+    const room=t.clientWidth-6;
+    while(l.scrollWidth>room&&fs>8.5){fs-=0.5;l.style.fontSize=fs+'px';}
+  }catch(e){}
+}
+/* Four-up bucket tabs: if any label overflows its tile ("Conflicted" on a
+   narrow phone), step ALL three down together so they stay uniform. */
+function cfLoyFitTabs(){
+  try{
+    const bar=document.getElementById('exp-tabbar'),c=bar&&bar.parentElement;if(!bar)return;
+    const tabs=bar.querySelectorAll('.exp-tab');
+    tabs.forEach(function(t){t.style.fontSize='';});
+    if(!c||!c.classList.contains('loy-controls--scope')||!bar.clientWidth)return;
+    const over=function(){return Array.prototype.some.call(tabs,function(t){return t.scrollWidth>t.clientWidth+0.5;});};
+    let fs=12.5;
+    while(over()&&fs>10){fs-=0.5;tabs.forEach(function(t){t.style.fontSize=fs+'px';});}
+  }catch(e){}
+}
+window.addEventListener('resize',function(){cfLoyFitTabs();cfLoyFitScope();});
 /* Pick-one setter for the Loyalties scope pill: 'all' | 'live' | 'tofinish'.
    Reuses the drawer togglers so persistence (live-only only) and the mutual
    exclusion stay in exactly one place. */
@@ -7868,7 +7948,7 @@ function cfLoyEnsureWins(){
   if(loyWinLoading||typeof window.__cfEnsureSlots!=='function')return;
   if(window.__cfTeamSlotMap&&loyWinAt&&Date.now()-loyWinAt<55000)return;
   loyWinLoading=true;
-  window.__cfEnsureSlots().then(function(){loyWinAt=Date.now();loyWinLoading=false;if(document.getElementById('loy-win-menu'))cfLoyWinRender();if(loyWin){applyFilters();cfRcRefresh();}},function(){loyWinLoading=false;loyWinAt=Date.now();});
+  window.__cfEnsureSlots().then(function(){loyWinAt=Date.now();loyWinLoading=false;if(document.getElementById('loy-win-menu'))cfLoyWinRender();if(loyWin){applyFilters();cfRcRefresh();cfSyncScopeToggles();}},function(){loyWinLoading=false;loyWinAt=Date.now();});
 }
 function cfLoyWinList(){
   const m=window.__cfTeamSlotMap||null,out={ready:!!(m&&Object.keys(m).length),byKey:{},list:[],today:{has:false,n:0,st:'pre'}};
@@ -7903,18 +7983,23 @@ function cfLoyWinMeta(st,n){return st==='in'?'<span class="m live">Live · '+n+'
 function cfLoyWinRender(){
   const menu=document.getElementById('loy-win-menu');if(!menu)return;
   const WL=cfLoyWinList(),e=function(x){return String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));};
-  let h='<div class="mh">Game window</div>';
+  const sel=loyWin?'win':liveOnly?'live':toFinishOnly?'tofinish':'all';
+  let h='<div class="mh">Show players</div>';
+  [['all','All'],['live','Live'],['tofinish','Remaining']].forEach(function(o){
+    const on=sel===o[0];
+    h+='<button type="button" role="menuitemradio" aria-checked="'+(on?'true':'false')+'" class="mi'+(on?' on':'')+(on&&o[0]==='live'?' live-on':'')+'" data-loy-scope="'+o[0]+'"><span class="lab">'+(o[0]==='live'?'<span class="loy-scope-dot" aria-hidden="true"></span>':'')+o[1]+'</span></button>';
+  });
+  h+='<div class="sep"></div><div class="mh">Game window</div>';
   if(!WL.ready){h+='<div class="mi dim"><span>Loading schedule…</span></div>';}
   else{
     h+='<button type="button" role="menuitem" class="mi'+(loyWin==='today'?' on':'')+(!WL.today.has||WL.today.st==='post'?' dim':'')+'" data-loy-win="today"'+(WL.today.has?'':' disabled')+'><span class="lab">All of today</span>'+(WL.today.has?cfLoyWinMeta(WL.today.st,WL.today.n):'<span class="m">No games</span>')+'</button><div class="sep"></div>';
     WL.list.forEach(function(w){h+='<button type="button" role="menuitem" class="mi'+(loyWin===w.key?' on':'')+(w.st==='post'?' dim':'')+'" data-loy-win="'+e(w.key)+'"><span class="lab">'+e(w.name)+'</span>'+cfLoyWinMeta(w.st,w.n)+'</button>';});
-    if(loyWin)h+='<div class="sep"></div><button type="button" role="menuitem" class="mi clr" data-loy-win="clear"><span class="lab">Clear window</span></button>';
   }
   menu.innerHTML=h;
   cfLoyWinPlace();
 }
 function cfLoyWinPlace(){
-  const menu=document.getElementById('loy-win-menu'),btn=document.querySelector('#loy-scope-pill .loy-scope-win');if(!menu||!btn)return;
+  const menu=document.getElementById('loy-win-menu'),btn=document.getElementById('loy-scope-tile');if(!menu||!btn)return;
   const r=btn.getBoundingClientRect(),vw=document.documentElement.clientWidth,mw=menu.offsetWidth;
   let left=Math.min(r.right-mw,vw-mw-8);left=Math.max(8,left);
   menu.style.left=left+'px';menu.style.top=(r.bottom+6)+'px';
@@ -7936,8 +8021,10 @@ function cfLoyWinPick(v){
 document.addEventListener('click',function(e){
   const wi=e.target.closest&&e.target.closest('#loy-win-menu [data-loy-win]');
   if(wi){if(!wi.disabled)cfLoyWinPick(wi.dataset.loyWin);return;}
-  const b=e.target.closest&&e.target.closest('#loy-scope-pill button[data-scope]');
-  if(b){cfSetScope(b.dataset.scope);return;}
+  const si=e.target.closest&&e.target.closest('#loy-win-menu [data-loy-scope]');
+  if(si){cfSetScope(si.dataset.loyScope);return;}
+  const tb=e.target.closest&&e.target.closest('#loy-scope-tile');
+  if(tb){cfLoyWinToggle();return;}
   if(document.getElementById('loy-win-menu')&&!(e.target.closest&&e.target.closest('#loy-win-menu')))cfLoyWinClose();
 });
 /* Fixed-position menu follows its button while the page scrolls. */
@@ -9893,6 +9980,7 @@ function cfRebuildMatchupDrawerBody(html){
   const BS=window.BottomSheet;if(!BS)return;
   let body=null;try{body=BS.getSheetEl().querySelector('[data-sheet-body]');}catch(e){}
   const benchOpen=!!(body&&body.querySelector('[data-matchup-bench-toggle].is-open'));
+  const mpxOpen=!!(body&&body.querySelector('.mpx'));
   const st=body?body.scrollTop:0;
   BS.setBody(html);
   if(!body)return;
@@ -9902,6 +9990,8 @@ function cfRebuildMatchupDrawerBody(html){
     if(tog){tog.classList.add('is-open');tog.setAttribute('aria-expanded','true');}
     if(wrap)wrap.classList.add('is-open');
   }
+  /* Inline box score (sw v409) — put the open stat card back under its row. */
+  if(mpxOpen){try{if(typeof window.__cfMpxRestore==='function')window.__cfMpxRestore(body);}catch(e){}}
   body.scrollTop=st;
 }
 window.cfRebuildMatchupDrawerBody=cfRebuildMatchupDrawerBody;
@@ -10127,7 +10217,10 @@ function renderMatchupDrawer(ctx, lg){
       ? '<span class="matchup-drawer__player-skel skel" role="img" aria-label="Loading player name"></span>'
       : escHtml(p.full_name);
     const nameSpan = '<span class="matchup-drawer__player-name matchup-drawer__player-name--' + side + '">' + nameHtml + '</span>';
-    const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + preCls + liveCls + projCls + '"' + projTitle + ' data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '" data-mp-team="' + escHtml(p.team || '') + '">' + ptsStr + '</span>';
+    /* Inline box-score expansion (sw v409): the tap needs the player's real
+       eligibility position (p.position is the lineup SLOT for Yahoo/ESPN) + name. */
+    const realPos = String((typeof raw === 'string' ? p.position : (raw.position || p.position)) || ''); /* raw, e.g. 'WR,RB' -- must match ensure()'s canonicalPlayerKey input */
+    const ptsSpan = '<span class="matchup-drawer__player-pts matchup-drawer__player-pts--' + side + preCls + liveCls + projCls + '"' + projTitle + ' data-mp-side="' + side + '" data-mp-pid="' + escHtml(pid) + '" data-mp-team="' + escHtml(p.team || '') + '" data-mp-pos="' + escHtml(realPos) + '" data-mp-nm="' + escHtml(p.full_name || '') + '">' + ptsStr + '</span>';
     /* Visual order: my side reads outward→inward (name then pts), opp side reads
        inward→outward (pts then name) so the points cluster around the center POS. */
     return side === 'my' ? (nameSpan + ptsSpan) : (ptsSpan + nameSpan);
@@ -10841,6 +10934,7 @@ function cfPendRepaint(){
     });
   }catch(e){}
   try{ if(window.__cfManiacOpen&&typeof window.__cfManiacPendRepaint==='function') window.__cfManiacPendRepaint(); }catch(e){}
+  try{ if(typeof window.__cfMpxRepaint==='function') window.__cfMpxRepaint(); }catch(e){}
 }
 /* Released to ALL users (sw v306, Matt 2026-09-27) — was admin-only since v277. */
 function cfPendingEnabled(){ return true; }
@@ -12688,13 +12782,15 @@ function cfDrawerPrefetch(){
   try{ if(cfPendingActive()) p=fetchWeekStats(activeSeason,activeWeek,{fresh:true}); }catch(e){}
   /* Maniac Mode's player drawer: pull with the points so its box score repaints on the same sync. */
   try{ if(!p&&window.__cfManiacOpen&&typeof window.__cfManiacWantsStats==='function'&&window.__cfManiacWantsStats()&&!isHistoricalWeek()) p=fetchWeekStats(activeSeason,activeWeek,{fresh:true}); }catch(e){}
+  /* Matchup drawer inline box score (sw v409): fresh stats while its player is live / pending. */
+  try{ if(!p&&typeof window.__cfMpxWantsStats==='function'&&window.__cfMpxWantsStats()&&!isHistoricalWeek()) p=fetchWeekStats(activeSeason,activeWeek,{fresh:true}); }catch(e){}
   try{ if(typeof window.cfPlayerDrawerPrefetch==='function') window.cfPlayerDrawerPrefetch(); }catch(e){}
   return p;
 }
 /* Give a pending-stats pull up to 2.5s past loadData so the cards diff against
    stats from THIS sync. Non-admin: p is null, zero wait. */
 async function cfAwaitStats(p){ if(!p) return; try{ await Promise.race([p,new Promise(r=>setTimeout(r,2500))]); }catch(e){} }
-function cfDrawerSync(){ try{ if(typeof window.cfPlayerDrawerSync==='function') window.cfPlayerDrawerSync(); }catch(e){} }
+function cfDrawerSync(){ try{ if(typeof window.cfPlayerDrawerSync==='function') window.cfPlayerDrawerSync(); }catch(e){} try{ if(typeof window.__cfMpxSync==='function') window.__cfMpxSync(); }catch(e){} }
 function shouldAutoRefresh(){return !isDemoMode && isAnyProviderConnected() && !isHistoricalWeek();}
 function isDashboardVisible(){const b=document.getElementById('board');if(!b)return false;const d=b.style.display;return !(d==='none'||d==='');}
 /* Keep the live poll alive on the dashboard AND on any registered, data-driven
@@ -19300,6 +19396,13 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
         +'<p>He hasn’t registered in any tracked category.</p></div>';
     }
 
+    return out+groupsHTML(player,row,pos);
+  }
+
+  /* Stat groups + footer for a resolved stat row. Shared with the matchup
+     drawer's inline box score (sw v409) through cfPlayerBoxParts. */
+  function groupsHTML(player,row,pos){
+    var out='';
     var any=false;
     GROUPS.forEach(function(g){
       var isCore=g.core.indexOf(pos)>-1;
@@ -19319,6 +19422,9 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     }).join('')+'</div>';
     return out;
   }
+
+  window.cfPlayerBoxParts={resolveState:resolveState,statKey:statKey,kickoffLabel:kickoffLabel,
+    matchupHTML:matchupHTML,groupsHTML:groupsHTML,demoRow:demoRow,isDemo:isDemo};
 
   function mine(){
     return !!(window.BottomSheet && window.BottomSheet.isOpen()
@@ -19430,6 +19536,198 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
   document.addEventListener('click',function(e){
     if(e.target&&e.target.closest&&e.target.closest('[data-pd-close]')&&mine()) window.BottomSheet.close();
   });
+})();
+</script>
+
+<!-- ============ Matchup drawer inline box score (owner preview) ============ -->
+<script>
+/* ══ MATCHUP DRAWER → INLINE BOX SCORE (owner-only preview, sw v409) ═════════
+   Matt picked option 3 ("expand the row") from
+   mocks/matchup-drawer-player-stats-mock.html on 2026-11-05. Tapping a player's
+   name or points in ANY matchup drawer (My Matchups, Snapshot, League Scores)
+   opens a compact stat card under that row, caret pointing at the tapped side.
+   Tapping the same player again collapses it; one card open at a time.
+   - Same Sleeper box score as the Loyalties drawer (window.cfPlayerBoxParts):
+     NO fantasy points, no semantic color, group-level zero-suppression.
+   - Top-right corner = Points Pending for THIS league only (cfPendingForLeague,
+     the Loyalties card engine). Nothing else lives there: no LIVE chip — the
+     row's ice dot already says live. Empty corner = nothing pending.
+   - Survives the drawer's in-place rebuilds (cfRebuildMatchupDrawerBody →
+     __cfMpxRestore), repaints on the board sync (cfDrawerSync → __cfMpxSync) and
+     on any /stats pull (cfPendRepaint → __cfMpxRepaint), and asks the sync for a
+     fresh /stats pull while its player is live or pending (__cfMpxWantsStats).
+   - Every handler guards e.target / .closest: the review mock threw
+     "Cannot read properties of undefined (reading 'closest')" from a scroll
+     handler that called the press code with a fake event (2026-11-05).
+   Gate: cfIsAdmin() (fryerm@ only). */
+(function(){
+  'use strict';
+  var st=null; /* {league, side, pid, el, info, html, live} */
+  var CELL='.matchup-drawer__player-name,.matchup-drawer__player-pts';
+  function on(){ try{ return typeof window.cfIsAdmin==='function'&&!!window.cfIsAdmin(); }catch(e){ return false; } }
+  function P(){ return window.cfPlayerBoxParts||null; }
+  function esc(t){ return String(t==null?'':t).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function isHist(){ try{ return !!(window.__conflictedLastData&&window.__conflictedLastData.isHist); }catch(e){ return false; } }
+  function normPos(p){ p=String(p||'').toUpperCase().split(',')[0].trim(); return (p==='D/ST'||p==='DST')?'DEF':p; }
+  function sideOf(cell){ return /__player-(name|pts)--opp\b/.test(cell.className||'')?'opp':'my'; }
+  function isFiller(cell){ return cell.classList.contains('matchup-drawer__placeholder')||cell.classList.contains('matchup-drawer__player-pts--empty'); }
+  function tapCell(t){
+    if(!t||!t.closest) return null;
+    var cell=t.closest(CELL); if(!cell||isFiller(cell)) return null;
+    var row=cell.closest('.matchup-drawer__paired-row');
+    var drawer=cell.closest('.matchup-drawer[data-matchup-league]');
+    return (row&&drawer)?{cell:cell,row:row,drawer:drawer,side:sideOf(cell)}:null;
+  }
+  function ptsSpan(scope,side,pid){
+    var list=scope.querySelectorAll('.matchup-drawer__player-pts[data-mp-side="'+side+'"][data-mp-pid]');
+    for(var i=0;i<list.length;i++){ if(pid==null||list[i].getAttribute('data-mp-pid')===pid) return list[i]; }
+    return null;
+  }
+  /* The drawer row → the board's aggregated player (same object the Loyalties
+     card renders, keyed canonicalPlayerKey) so Points Pending reads the same
+     state; falls back to a bare player built from the row. */
+  function playerFor(span){
+    var pid=span.getAttribute('data-mp-pid')||'', team=span.getAttribute('data-mp-team')||'';
+    var nm=span.getAttribute('data-mp-nm')||'', rawPos=span.getAttribute('data-mp-pos')||'', pos=normPos(rawPos);
+    var sid=/^\d+$/.test(pid)?pid:null;
+    if(pos==='DEF'&&!team&&/^[A-Z]{2,3}$/.test(pid)) team=pid;
+    /* Same inputs as ensure() in loadData (raw eligibility, Sleeper id) so the key matches. */
+    var key=null; try{ key=canonicalPlayerKey(nm,team,rawPos,sid); }catch(e){}
+    var d=window.__conflictedLastData, pool=(d&&Array.isArray(d.allRostered))?d.allRostered:[], entry=null;
+    if(key){ for(var i=0;i<pool.length;i++){ if(pool[i]&&pool[i].id===key){ entry=pool[i]; break; } } }
+    return {player:entry||{id:key||'',full_name:nm,team:team,position:pos,sleeperId:sid},entry:entry,pos:pos};
+  }
+  function pendHTML(entry,league){
+    if(!entry||isHist()||typeof window.cfPendingForLeague!=='function') return '';
+    var lbl=''; try{ lbl=window.cfPendingForLeague(entry,league)||''; }catch(e){}
+    if(!lbl) return '';
+    return '<span class="mpx-pend" role="status" aria-label="'+esc(lbl)+', points pending">'
+      +'<span class="cf-pend-cyc cf-pend-cyc--stat" aria-hidden="true">'+esc(lbl)+'</span>'
+      +'<span class="cf-pend-cyc cf-pend-cyc--note" aria-hidden="true">Pending points</span></span>';
+  }
+  /* returns {html, state} */
+  function card(info,league,side,row,loading){
+    var p=P(), pl=info.player, state='';
+    var meta=[pl.team||'',info.pos||''].filter(Boolean).join(' · ');
+    var body;
+    if(loading||!p){
+      body='<div class="pd__skel"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>';
+    } else {
+      var hasRow=!!(row&&typeof row==='object');
+      state=p.resolveState(pl,hasRow);
+      if(state==='pre'){
+        var k=p.kickoffLabel(pl.team||'');
+        body='<div class="pd__empty">'+p.matchupHTML(pl.team||'')+'<h5>'+(k?('Game starts at '+esc(k)):'Game hasn’t started')+'</h5></div>';
+      } else if(state==='none') body='<div class="pd__empty"><h5>No box score available</h5></div>';
+      else if(!hasRow) body='<div class="pd__empty"><h5>No recorded stats</h5></div>';
+      else body=p.groupsHTML(pl,row,info.pos);
+    }
+    var top='<div class="mpx-top"><span class="mpx-nm">'+esc(pl.full_name||'Player')+'</span>'
+      +(meta?'<span class="mpx-meta">'+esc(meta)+'</span>':'')
+      +((loading||!p)?'':pendHTML(info.entry,league))+'</div>';
+    return {html:'<div class="mpx-card mpx-card--'+side+'">'+top+body+'</div>',state:state};
+  }
+  function paint(el,html){
+    if(!st||st.el!==el) return;
+    st.html=html;
+    if(el._h===html) return; /* unchanged: don't restart the pending fade */
+    el._h=html;
+    if(el.firstChild) el.firstChild.innerHTML=html;
+  }
+  function fill(el){
+    var p=P(); if(!p||!st||st.el!==el) return;
+    var span=ptsSpan(el.parentNode||document,st.side,st.pid);
+    if(span) st.info=playerFor(span); /* board rebuilds player objects every load */
+    var info=st.info, league=st.league, side=st.side;
+    var done=function(row){
+      if(!st||st.el!==el||!el.isConnected) return;
+      var c=card(info,league,side,row,false);
+      st.live=(c.state==='in');
+      paint(el,c.html);
+    };
+    if(p.isDemo()){ done(p.demoRow(info.player)); return; }
+    var se=null,wk=null;
+    try{ se=window.getActiveSeason?window.getActiveSeason():null; }catch(e){}
+    try{ wk=window.getActiveWeek?window.getActiveWeek():null; }catch(e){}
+    if(!se||!wk||typeof window.__cfWeekStats!=='function'){ done(null); return; }
+    window.__cfWeekStats(se,wk).then(function(all){
+      var sid=p.statKey(info.player); done(sid?(all&&all[sid]):null);
+    }).catch(function(){ done(null); });
+  }
+  function mount(row,openNow){
+    var el=document.createElement('div');
+    el.className='mpx'+(openNow?' is-open no-anim':'');
+    el.innerHTML='<div class="mpx__in"></div>';
+    row.parentNode.insertBefore(el,row.nextSibling);
+    return el;
+  }
+  function reveal(el){
+    try{
+      if(!el.isConnected) return;
+      var sc=el.closest('[data-sheet-body]'); if(!sc) return;
+      var r=el.getBoundingClientRect(), b=sc.getBoundingClientRect();
+      if(r.bottom>b.bottom-8){ var dy=r.bottom-b.bottom+16; try{ sc.scrollBy({top:dy,behavior:'smooth'}); }catch(e){ sc.scrollTop+=dy; } }
+    }catch(e){}
+  }
+  function collapse(el){
+    if(!el) return;
+    el.classList.remove('no-anim','is-open');
+    setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },280);
+  }
+  function open(t){
+    var span=ptsSpan(t.row,t.side,null); if(!span) return;
+    var el=mount(t.row,false);
+    st={league:t.drawer.getAttribute('data-matchup-league')||'',side:t.side,pid:span.getAttribute('data-mp-pid'),el:el,info:playerFor(span),html:'',live:false};
+    paint(el,card(st.info,st.league,st.side,null,true).html);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ el.classList.add('is-open'); setTimeout(function(){ reveal(el); },280); }); });
+    fill(el);
+    try{ cfTrack('matchup_player_expand',{pos:st.info.pos||''}); }catch(e){}
+  }
+  function alive(){ if(st&&!(st.el&&st.el.isConnected)) st=null; return !!st; }
+
+  document.addEventListener('click',function(e){
+    if(!on()) return;
+    var t=tapCell(e&&e.target); if(!t) return;
+    var span=ptsSpan(t.row,t.side,null); if(!span) return;
+    var pid=span.getAttribute('data-mp-pid'), league=t.drawer.getAttribute('data-matchup-league')||'';
+    var same=alive()&&st.league===league&&st.side===t.side&&st.pid===pid&&st.el.previousSibling===t.row;
+    if(st&&st.el) collapse(st.el);
+    st=null;
+    if(!same) open(t);
+  });
+
+  /* Press feedback only — nothing at rest (the app's no-affordance rule). */
+  var pressed=[];
+  function clearPress(){ for(var i=0;i<pressed.length;i++) pressed[i].classList.remove('mpx-press'); pressed=[]; }
+  document.addEventListener('pointerdown',function(e){
+    if(!on()) return;
+    var t=tapCell(e&&e.target); if(!t) return;
+    clearPress();
+    pressed=[].slice.call(t.row.querySelectorAll('.matchup-drawer__player-name--'+t.side+',.matchup-drawer__player-pts--'+t.side));
+    for(var i=0;i<pressed.length;i++) pressed[i].classList.add('mpx-press');
+  },{passive:true});
+  ['pointerup','pointercancel'].forEach(function(ev){ document.addEventListener(ev,function(){ setTimeout(clearPress,90); },{passive:true}); });
+  document.addEventListener('scroll',function(){ clearPress(); },{capture:true,passive:true});
+
+  /* cfRebuildMatchupDrawerBody calls this when the body it replaced had a card open. */
+  window.__cfMpxRestore=function(body){
+    try{
+      if(!st||!body) return;
+      var drawer=body.querySelector('.matchup-drawer[data-matchup-league]');
+      if(!drawer||(drawer.getAttribute('data-matchup-league')||'')!==st.league){ st=null; return; }
+      var span=ptsSpan(drawer,st.side,st.pid), row=span&&span.closest('.matchup-drawer__paired-row');
+      if(!row){ st=null; return; }
+      var el=mount(row,true), html=st.html;
+      st.el=el; st.info=playerFor(span);
+      paint(el,html||card(st.info,st.league,st.side,null,true).html);
+      fill(el);
+    }catch(e){}
+  };
+  window.__cfMpxSync=function(){ try{ if(alive()) fill(st.el); }catch(e){} };
+  window.__cfMpxRepaint=window.__cfMpxSync;
+  window.__cfMpxWantsStats=function(){
+    try{ return alive()&&!isHist()&&(st.live||String(st.html).indexOf('mpx-pend')>=0); }catch(e){ return false; }
+  };
 })();
 </script>
 
@@ -25619,17 +25917,18 @@ if(typeof window.cfRegisterView==='function'){
   if(!section||!toggle||!bar||!cols||!stage||!host||!scale)return;
   var RC_W=390, DUR=420;
   var st={view:'cards', bucket:null};
-  var scope=document.getElementById('loy-scope');
-  /* Scope pill: open only on Player Cards for the current (non-historic,
-     non-demo) week — the same gate as the drawer's live switches. Called at the
-     START of a flip so the fold rides alongside the slide. */
+  var scopeTile=document.getElementById('loy-scope-tile');
+  var controls=section.querySelector('.loy-controls');
+  /* Scope tile: shown for the current (non-historic, non-demo) week — the same
+     gate as the drawer's live switches — in BOTH views (the card reflects it). */
   function syncScope(){
-    if(!scope)return;
+    if(!scopeTile)return;
     var live=false; try{ live=(typeof liveToggleAvailable!=='undefined')&&!!liveToggleAvailable; }catch(e){}
-    var show=live; /* stays open in Rooting Card view too — the card reflects it (2026-11-05) */
-    scope.classList.toggle('is-folded',!show);
-    if(show)scope.removeAttribute('inert'); else scope.setAttribute('inert','');
+    scopeTile.hidden=!live;
+    if(controls)controls.classList.toggle('loy-controls--scope',live);
+    if(!live){ try{ cfLoyWinClose(); }catch(e){} }
     try{ if(typeof cfSyncScopeToggles==='function')cfSyncScopeToggles(); }catch(e){}
+    try{ cfLoyFitTabs(); cfLoyFitScope(); }catch(e){}
   }
   var busy=false;
   var reduce=false; try{reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
@@ -25697,6 +25996,7 @@ if(typeof window.cfRegisterView==='function'){
       if(target==='rc')buildCard(); else applyCards();
       section.classList.toggle('rc-mode',target==='rc');
       if(target==='rc')fit();
+      try{ cfLoyFitTabs(); }catch(e){}
       return;
     }
     busy=true;
@@ -25719,6 +26019,7 @@ if(typeof window.cfRegisterView==='function'){
       outEl.style.display=''; inEl.style.display=''; stage.style.height='';
       section.classList.toggle('rc-mode',st.view==='rc');
       busy=false; if(st.view==='rc')fit();
+      try{ cfLoyFitTabs(); }catch(e){}
     },DUR);
   }
 
