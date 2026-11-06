@@ -3954,16 +3954,18 @@
     .player-card[data-cf-tap="1"]:focus-visible { outline: 2px solid var(--coral-500); outline-offset: 2px; }
     /* ── Matchup drawer → inline box score (owner preview, sw v409) ─────────
        Compact stat card inserted under a tapped drawer row. Caret points at the
-       tapped side. Height animates via the grid-rows 0fr→1fr trick; .no-anim is
-       for the instant re-insert after an in-place drawer rebuild. Corner = the
-       Loyalties Points Pending line (same cf-pend-cyc rhythm), nothing else. */
+       tapped side. JS animates .mpx HEIGHT in measured px (sw v410 — the old
+       grid-rows 0fr→1fr trick stepped on iOS); the card fades/slides in with it.
+       Corner = the Loyalties Points Pending line (same cf-pend-cyc rhythm).
+       No tap feedback at all (Matt, v410): no press tint, no iOS tap highlight. */
     body.is-admin .matchup-drawer__paired-row .matchup-drawer__player-name:not(.matchup-drawer__placeholder),
     body.is-admin .matchup-drawer__paired-row .matchup-drawer__player-pts[data-mp-pid] { cursor: pointer; }
-    .mpx-press { background: rgba(143,199,240,.10); border-radius: 4px; }
-    .mpx { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .26s var(--ease-out); }
-    .mpx.is-open { grid-template-rows: 1fr; }
-    .mpx.no-anim { transition: none; }
-    .mpx__in { overflow: hidden; min-height: 0; }
+    .matchup-drawer__paired-row, .matchup-drawer__paired-row * { -webkit-tap-highlight-color: transparent; }
+    .mpx { height: 0; overflow: hidden; transition: height .3s cubic-bezier(.25,.8,.25,1); will-change: height; }
+    .mpx__in { display: flow-root; } /* contains the card's margins so offsetHeight is the full height */
+    .mpx .mpx-card { opacity: 0; transform: translateY(-6px); transition: opacity .22s ease, transform .3s cubic-bezier(.25,.8,.25,1); }
+    .mpx.is-open .mpx-card { opacity: 1; transform: none; transition-delay: .04s, 0s; }
+    @media (prefers-reduced-motion: reduce) { .mpx, .mpx .mpx-card { transition: none; } }
     .mpx-card {
       position: relative; margin: 8px 0 10px; padding: 10px 10px 9px;
       background: var(--paper-soft); border: 1px solid var(--tile-line); border-radius: 10px;
@@ -19556,6 +19558,14 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
      __cfMpxRestore), repaints on the board sync (cfDrawerSync → __cfMpxSync) and
      on any /stats pull (cfPendRepaint → __cfMpxRepaint), and asks the sync for a
      fresh /stats pull while its player is live or pending (__cfMpxWantsStats).
+   - Motion (sw v410, Matt: "too choppy"): the card's HEIGHT is animated in px
+     (measured), not via grid-template-rows 0fr→1fr, which iOS Safari steps
+     through. The stat line is fetched BEFORE the card opens (≤350ms, else a
+     skeleton opens and the swap to real stats animates too), the sheet scroll
+     that keeps the card on screen runs WITH the expansion instead of after it,
+     and a live repaint that changes the card's height animates rather than snaps.
+   - NO tap feedback of any kind (Matt, v410): the press tint is gone and the
+     native iOS tap highlight is off on drawer rows.
    - Every handler guards e.target / .closest: the review mock threw
      "Cannot read properties of undefined (reading 'closest')" from a scroll
      handler that called the press code with a fake event (2026-11-05).
@@ -19627,14 +19637,33 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
       +((loading||!p)?'':pendHTML(info.entry,league))+'</div>';
     return {html:'<div class="mpx-card mpx-card--'+side+'">'+top+body+'</div>',state:state};
   }
+  var MS=300;
+  function reduced(){ try{ return !!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; } }
+  function innerH(el){ return el.firstChild?el.firstChild.offsetHeight:0; }
+  /* Animate el's height from what's on screen now to `to` px; an open card
+     settles back to height:auto so it can follow later content changes. */
+  function setH(el,to,done){
+    clearTimeout(el._t);
+    var from=el.getBoundingClientRect().height;
+    if(reduced()||Math.abs(from-to)<1){ el.style.height=to>0?'auto':'0px'; if(done) done(); return; }
+    el.style.height=from+'px';
+    void el.offsetHeight;
+    el.style.height=to+'px';
+    el._t=setTimeout(function(){ if(to>0&&el._open) el.style.height='auto'; if(done) done(); },MS+40);
+  }
   function paint(el,html){
     if(!st||st.el!==el) return;
     st.html=html;
     if(el._h===html) return; /* unchanged: don't restart the pending fade */
     el._h=html;
-    if(el.firstChild) el.firstChild.innerHTML=html;
+    if(!el.firstChild) return;
+    if(!el._open){ el.firstChild.innerHTML=html; return; }
+    var from=el.getBoundingClientRect().height;
+    el.firstChild.innerHTML=html;
+    var to=innerH(el);
+    if(Math.abs(to-from)>1){ el.style.height=from+'px'; setH(el,to); }
   }
-  function fill(el){
+  function fill(el,cb){
     var p=P(); if(!p||!st||st.el!==el) return;
     var span=ptsSpan(el.parentNode||document,st.side,st.pid);
     if(span) st.info=playerFor(span); /* board rebuilds player objects every load */
@@ -19644,6 +19673,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
       var c=card(info,league,side,row,false);
       st.live=(c.state==='in');
       paint(el,c.html);
+      if(cb){ var f=cb; cb=null; f(); }
     };
     if(p.isDemo()){ done(p.demoRow(info.player)); return; }
     var se=null,wk=null;
@@ -19656,31 +19686,47 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
   }
   function mount(row,openNow){
     var el=document.createElement('div');
-    el.className='mpx'+(openNow?' is-open no-anim':'');
+    el.className='mpx'+(openNow?' is-open':'');
+    el.style.height=openNow?'auto':'0px';
+    el._open=!!openNow;
     el.innerHTML='<div class="mpx__in"></div>';
     row.parentNode.insertBefore(el,row.nextSibling);
     return el;
   }
-  function reveal(el){
+  /* Scroll the sheet WHILE the card grows, aimed at where its bottom will land. */
+  function reveal(el,h){
     try{
-      if(!el.isConnected) return;
       var sc=el.closest('[data-sheet-body]'); if(!sc) return;
-      var r=el.getBoundingClientRect(), b=sc.getBoundingClientRect();
-      if(r.bottom>b.bottom-8){ var dy=r.bottom-b.bottom+16; try{ sc.scrollBy({top:dy,behavior:'smooth'}); }catch(e){ sc.scrollTop+=dy; } }
+      var bottom=el.getBoundingClientRect().top+h, b=sc.getBoundingClientRect();
+      if(bottom>b.bottom-8){ var dy=bottom-b.bottom+16; try{ sc.scrollBy({top:dy,behavior:reduced()?'auto':'smooth'}); }catch(e){ sc.scrollTop+=dy; } }
     }catch(e){}
+  }
+  function expand(el){
+    if(!el.isConnected||el._open) return;
+    el._open=true;
+    var h=innerH(el);
+    el.classList.add('is-open');
+    reveal(el,h);
+    setH(el,h);
   }
   function collapse(el){
     if(!el) return;
-    el.classList.remove('no-anim','is-open');
-    setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },280);
+    el._open=false;
+    el.classList.remove('is-open');
+    setH(el,0,function(){ if(el.parentNode) el.parentNode.removeChild(el); });
   }
   function open(t){
     var span=ptsSpan(t.row,t.side,null); if(!span) return;
     var el=mount(t.row,false);
     st={league:t.drawer.getAttribute('data-matchup-league')||'',side:t.side,pid:span.getAttribute('data-mp-pid'),el:el,info:playerFor(span),html:'',live:false};
-    paint(el,card(st.info,st.league,st.side,null,true).html);
-    requestAnimationFrame(function(){ requestAnimationFrame(function(){ el.classList.add('is-open'); setTimeout(function(){ reveal(el); },280); }); });
-    fill(el);
+    /* Open once, at the final height: wait for the stat line (usually cached);
+       only if it's slow does a skeleton open first. */
+    var go=function(){ if(st&&st.el===el) expand(el); };
+    var slow=setTimeout(function(){
+      if(!st||st.el!==el||el._open) return;
+      paint(el,card(st.info,st.league,st.side,null,true).html); go();
+    },350);
+    fill(el,function(){ clearTimeout(slow); go(); });
     try{ cfTrack('matchup_player_expand',{pos:st.info.pos||''}); }catch(e){}
   }
   function alive(){ if(st&&!(st.el&&st.el.isConnected)) st=null; return !!st; }
@@ -19696,19 +19742,6 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     if(!same) open(t);
   });
 
-  /* Press feedback only — nothing at rest (the app's no-affordance rule). */
-  var pressed=[];
-  function clearPress(){ for(var i=0;i<pressed.length;i++) pressed[i].classList.remove('mpx-press'); pressed=[]; }
-  document.addEventListener('pointerdown',function(e){
-    if(!on()) return;
-    var t=tapCell(e&&e.target); if(!t) return;
-    clearPress();
-    pressed=[].slice.call(t.row.querySelectorAll('.matchup-drawer__player-name--'+t.side+',.matchup-drawer__player-pts--'+t.side));
-    for(var i=0;i<pressed.length;i++) pressed[i].classList.add('mpx-press');
-  },{passive:true});
-  ['pointerup','pointercancel'].forEach(function(ev){ document.addEventListener(ev,function(){ setTimeout(clearPress,90); },{passive:true}); });
-  document.addEventListener('scroll',function(){ clearPress(); },{capture:true,passive:true});
-
   /* cfRebuildMatchupDrawerBody calls this when the body it replaced had a card open. */
   window.__cfMpxRestore=function(body){
     try{
@@ -19719,7 +19752,9 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
       if(!row){ st=null; return; }
       var el=mount(row,true), html=st.html;
       st.el=el; st.info=playerFor(span);
+      el._open=false; /* instant re-insert: paint without the height glide */
       paint(el,html||card(st.info,st.league,st.side,null,true).html);
+      el._open=true;
       fill(el);
     }catch(e){}
   };
