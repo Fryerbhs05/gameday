@@ -7718,8 +7718,9 @@ function saveLiveOnlyState(){try{localStorage.setItem(LIVE_ONLY_KEY,liveOnly?'1'
    live-only is a strict subset of yet-to-finish, so ANDing them would leave the
    broader switch visibly on while doing nothing. Turning either one on turns
    the other off; both off = show everything. */
-function toggleLiveOnly(){liveOnly=!liveOnly;if(liveOnly){toFinishOnly=false;loyWin=null;}saveLiveOnlyState();applyFilters();cfSyncScopeToggles();}
-function toggleToFinishOnly(){toFinishOnly=!toFinishOnly;if(toFinishOnly){liveOnly=false;loyWin=null;}saveLiveOnlyState();applyFilters();cfSyncScopeToggles();}
+function cfRcRefresh(){try{window.__loyView&&window.__loyView.refreshCard&&window.__loyView.refreshCard();}catch(e){}}
+function toggleLiveOnly(){liveOnly=!liveOnly;if(liveOnly){toFinishOnly=false;loyWin=null;}saveLiveOnlyState();applyFilters();cfSyncScopeToggles();cfRcRefresh();}
+function toggleToFinishOnly(){toFinishOnly=!toFinishOnly;if(toFinishOnly){liveOnly=false;loyWin=null;}saveLiveOnlyState();applyFilters();cfSyncScopeToggles();cfRcRefresh();}
 /* Repaint BOTH switches from state rather than flipping the clicked one, so the
    exclusion is visible the instant either is tapped. */
 function cfSyncScopeToggles(){
@@ -7748,7 +7749,7 @@ function cfSetScope(v){
   if(v==='live'){if(!liveOnly)toggleLiveOnly();return;}
   if(v==='tofinish'){if(!toFinishOnly)toggleToFinishOnly();return;}
   if(!liveOnly&&!toFinishOnly&&!loyWin)return;
-  liveOnly=false;toFinishOnly=false;loyWin=null;saveLiveOnlyState();applyFilters();cfSyncScopeToggles();
+  liveOnly=false;toFinishOnly=false;loyWin=null;saveLiveOnlyState();applyFilters();cfSyncScopeToggles();cfRcRefresh();
 }
 /* ── Loyalties GAME-WINDOW filter (owner-only preview, 2026-11-05, Matt) ──
    Same option as Maniac's Who to root for: a clock slot (4th, equal width) on
@@ -7769,7 +7770,7 @@ function cfLoyEnsureWins(){
   if(loyWinLoading||typeof window.__cfEnsureSlots!=='function')return;
   if(window.__cfTeamSlotMap&&loyWinAt&&Date.now()-loyWinAt<55000)return;
   loyWinLoading=true;
-  window.__cfEnsureSlots().then(function(){loyWinAt=Date.now();loyWinLoading=false;if(document.getElementById('loy-win-menu'))cfLoyWinRender();if(loyWin)applyFilters();},function(){loyWinLoading=false;loyWinAt=Date.now();});
+  window.__cfEnsureSlots().then(function(){loyWinAt=Date.now();loyWinLoading=false;if(document.getElementById('loy-win-menu'))cfLoyWinRender();if(loyWin){applyFilters();cfRcRefresh();}},function(){loyWinLoading=false;loyWinAt=Date.now();});
 }
 function cfLoyWinList(){
   const m=window.__cfTeamSlotMap||null,out={ready:!!(m&&Object.keys(m).length),byKey:{},list:[],today:{has:false,n:0,st:'pre'}};
@@ -7831,7 +7832,7 @@ function cfLoyWinToggle(){
 function cfLoyWinPick(v){
   loyWin=v==='clear'?null:v;
   if(loyWin){liveOnly=false;toFinishOnly=false;saveLiveOnlyState();}
-  cfLoyWinClose();applyFilters();cfSyncScopeToggles();
+  cfLoyWinClose();applyFilters();cfSyncScopeToggles();cfRcRefresh();
   try{cfTrack('loy_window_pick',{w:v});}catch(_){}
 }
 document.addEventListener('click',function(e){
@@ -24766,8 +24767,45 @@ if(typeof window.cfRegisterView==='function'){
     });
     return out;
   }
+  /* ── Loyalties scope filter carried onto the card (2026-11-05, Matt) ─────
+     The All / Live / Remaining / game-window pill now stays open in Rooting
+     Card view and the card reflects it: players are narrowed BEFORE bucketing
+     counts, and the kicker names the filter (ROOTING CARD · WEEK 9 · LIVE).
+     Overrides the 2026-08-18 "in-app card is always full week" rule.
+     rcVF is set only around a build (in-app view / share preview). */
+  var rcVF=null;
+  function rcCurVF(){
+    try{
+      if(typeof liveToggleAvailable==='undefined'||!liveToggleAvailable)return null;
+      if(typeof loyWin!=='undefined'&&loyWin&&typeof cfLoyWinOwner==='function'&&cfLoyWinOwner()){
+        var lbl='TODAY';
+        if(loyWin!=='today'){
+          lbl=(typeof LOY_W_NAME!=='undefined'&&LOY_W_NAME[loyWin])||'';
+          if(!lbl){var m=window.__cfTeamSlotMap||{};for(var t in m){if(m[t]&&m[t].skey===loyWin){lbl=m[t].slabel||'';break;}}}
+          lbl=String(lbl||loyWin).toUpperCase();
+        }
+        return {kind:'win',key:loyWin,label:lbl};
+      }
+      if(typeof liveOnly!=='undefined'&&liveOnly)return {kind:'live',label:'LIVE'};
+      if(typeof toFinishOnly!=='undefined'&&toFinishOnly)return {kind:'tofinish',label:'REMAINING'};
+    }catch(e){}
+    return null;
+  }
+  function rcVFKeep(p){
+    if(!rcVF)return true;
+    try{
+      if(rcVF.kind==='live')return typeof isPlayerLive==='function'&&!!isPlayerLive(p);
+      if(rcVF.kind==='tofinish')return typeof isPlayerToFinish==='function'&&!!isPlayerToFinish(p);
+      if(rcVF.kind==='win')return typeof cfLoyInWin==='function'&&!!cfLoyInWin(p.team,rcVF.key);
+    }catch(e){}
+    return true;
+  }
+  function rcKickHtml(wk,yr){
+    return '<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+(rcVF?(' &middot; '+rcVF.label):(yr?(' &middot; '+yr):''))+'</div>';
+  }
   function scopePlayers(arr,slotKey){
     var vis=rcApplyLeagueFilter(arr);
+    if(rcVF)vis=vis.filter(rcVFKeep);
     if(slotKey==='all')return vis;
     return vis.filter(function(p){return teamSlotKey(p.team)===slotKey;});
   }
@@ -25034,11 +25072,11 @@ if(typeof window.cfRegisterView==='function'){
     if(slotKey==='all'){
       /* Historic weeks: the slot map belongs to the LIVE week, so never quote
          its kickoff time on a past week's card. */
-      var kicks=d.isHist?[]:Object.keys(metas).map(function(k){return metas[k].firstKick;}).filter(Boolean);
+      var kicks=(d.isHist||rcVF)?[]:Object.keys(metas).map(function(k){return metas[k].firstKick;}).filter(Boolean);
       var kick=kicks.length?('first kickoff '+fmtKick(Math.min.apply(null,kicks),true)):'';
       var starters=s.cheer.length+s.conf.length+s.enemy.length;
       var sub=[starters+' starters',leagues+' league'+(leagues===1?'':'s')].concat(kick?[kick]:[]).join(' &middot; ');
-      head+='<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+(yr?(' &middot; '+yr):'')+'</div>';
+      head+=rcKickHtml(wk,yr);
       /* sub-line (starters / leagues / first kickoff) moved ABOVE the hero
          numbers, directly under the kicker (Matt, 2026-08-26). */
       mid='<div class="rc-sub">'+sub+'</div>'+
@@ -25053,7 +25091,7 @@ if(typeof window.cfRegisterView==='function'){
       var parts=[];
       if(mt.firstKick)parts.push(fmtKick(mt.firstKick));
       if(mt.games)parts.push(mt.games+' game'+(mt.games===1?'':'s'));
-      head+='<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+(yr?(' &middot; '+yr):'')+'</div>';
+      head+=rcKickHtml(wk,yr);
       mid='<div class="rc-banner"><div class="rc-banner-t">'+lb.banner+'</div>'+
         (parts.length?'<div class="rc-banner-s">'+parts.join(' &middot; ')+'</div>':'')+'</div>'+
         '<div class="rc-inline">'+
@@ -25101,8 +25139,9 @@ if(typeof window.cfRegisterView==='function'){
     var benchPill='<button type="button" id="rc-bench" class="rc-toggle'+(st.bench?' on':'')+'"'+
       (st.bucket==='cheer'?'':' hidden')+'>Include Bench</button>';
     /* No title row — the preview says what this is; backdrop tap / Esc close. */
+    var vfPill=st.vf?'<button type="button" id="rc-vf" class="rc-toggle on" aria-label="Remove filter">'+st.vf.label+' &times;</button>':'';
     return '<div class="rc-sheet">'+
-      '<div class="rc-fbar" id="rc-fbar">'+slotSel+bucketSel+benchPill+'</div>'+
+      '<div class="rc-fbar" id="rc-fbar">'+vfPill+slotSel+bucketSel+benchPill+'</div>'+
       '<div class="rc-prevwrap"><div class="rc-prevscale" id="rc-prevscale"></div></div>'+
       '<button type="button" class="rc-sharego" id="rc-sharego">&#x2197;&nbsp; Share</button>'+
       '</div>';
@@ -25134,6 +25173,19 @@ if(typeof window.cfRegisterView==='function'){
     }
   }
   window.__rcFitSub=rcFitSub;
+  /* Kicker (ROOTING CARD · WEEK 9 · SUNDAY AFTERNOON) — ALWAYS one line, never
+     wraps or truncates (Matt, 2026-11-05): shrink the font until it fits the
+     390px card. letter-spacing is em-based so it shrinks with it. */
+  function rcFitKick(frame){
+    if(!frame||!frame.querySelector)return;
+    var el=frame.querySelector('.rc-kick');if(!el)return;
+    el.style.fontSize='';
+    var size=parseFloat(getComputedStyle(el).fontSize)||11,guard=0;
+    while(el.scrollWidth>el.clientWidth+0.5&&size>5&&guard<60){
+      size-=0.25;el.style.fontSize=size+'px';guard++;
+    }
+  }
+  window.__rcFitKick=rcFitKick;
   /* Companion to rcFitSub for the NAME cells. The fit is already applied at
      build time (nameCells), so this is a re-decide, needed for exactly one
      reason: Inter is a webfont, and a card built before it lands is measured
@@ -25166,6 +25218,8 @@ if(typeof window.cfRegisterView==='function'){
     var scale=document.getElementById('rc-prevscale');if(!scale)return;
     scale.innerHTML='';
     var frame;
+    rcVF=st.vf||null;
+    try{
     if(st.bucket){
       /* Solo-bucket card (same builder the Loyalties section uses inline), scoped
          by the chosen window; bench folds in only for cheer. Needs the export id. */
@@ -25174,8 +25228,10 @@ if(typeof window.cfRegisterView==='function'){
     }else{
       frame=buildFrame(st.slot); /* All Starters → 3-band card (already id=rc-frame) */
     }
+    } finally { rcVF=null; }
     scale.appendChild(frame);
     rcFitSub(frame);
+    rcFitKick(frame);
     rcFitNames(frame);
     fitPreview();
   }
@@ -25208,6 +25264,8 @@ if(typeof window.cfRegisterView==='function'){
     st.slot=isHist?'all':defaultSlot(metas,chips); /* never persisted — recomputed every open */
     st.bucket=rcCarryBucket();     /* mirror the Loyalties section's active bucket (#1) */
     st.bench=false;                /* bench never persists; off on every open */
+    st.vf=isHist?null:rcCurVF();   /* Loyalties scope filter carries in; window/live/remaining → full-week slot */
+    if(st.vf)st.slot='all';
     window.BottomSheet.open(sheetHtml(chips,metas),{owner:'rooting-share'});
     renderPreview();
     try{cfTrack('rooting_share_open',{slot:st.slot,slots:chips.join(','),bucket:st.bucket||'all',hist:isHist});}catch(e){}
@@ -25311,6 +25369,12 @@ if(typeof window.cfRegisterView==='function'){
       return;
     }
     if(e.target.closest('#rc-sharego')){doShare();return;}
+    if(e.target.closest('#rc-vf')){
+      st.vf=null; var b0=document.getElementById('rc-vf'); if(b0)b0.remove();
+      try{cfTrack('rooting_share_vf_clear',{});}catch(e2){}
+      renderPreview();
+      return;
+    }
   });
   /* ── in-app view renderer (2026-08-18) ────────────────────────────────────
      The Loyalties section can render this card inline (not just as a share).
@@ -25338,7 +25402,7 @@ if(typeof window.cfRegisterView==='function'){
     else if(bucket==='enemy') pick={n:s.enemy.length,word:'Enemy',color:'rc-red', band:namesBandHtml(s.enemy,'ENEMY','red', vsCount,vsNames)};
     else                      pick={n:s.conf.length, word:'Conflicted',color:'rc-gold',band:confBandHtml(s.conf)};
     var head='<div class="rc-wm">'+RC_WM+'</div>'+
-      '<div class="rc-kick">ROOTING CARD &middot; WEEK '+wk+(yr?(' &middot; '+yr):'')+'</div>';
+      rcKickHtml(wk,yr);
     /* Slot-scoped solo card: name the window so the counts aren't ambiguous
        (mirrors buildFrame's slot banner). Full-week solo card = hero only. */
     var banner='';
@@ -25359,7 +25423,10 @@ if(typeof window.cfRegisterView==='function'){
     frame.innerHTML=head+mid+'<div class="rc-bands">'+pick.band+'</div>';
     return frame;
   }
-  window.__rcInApp=buildInApp;
+  window.__rcInApp=function(bucket){
+    rcVF=rcCurVF();
+    try{ return buildInApp(bucket); } finally { rcVF=null; }
+  };
 
   /* If the board already rendered before this module parsed, sync now. */
   try{window.__rcSyncShareBtn(window.__conflictedLastData);}catch(e){}
@@ -25396,7 +25463,7 @@ if(typeof window.cfRegisterView==='function'){
   function syncScope(){
     if(!scope)return;
     var live=false; try{ live=(typeof liveToggleAvailable!=='undefined')&&!!liveToggleAvailable; }catch(e){}
-    var show=live&&st.view==='cards';
+    var show=live; /* stays open in Rooting Card view too — the card reflects it (2026-11-05) */
     scope.classList.toggle('is-folded',!show);
     if(show)scope.removeAttribute('inert'); else scope.setAttribute('inert','');
     try{ if(typeof cfSyncScopeToggles==='function')cfSyncScopeToggles(); }catch(e){}
@@ -25433,6 +25500,7 @@ if(typeof window.cfRegisterView==='function'){
     scale.innerHTML='';
     if(window.__rcInApp){ try{ scale.appendChild(window.__rcInApp(st.bucket)); }catch(e){} }
     try{window.__rcFitSub&&window.__rcFitSub(scale.firstChild);}catch(e){}
+    try{window.__rcFitKick&&window.__rcFitKick(scale.firstChild);}catch(e){}
     try{window.__rcFitNames&&window.__rcFitNames(scale.firstChild);}catch(e){}
     fit();
   }
@@ -25515,7 +25583,9 @@ if(typeof window.cfRegisterView==='function'){
      sheet reads this on open so its preview mirrors what the section is showing
      (#1). Note the Player-Cards "display cheer without committing" fallback keeps
      st.bucket null, so All Starters carries over there — matching the RC view. */
-  window.__loyView={ onData:onData, onBucketTap:onBucketTap, getBucket:function(){return st.bucket;} };
+  window.__loyView={ onData:onData, onBucketTap:onBucketTap, getBucket:function(){return st.bucket;},
+    /* Scope pill changed — rebuild the Rooting Card in place when it's showing. */
+    refreshCard:function(){ if(st.view==='rc'&&!busy)morphHeight(buildCard); } };
 
   /* Initial paint (toggle stays hidden until data arrives via onData). */
   setToggleBtns(); applyCards(); highlightTabs();
