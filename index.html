@@ -24072,16 +24072,18 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     var m=nf(margin(r));
     if(r.state==='cwin')return '<span class="cfv2-st k" style="color:#5DCAA5">'+(r.isFinal?'FINAL · ':'')+'WON BY +'+m+'</span>';
     if(r.state==='closs')return '<span class="cfv2-st k" style="color:#E07A6E">'+(r.isFinal?'FINAL · ':'')+'LOST BY '+m+'</span>';
-    if(r.live&&!r.inPlay&&r.nextKickMs)return '<span class="cfv2-st k">'+nextKickTxt(r.nextKickMs,false)+'</span>';
+    /* Projected margin is the default for every undecided row, pending included
+       (Matt, 2026-11-05: no NEXT-kickoff / "pending" labels here). */
     if(r.hasProj){ var d=r.projMy-r.projOpp;
-      return '<span class="cfv2-st">'+(r.pending?'pending · ':'')+'proj <b style="color:'+COL[r.state]+'">'+(d>=0?'+':'&minus;')+nf(Math.abs(d))+'</b></span>'; }
-    if(r.pending)return '<span class="cfv2-st">pending</span>';
+      return '<span class="cfv2-st">proj <b style="color:'+COL[r.state]+'">'+(d>=0?'+':'&minus;')+nf(Math.abs(d))+'</b></span>'; }
+    if(r.pending||r.noScores)return '';
     var g=r.curMy-r.curOpp;
     return '<span class="cfv2-st">'+(g>=0?'Up':'Down')+' <b>'+nf(Math.abs(g))+'</b></span>';
   }
+  /* Only the live dot, in LIVE ICE (#8FC7F0 = --live-ice, literal because the
+     share clone loses ancestor-scoped vars); no pending dot (Matt, 2026-11-05). */
   function v2Dot(r){
-    if(r.pending)return '<span class="dot" style="background:#7AA8D1"></span>';
-    if(r.live&&r.inPlay)return '<span class="dot pulse" style="background:'+LIVE_RED+'"></span>';
+    if(r.live&&r.inPlay)return '<span class="dot pulse" style="background:#8FC7F0"></span>';
     return '';
   }
   function cardHTMLv2(r){
