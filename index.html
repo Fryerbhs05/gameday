@@ -13010,6 +13010,33 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         // Past-tense hero once nothing is still in progress (historic weeks) —
         // "Won N of X" instead of the live "Winning N of X".
         const allFinal=live===0;
+        /* Sub-line tally (Matt, 2026-11-06) — same rule as the Weekend Snapshot
+           (v420): "live now" only when a starter on either side of THAT league is
+           in a game right now; a LIVE-state matchup between game windows (TNF over,
+           Sunday not yet) with points or a finished game counts as "started".
+           Per-league starters come from allRostered's myLeagues/againstLeagues,
+           the same split buildRows() uses. No game state at all (demo / slate not
+           loaded) falls back to live, as on the tiles. */
+        let liveNow=0,startedN=0;
+        try{
+          const d2=window.__conflictedLastData||{};
+          const pool2=Array.isArray(d2.allRostered)?d2.allRostered
+            :[].concat(d2.cheerFor||[],d2.conflicted||[],d2.enemies||[]);
+          cs.forEach(c=>{
+            if(c.leagueState!=='LIVE')return;
+            const nm=c.leagueName;
+            let known=false,inPlay=false,anyPost=false;
+            pool2.forEach(p=>{
+              if(!p)return;
+              const onIt=(p.myLeagues&&p.myLeagues.indexOf(nm)!==-1)||(p.againstLeagues&&p.againstLeagues.indexOf(nm)!==-1);
+              if(!onIt)return;
+              const g=window.__cfGameState&&window.__cfGameState(p.team);
+              if(g)known=true; if(g==='in')inPlay=true; if(g==='post')anyPost=true;
+            });
+            if(!known||inPlay)liveNow++;
+            else if(anyPost||(+c.myPoints||0)!==0||(+c.oppPoints||0)!==0)startedN++;
+          });
+        }catch(e){ liveNow=live; startedN=0; }
         /* PRE-KICKOFF hero (2026-09-08, Matt) - parity with the Weekend Snapshot.
            A not-yet-started matchup still reports leagueState 'LIVE', so before
            kickoff every league lands in `live`, allFinal stays false, and the hero
@@ -13040,7 +13067,8 @@ document.querySelectorAll('.column > .column-header').forEach(h=>{
         const verb=allFinal?'Won':'Winning';
         const parts=[];
         if(fin)parts.push(fin+' final');
-        if(live)parts.push(live+' live now');
+        if(liveNow)parts.push(liveNow+' live now');
+        if(startedN)parts.push(startedN+' started');
         hero='<div class="cf-sb-xhero">'+verb+' <span class="cf-sb-xhero__n"'+(winning===0?' style="color:var(--ink-900)"':'')+'>'+winning+'</span> of '+cs.length+'</div>'+
              (parts.length>1?'<div class="cf-sb-xhero-sub">'+parts.join(' · ')+'</div>':'');
         }
@@ -24310,10 +24338,15 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
       heroHTML='Projected <span'+(wins===0?' style="color:var(--cs-cream)"':'')+'>'+wins+'</span> &ndash; '+(rows.length-wins);
     if(hero)hero.innerHTML=heroHTML;
     var parts=[],nC=rows.filter(function(r){return r.state==='cwin';}).length,
-        nLive=rows.filter(function(r){return r.live;}).length,
+        /* "live now" = a starter is in a game RIGHT NOW (r.inPlay), same rule as the
+           tile pills (v406/v415). A started, undecided matchup between game windows
+           (TNF over, Sunday not yet) counts as "started" — it used to read
+           "4 live now" on a Friday morning (Matt, 2026-11-06). */
+        nLive=rows.filter(function(r){return r.live&&r.inPlay;}).length,
+        nS=rows.filter(function(r){return r.live&&!r.inPlay;}).length,
         nP=rows.filter(function(r){return r.pending;}).length,
         nL=rows.filter(function(r){return r.state==='closs';}).length;
-    if(nC)parts.push(nC+' won'); if(nLive)parts.push(nLive+' live now'); if(nP)parts.push(nP+' pending'); if(nL)parts.push(nL+' lost');
+    if(nC)parts.push(nC+' won'); if(nLive)parts.push(nLive+' live now'); if(nS)parts.push(nS+' started'); if(nP)parts.push(nP+' pending'); if(nL)parts.push(nL+' lost');
     /* Recap only reads when there's a MIX of outcomes — a single-category line
        ("6 won" / "6 lost") just echoes the hero, so hide it. */
     var subText=(parts.length>1?parts.join('  ·  '):'');
