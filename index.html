@@ -23815,10 +23815,11 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
          a starter on either side is positively 'in'; between windows the pill shows
          the next kickoff among this matchup's starters still 'pre'. If the slate
          gives us no positive state at all (demo, unloaded map), stay LIVE as before. */
-      var ms=mine.concat(opp), anyKnown=false, inPlay=false, nextKickMs=0;
+      var ms=mine.concat(opp), anyKnown=false, inPlay=false, nextKickMs=0, anyPost=false;
       ms.forEach(function(p){
         var gs=gameState(p.team); if(gs)anyKnown=true;
         if(gs==='in')inPlay=true;
+        if(gs==='post')anyPost=true;
         else if(gs==='pre'){
           var k=''; try{ k=(window.__cfKickoff&&window.__cfKickoff(p.team))||''; }catch(e){}
           var km=typeof k==='number'?k:(Date.parse(k)||0);
@@ -23882,7 +23883,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
         curMy:curMy, curOpp:curOpp, projMy:projMy, projOpp:projOpp,
         hasProj:hasProj,
         pending:pending, live:live, noScores:noScores, remaining:remaining,
-        inPlay:inPlay, nextKickMs:nextKickMs,
+        inPlay:inPlay, nextKickMs:nextKickMs, anyPost:anyPost,
         /* fully complete = platform says FINAL, or every player on both sides is post.
            Drives the "no commentary once it's over" rule in cardDetail(). Keyed on
            `started` so a never-kicked-off matchup can't be called done just because
@@ -24075,7 +24076,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     /* Projected margin is the default for every undecided row, pending included
        (Matt, 2026-11-05: no NEXT-kickoff / "pending" labels here). */
     if(r.hasProj){ var d=r.projMy-r.projOpp;
-      return '<span class="cfv2-st">proj <b style="color:'+COL[r.state]+'">'+(d>=0?'+':'&minus;')+nf(Math.abs(d))+'</b></span>'; }
+      return '<span class="cfv2-st">Projected <b style="color:'+COL[r.state]+'">'+(d>=0?'+':'&minus;')+nf(Math.abs(d))+'</b></span>'; }
     if(r.pending||r.noScores)return '';
     var g=r.curMy-r.curOpp;
     return '<span class="cfv2-st">'+(g>=0?'Up':'Down')+' <b>'+nf(Math.abs(g))+'</b></span>';
@@ -24117,12 +24118,16 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
        `!r.noScores` (not `r.live`) gates the actuals so a kicked-off-but-scoreless
        tile shows PROJ instead of 0.00 vs 0.00 — same rule as cardScore. */
     var showLive=r.live&&!r.noScores;
-    var you=clinched?r.curMy:(showLive?r.curMy:r.projMy), opp=clinched?r.curOpp:(showLive?r.curOpp:r.projOpp), lbl=clinched?'FINAL':(showLive?(r.inPlay?'LIVE':'SCORE'):'PROJ');
+    var you=clinched?r.curMy:(showLive?r.curMy:r.projMy), opp=clinched?r.curOpp:(showLive?r.curOpp:r.projOpp), lbl=clinched?'FINAL':(showLive?'LIVE':'PROJ');
     return '<div class="cf-t-score"><span class="lbl">'+lbl+'</span><span class="you">'+nf(you)+'</span><span class="dash">vs</span><span class="opp">'+nf(opp)+'</span></div>';
   }
   function gridStatus(r){
     if(r.pending)return '<span class="cf-t-status" style="color:#7AA8D1"><span class="dot" style="background:#7AA8D1"></span>PENDING</span>';
-    if(r.live&&!r.inPlay&&r.nextKickMs)return '<span class="cf-t-status" style="color:#9E988A">'+nextKickTxt(r.nextKickMs,true)+'</span>';
+    /* IN PROGRESS (Matt, 2026-11-05): started + undecided, no starter on either
+       side in a game right now, and at least one starter's game already FINAL
+       (e.g. after TNF, before Sunday). inPlay is forced true when the slate gives
+       no game state, so demo / unloaded maps stay LIVE. */
+    if(r.live&&!r.inPlay&&r.anyPost)return '<span class="cf-t-status" style="color:#9E988A">IN PROGRESS</span>';
     if(r.live){return '<span class="cf-t-status" style="color:'+LIVE_RED+'"><span class="dot pulse" style="background:'+LIVE_RED+'"></span>LIVE</span>';}
     return '<span class="cf-t-status" style="color:#9E988A">UPCOMING</span>';
   }
