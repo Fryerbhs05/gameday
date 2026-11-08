@@ -31110,6 +31110,13 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
 #cfmx-tip .tt{font:600 14px/1.3 var(--font-sans)}
 #cfmx-tip .tt b{color:var(--live-ice);font-weight:800}
 #cfmx-tip .ts{font:500 12px/1.3 var(--font-sans);color:var(--ink-500);margin-top:3px}
+#cfmx-tip .tl{display:flex;align-items:center;gap:6px;font:700 12px/1.3 var(--font-sans);color:var(--live-ice);margin-top:3px}
+#cfmx-tip .tl:empty{display:none}
+#cfmx-tip .tl i{flex:none;width:7px;height:7px;border-radius:50%;background:var(--live-ice);animation:cfmxTlPulse 1.6s ease-in-out infinite}
+#cfmx-tip .tl.pre i{animation:none;opacity:.55}
+#cfmx-tip .tl .n{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+@keyframes cfmxTlPulse{0%,100%{opacity:1}50%{opacity:.3}}
+@media (prefers-reduced-motion: reduce){#cfmx-tip .tl i{animation:none}}
 #cfmx-tip .go{margin-left:auto;flex:none;height:34px;padding:0 14px;border-radius:999px;border:0;background:var(--live-ice);color:#0A1A2A;font:800 12.5px/1 var(--font-sans);cursor:pointer}
 #cfmx-tip .go+.x{margin-left:0}
 #cfmx-tip .rot.bolt{animation:none}
@@ -31138,6 +31145,11 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
 (function(){
   var LEAD=30*60*1000, STALE=5*60*60*1000;
   var K_TIP='cf_maniac_rotate_tip_v1', K_RTIP='cf_maniac_railtip_day', K_UP='cf_maniac_uphint_n';
+  /* Phone rotate tip (sw v423, Matt 2026-11-08): shown on up to 3 game DAYS per device
+     (was once ever). Within a counted day it can reappear (sheet closed, app resumed)
+     until the × or a sideways turn retires it for that day. A device that saw the v1
+     one-shot tip starts at 1 of 3. State {n: days shown, day: last shown, off: day retired}. */
+  var K_TIP2='cf_maniac_rotate_tip_v2', TIP_DAYS=3;
   var ROT='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="2.5" width="9" height="15" rx="1.8"/><path d="M10 14.5h.01"/><path d="M20.5 11a8 8 0 0 1-7 9.5"/><path d="M15.6 22.3 13.4 20.6l1.8-2.1"/></svg>';
   function ls(k,v){ try{ if(v===undefined)return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){} return null; }
   function track(n,p){ try{ if(demo())p=Object.assign({},p||{},{demo:true}); cfTrack(n,p||{}); }catch(e){} }
@@ -31189,6 +31201,27 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
   function inApp(){ var b=document.body; return !!(b&&!b.classList.contains('nav-landing')&&window.__conflictedLastData); }
   function sheetOpen(){ try{ return !!(window.BottomSheet&&window.BottomSheet.isOpen()); }catch(e){ return false; } }
   function today(){ var d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+  function tipSt(){
+    var o=null; try{ o=JSON.parse(ls(K_TIP2)||'null'); }catch(e){}
+    if(!o||typeof o!=='object')o={ n:(ls(K_TIP)==='1'?1:0), day:'', off:'' };
+    return o;
+  }
+  function tipSave(o){ try{ ls(K_TIP2,JSON.stringify(o)); }catch(e){} }
+  function tipEligible(){ var o=tipSt(), t=today(); return o.off!==t&&(o.day===t||(o.n||0)<TIP_DAYS); }
+  function tipCount(){ var o=tipSt(), t=today(); if(o.day!==t){ o.n=(o.n||0)+1; o.day=t; tipSave(o); } }
+  function tipDone(){ var o=tipSt(); o.off=today(); tipSave(o); }
+  /* Status line under the title: 'Games are live' or a m:ss countdown to the next kickoff. */
+  function tipLive(){
+    if(!tip||tipKind!=='rotate'||!tip.classList.contains('on'))return;
+    var el=tip.querySelector('.tl'); if(!el)return;
+    var info=hotInfo(), h;
+    if(info.live>0){ h='<i></i>Games are live'; el.classList.remove('pre'); }
+    else if(info.next!==Infinity){
+      var sec=Math.max(0,Math.ceil(info.next/1000)), m=Math.floor(sec/60), ss=sec%60;
+      h='<i></i><span>Games go live in <span class="n">'+m+':'+(ss<10?'0':'')+ss+'</span></span>'; el.classList.add('pre');
+    } else h='';
+    if(el.innerHTML!==h)el.innerHTML=h;
+  }
 
   /* ---- phones: sideways opens, upright exits ---- */
   var lastLand=false;
@@ -31239,7 +31272,7 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
       lastLand=true;
       if(typeof window.showManiac!=='function')return;
       if(demo())demoTipDone=true;
-      else if(ls(K_TIP)!=='1')ls(K_TIP,'1');    /* they found it — the tip has done its job */
+      else tipDone();                           /* they found it — retire the tip for today */
       openAfterRotate();
     }else{
       lastLand=false;
@@ -31270,7 +31303,7 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
           });
           return;
         }
-        if(k.indexOf('demo')===0)demoTipDone=true; else ls(K_TIP,'1');
+        if(k.indexOf('demo')===0)demoTipDone=true; else tipDone();
         phoneTip(false);
         if(b.classList.contains('go')){ track('maniac_tip',{kind:k,action:'open'}); if(typeof window.showManiac==='function')window.showManiac({via:'tip'}); }
         else track('maniac_tip',{kind:k,action:'dismiss'});
@@ -31298,11 +31331,12 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
         ts='Every matchup, live, on one screen.';
         if(kind==='demo-open')btn='<button type="button" class="go">Open</button>';
       }
-      tip.innerHTML=ic+'<div><div class="tt">'+tt+'</div><div class="ts">'+ts+'</div></div>'+btn+'<button type="button" class="x" aria-label="Dismiss">×</button>';
+      tip.innerHTML=ic+'<div><div class="tt">'+tt+'</div>'+(kind==='rotate'?'<div class="tl"></div>':'')+'<div class="ts">'+ts+'</div></div>'+btn+'<button type="button" class="x" aria-label="Dismiss">×</button>';
     }
     var was=tip.classList.contains('on');
     tip.classList.toggle('on',!!show);
-    if(show&&!was){ var sp={kind:kind,action:'shown'}; if(kind.indexOf('demo-iab')===0){ var sa=iab(); sp.app=sa?sa.app:''; } track('maniac_tip',sp); }
+    if(show&&kind==='rotate'){ if(!was)tipCount(); tipLive(); }
+    if(show&&!was){ var sp={kind:kind,action:'shown'}; if(kind==='rotate')sp.n=tipSt().n; if(kind.indexOf('demo-iab')===0){ var sa=iab(); sp.app=sa?sa.app:''; } track('maniac_tip',sp); }
   }
 
   /* ---- desktop / iPad rail tip (once per game day) ---- */
@@ -31347,7 +31381,7 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
     var desk=false; try{ desk=window.matchMedia('(min-width: 900px)').matches; }catch(e){}
     var ph=isPhone();
     if(dm)phoneTip(ok&&demoReady&&!desk&&!(ph&&isLand()),demoKind(ph));
-    else phoneTip(ok&&ph&&!isLand()&&ls(K_TIP)!=='1'&&!iabSure(),'rotate');
+    else phoneTip(ok&&ph&&!isLand()&&tipEligible()&&!iabSure(),'rotate');
     railTip(ok&&desk&&(dm?demoReady:ls(K_RTIP)!==today()),info);
   }
   /* Cheap 1s check: a tip never outlives the board (exit demo → landing) or a sheet opening over it. */
@@ -31362,7 +31396,7 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
   window.addEventListener('resize',function(){ checkOrient(); setTimeout(checkOrient,60); if(rt&&rt.classList.contains('on'))paint(); });
   try{ var mqO=window.matchMedia('(orientation: landscape)'); var onMq=function(){ checkOrient(); }; if(mqO.addEventListener)mqO.addEventListener('change',onMq); else if(mqO.addListener)mqO.addListener(onMq); }catch(e){}
   document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible'){ checkOrient(); paint(); } });
-  setInterval(checkOrient,1000);
+  setInterval(function(){ checkOrient(); tipLive(); },1000);
   setInterval(paint,5000);
   setTimeout(paint,1200);
   setTimeout(arm,1200);
