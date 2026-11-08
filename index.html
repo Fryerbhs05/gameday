@@ -7315,6 +7315,9 @@
     try{ if(seen[key])return; seen[key]=1; window.cfTrack(name,props); }catch(e){}
   };
   window.cfStoredRef=function(){try{return localStorage.getItem(REF)||null;}catch(e){return null;}};
+  /* Send whatever is queued now (beacon) — for events pushed from a tab-hide
+     handler that runs after the flush below. */
+  window.cfTrackFlush=function(){try{flush(true);}catch(e){}};
   document.addEventListener('visibilitychange',function(){
     if(document.visibilityState==='hidden')flush(true);
   });
@@ -26102,6 +26105,60 @@ if(typeof window.cfRegisterView==='function'){
   if(!section||!toggle||!bar||!cols||!stage||!host||!scale)return;
   var RC_W=390, DUR=420;
   var st={view:'cards', bucket:null};
+
+  /* ── A/B TEST loyview_w10 (Matt, 2026-11-08): default Loyalties view ─────
+     Half of users land on Rooting Card, half on Player Cards; we measure who
+     switches to the other view. Assignment = hash of the account email (same
+     answer on every device), else the device's cf_anon id; pinned per device
+     in localStorage (cf_ab_loyview_w10) so it never flips mid-test. Demo mode
+     is out of the test (Player Cards, no events). Applied once per page load,
+     on the first render where the toggle is available; never overrides a tap.
+     QA override: ?loyab=rc | ?loyab=cards (this load only, events flagged qa).
+     Events: loy_ab_seen (Loyalties first on screen), loy_view_switch (toggle
+     tap), loy_view_state (on tab-hide: final view, switches, ms per view since
+     seen). Results: db/loy-ab-results.sql. To END the test: set AB_ON=false. */
+  var AB_ON=true, AB_ID='loyview_w10', AB_KEY='cf_ab_'+AB_ID;
+  var ab={def:null, qa:false, applied:false, off:false, seen:false, seenAt:0, since:0,
+          switches:0, ms:{cards:0, rc:0}, vis:false, lid:Math.random().toString(36).slice(2,10)};
+  function abHash(s){ var h=2166136261; for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+  function abVariant(){
+    try{ var o=new URLSearchParams(location.search).get('loyab'); if(o==='rc'||o==='cards'){ ab.qa=true; return o; } }catch(e){}
+    var v=null; try{ v=localStorage.getItem(AB_KEY); }catch(e){}
+    if(v==='rc'||v==='cards')return v;
+    var id='';
+    try{ id=(window.__account&&window.__account.signedIn===true&&window.__account.email)||localStorage.getItem('cf_acct_email')||localStorage.getItem('cf_anon')||''; }catch(e){}
+    id=String(id).trim().toLowerCase();
+    /* bit 8, not the low bit: FNV-1a's low bit is just character parity (gave 18/12 on
+       active users); bit 8 splits the current active accounts 16/14. Mirrored in SQL. */
+    v=id ? (((abHash(AB_ID+'|'+id)>>>8)&1)?'rc':'cards') : (Math.random()<0.5?'rc':'cards');
+    try{ localStorage.setItem(AB_KEY,v); }catch(e){}
+    return v;
+  }
+  function abApply(){
+    if(ab.applied)return;
+    ab.applied=true;
+    var demo=false; try{ demo=!!isDemoMode; }catch(e){}
+    if(!AB_ON||demo){ ab.off=true; return; }
+    ab.def=abVariant();
+    if(ab.def==='rc'&&st.view!=='rc'){ st.view='rc'; section.classList.add('rc-mode'); setToggleBtns(); }
+  }
+  function abTrack(name,extra){
+    try{
+      var wk=null,hist=false,admin=false;
+      try{ wk=activeWeek; hist=(String(activeWeek)!==String(liveWeek))||(String(activeSeason)!==String(liveSeason)); }catch(e){}
+      try{ admin=typeof window.cfIsAdmin==='function'&&!!window.cfIsAdmin(); }catch(e){}
+      var p={test:AB_ID, ab:ab.def, view:st.view, lid:ab.lid, wk:wk, hist:hist, admin:admin, qa:ab.qa};
+      if(extra)for(var k in extra)p[k]=extra[k];
+      cfTrack(name,p);
+    }catch(e){}
+  }
+  function abTick(){ var now=Date.now(); if(ab.seen&&ab.since)ab.ms[st.view]+=now-ab.since; ab.since=now; }
+  function abSeen(force){
+    if(ab.seen||ab.off||!ab.applied)return;
+    if(!force&&(!ab.vis||document.visibilityState!=='visible'||toggle.style.display==='none'||section.classList.contains('collapsed')))return;
+    ab.seen=true; ab.seenAt=ab.since=Date.now();
+    abTrack('loy_ab_seen');
+  }
   var scopeTile=document.getElementById('loy-scope-tile');
   var controls=section.querySelector('.loy-controls');
   /* Scope tile: shown for the current (non-historic, non-demo) week — the same
@@ -26221,11 +26278,42 @@ if(typeof window.cfRegisterView==='function'){
     var ok=avail();
     toggle.style.display=ok?'':'none';
     if(!ok && st.view==='rc'){ st.view='cards'; section.classList.remove('rc-mode'); setToggleBtns(); }
+    if(ok && !busy) abApply();   /* A/B default view — first available render only */
     applyCards(); highlightTabs(); syncScope();
     if(section.classList.contains('rc-mode'))buildCard();
+    if(ok) abSeen();
   }
 
-  toggle.addEventListener('click',function(e){ var b=e.target.closest('button[data-view]'); if(b)flip(b.dataset.view); });
+  toggle.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-view]'); if(!b)return;
+    var from=st.view, to=b.dataset.view;
+    if(busy||to===from)return;
+    ab.applied=true;                     /* a tap always wins over the A/B default */
+    abSeen(true); abTick();
+    flip(to);
+    if(!ab.off&&ab.def&&st.view!==from){
+      ab.switches++;
+      abTrack('loy_view_switch',{from:from, to:st.view, n:ab.switches, away:(from===ab.def),
+        secs:ab.seenAt?Math.round((Date.now()-ab.seenAt)/1000):null});
+    }
+  });
+  /* A/B exposure: Loyalties actually on screen (not just rendered below the fold). */
+  try{
+    if('IntersectionObserver' in window){
+      new IntersectionObserver(function(es){
+        es.forEach(function(en){ ab.vis=en.isIntersecting; if(ab.vis)abSeen(); });
+      },{threshold:0.2}).observe(stage);
+    } else { ab.vis=true; }
+  }catch(e){ ab.vis=true; }
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='hidden'){
+      if(ab.seen&&!ab.off){
+        abTick(); ab.since=0;
+        abTrack('loy_view_state',{switches:ab.switches, ms_cards:ab.ms.cards, ms_rc:ab.ms.rc});
+        try{ window.cfTrackFlush&&window.cfTrackFlush(); }catch(e){}
+      }
+    } else if(ab.seen){ ab.since=Date.now(); }
+  });
   window.addEventListener('resize',function(){ if(section.classList.contains('rc-mode'))fit(); });
 
   /* getBucket: the committed bucket (null|cheer|conflicted|enemy). The share
