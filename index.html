@@ -10737,8 +10737,12 @@ function cfApplyLeagueVisibility(){
      the full mask fan-out (loyalties cards, Live Updates, overlay views, an
      open matchup drawer), not just the league-visibility repaints below. */
   let masking=false;try{masking=cfMaskActive();}catch(e){}
-  if(masking){cfApplyNameMask();return;}   /* it calls cfSyncFilterActive itself */
+  /* In-app Rooting Card reads hiddenLeagues at build time but is a static
+     render, so it must be rebuilt on every toggle (no-op unless the Rooting
+     Card view is showing). */
+  if(masking){cfApplyNameMask();cfRcRefresh();return;}   /* it calls cfSyncFilterActive itself */
   applyFilters();                                   /* GameDay loyalties + pill counts; also repaints Snapshot */
+  cfRcRefresh();
   try{if(typeof renderScoresStrip==='function'&&Array.isArray(window.currentContexts))renderScoresStrip(window.currentContexts);}catch(e){}
   try{if(window.__conflictedExposureOpen&&typeof window.renderExposureView==='function')window.renderExposureView();}catch(e){}
   try{if(window.__cfLeadersOpen&&typeof window.__ldrRender==='function')window.__ldrRender();}catch(e){}
