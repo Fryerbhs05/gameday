@@ -56,8 +56,14 @@ function sideFloor(players, total, games) {
 function shortName(p) {
   const pos = String(p.pos || '').toUpperCase();
   if (pos === 'DEF' || pos === 'DST' || pos === 'D/ST') return String(p.team || p.name || '').toUpperCase();
-  const n = String(p.name || '').trim(); if (!n) return '';
-  const parts = n.split(/\s+/); return parts[parts.length - 1];
+  return surname(p.name);
+}
+// Last name with trailing suffixes dropped (James Cook III -> Cook, not III).
+// Mirrors window.cfSurname in index.html — keep the two in step.
+function surname(name) {
+  const parts = String(name == null ? '' : name).trim().split(/\s+/).filter(Boolean);
+  while (parts.length > 1 && /^(?:jr|sr|ii|iii|iv|v)\.?$/i.test(parts[parts.length - 1])) parts.pop();
+  return parts.length ? parts[parts.length - 1] : '';
 }
 function names(arr) {
   if (arr.length <= 1) return arr.join('');
