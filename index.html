@@ -23792,7 +23792,10 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
   function shortName(p){
     var pos=(p.position||'').toUpperCase();
     if(pos==='DEF'||pos==='DST')return (p.team||p.full_name||'').toUpperCase();
-    var n=(p.full_name||'').trim(); if(!n)return ''; var parts=n.split(/\s+/); return parts[parts.length-1];
+    var n=(p.full_name||'').trim(); if(!n)return ''; var parts=n.split(/\s+/);
+    /* Drop a trailing suffix so the surname shows (Luther Burden III -> Burden, not III). */
+    while(parts.length>1&&/^(?:jr|sr|ii|iii|iv|v)\.?$/i.test(parts[parts.length-1]))parts.pop();
+    return parts[parts.length-1];
   }
   function tierOf(name){ try{ return (window.__cfTier&&window.__cfTier(name))||1; }catch(e){ return 1; } }
 
