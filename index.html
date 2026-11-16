@@ -3975,6 +3975,17 @@
     .pd-ssn tr.wk-dnp td.c-dnp { text-align: left; color: var(--ink-300); font: 400 11px/1 var(--font-sans); }
     .pd-ssn tr.wk-live td.c-wk { color: var(--coral-500); }
     .pd-ssn__note { font: 400 10px/1.5 var(--font-sans); color: var(--ink-300); margin: 10px 2px 0; }
+    .pd-ssn th { letter-spacing: .06em; }
+    .pd-ssn__row { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .pd-ssn__row td { padding-top: 10px; padding-bottom: 10px; }
+    .pd-ssn__row.is-open td.c-wk { color: var(--ink-900); }
+    .pd-ssn__xr td { padding: 0; white-space: normal; text-align: left; overflow: visible; }
+    .pd-ssn__xw { height: 0; overflow: hidden; transition: height 260ms var(--ease-out), opacity 200ms var(--ease-out); opacity: 0; }
+    .pd-ssn__xw.is-open { opacity: 1; }
+    .pd-ssn__xin { padding: 4px 0 14px; }
+    .pd-ssn__xin .pd__grp { margin-bottom: 12px; }
+    .pd-ssn__xin .pd__foot { margin-top: 10px; }
+    @media (prefers-reduced-motion: reduce) { .pd-ssn__xw { transition: none; } }
     /* Tap target on Loyalties cards. NO visible affordance by design (same call
        as the Snapshot rows) — cursor + tap-highlight + a11y attributes only.
        The card hover lift already lives at .player-card:hover and is unchanged. */
@@ -19679,20 +19690,17 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
       return '<div class="pd__grp">'+(gs.length>1?'<div class="pd__grph"><h4>'+esc(g.label)+'</h4></div>':'')
         +'<div class="pd__tiles">'+tiles.map(tileHTML).join('')+'</div></div>';
     }).join('')+'</div>';
+    /* ONE line per week (Matt, 2026-11-15 — two lines per week was too much to
+       read): five headline columns picked by position (ssnCols). Tapping a week
+       expands that week's FULL box score under the row, same tile layout as
+       Current Week — the matchup drawer's expand-the-row pattern. */
     var hasOpp=Object.keys(weeks).some(function(w){ return weeks[w]&&weeks[w].opp; });
-    var multi=gs.length>1, nNum=4, cols=1+(hasOpp?1:0)+(multi?1:0)+nNum;
-    var colg='<colgroup><col class="c-wk">'+(hasOpp?'<col class="c-op">':'')+(multi?'<col class="c-tg">':'')
-      +'<col><col><col><col></colgroup>';
-    var sample=gs.map(function(g){ return g.tiles({}); });
-    var head='<thead>'+gs.map(function(g,i){
-      return '<tr>'+(i===0?('<th class="c-wk" rowspan="'+gs.length+'">Wk</th>'+(hasOpp?'<th class="c-op" rowspan="'+gs.length+'">Opp</th>':'')):'')
-        +(multi?'<th class="c-tg">'+esc(SSN_TAG[g.label]||g.label)+'</th>':'')
-        +sample[i].map(function(t){ return '<th>'+esc(t.l)+'</th>'; }).join('')+'</tr>';
-    }).join('')+'</thead>';
+    var hc=ssnCols(pos,weeks), cols=1+(hasOpp?1:0)+hc.length;
+    var head='<thead><tr><th class="c-wk">Wk</th>'+(hasOpp?'<th class="c-op">Opp</th>':'')
+      +hc.map(function(c){ return '<th>'+esc(c[0])+'</th>'; }).join('')+'</tr></thead>';
     var body='<tbody>';
     for(var w=info.last;w>=1;w--){
       var x=weeks[w], isLive=info.cur&&info.live===w;
-      var wkCell='<td class="c-wk" rowspan="'+(x?gs.length:1)+'">'+w+'</td>';
       if(!x){
         var why='Bye / did not play';
         if(isLive){
@@ -19703,17 +19711,17 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
           +'<td class="c-dnp" colspan="'+(cols-1)+'">'+why+'</td></tr>';
         continue;
       }
-      gs.forEach(function(g,i){
-        var cls=(i===gs.length-1?'wk-end':'')+(isLive?' wk-live':'');
-        body+='<tr class="'+cls+'">'
-          +(i===0?(wkCell+(hasOpp?'<td class="c-op" rowspan="'+gs.length+'">'+esc(x.opp||'—')+'</td>':'')):'')
-          +(multi?'<td class="c-tg">'+esc(SSN_TAG[g.label]||g.label)+'</td>':'')
-          +g.tiles(x.s).map(function(t){ return '<td'+zc(t.v)+'>'+esc(t.v)+'</td>'; }).join('')+'</tr>';
-      });
+      var open=(ssnOpen===w);
+      body+='<tr class="pd-ssn__row'+(open?' is-open':' wk-end')+(isLive?' wk-live':'')+'" data-ssn-wk="'+w+'">'
+        +'<td class="c-wk">'+w+'</td>'+(hasOpp?'<td class="c-op">'+esc(x.opp||'—')+'</td>':'')
+        +hc.map(function(c){ var v=c[1](x.s); return '<td'+zc(v)+'>'+esc(v)+'</td>'; }).join('')+'</tr>'
+        +'<tr class="pd-ssn__xr'+(open?' wk-end':'')+'" data-ssn-x="'+w+'"><td colspan="'+cols+'">'
+        +'<div class="pd-ssn__xw'+(open?' is-open':'')+'" style="height:'+(open?'auto':'0px')+'">'
+        +'<div class="pd-ssn__xin">'+groupsHTML(player,x.s,pos)+'</div></div></td></tr>';
     }
     body+='</tbody>';
-    out+='<table class="pd-ssn">'+colg+head+body+'</table>';
-    out+='<p class="pd-ssn__note">Stats only — no fantasy points, since each league scores differently.'
+    out+='<table class="pd-ssn">'+head+body+'</table>';
+    out+='<p class="pd-ssn__note">Tap a week for the full box score. Stats only — no fantasy points, since each league scores differently.'
       +(info.cur&&info.live?(' Week '+info.live+(isLiveGame(player)?' is in progress.':' is the current week.')):'')+'</p>';
     return out;
   }
@@ -19738,9 +19746,64 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
       window.BottomSheet.setBody(seasonBodyHTML(player,res[0],info));
     });
   }
+  var ssnOpen=null; /* week number expanded in the Season table, or null */
+  /* Headline columns per position: [label, fn(stats)]. Five max so a week fits
+     one line on a 375px phone. WR/TE add Rush Yd only when his SEASON carries
+     reach SSN_MIN_VOL; their TD column is scrimmage TDs (rec + rush). */
+  function ssnCols(pos,weeks){
+    var sum=function(k){ var t=0; Object.keys(weeks).forEach(function(w){ if(weeks[w]) t+=n(weeks[w].s[k]); }); return t; };
+    if(pos==='QB') return [
+      ['Pass Yd',function(s){return n(s.pass_yd);}],['Pass TD',function(s){return n(s.pass_td);}],
+      ['Int',function(s){return n(s.pass_int);}],['Rush Yd',function(s){return n(s.rush_yd);}],
+      ['Rush TD',function(s){return n(s.rush_td);}]];
+    if(pos==='RB') return [
+      ['Rush Yd',function(s){return n(s.rush_yd);}],['Rush TD',function(s){return n(s.rush_td);}],
+      ['Rec',function(s){return n(s.rec);}],['Rec Yd',function(s){return n(s.rec_yd);}],
+      ['Rec TD',function(s){return n(s.rec_td);}]];
+    if(pos==='K') return [
+      ['FG',function(s){return n(s.fgm)+'/'+(n(s.fgm)+n(s.fgmiss));}],
+      ['XP',function(s){return n(s.xpm)+'/'+(n(s.xpm)+n(s.xpmiss));}],
+      ['Long',function(s){return (n(s.fgm)&&n(s.fgm_lng))?n(s.fgm_lng):'—';}]];
+    if(pos==='DEF') return [
+      ['Sack',function(s){return dv(s,'sack');}],['Int',function(s){return dv(s,'int');}],
+      ['FR',function(s){return dv(s,'fum_rec')+n(s.def_st_fum_rec);}],
+      ['TD',function(s){return n(s.def_td)+n(s.def_st_td);}],
+      ['PA',function(s){return (typeof s.pts_allow==='number')?s.pts_allow:'—';}]];
+    var c=[['Tgt',function(s){return n(s.rec_tgt);}],['Rec',function(s){return n(s.rec);}],
+      ['Yds',function(s){return n(s.rec_yd);}],['TD',function(s){return n(s.rec_td)+n(s.rush_td);}]];
+    if(sum('rush_att')>=SSN_MIN_VOL) c.push(['Rush Yd',function(s){return n(s.rush_yd);}]);
+    return c;
+  }
+  /* Smooth expand/collapse: height animated in measured px (iOS Safari steps
+     grid-rows 0fr→1fr — same lesson as the matchup drawer, sw v410). */
+  function ssnAnim(wrap,opening){
+    var reduce=false; try{ reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+    var inner=wrap.firstElementChild, h=inner?inner.offsetHeight:0;
+    if(reduce){ wrap.style.height=opening?'auto':'0px'; wrap.classList.toggle('is-open',opening); return; }
+    if(opening){
+      wrap.style.height='0px'; wrap.offsetHeight; wrap.classList.add('is-open'); wrap.style.height=h+'px';
+      var done=function(e){ if(e&&e.target!==wrap) return; wrap.removeEventListener('transitionend',done); if(wrap.classList.contains('is-open')) wrap.style.height='auto'; };
+      wrap.addEventListener('transitionend',done);
+    }else{
+      wrap.style.height=h+'px'; wrap.offsetHeight; wrap.classList.remove('is-open'); wrap.style.height='0px';
+    }
+  }
+  function ssnToggle(w){
+    var root=document.querySelector('.pd-ssn'); if(!root) return;
+    var setRow=function(wk,open){
+      var r=root.querySelector('tr[data-ssn-wk="'+wk+'"]'), xr=root.querySelector('tr[data-ssn-x="'+wk+'"]');
+      if(r){ r.classList.toggle('is-open',open); r.classList.toggle('wk-end',!open); }
+      if(xr){ xr.classList.toggle('wk-end',open); var wr=xr.querySelector('.pd-ssn__xw'); if(wr) ssnAnim(wr,open); }
+    };
+    if(ssnOpen!=null&&ssnOpen!==w) setRow(ssnOpen,false);
+    var opening=(ssnOpen!==w);
+    setRow(w,opening);
+    ssnOpen=opening?w:null;
+    if(opening){ try{ cfTrack('player_box_season_week',{week:w}); }catch(e){} }
+  }
   function setView(v){
     if(v===view||!current||!mine()) return;
-    view=v;
+    view=v; ssnOpen=null;
     try{ cfTrack('player_box_view',{view:v}); }catch(e){}
     if(v==='ssn') fillSeason(current); else fill(current);
   }
@@ -19819,7 +19882,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
        drawer uses, so the two sheets behave identically. */
     if(mine()&&current===player){ window.BottomSheet.close(); return; }
     current=player;
-    view='wk';
+    view='wk'; ssnOpen=null;
     var week=1; try{ week=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
     window.BottomSheet.open(loadingHTML(player,week,'',segHTML()),{owner:OWNER,onClose:stop});
     fill(player);
@@ -19864,6 +19927,11 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     var b=e.target&&e.target.closest?e.target.closest('[data-pd-view]'):null;
     if(!b||!mine()||!ssnOn()) return;
     setView(b.getAttribute('data-pd-view')==='ssn'?'ssn':'wk');
+  });
+  document.addEventListener('click',function(e){
+    var r=e.target&&e.target.closest?e.target.closest('tr[data-ssn-wk]'):null;
+    if(!r||!mine()||view!=='ssn') return;
+    ssnToggle(+r.getAttribute('data-ssn-wk'));
   });
 })();
 </script>
