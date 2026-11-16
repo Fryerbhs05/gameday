@@ -3983,8 +3983,12 @@
        season table. */
     .sheet.pd-fixed { height: min(78vh, 680px); height: min(78dvh, 680px); }
     .sheet.pd-fixed .sheet__body { flex: 1 1 auto; }
-    .sheet.pd-fixed .pd__seg { position: sticky; top: -6px; z-index: 2;
-      box-shadow: 0 -6px 0 var(--paper), 0 8px 10px -6px var(--paper); }
+    .sheet.pd-detent .pd__pin { position: sticky; top: -6px; z-index: 2; background: var(--paper);
+      margin: -6px -16px 0; padding: 6px 16px 14px; }
+    .sheet.pd-detent .pd__pin .pd__seg { margin-bottom: 0; }
+    /* Soft fade where scrolled content slides under the frozen header. */
+    .sheet.pd-detent .pd__pin::after { content: ""; position: absolute; left: 0; right: 0; top: 100%;
+      height: 12px; pointer-events: none; background: linear-gradient(var(--paper), transparent); }
     /* Tap target on Loyalties cards. NO visible affordance by design (same call
        as the Snapshot rows) — cursor + tap-highlight + a11y attributes only.
        The card hover lift already lives at .player-card:hover and is unchanged. */
@@ -19416,6 +19420,10 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
       +'<button class="pd__close" type="button" data-pd-close>Close</button></div>';
   }
 
+  /* Player header + Current Week / Season toggle frozen together at the top of
+     the fixed-height sheet (owner preview, sw v431). No toggle = plain header. */
+  function pinHTML(head,top){ return top?('<div class="pd__pin">'+head+top+'</div>'):head; }
+
   function statusHTML(state,week){
     var tag = state==='in'?'Live' : state==='post'?'Final'
             : state==='pre'?'Pre-kickoff' : 'Unavailable';
@@ -19473,7 +19481,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     /* Status is known synchronously — only the numbers are pending — so the
        chip must not flash "Final" over a live game. */
     var st=resolveState(player,true);
-    return headHTML(player)+(top||'')+statusHTML(st==='none'?'post':st,week)+(between||'')
+    return pinHTML(headHTML(player),top||'')+statusHTML(st==='none'?'post':st,week)+(between||'')
       +'<div class="pd__grp"><div class="pd__grph"><h4>&nbsp;</h4></div>'
       +'<div class="pd__skel"><div class="skel"></div><div class="skel"></div>'
       +'<div class="skel"></div><div class="skel"></div></div></div>';
@@ -19485,7 +19493,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     var hasRow=!!(row&&typeof row==='object');
     var state=resolveState(player,hasRow);
 
-    var out=headHTML(player)+(top||'')+statusHTML(state,week)+(between||'');
+    var out=pinHTML(headHTML(player),top||'')+statusHTML(state,week)+(between||'');
 
     if(state==='pre'){
       var k=kickoffLabel(player.team||'');
@@ -19666,7 +19674,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
   function zc(v){ return (v===0||v==='0'||v==='0/0')?' class="z"':''; }
   function seasonBodyHTML(player,r,info){
     var pos=String(player.position||'').toUpperCase(); if(pos==='DST') pos='DEF';
-    var out=headHTML(player)+segHTML();
+    var out=pinHTML(headHTML(player),segHTML());
     if(!r||!r.weeks){
       return out+'<div class="pd__empty"><h5>Season stats unavailable</h5>'
         +'<p>We couldn’t load this player’s weekly history.</p></div>';
@@ -19723,7 +19731,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
   function isLiveGame(player){ try{ return (window.__cfGameState&&window.__cfGameState(player.team||''))==='in'; }catch(e){ return false; } }
   var live=null; /* last live-week stats map used for the overlay */
   function seasonLoadingHTML(player){
-    return headHTML(player)+segHTML()
+    return pinHTML(headHTML(player),segHTML())
       +'<div class="pd__grp"><div class="pd__grph"><h4>&nbsp;</h4></div>'
       +'<div class="pd__skel"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>'
       +'<div class="pd__grp"><div class="pd__skel"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>';
@@ -19731,8 +19739,12 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
   function fillSeason(player,quiet,switching){
     var info=ssnSeasonInfo();
     var key=info.season+'|'+statKey(player), cached=!!ssnCache[key];
-    /* Skeleton only on a cold load; a cached season swaps straight in. */
-    if(!quiet&&!cached&&mine()&&current===player){ put(seasonLoadingHTML(player),'seg'); if(switching){ fadePane(); switching=false; } }
+    /* Cold load: grow to the tall detent right away with a skeleton, then
+       the numbers swap in at the same height. Cached: grow straight to the
+       finished table. */
+    if(switching&&!cached&&mine()&&current===player){
+      morph(true,function(){ put(seasonLoadingHTML(player),'seg'); }); fadePane();
+    }
     var lp=Promise.resolve(null);
     if(info.cur&&info.live&&info.active===info.live&&typeof window.__cfWeekStats==='function'){
       lp=window.__cfWeekStats(info.season,info.live).catch(function(){ return null; });
@@ -19740,8 +19752,9 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     Promise.all([loadSeason(player),lp]).then(function(res){
       if(!mine()||current!==player||view!=='ssn') return;
       live=res[1]||null;
-      put(seasonBodyHTML(player,res[0],info),quiet?'all':'seg');
-      if(switching||(!quiet&&!cached)) fadePane();
+      var html=seasonBodyHTML(player,res[0],info);
+      if(switching&&cached){ morph(true,function(){ put(html,'seg'); }); fadePane(); }
+      else{ put(html,quiet?'all':'seg'); if(switching) fadePane(); }
     });
   }
   /* Headline columns per position: [label, fn(stats)]. Five max so a week fits
@@ -19780,19 +19793,51 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     var b=sheetBody(), st=b?b.scrollTop:0;
     window.BottomSheet.setBody(html);
     if(!b||!keep) return;
-    if(keep==='seg'){ var sg=b.querySelector('.pd__seg'); st=Math.min(st, sg?Math.max(0,sg.offsetTop-6):0); }
+    if(keep==='seg'){ st=0; }
     b.scrollTop=st;
   }
   /* Soft crossfade of everything under the toggle when the view changes. */
   function fadePane(){
     var b=sheetBody(); if(!b) return;
     try{ if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches) return; }catch(e){}
-    var sg=b.querySelector('.pd__seg'); if(!sg) return;
+    var sg=b.querySelector('.pd__pin')||b.querySelector('.pd__seg'); if(!sg) return;
     for(var el=sg.nextElementSibling; el; el=el.nextElementSibling){
       try{ el.animate([{opacity:0,transform:'translateY(4px)'},{opacity:1,transform:'none'}],{duration:200,easing:'cubic-bezier(0.2,0.8,0.2,1)'}); }catch(e){}
     }
   }
-  function fixHeight(on){ try{ window.BottomSheet.getSheetEl().classList.toggle('pd-fixed',!!on); }catch(e){} }
+  /* Two detents (sw v432, Matt's option 2): Current Week sits at its natural
+     height, Season at the tall fixed height (.pd-fixed). morph() measures the
+     sheet before and after the swap and animates the height between them in
+     px, so a switch glides instead of snapping. .pd-detent marks the sheet as
+     the toggled player drawer (frozen header styling) in BOTH views. */
+  function shEl(){ try{ return window.BottomSheet.getSheetEl(); }catch(e){ return null; } }
+  function reduced(){ try{ return !!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; } }
+  var morphT=null;
+  function morph(tall,swap){
+    var el=shEl(); if(!el){ swap(); return; }
+    var h0=el.getBoundingClientRect().height;
+    clearTimeout(morphT); el.style.transition=''; el.style.height='';
+    el.classList.toggle('pd-fixed',!!tall);
+    swap();
+    if(reduced()) return;
+    var h1=el.getBoundingClientRect().height;
+    if(Math.abs(h1-h0)<2) return;
+    el.style.height=h0+'px'; void el.offsetHeight;
+    el.style.transition='transform var(--duration-base) var(--ease-out), height 320ms cubic-bezier(0.2,0.8,0.2,1)';
+    el.style.height=h1+'px';
+    var done=function(e){
+      if(e&&(e.target!==el||e.propertyName!=='height')) return;
+      el.removeEventListener('transitionend',done); clearTimeout(morphT);
+      el.style.height=''; el.style.transition='';
+    };
+    el.addEventListener('transitionend',done);
+    morphT=setTimeout(done,450);
+  }
+  function detentReset(on){
+    var el=shEl(); if(!el) return;
+    clearTimeout(morphT); el.style.height=''; el.style.transition='';
+    el.classList.remove('pd-fixed'); el.classList.toggle('pd-detent',!!on);
+  }
   function setView(v){
     if(v===view||!current||!mine()) return;
     view=v;
@@ -19821,17 +19866,21 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     window.__cfWeekStats(season,week).then(function(all){
       if(!mine()||current!==player||view!=='wk') return;
       var sid=statKey(player);
-      put(bodyHTML(player, sid?(all&&all[sid]):null,'',segHTML()), switching?'seg':'all');
-      if(switching) fadePane();
+      var html=bodyHTML(player, sid?(all&&all[sid]):null,'',segHTML());
+      if(switching){ morph(false,function(){ put(html,'seg'); }); fadePane(); }
+      else if(ssnOn()) morph(false,function(){ put(html,'all'); });   /* live refresh: a new stat group glides in */
+      else put(html,'all');
     }).catch(function(){
-      if(mine()&&current===player&&view==='wk'){ put(bodyHTML(player,null,'',segHTML()), switching?'seg':'all'); if(switching) fadePane(); }
+      if(!(mine()&&current===player&&view==='wk')) return;
+      var html=bodyHTML(player,null,'',segHTML());
+      if(switching){ morph(false,function(){ put(html,'seg'); }); fadePane(); } else put(html,'all');
     });
   }
 
   /* Drop the fixed height AFTER the slide-out (240ms) so the sheet doesn't
      shrink mid-animation; skipped if this drawer reopened in the meantime. */
   function stop(){ if(timer){ clearInterval(timer); timer=null; } current=null;
-    setTimeout(function(){ if(!mine()) fixHeight(false); },260); }
+    setTimeout(function(){ if(!mine()) detentReset(false); },260); }
 
   /* Board-driven refresh (see cfDrawerPrefetch/cfDrawerSync at REFRESH_MS). The
      drawer no longer runs its own clock: it repaints on the same tick that
@@ -19881,7 +19930,7 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     view='wk';
     var week=1; try{ week=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
     window.BottomSheet.open(loadingHTML(player,week,'',segHTML()),{owner:OWNER,onClose:stop});
-    fixHeight(ssnOn());
+    detentReset(ssnOn());
     fill(player);
     /* Live refresh rides the board poll (cfPlayerDrawerSync). This interval is
        only a WATCHDOG for when the board poll isn't driving it (e.g. it failed
