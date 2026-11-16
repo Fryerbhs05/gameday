@@ -29,6 +29,13 @@
 //     its /64 prefix first, because phones rotate the lower 64 bits for
 //     privacy and the /64 is what identifies one home/LAN. Key = IP_HASH_SALT,
 //     falling back to SESSION_SECRET; with neither set the column stays null.
+//   • geo_country / geo_region (added 2026-11-15): STATE-LEVEL ONLY. Read
+//     from Vercel's x-vercel-ip-country (ISO alpha-2, e.g. "US") and
+//     x-vercel-ip-country-region (ISO 3166-2 subdivision, e.g. "IL"). Strictly
+//     validated; anything malformed or missing becomes null. NO other
+//     x-vercel-ip-* header (city, latitude, longitude, postal code) is ever
+//     read or stored. Derived from the IP at the edge, so it's approximate
+//     (VPNs/carriers can land in the wrong state) — fine for aggregates only.
 
 const crypto = require('crypto');
 const A = require('./_lib/accounts');
@@ -59,6 +66,21 @@ function ipHash(req) {
     if (!key || !net) return null;
     return crypto.createHmac('sha256', key).update('cf-ip:' + net).digest('hex').slice(0, 16);
   } catch (e) { return null; }
+}
+
+// State-level geo from Vercel's edge headers. Only these two headers, ever.
+const GEO_COUNTRY_RE = /^[A-Z]{2}$/;
+const GEO_REGION_RE = /^[A-Z0-9]{1,3}$/;
+function geoFromHeaders(req) {
+  try {
+    const h = (req && req.headers) || {};
+    const one = (v) => (Array.isArray(v) ? v[0] : v);
+    const c = String(one(h['x-vercel-ip-country']) || '').trim().toUpperCase();
+    const r = String(one(h['x-vercel-ip-country-region']) || '').trim().toUpperCase();
+    const country = GEO_COUNTRY_RE.test(c) ? c : null;
+    const region = country && GEO_REGION_RE.test(r) ? r : null; // region is meaningless without a country
+    return { country, region };
+  } catch (e) { return { country: null, region: null }; }
 }
 
 const NAME_RE = /^[a-z][a-z0-9_]{0,49}$/;
@@ -98,6 +120,7 @@ module.exports = async (req, res) => {
 
     const acct = A.readAccount(req); // { uid, email } or null — never throws
     const ipH = ipHash(req);
+    const geo = geoFromHeaders(req);
     const rows = [];
     for (const ev of list) {
       if (!ev || typeof ev.name !== 'string' || !NAME_RE.test(ev.name)) continue;
@@ -108,7 +131,8 @@ module.exports = async (req, res) => {
           if (s.length <= MAX_PROPS_BYTES) props = JSON.parse(s);
         } catch (e) { /* unserializable props → drop props, keep event */ }
       }
-      rows.push({ user_id: acct ? acct.uid : null, anon_id: anonId, name: ev.name, props, ip_hash: ipH });
+      rows.push({ user_id: acct ? acct.uid : null, anon_id: anonId, name: ev.name, props, ip_hash: ipH,
+                  geo_country: geo.country, geo_region: geo.region });
     }
 
     if (rows.length) {
@@ -139,3 +163,5 @@ module.exports = async (req, res) => {
     res.status(204).end(); // analytics failures are invisible by design
   }
 };
+
+module.exports._geoFromHeaders = geoFromHeaders; // exposed for tests only
