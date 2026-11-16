@@ -3951,6 +3951,30 @@
     }
     .pd__skel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
     .pd__skel div { height: 52px; border-radius: var(--radius-md); }
+    /* ── Player drawer → Current Week / Season toggle (owner preview, sw v427) ── */
+    .pd__seg { display: flex; background: var(--paper-deep); border: 1px solid var(--line-soft);
+      border-radius: var(--radius-pill); padding: 3px; margin: 0 0 14px; }
+    .pd__seg button { flex: 1; background: transparent; border: 0; color: var(--ink-500); cursor: pointer;
+      font: 500 10px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase;
+      padding: 9px 0; border-radius: var(--radius-pill); -webkit-tap-highlight-color: transparent; }
+    .pd__seg button.on { background: var(--tile-bg); color: var(--ink-900); box-shadow: inset 0 0 0 1px var(--tile-line); }
+    .pd-ssn__tot .pd__grp { margin-bottom: 10px; }
+    .pd-ssn__tot { margin-bottom: 18px; }
+    .pd-ssn { width: 100%; border-collapse: collapse; table-layout: fixed;
+      font: 500 12px/1 var(--font-mono); font-variant-numeric: tabular-nums; }
+    .pd-ssn th { font: 500 8px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase;
+      color: var(--ink-500); text-align: right; padding: 0 3px 6px; white-space: nowrap; }
+    .pd-ssn thead tr:last-child th { border-bottom: 1px solid var(--line-soft); padding-bottom: 8px; }
+    .pd-ssn td { padding: 7px 3px; text-align: right; color: var(--ink-900); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; }
+    .pd-ssn .c-wk { width: 30px; text-align: left; color: var(--ink-500); }
+    .pd-ssn .c-op { width: 40px; text-align: left; color: var(--ink-700); font-size: 11px; }
+    .pd-ssn .c-tg { width: 38px; text-align: left; color: var(--ink-300); font-size: 8px; letter-spacing: .12em; }
+    .pd-ssn tr.wk-end td { border-bottom: 1px solid var(--line-soft); }
+    .pd-ssn td.z { color: var(--ink-300); }
+    .pd-ssn tr.wk-dnp td.c-dnp { text-align: left; color: var(--ink-300); font: 400 11px/1 var(--font-sans); }
+    .pd-ssn tr.wk-live td.c-wk { color: var(--coral-500); }
+    .pd-ssn__note { font: 400 10px/1.5 var(--font-sans); color: var(--ink-300); margin: 10px 2px 0; }
     /* Tap target on Loyalties cards. NO visible affordance by design (same call
        as the Snapshot rows) — cursor + tap-highlight + a11y attributes only.
        The card hover lift already lives at .player-card:hover and is unchanged. */
@@ -7459,6 +7483,9 @@ let espnDiscoverAttempted=false;
    Reading window.activeWeek directly returns undefined and silently pins the
    schedule fetch to week 1 (the "games repeat every week" bug). */
 window.getActiveWeek=function(){return activeWeek;};
+/* Live NFL week/season for the player drawer's Season view (owner preview, sw v427). */
+window.getLiveWeek=function(){return liveWeek;};
+window.getLiveSeason=function(){return liveSeason;};
 /* Viewed period vs the live NFL week: 'hist' | 'live' | 'future'. Lineup Check-In
    is current-week only (Matt, 2026-09-26). */
 window.__cfPeriodRel=function(){try{const as=parseInt(activeSeason),ls=parseInt(liveSeason);if(as<ls||(as===ls&&activeWeek<liveWeek))return'hist';if(as>ls||(as===ls&&activeWeek>liveWeek))return'future';}catch(e){}return'live';};
@@ -19432,23 +19459,23 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
       +(g.net?'<span class="pd__mu-net">· '+esc(g.net)+'</span>':'')+'</div>';
   }
 
-  function loadingHTML(player,week,between){
+  function loadingHTML(player,week,between,top){
     /* Status is known synchronously — only the numbers are pending — so the
        chip must not flash "Final" over a live game. */
     var st=resolveState(player,true);
-    return headHTML(player)+statusHTML(st==='none'?'post':st,week)+(between||'')
+    return headHTML(player)+(top||'')+statusHTML(st==='none'?'post':st,week)+(between||'')
       +'<div class="pd__grp"><div class="pd__grph"><h4>&nbsp;</h4></div>'
       +'<div class="pd__skel"><div class="skel"></div><div class="skel"></div>'
       +'<div class="skel"></div><div class="skel"></div></div></div>';
   }
 
-  function bodyHTML(player,row,between){
+  function bodyHTML(player,row,between,top){
     var pos=String(player.position||'').toUpperCase();
     var week=1; try{ week=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
     var hasRow=!!(row&&typeof row==='object');
     var state=resolveState(player,hasRow);
 
-    var out=headHTML(player)+statusHTML(state,week)+(between||'');
+    var out=headHTML(player)+(top||'')+statusHTML(state,week)+(between||'');
 
     if(state==='pre'){
       var k=kickoffLabel(player.team||'');
@@ -19496,6 +19523,228 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
     return out;
   }
 
+  /* ══ CURRENT WEEK / SEASON toggle (OWNER-ONLY preview, sw v427) ════════════
+     Matt, 2026-11-15: "Current Week / Season". Season = every week's raw stat
+     line for this player, NO fantasy points (Sleeper's points use Sleeper's
+     default scoring and would contradict each league's own total — the locked
+     no-points rule still holds). Layout:
+       - season totals: one tile row per stat group
+       - per-week table: one line PER GROUP per week (QB → Passing + Rushing,
+         RB → Rushing + Receiving, WR/TE → Receiving + Rushing, K, DEF single).
+         The second group only appears when its SEASON volume is >= 10
+         (carries / targets / attempts), so a WR with 3 carries gets no
+         rushing line of zeros.
+     Data: Sleeper's per-player season endpoint (api.sleeper.com, unpublished,
+     one small request) with a fallback to the documented weekly files (one
+     full-league request per week, cached for the session). Every load logs
+     source / bytes / ms to the console and cfTrack('player_box_season') so the
+     data cost can be judged before release.
+     Gate: cfIsAdmin() (fryerm@ only); never in demo mode. Loyalties bottom
+     sheet only — Maniac's side drawer is untouched. */
+  var view='wk';
+  var SSN_MIN_VOL=10, SSN_TTL=10*60*1000;
+  var ssnCache={}, ssnWkCache={};
+  function ssnOn(){ try{ return !isDemo() && typeof window.cfIsAdmin==='function' && !!window.cfIsAdmin(); }catch(e){ return false; } }
+  function segHTML(){
+    if(!ssnOn()) return '';
+    return '<div class="pd__seg" role="tablist">'
+      +'<button type="button" role="tab" data-pd-view="wk" class="'+(view==='wk'?'on':'')+'">Current Week</button>'
+      +'<button type="button" role="tab" data-pd-view="ssn" class="'+(view==='ssn'?'on':'')+'">Season</button></div>';
+  }
+  function gl(label){ for(var i=0;i<GROUPS.length;i++){ if(GROUPS[i].label===label) return GROUPS[i]; } return null; }
+  var SSN_ORDER={QB:['Passing','Rushing'],RB:['Rushing','Receiving'],WR:['Receiving','Rushing'],
+    TE:['Receiving','Rushing'],K:['Kicking'],DEF:['Defense'],DST:['Defense']};
+  var SSN_TAG={Passing:'Pass',Rushing:'Rush',Receiving:'Rec',Kicking:'Kick',Defense:'Def'};
+  function ssnSeasonInfo(){
+    var season=null, live=null, liveSeason=null, active=null;
+    try{ season=window.getActiveSeason?window.getActiveSeason():null; }catch(e){}
+    try{ live=window.getLiveWeek?window.getLiveWeek():null; }catch(e){}
+    try{ liveSeason=window.getLiveSeason?window.getLiveSeason():null; }catch(e){}
+    try{ active=window.getActiveWeek?window.getActiveWeek():null; }catch(e){}
+    var cur=String(season)===String(liveSeason);
+    var last=cur?Math.max(+live||1,+active||1):18;
+    return {season:season,cur:cur,last:Math.min(18,last),live:cur?(+live||null):null,active:+active||null};
+  }
+  function getJSON(url){
+    return fetch(url).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+      .then(function(t){ return {bytes:t.length,data:JSON.parse(t)}; });
+  }
+  /* Tolerant parse of the per-player endpoint: object keyed by week (value
+     null on a week with no game) or an array of {week, stats, opponent}. */
+  function parsePlayer(d){
+    var out={}, any=false, arr=Array.isArray(d);
+    var items=arr?d:(d&&typeof d==='object'?Object.keys(d).map(function(k){ return {k:k,v:d[k]}; }):[]);
+    items.forEach(function(it){
+      var v=arr?it:it.v;
+      var wk=+((v&&v.week)||(arr?0:it.k));
+      if(!wk||wk<1||wk>18) return;
+      if(!v){ out[wk]=null; return; }
+      var st=(v.stats&&typeof v.stats==='object')?v.stats:null;
+      if(!st) return;
+      any=true;
+      out[wk]={s:st,opp:String(v.opponent||v.opp||'')};
+    });
+    return any?out:null;
+  }
+  function viaPlayer(season,sid){
+    return getJSON('https://api.sleeper.com/stats/nfl/player/'+encodeURIComponent(sid)
+      +'?season_type=regular&season='+encodeURIComponent(season)+'&grouping=week')
+      .then(function(r){ var w=parsePlayer(r.data); if(!w) throw new Error('unrecognized shape'); return {weeks:w,bytes:r.bytes,src:'player'}; });
+  }
+  function viaWeeks(season,last,sid){
+    var ps=[], bytes=0, fetched=0;
+    for(var w=1;w<=last;w++){
+      (function(w){
+        var k=season+'-'+w;
+        if(!ssnWkCache[k]){
+          fetched++;
+          ssnWkCache[k]=getJSON('https://api.sleeper.app/v1/stats/nfl/regular/'+season+'/'+w)
+            .then(function(r){ bytes+=r.bytes; return r.data||{}; })
+            .catch(function(e){ delete ssnWkCache[k]; return {}; });
+        }
+        ps.push(ssnWkCache[k].then(function(all){ return [w,all&&all[sid]]; }));
+      })(w);
+    }
+    return Promise.all(ps).then(function(list){
+      var weeks={};
+      list.forEach(function(x){ weeks[x[0]]=(x[1]&&typeof x[1]==='object')?{s:x[1],opp:''}:null; });
+      return {weeks:weeks,bytes:bytes,src:'weekly',requests:fetched};
+    });
+  }
+  function loadSeason(player){
+    var info=ssnSeasonInfo(), sid=statKey(player);
+    if(!info.season||!sid) return Promise.resolve(null);
+    var key=info.season+'|'+sid, hit=ssnCache[key];
+    if(hit&&(!info.cur||Date.now()-hit.at<SSN_TTL)) return hit.p;
+    var t0=Date.now();
+    var p=viaPlayer(info.season,sid).catch(function(e){
+      console.info('[cf-season] per-player endpoint unavailable ('+(e&&e.message)+') — falling back to weekly files');
+      return viaWeeks(info.season,info.last,sid);
+    }).then(function(r){
+      var ms=Date.now()-t0;
+      console.info('[cf-season] '+(player.full_name||sid)+' · source='+r.src+' · '+Math.round(r.bytes/1024)+' KB'
+        +(r.requests!=null?(' · '+r.requests+' new requests'):'')+' · '+ms+' ms');
+      try{ cfTrack('player_box_season',{src:r.src,kb:Math.round(r.bytes/1024),ms:ms,req:r.requests==null?1:r.requests,pos:String(player.position||'')}); }catch(e){}
+      return r;
+    }).catch(function(){ delete ssnCache[key]; return null; });
+    ssnCache[key]={at:Date.now(),p:p};
+    return p;
+  }
+  function ssnGroups(pos,weeks){
+    var order=SSN_ORDER[pos]||['Receiving','Rushing'], out=[];
+    order.forEach(function(label,i){
+      var g=gl(label); if(!g) return;
+      if(i===0){ out.push(g); return; }
+      var vol=0; Object.keys(weeks).forEach(function(w){ if(weeks[w]) vol+=g.vol(weeks[w].s); });
+      if(vol>=SSN_MIN_VOL) out.push(g);
+    });
+    return out;
+  }
+  function sumStats(weeks){
+    var t={};
+    Object.keys(weeks).forEach(function(w){
+      var r=weeks[w]; if(!r) return;
+      Object.keys(r.s).forEach(function(k){
+        var v=r.s[k]; if(typeof v!=='number'||!isFinite(v)) return;
+        if(k==='fgm_lng'){ t[k]=Math.max(t[k]||0,v); return; }
+        if(k==='pts_allow'){ return; }
+        t[k]=(t[k]||0)+v;
+      });
+    });
+    return t;
+  }
+  function zc(v){ return (v===0||v==='0'||v==='0/0')?' class="z"':''; }
+  function seasonBodyHTML(player,r,info){
+    var pos=String(player.position||'').toUpperCase(); if(pos==='DST') pos='DEF';
+    var out=headHTML(player)+segHTML();
+    if(!r||!r.weeks){
+      return out+'<div class="pd__empty"><h5>Season stats unavailable</h5>'
+        +'<p>We couldn’t load this player’s weekly history.</p></div>';
+    }
+    var weeks={}; Object.keys(r.weeks).forEach(function(w){ if(+w<=info.last) weeks[w]=r.weeks[w]; });
+    /* Overlay the live week from the board's own /stats pull when the board is
+       ON the live week (same cache key, no extra request) — the season
+       endpoint can trail a game in progress. */
+    if(info.cur&&info.live&&info.active===info.live&&live&&live[statKey(player)]){
+      var prev=weeks[info.live];
+      weeks[info.live]={s:live[statKey(player)],opp:(prev&&prev.opp)||''};
+    }
+    var gs=ssnGroups(pos,weeks);
+    if(!gs.length) gs=[gl('Receiving')];
+    var played=Object.keys(weeks).filter(function(w){ var x=weeks[w]; return x&&gs.some(function(g){ return g.vol(x.s)>0; }) || (x&&n(x.s.gp)>0); }).length;
+    var tot=sumStats(weeks);
+    out+='<div class="pd__grph"><h4>'+esc(info.season)+' · '+played+' game'+(played===1?'':'s')+'</h4></div>';
+    out+='<div class="pd-ssn__tot">'+gs.map(function(g){
+      var tiles=g.tiles(tot);
+      return '<div class="pd__grp">'+(gs.length>1?'<div class="pd__grph"><h4>'+esc(g.label)+'</h4></div>':'')
+        +'<div class="pd__tiles">'+tiles.map(tileHTML).join('')+'</div></div>';
+    }).join('')+'</div>';
+    var hasOpp=Object.keys(weeks).some(function(w){ return weeks[w]&&weeks[w].opp; });
+    var multi=gs.length>1, nNum=4, cols=1+(hasOpp?1:0)+(multi?1:0)+nNum;
+    var colg='<colgroup><col class="c-wk">'+(hasOpp?'<col class="c-op">':'')+(multi?'<col class="c-tg">':'')
+      +'<col><col><col><col></colgroup>';
+    var sample=gs.map(function(g){ return g.tiles({}); });
+    var head='<thead>'+gs.map(function(g,i){
+      return '<tr>'+(i===0?('<th class="c-wk" rowspan="'+gs.length+'">Wk</th>'+(hasOpp?'<th class="c-op" rowspan="'+gs.length+'">Opp</th>':'')):'')
+        +(multi?'<th class="c-tg">'+esc(SSN_TAG[g.label]||g.label)+'</th>':'')
+        +sample[i].map(function(t){ return '<th>'+esc(t.l)+'</th>'; }).join('')+'</tr>';
+    }).join('')+'</thead>';
+    var body='<tbody>';
+    for(var w=info.last;w>=1;w--){
+      var x=weeks[w], isLive=info.cur&&info.live===w;
+      var wkCell='<td class="c-wk" rowspan="'+(x?gs.length:1)+'">'+w+'</td>';
+      if(!x){
+        var why='Bye / did not play';
+        if(isLive){
+          var st=null; try{ st=window.__cfGameState?window.__cfGameState(player.team||''):null; }catch(e){}
+          if(st==='pre'||st==='in') why=(st==='pre')?'Not played yet':'No stats yet';
+        }
+        body+='<tr class="wk-dnp wk-end'+(isLive?' wk-live':'')+'"><td class="c-wk">'+w+'</td>'
+          +'<td class="c-dnp" colspan="'+(cols-1)+'">'+why+'</td></tr>';
+        continue;
+      }
+      gs.forEach(function(g,i){
+        var cls=(i===gs.length-1?'wk-end':'')+(isLive?' wk-live':'');
+        body+='<tr class="'+cls+'">'
+          +(i===0?(wkCell+(hasOpp?'<td class="c-op" rowspan="'+gs.length+'">'+esc(x.opp||'—')+'</td>':'')):'')
+          +(multi?'<td class="c-tg">'+esc(SSN_TAG[g.label]||g.label)+'</td>':'')
+          +g.tiles(x.s).map(function(t){ return '<td'+zc(t.v)+'>'+esc(t.v)+'</td>'; }).join('')+'</tr>';
+      });
+    }
+    body+='</tbody>';
+    out+='<table class="pd-ssn">'+colg+head+body+'</table>';
+    out+='<p class="pd-ssn__note">Stats only — no fantasy points, since each league scores differently.'
+      +(info.cur&&info.live?(' Week '+info.live+(isLiveGame(player)?' is in progress.':' is the current week.')):'')+'</p>';
+    return out;
+  }
+  function isLiveGame(player){ try{ return (window.__cfGameState&&window.__cfGameState(player.team||''))==='in'; }catch(e){ return false; } }
+  var live=null; /* last live-week stats map used for the overlay */
+  function seasonLoadingHTML(player){
+    return headHTML(player)+segHTML()
+      +'<div class="pd__grp"><div class="pd__grph"><h4>&nbsp;</h4></div>'
+      +'<div class="pd__skel"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>'
+      +'<div class="pd__grp"><div class="pd__skel"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></div>';
+  }
+  function fillSeason(player,quiet){
+    var info=ssnSeasonInfo();
+    if(!quiet&&mine()&&current===player) window.BottomSheet.setBody(seasonLoadingHTML(player));
+    var lp=Promise.resolve(null);
+    if(info.cur&&info.live&&info.active===info.live&&typeof window.__cfWeekStats==='function'){
+      lp=window.__cfWeekStats(info.season,info.live).catch(function(){ return null; });
+    }
+    Promise.all([loadSeason(player),lp]).then(function(res){
+      if(!mine()||current!==player||view!=='ssn') return;
+      live=res[1]||null;
+      window.BottomSheet.setBody(seasonBodyHTML(player,res[0],info));
+    });
+  }
+  function setView(v){
+    if(v===view||!current||!mine()) return;
+    view=v;
+    try{ cfTrack('player_box_view',{view:v}); }catch(e){}
+    if(v==='ssn') fillSeason(current); else fill(current);
+  }
+
   window.cfPlayerBoxParts={resolveState:resolveState,statKey:statKey,kickoffLabel:kickoffLabel,
     matchupHTML:matchupHTML,groupsHTML:groupsHTML,demoRow:demoRow,isDemo:isDemo};
 
@@ -19505,20 +19754,21 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
   }
 
   function fill(player){
+    if(view==='ssn'&&ssnOn()){ fillSeason(player,true); return; }
     if(isDemo()){ if(mine()&&current===player) window.BottomSheet.setBody(bodyHTML(player,demoRow(player))); return; }
     var season,week;
     try{ season=window.getActiveSeason?window.getActiveSeason():null; }catch(e){}
     try{ week=window.getActiveWeek?window.getActiveWeek():null; }catch(e){}
     if(!season||!week||typeof window.__cfWeekStats!=='function'){
-      if(mine()) window.BottomSheet.setBody(bodyHTML(player,null));
+      if(mine()) window.BottomSheet.setBody(bodyHTML(player,null,'',segHTML()));
       return;
     }
     window.__cfWeekStats(season,week).then(function(all){
-      if(!mine()||current!==player) return;
+      if(!mine()||current!==player||view!=='wk') return;
       var sid=statKey(player);
-      window.BottomSheet.setBody(bodyHTML(player, sid?(all&&all[sid]):null));
+      window.BottomSheet.setBody(bodyHTML(player, sid?(all&&all[sid]):null,'',segHTML()));
     }).catch(function(){
-      if(mine()&&current===player) window.BottomSheet.setBody(bodyHTML(player,null));
+      if(mine()&&current===player&&view==='wk') window.BottomSheet.setBody(bodyHTML(player,null,'',segHTML()));
     });
   }
 
@@ -19569,8 +19819,9 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
        drawer uses, so the two sheets behave identically. */
     if(mine()&&current===player){ window.BottomSheet.close(); return; }
     current=player;
+    view='wk';
     var week=1; try{ week=(window.getActiveWeek?window.getActiveWeek():1)||1; }catch(e){}
-    window.BottomSheet.open(loadingHTML(player,week),{owner:OWNER,onClose:stop});
+    window.BottomSheet.open(loadingHTML(player,week,'',segHTML()),{owner:OWNER,onClose:stop});
     fill(player);
     /* Live refresh rides the board poll (cfPlayerDrawerSync). This interval is
        only a WATCHDOG for when the board poll isn't driving it (e.g. it failed
@@ -19608,6 +19859,11 @@ window.cfPickem={isOn:isOn,placeSub:placeSub,openChooser:openChooser,openWizard:
   });
   document.addEventListener('click',function(e){
     if(e.target&&e.target.closest&&e.target.closest('[data-pd-close]')&&mine()) window.BottomSheet.close();
+  });
+  document.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest?e.target.closest('[data-pd-view]'):null;
+    if(!b||!mine()||!ssnOn()) return;
+    setView(b.getAttribute('data-pd-view')==='ssn'?'ssn':'wk');
   });
 })();
 </script>
