@@ -197,9 +197,11 @@ function yahooGate(platforms, needed, yahoo, strict) {
 async function capture(season, pair, idx, yahoo, known) {
   const gate = yahooGate(pair.platforms, pair.platforms.filter((p) => !(pair.prev || []).includes(p)), yahoo);
   if (!gate) return 'deferred';
-  const read = await L.readAccountWeek(pair.uid, season, pair.week, gate.platforms, { meta: true, knownSettings: known });
-  if (read.errors.yahoo === 'api') yahoo.blocked = true; // rate limit / outage — not one account's expired token
   const attempts = gate.deferred ? pair.prevAttempts : pair.attempts;
+  // ESPN leagues refused (401) / not found (404) are retried until the last attempt,
+  // then skipped so one dead league can't keep the account-week failing forever.
+  const read = await L.readAccountWeek(pair.uid, season, pair.week, gate.platforms, { meta: true, knownSettings: known, retryDead: attempts < MAX_ATTEMPTS });
+  if (read.errors.yahoo === 'api') yahoo.blocked = true; // rate limit / outage — not one account's expired token
   // Logged platforms = every platform captured cleanly for this account-week so far.
   const captured = [...new Set([...(pair.prev || []), ...read.okPlatforms])];
   const payload = L.buildPayload({ uid: pair.uid, season, week: pair.week, matchups: read.matchups, okPlatforms: captured, attempts, metaPlatforms: read.okPlatforms }, idx);
@@ -279,11 +281,18 @@ async function run(now, opts) {
   const total = queue.length;
   if (queue.length) {
     const ix = await index();
+    // One account at a time per worker: two weeks of the same account written in
+    // parallel deadlock on that account's lineup_team_names / league_meta_log rows.
+    const busy = new Set();
+    const next = () => { const i = queue.findIndex((p) => !busy.has(p.uid)); return i < 0 ? null : queue.splice(i, 1)[0]; };
     async function worker() {
       while (queue.length && Date.now() - now < BUDGET_MS) {
-        const pair = queue.shift();
+        const pair = next();
+        if (!pair) { await new Promise((r) => setTimeout(r, 50)); continue; }
+        busy.add(pair.uid);
         try { counts[await capture(fw.season, pair, ix, yahoo, known)]++; }
         catch (e) { counts.failed++; console.error('snapshot capture failed', pair.uid, pair.week, e.message); await logFailure(fw.season, pair, e.message); }
+        finally { busy.delete(pair.uid); }
       }
     }
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
@@ -335,10 +344,12 @@ async function run(now, opts) {
     meta = { pending, remaining: mq.length, ...mc };
   }
 
+  // The stats views are rebuilt by a pg_cron job (db/2026-11-snapshot-fixes.sql), outside
+  // PostgREST's 8s statement timeout. This call only flags that new rows landed.
   let refreshed = false;
   if (counts.ok + counts.empty + counts.partial > 0 || schedule.weeks > 0) {
     try { await A.sbFetch('rpc/stats_refresh', { method: 'POST', body: '{}' }); refreshed = true; }
-    catch (e) { console.error('stats refresh failed', e.message); }
+    catch (e) { console.error('stats refresh request failed', e.message); }
   }
   return { season: fw.season, lastFinal: fw.last, pending: total, processed: total - queue.length, remaining: queue.length, ...counts, schedule, projections, meta, yahooLeft: yahoo.left, refreshed, ms: Date.now() - now };
 }

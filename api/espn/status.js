@@ -73,7 +73,11 @@ module.exports = async (req, res) => {
   // the moment the user signs in on desktop and loads the app.
   if (fromCookie && acct) {
     try {
-      await A.savePlatformSession(acct.uid, 'espn', sealed);
+      // Only write when the cookie differs from what the account already holds.
+      // Re-saving the same blob on every app load bumped platform_sessions.updated_at,
+      // which the stats snapshot reads as "reconnected" and re-reads the whole season.
+      const stored = await A.getPlatformSession(acct.uid, 'espn').catch(() => null);
+      if (stored !== sealed) await A.savePlatformSession(acct.uid, 'espn', sealed);
     } catch (e) {
       console.error('espn/status account auto-migrate failed (non-fatal):', e.message);
     }

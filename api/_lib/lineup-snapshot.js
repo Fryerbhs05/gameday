@@ -95,7 +95,14 @@ async function readAccountWeek(uid, season, week, platforms, opts) {
   const want = (platforms || []).filter((p) => fns[p]);
   const [results, disabled] = await Promise.all([
     Promise.all(want.map((p) => fns[p](uid, season, week, opts).then(
-      (rows) => ({ p, rows: rows || [], ok: !(rows && rows.failed > 0), err: rows && rows.failed > 0 ? 'api' : null }),
+      (rows) => {
+        // opts.retryDead: an ESPN league that answered 401/404 (rows.dead) fails the platform
+        // so the snapshot log retries it next run; the readable leagues are still saved.
+        // The snapshot job turns this off on the last attempt and accepts the league as gone.
+        const dead = opts && opts.retryDead && rows && rows.dead ? rows.dead.length : 0;
+        const apiFail = !!(rows && rows.failed > 0);
+        return { p, rows: rows || [], ok: !apiFail && !dead, err: apiFail ? 'api' : (dead ? 'dead' : null) };
+      },
       (e) => {
         console.error('snapshot read failed', p, uid, e.message);
         // 'token' = this account's connection (expired / refresh failed); 'api' = the platform itself.

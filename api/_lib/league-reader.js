@@ -240,6 +240,7 @@ async function readEspn(uid, season, week, opts) {
   const swid = String(s.sw || '').toLowerCase();
   const out = [];
   out.failed = 0;
+  out.dead = [];   // leagues ESPN refuses (401) or no longer has (404) for this login
   await Promise.all(lids.map(async (lid) => {
     try {
       const qs = ['mBoxscore', 'mMatchupScore', 'mTeam', 'mRoster', 'mSettings'].map((v) => `view=${v}`).join('&');
@@ -273,8 +274,21 @@ async function readEspn(uid, season, week, opts) {
         m.meta = { settings: espnSettings(data), teams, scoring: null, myProjTeam: null, oppProjTeam: null };
       }
       out.push(m);
-    } catch (e) { out.failed++; console.error('reader espn league failed', lid, e.message); }
+    } catch (e) {
+      // 401 = this login can't view the league (private league it isn't in, or the
+      // saved espn_s2 has expired); 404 = no such league this season. Neither is an
+      // ESPN outage, so it shouldn't fail the account's other ESPN leagues.
+      if (e.status === 401 || e.status === 404) { out.dead.push({ lid: String(lid), status: e.status }); return; }
+      out.failed++; console.error('reader espn league failed', lid, e.message);
+    }
   }));
+  if (out.dead.length) {
+    console.warn('reader espn leagues unreadable', uid, out.dead.map((d) => `${d.lid}:${d.status}`).join(','));
+    // Every league refused → the saved login itself is dead: same path as an expired Yahoo token.
+    if (!out.length && !out.failed && out.dead.length === lids.length && out.dead.every((d) => d.status === 401)) {
+      throw new Error('espn token unavailable');
+    }
+  }
   return out;
 }
 
