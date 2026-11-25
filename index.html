@@ -5230,6 +5230,10 @@
       /* Contact is LIVE (2026-08-19): opens the in-app Contact view (Instagram /
          X / Email). Dropped the adminOnly + soon flags so every user sees it. */
       { key: 'contact',  label: 'Contact',  soon: false, svg: '<g transform="translate(12,12) scale(0.8571) translate(-12,-12)"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></g>' },
+      /* Rate Conflicted (sw v433, Matt 2026-11-25): opens the in-app feedback sheet. Signed-in,
+         non-demo users only (rateOnly → window.cfCanRate). Star art is 17.4u tall centered at 11.5,
+         normalized to the flask body like every other tile. */
+      { key: 'rate', label: 'Rate<br>Conflicted', soon: false, rateOnly: true, svg: '<g transform="translate(12,12) scale(0.6897) translate(-12,-11.5)"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/></g>' },
       /* About moved out of this sheet into Account → Legal & help (2026-08-19).
          showAbout() still lives below (also called from the Account row and the
          landing footer), and the 'about' click handler is kept as a harmless
@@ -5251,7 +5255,7 @@
     ];
     /* Normal-user tile order (Matt, 2026-09-26): Check-In, Leaders, Exposure, Account,
        Blog, Contact. Gated tiles keep their own bottom row regardless. */
-    (function(){var ORDER=['maniac','checkin','leaders','exposure','account','blog','contact'];
+    (function(){var ORDER=['maniac','checkin','leaders','exposure','account','blog','contact','rate'];
       var rank=function(it){var i=ORDER.indexOf(it.key);return i<0?99:i;};
       var idx=ITEMS.map(function(it,i){return[it,i];});
       idx.sort(function(a,b){return(rank(a[0])-rank(b[0]))||(a[1]-b[1]);});
@@ -5303,7 +5307,8 @@
                  '<span class="cbmore-label">' + label + '</span>' +
                '</button>';
       }
-      var regular = ITEMS.filter(function(it){ return !it.adminOnly && !it.maniacOnly && (!it.leaguesOnly || leaguesOk); });
+      var rateOk = (typeof window.cfCanRate === 'function') && window.cfCanRate();
+      var regular = ITEMS.filter(function(it){ return !it.adminOnly && !it.maniacOnly && (!it.leaguesOnly || leaguesOk) && (!it.rateOnly || rateOk); });
       var gated = ITEMS.filter(function(it){
         if (it.maniacOnly) return maniacOk;
         return adminOk && it.adminOnly && (!it.leaguesOnly || leaguesOk);
@@ -5338,6 +5343,7 @@
       else if (action === 'conflict' && typeof window.showConflictCard === 'function') { window.showConflictCard(); window.scrollTo(0, 0); }
       else if (action === 'checkin' && typeof window.cfShowLineupCheckIn === 'function') { window.cfShowLineupCheckIn('more'); }
       else if (action === 'maniac' && typeof window.showManiac === 'function') { window.showManiac(); }
+      else if (action === 'rate' && typeof window.cfOpenRate === 'function') { window.cfOpenRate('more_menu'); }
       /* Kept as a harmless no-op path: Schedule left the sheet 2026-09-11, but a
          cached shell may still render its tile for one load. */
       else if (action === 'schedule' && typeof window.showWatch === 'function') { window.showWatch(); window.scrollTo(0, 0); }
@@ -6606,6 +6612,23 @@
 
   <div class="settings-panel" style="display:block;margin:0 0 16px;">
     <div class="settings-body" style="display:block;">
+
+      <!-- Rate Conflicted (sw v433): opens the feedback sheet. Hidden unless signed in and not
+           in demo — the rate block's tick() toggles it via window.cfCanRate(). -->
+      <div class="settings-row settings-row--link" id="cf-rate-row" style="display:none" role="button" tabindex="0" aria-label="Rate Conflicted"
+           onclick="if(window.cfOpenRate)cfOpenRate('contact')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();if(window.cfOpenRate)cfOpenRate('contact');}">
+        <span class="settings-row-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--split)" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/>
+          </svg>
+        </span>
+        <div class="settings-row-meta">
+          <div class="settings-row-title">Rate Conflicted<span class="newpill-rate">New</span></div>
+          <div class="settings-row-sub">Stars, what you like, what to build next</div>
+        </div>
+        <span class="settings-row-chevron" aria-hidden="true">›</span>
+      </div>
 
       <!-- Instagram -->
       <div class="settings-row settings-row--link" role="button" tabindex="0" aria-label="Instagram — @ConflictedApp"
@@ -15760,7 +15783,7 @@ window.openCodeEntryModal = openCodeEntryModal;
     return 'push';
   }
   function showAsk(variant,trigger){
-    askedThisLoad=true;
+    askedThisLoad=true;window.__cfPushAskedThisLoad=true; /* the Rate Conflicted timed ask never shows in the same visit (sw v433) */
     var s=askState();s.n=(s.n||0)+1;s.until=Date.now()+SNOOZE;saveAsk(s);
     try{cfTrack('push_ask_shown',{trigger:trigger,variant:variant,n:s.n});}catch(e){}
     var body=variant==='push'
@@ -32014,5 +32037,326 @@ body.demo-active #cfm.compact button.cfm-demo-exit{font-size:11px;padding:8px 10
 })();
 </script>
 
+
+<!-- ============ Rate Conflicted — in-app feedback request (sw v433) ============
+     Option 2 from mocks/feedback-request-mock.html (Matt, 2026-11-25):
+       • Always-on entry points for signed-in, non-demo users: …More → "Rate Conflicted"
+         tile and the top row of the Contact view.
+       • ONE timed ask: a beat after the person comes BACK to Home (scoreboard + Loyalties)
+         from any other view (Snapshot, Schedule, Leagues, Leaders, Exposure, Maniac Mode,
+         Account, Contact, the blog…). Never on app open, never in demo, never in the same
+         visit as the alerts ask, never over another sheet. Server rules (api/feedback.js):
+         account 14+ days old, opened in 3+ different weeks, max 2 asks per season 30+ days
+         apart, none after they've rated this season.
+       • The star tap alone is feedback: it saves the row right away. Send fills in the notes
+         on the same row. Every way out (Send, Skip, backdrop, Esc) ends in one final save,
+         which emails the copy to ConflictedApp@Gmail.com exactly once.
+       • Undelivered saves are QUEUED (cf_feedback_pending_v1) and replayed on the next
+         signed-in load for the same account — never dropped (feedback_undelivered_account_writes).
+       • 5 stars → a quiet share prompt (Matt's copy) that shares the person's ?ref= link.
+     QA: add ?feedback=1 to the URL to force the timed ask on your next return to Home
+     (skips the eligibility rules and isn't counted as an ask). -->
+<style>
+.cf-fb{color:var(--ink-900)}
+.cf-fb-hd{padding:4px 2px 4px}
+.cf-fb-title{font:800 16px/1.15 var(--font-sans);letter-spacing:.06em;color:var(--ink-900);text-transform:uppercase;outline:none}
+.cf-fb-sub{font:500 12px/1.4 var(--font-sans);color:var(--ink-500);margin-top:6px}
+.cf-fb-stars{display:flex;justify-content:center;gap:6px;margin:22px 0 8px}
+.cf-fb-stars.sm{justify-content:flex-start;gap:2px;margin:12px 0 4px}
+.cf-fb-star{background:none;border:0;padding:4px;cursor:pointer;line-height:0;border-radius:8px;-webkit-tap-highlight-color:transparent;transition:transform 80ms var(--ease-out)}
+.cf-fb-star:active{transform:scale(.9)}
+.cf-fb-star:focus-visible{outline:2px solid var(--navy-500);outline-offset:1px}
+.cf-fb-star svg{width:44px;height:44px;display:block}
+.cf-fb-stars.sm .cf-fb-star svg{width:22px;height:22px}
+.cf-fb-star path{fill:transparent;stroke:var(--ink-300);stroke-width:1.6;stroke-linejoin:round;transition:fill var(--duration-fast),stroke var(--duration-fast)}
+.cf-fb-star.on path{fill:var(--split);stroke:var(--split)}
+.cf-fb-cap{text-align:center;font:600 11px/1 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-500);min-height:14px}
+.cf-fb-stars.sm + .cf-fb-cap{text-align:left}
+.cf-fb-lbl{display:block;font:600 13px/1.35 var(--font-sans);color:var(--ink-900);margin:18px 0 8px}
+.cf-fb-lbl small{font-weight:400;color:var(--ink-500)}
+.cf-fb textarea{width:100%;box-sizing:border-box;min-height:84px;resize:vertical;background:var(--paper-deep);border:1px solid var(--line);border-radius:var(--radius-md);color:var(--ink-900);font:400 16px/1.45 var(--font-sans);padding:10px 12px;outline:none;margin:0}
+.cf-fb textarea:focus{border-color:var(--navy-500)}
+.cf-fb textarea::placeholder{color:var(--ink-300)}
+.cf-fb-cnt{text-align:right;font:500 10px/1 var(--font-mono);color:var(--ink-300);margin-top:4px}
+.cf-fb-quote{margin-top:12px;background:var(--paper-soft);border:1px solid var(--line);border-radius:var(--radius-md);padding:11px 12px}
+.cf-fb-chk{display:flex;gap:10px;align-items:flex-start;cursor:pointer;font:500 13px/1.4 var(--font-sans);color:var(--ink-700)}
+.cf-fb-chk.off{cursor:default}
+.cf-fb-chk.off > span{color:var(--ink-500)}
+.cf-fb-chk input{appearance:none;-webkit-appearance:none;flex-shrink:0;width:18px;height:18px;margin:1px 0 0;border:1.5px solid var(--ink-500);border-radius:5px;background:transparent;display:grid;place-content:center;cursor:pointer}
+.cf-fb-chk input:disabled{opacity:.4;cursor:default}
+.cf-fb-chk input:checked{background:var(--cheer);border-color:var(--cheer)}
+.cf-fb-chk input:checked::after{content:"";width:9px;height:5px;border-left:2px solid var(--paper);border-bottom:2px solid var(--paper);transform:rotate(-45deg) translate(1px,-1px)}
+.cf-fb-chk small{display:block;font:400 11px/1.4 var(--font-sans);color:var(--ink-500);margin-top:3px}
+.cf-fb-qopts{transition:opacity var(--duration-base) var(--ease-out)}
+.cf-fb-qopts.off{opacity:.4}
+.cf-fb-seg{display:flex;gap:4px;margin-top:10px;background:var(--paper-deep);border:1px solid var(--line);border-radius:var(--radius-md);padding:4px}
+.cf-fb-seg button{flex:1;background:transparent;border:0;border-radius:var(--radius-sm);color:var(--ink-500);font:600 12px/1 var(--font-sans);padding:9px 4px;cursor:pointer;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cf-fb-seg button.on{background:var(--paper-soft);color:var(--ink-900);box-shadow:0 1px 0 var(--line)}
+.cf-fb-seg button:disabled{cursor:default}
+.cf-fb-preview{margin-top:10px;font:italic 400 12px/1.45 var(--font-sans);color:var(--ink-500);border-left:2px solid var(--coral-700);padding:2px 0 2px 10px;word-break:break-word}
+.cf-fb-qopts.off .cf-fb-preview{border-left-color:var(--ink-300)}
+.cf-fb-primary{display:block;width:100%;margin-top:18px;padding:13px;border-radius:12px;background:var(--navy-300);color:#fff;border:0;font:700 14px/1 var(--font-sans);cursor:pointer}
+.cf-fb-ghost{display:block;width:100%;margin-top:6px;background:transparent;color:var(--ink-500);font:500 14px/1 var(--font-sans);border:0;border-radius:var(--radius-sm);padding:11px 12px;cursor:pointer}
+.cf-fb-ghost:hover{color:var(--ink-700)}
+.cf-fb-done-ico{width:56px;height:56px;border-radius:50%;background:var(--cheer-soft);display:grid;place-items:center;margin:16px auto 14px}
+.cf-fb-done-ico svg{width:28px;height:28px;stroke:var(--cheer);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.cf-fb-done h3{font:800 20px/1.2 var(--font-sans);color:var(--ink-900);text-align:center;outline:none;margin:0}
+.cf-fb-done p{font:400 13px/1.5 var(--font-sans);color:var(--ink-500);text-align:center;margin:8px 0 0}
+.cf-fb-pass{margin-top:22px;border-top:1px solid var(--line);padding-top:18px}
+.cf-fb-pass-k{font:600 10px/1 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-500);text-align:center}
+.cf-fb-pass-h{font:700 15px/1.3 var(--font-sans);color:var(--ink-900);text-align:center;margin-top:8px}
+.cf-fb-done p.cf-fb-pass-sub{margin:8px auto 0;max-width:300px}
+.cf-fb-share{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:14px;padding:12px;border-radius:12px;background:transparent;border:1px solid var(--coral-700);color:var(--coral-400);font:700 13px/1 var(--font-sans);cursor:pointer}
+.cf-fb-share svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cf-fb-fine{font:400 11px/1.4 var(--font-sans);color:var(--ink-300);text-align:center;margin-top:8px}
+.cf-fb-toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;z-index:10050;background:var(--ink-900);color:var(--paper);font:600 12px/1.3 var(--font-sans);padding:10px 14px;border-radius:14px;transition:all .25s var(--ease-out);pointer-events:none;max-width:calc(100vw - 40px);text-align:center}
+.cf-fb-toast.show{opacity:1;transform:translate(-50%,0)}
+.newpill-rate{font:600 8px/1 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--split);border:1px solid var(--split);border-radius:10px;padding:2px 6px;margin-left:6px;vertical-align:2px}
+</style>
+<script>
+(function(){
+  'use strict';
+  var VERSION='v433';
+  var OWNER='rate-conflicted';
+  var PENDING_KEY='cf_feedback_pending_v1';
+  var MAXLEN=1000;
+  var CAPS=['','Not for me','Needs work','It’s okay','Really good','Love it'];
+  var CONSENT='Conflicted can quote this on its website and social posts';
+  var STAR_PATH='<path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/>';
+  var STAR='<svg viewBox="0 0 24 24" aria-hidden="true">'+STAR_PATH+'</svg>';
+  var VIEW_IDS=['view-snapshot','view-conflict','view-exposure','view-watch','view-leaders','view-leagues','view-settings','view-connections','view-account','view-account-delete','view-about','view-contact'];
+
+  var F=null;                       /* the open form */
+  var elig=null, eligLoading=false; /* server eligibility for the timed ask, once per load */
+  var askedThisLoad=false, pendingTried=false;
+  var forced=false; try{forced=/[?&]feedback=1(&|$)/.test(location.search);}catch(e){}
+
+  function acct(){return window.__account||{};}
+  function signedIn(){return acct().signedIn===true;}
+  function demo(){try{return typeof window.inDemoMode==='function'&&!!window.inDemoMode();}catch(e){return false;}}
+  function canRate(){return signedIn()&&!demo();}
+  window.cfCanRate=canRate;
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function track(n,p){try{if(typeof window.cfTrack==='function')window.cfTrack(n,p||{});}catch(e){}}
+  function $(id){return document.getElementById(id);}
+  function device(){
+    var ua=navigator.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),and=/Android/.test(ua);
+    var standalone=false;try{standalone=(typeof cfIsStandalone==='function')?cfIsStandalone():(navigator.standalone===true||matchMedia('(display-mode: standalone)').matches);}catch(e){}
+    var kind=ios?(/iPad/.test(ua)||navigator.platform==='MacIntel'?'iPad':'iPhone'):and?'Android':'Desktop';
+    return kind+(standalone?' Home Screen app':(kind==='Desktop'?' browser':' browser'));
+  }
+  function toast(t){var el=$('cf-fb-toast');if(!el){el=document.createElement('div');el.id='cf-fb-toast';el.className='cf-fb-toast';el.setAttribute('role','status');document.body.appendChild(el);}el.textContent=t;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(function(){el.classList.remove('show');},2400);}
+
+  /* ── Saving: one serialized chain so Send can never race the star-tap insert ── */
+  var chain=Promise.resolve();
+  function bodyFor(f,final){return{id:f.id||null,rating:f.rating,stage:f.sentNotes?'sent':'stars_only',liked:f.liked,improve:f.improve,build_next:f.buildNote,quote_ok:!!f.quote,quote_name_style:f.nameStyle,trigger:f.trigger,device:device(),app_version:VERSION,final:!!final};}
+  function post(action,body){return fetch('/api/feedback?action='+action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});}
+  function readPending(){try{return JSON.parse(localStorage.getItem(PENDING_KEY))||null;}catch(e){return null;}}
+  function writePending(p){try{if(p)localStorage.setItem(PENDING_KEY,JSON.stringify(p));else localStorage.removeItem(PENDING_KEY);}catch(e){}}
+  function save(f,final){
+    if(!f||!f.rating)return chain;
+    if(final)f.finalized=true;
+    chain=chain.then(function(){
+      var body=bodyFor(f,final||f.finalized);
+      return post('save',body).then(function(r){
+        if(r.ok)return r.json().then(function(j){if(j&&j.id)f.id=j.id;var p=readPending();if(p&&p.lid===f.lid)writePending(null);});
+        if(r.status===400)return; /* bad input: nothing to replay */
+        throw new Error('HTTP '+r.status);
+      }).catch(function(){
+        /* Undelivered → queue the intent (as final, so the replay also emails it) for this account. */
+        var b=bodyFor(f,true);
+        writePending({lid:f.lid,email:String(acct().email||'').toLowerCase(),ts:Date.now(),body:b});
+      });
+    });
+    return chain;
+  }
+  function replayPending(){
+    var p=readPending();if(!p||!p.body)return;
+    if(Date.now()-(p.ts||0)>14*86400000){writePending(null);return;}
+    if(!p.email||p.email!==String(acct().email||'').toLowerCase())return; /* only ever replay into the account that wrote it */
+    post('save',p.body).then(function(r){if(r.ok||r.status===400)writePending(null);}).catch(function(){});
+  }
+
+  /* ── Sheet ── */
+  function isMine(){try{return window.BottomSheet&&window.BottomSheet.isOpen()&&window.BottomSheet.getOwner()===OWNER;}catch(e){return false;}}
+  function tier(){return F.rating>=4?'hi':F.rating===3?'mid':'lo';}
+  function displayName(){
+    var a=acct(),first=String(a.firstName||a.first_name||'').trim(),last=String(a.lastName||a.last_name||'').trim();
+    if(!first&&a.name){var parts=String(a.name).trim().split(/\s+/);first=parts[0]||'';last=parts.length>1?parts[parts.length-1]:'';}
+    if(!first)first=String(a.email||'').split('@')[0]||'You';
+    return{initial:last?first+' '+last.charAt(0).toUpperCase()+'.':first,first:first};
+  }
+  function quoteName(){var n=displayName();return F.nameStyle==='first'?n.first:F.nameStyle==='anon'?'A Conflicted user':n.initial;}
+  function previewText(){return '“'+(F.liked.trim()||'Your words here')+'” — '+quoteName();}
+  function starsHtml(sm){var h='<div class="cf-fb-stars'+(sm?' sm':'')+'" role="radiogroup" aria-label="Rating">';for(var i=1;i<=5;i++)h+='<button type="button" class="cf-fb-star'+(i<=F.rating?' on':'')+'" data-fb-star="'+i+'" role="radio" aria-checked="'+(i===F.rating)+'" aria-label="'+i+' star'+(i>1?'s':'')+', '+CAPS[i]+'">'+STAR+'</button>';return h+'</div><div class="cf-fb-cap" id="cf-fb-cap">'+(F.rating?CAPS[F.rating]:'Tap a star')+'</div>';}
+  function nsBtn(k,lbl){return '<button type="button" data-fb-ns="'+k+'" class="'+(F.nameStyle===k?'on':'')+'"'+(F.quote?'':' disabled')+'>'+esc(lbl)+'</button>';}
+  function html(){
+    var h;
+    if(F.step==='stars'){
+      h='<div class="cf-fb-hd"><div class="cf-fb-title" id="cf-fb-title" tabindex="-1">How’s Conflicted working for you?</div><div class="cf-fb-sub">Takes about 20 seconds. It goes straight to the Conflicted team.</div></div>'
+        +starsHtml(false)
+        +'<button type="button" class="cf-fb-ghost" data-fb-act="close" style="margin-top:22px">'+(F.trigger==='return_home'?'Not now':'Close')+'</button>';
+    }else if(F.step==='notes'){
+      var t=tier(),has=!!F.liked.trim(),n=displayName();
+      var title=t==='hi'?'Glad to hear it':t==='mid'?'Thanks for the honest read':'Thanks for being straight with us';
+      h='<div class="cf-fb-hd"><div class="cf-fb-title" id="cf-fb-title" tabindex="-1">'+title+'</div><div class="cf-fb-sub">Your rating’s saved. Add more if you want.</div></div>'
+        +starsHtml(true)
+        +(t==='hi'
+          ?'<label class="cf-fb-lbl" for="cf-fb-liked">What do you like most about it? <small>(optional)</small></label><textarea id="cf-fb-liked" maxlength="'+MAXLEN+'" placeholder="One app for all my leagues on Sunday…">'+esc(F.liked)+'</textarea><div class="cf-fb-cnt" id="cf-fb-cnt-liked">'+F.liked.length+' / '+MAXLEN+'</div>'
+           +'<div class="cf-fb-quote"><label class="cf-fb-chk'+(has?'':' off')+'" id="cf-fb-qlbl"><input type="checkbox" id="cf-fb-q"'+(F.quote?' checked':'')+(has?'':' disabled')+'><span>'+CONSENT+'<small id="cf-fb-qhelp">'+(has?'Off unless you tick it. Email ConflictedApp@Gmail.com any time to take it down.':'Write something above to turn this on.')+'</small></span></label>'
+           +'<div id="cf-fb-qopts" class="cf-fb-qopts'+(F.quote?'':' off')+'"><div class="cf-fb-seg" role="group" aria-label="Show my name as">'+nsBtn('initial',n.initial)+nsBtn('first',n.first)+nsBtn('anon','Anonymous')+'</div>'
+           +'<div class="cf-fb-preview" id="cf-fb-qprev">'+esc(previewText())+'</div></div></div>'
+          :'<label class="cf-fb-lbl" for="cf-fb-improve">'+(t==='mid'?'What would make it a 5?':'What got in the way?')+' <small>(optional)</small></label><textarea id="cf-fb-improve" maxlength="'+MAXLEN+'" placeholder="'+(t==='mid'?'One thing that would make it better…':'Missing a platform, something broke, too slow…')+'">'+esc(F.improve)+'</textarea><div class="cf-fb-cnt" id="cf-fb-cnt-improve">'+F.improve.length+' / '+MAXLEN+'</div>')
+        +'<label class="cf-fb-lbl" for="cf-fb-bnote">What should we build next? <small>(optional)</small></label><textarea id="cf-fb-bnote" maxlength="'+MAXLEN+'" placeholder="A feature, a platform, anything…">'+esc(F.buildNote)+'</textarea><div class="cf-fb-cnt" id="cf-fb-cnt-bnote">'+F.buildNote.length+' / '+MAXLEN+'</div>'
+        +'<button type="button" class="cf-fb-primary" data-fb-act="send">Send</button>'
+        +'<button type="button" class="cf-fb-ghost" data-fb-act="skip">Skip the rest</button>';
+    }else{
+      var t2=tier(),five=F.rating===5,first=displayName().first;
+      h='<div class="cf-fb-done"><div class="cf-fb-done-ico"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>'
+        +'<h3 id="cf-fb-title" tabindex="-1">Thanks, '+esc(first)+'.</h3>'
+        +'<p>'+(five?'Five stars. That made our day.':t2==='hi'?'That made our day. Every note gets read.':'This goes straight to the team and shapes what gets fixed next.')+'</p>'
+        +(five
+          ?'<div class="cf-fb-pass"><div class="cf-fb-pass-k">Only if you want to</div>'
+            +'<div class="cf-fb-pass-h">Anyone in your leagues who’d use it?</div>'
+            +'<p class="cf-fb-pass-sub">It’s not going to help them win.<br>But it will show them how many leagues you’re beating them in.</p>'
+            +'<button type="button" class="cf-fb-share" data-fb-act="share"><svg viewBox="0 0 24 24"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 3v13M7 8l5-5 5 5"/></svg><span>Share with my leagues</span></button>'
+            +'<div class="cf-fb-fine">Opens your share sheet with a link to Conflicted. You pick where it goes.</div></div>'
+            +'<button type="button" class="cf-fb-ghost" data-fb-act="done" style="margin-top:10px">Done</button>'
+          :'<button type="button" class="cf-fb-primary" data-fb-act="done" style="margin-top:12px">Done</button>')
+        +'</div>';
+    }
+    return '<div class="cf-fb">'+h+'</div>';
+  }
+  function focusTitle(){setTimeout(function(){var t=$('cf-fb-title');if(t)try{t.focus({preventScroll:true});}catch(e){}},60);}
+  function render(){
+    if(!F||!window.BottomSheet)return;
+    if(isMine())window.BottomSheet.setBody(html());
+    else{
+      var f=F;
+      window.BottomSheet.open(html(),{owner:OWNER,onClose:function(){onClosed(f);}});
+      try{var s=window.BottomSheet.getSheetEl();s.setAttribute('aria-labelledby','cf-fb-title');}catch(e){}
+    }
+    focusTitle();
+  }
+  /* Every way out (Not now, Skip, backdrop, Esc, another sheet opening) lands here. */
+  function onClosed(f){
+    if(F===f)F=null;
+    try{var s=window.BottomSheet.getSheetEl();if(s.getAttribute('aria-labelledby')==='cf-fb-title')s.removeAttribute('aria-labelledby');}catch(e){}
+    if(!f)return;
+    if(f.rating&&!f.finalized){save(f,true);toast('Rating saved. Thanks.');}
+    track('feedback_close',{trigger:f.trigger,step:f.step,rating:f.rating||0});
+  }
+  function start(trigger){
+    if(!canRate()||!window.BottomSheet)return false;
+    F={lid:Date.now().toString(36)+Math.random().toString(36).slice(2,7),trigger:trigger,step:'stars',rating:0,sentNotes:false,finalized:false,advancing:false,liked:'',improve:'',quote:false,nameStyle:'initial',buildNote:''};
+    track('feedback_open',{trigger:trigger});
+    render();
+    return true;
+  }
+  window.cfOpenRate=function(trigger){return start(trigger||'more_menu');};
+
+  function setRating(n){
+    if(!F||F.advancing)return;
+    var first=!F.rating;
+    F.rating=n;
+    elig={eligible:false,reason:'rated'}; /* no timed ask after rating this load */
+    save(F,false);
+    if(first)track('feedback_rate',{trigger:F.trigger,rating:n});
+    if(F.step==='stars'){
+      document.querySelectorAll('[data-fb-star]').forEach(function(b,i){b.classList.toggle('on',i<n);b.setAttribute('aria-checked',String(i+1===n));});
+      var c=$('cf-fb-cap');if(c)c.textContent=CAPS[n];
+      F.advancing=true;var f=F;
+      setTimeout(function(){f.advancing=false;if(F!==f)return;F.step='notes';render();},260);
+    }else render();
+  }
+  function setQuoteOpts(){var o=$('cf-fb-qopts');if(!o)return;o.classList.toggle('off',!F.quote);o.querySelectorAll('[data-fb-ns]').forEach(function(b){b.disabled=!F.quote;});var p=$('cf-fb-qprev');if(p)p.textContent=previewText();}
+  function share(btn){
+    var url=(typeof window.cfShareRefUrl==='function'&&window.cfShareRefUrl())||location.origin;
+    track('share_tapped',{surface:'feedback'});
+    if(navigator.share){
+      navigator.share({url:url}).then(function(){track('share_completed',{surface:'feedback'});}).catch(function(){});
+    }else if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(function(){var s=btn&&btn.querySelector('span');if(s)s.textContent='Link copied';track('share_completed',{surface:'feedback',how:'copy'});}).catch(function(){});
+    }
+  }
+
+  document.addEventListener('click',function(e){
+    if(!F)return;
+    var t=e.target.closest('[data-fb-star],[data-fb-act],[data-fb-ns]');if(!t)return;
+    if(t.hasAttribute('data-fb-star')){setRating(+t.getAttribute('data-fb-star'));return;}
+    if(t.hasAttribute('data-fb-ns')){if(t.disabled)return;F.nameStyle=t.getAttribute('data-fb-ns');document.querySelectorAll('[data-fb-ns]').forEach(function(b){b.classList.toggle('on',b===t);});setQuoteOpts();return;}
+    var act=t.getAttribute('data-fb-act');
+    if(act==='close'){window.BottomSheet.close();return;}
+    if(act==='send'){F.sentNotes=true;save(F,true);track('feedback_send',{rating:F.rating,trigger:F.trigger});F.step='done';render();return;}
+    /* A 5-star "Skip the rest" still lands on the thank-you screen so they see the share prompt once */
+    if(act==='skip'){if(F.rating===5){save(F,true);F.step='done';render();}else window.BottomSheet.close();return;}
+    if(act==='done'){window.BottomSheet.close();return;}
+    if(act==='share'){share(t);return;}
+  });
+  document.addEventListener('input',function(e){
+    if(!F)return;var id=e.target.id;
+    if(id==='cf-fb-liked'){
+      F.liked=e.target.value;var c=$('cf-fb-cnt-liked');if(c)c.textContent=F.liked.length+' / '+MAXLEN;
+      var has=!!F.liked.trim(),q=$('cf-fb-q');
+      if(q){q.disabled=!has;$('cf-fb-qlbl').classList.toggle('off',!has);$('cf-fb-qhelp').textContent=has?'Off unless you tick it. Email ConflictedApp@Gmail.com any time to take it down.':'Write something above to turn this on.';if(!has&&F.quote){F.quote=false;q.checked=false;}}
+      setQuoteOpts();
+    }
+    if(id==='cf-fb-improve'){F.improve=e.target.value;var c2=$('cf-fb-cnt-improve');if(c2)c2.textContent=F.improve.length+' / '+MAXLEN;}
+    if(id==='cf-fb-bnote'){F.buildNote=e.target.value;var c3=$('cf-fb-cnt-bnote');if(c3)c3.textContent=F.buildNote.length+' / '+MAXLEN;}
+  });
+  document.addEventListener('change',function(e){if(F&&e.target.id==='cf-fb-q'){F.quote=e.target.checked;setQuoteOpts();}});
+  document.addEventListener('keydown',function(e){
+    var s=e.target.closest&&e.target.closest('[data-fb-star]');
+    if(s&&(e.key==='ArrowRight'||e.key==='ArrowLeft')){e.preventDefault();var sib=e.key==='ArrowRight'?s.nextElementSibling:s.previousElementSibling;if(sib)sib.focus();}
+  });
+
+  /* ── Timed ask: on the way BACK to Home from any other view ──
+     A light state sampler instead of hooks in every show*() — a view reached any way at all
+     (tab, …More, rail, back button, logo, Maniac rotation) counts. 'home' = the board is on
+     screen and nothing sits over it; 'view' = any other nav view, Maniac or the blog; loading /
+     setup / error screens are neither and don't break a view → home transition. */
+  function shown(el){return !!(el&&el.style.display!=='none'&&el.offsetParent!==null);}
+  function screenState(){
+    if(window.__cfManiacOpen)return 'view';
+    var blog=$('cf-blog-overlay');if(blog&&blog.classList.contains('is-open'))return 'view';
+    for(var i=0;i<VIEW_IDS.length;i++){if(shown($(VIEW_IDS[i])))return 'view';}
+    if(shown($('board')))return 'home';
+    return null;
+  }
+  function blocked(){
+    try{if(document.hidden)return true;if(window.BottomSheet&&window.BottomSheet.isOpen())return true;if(document.querySelector('.espn-modal-backdrop'))return true;}catch(e){}
+    return false;
+  }
+  function onReturnHome(){
+    if(askedThisLoad||!canRate())return;
+    if(window.__cfPushAskedThisLoad)return;           /* never the same visit as the alerts ask */
+    if(!forced&&!(elig&&elig.eligible))return;
+    askedThisLoad=true;
+    setTimeout(function(){
+      if(screenState()!=='home'||blocked()||!canRate()){askedThisLoad=false;return;} /* they moved on: try next time */
+      var wasForced=forced;forced=false;
+      if(!wasForced){post('ask',{device:device()}).catch(function(){});elig={eligible:false,reason:'asked'};}
+      start('return_home');
+    },650);
+  }
+  var lastState=null;
+  function tick(){
+    try{
+      var row=$('cf-rate-row');if(row)row.style.display=canRate()?'':'none';
+      if(!canRate())return;
+      if(!pendingTried){pendingTried=true;replayPending();}
+      if(elig===null&&!eligLoading&&!forced){
+        eligLoading=true;
+        fetch('/api/feedback',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.ok?r.json():{eligible:false};})
+          .then(function(j){elig=j||{eligible:false};},function(){elig={eligible:false};}).then(function(){eligLoading=false;});
+      }
+      var s=screenState();if(!s)return;
+      if(s==='home'&&lastState==='view')onReturnHome();
+      lastState=s;
+    }catch(e){}
+  }
+  setInterval(tick,600);
+})();
+</script>
 </body>
 </html>
