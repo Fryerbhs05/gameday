@@ -11,6 +11,7 @@
 //             before the week's FIRST kickoff: how many of YOUR players (starters +
 //             bench, Out types excluded, each counted once) play that first day and
 //             in which game(s). Opens Lineup Check-In. No players that day = no alert.
+//   ?job=bcast every 5 min Wed 18–20 UTC → one-off BROADCASTS entries (see below).
 // Each account's matchups are read live from its own Sleeper / ESPN / Yahoo
 // connections (api/_lib/league-reader.js) — no dependence on the app being open.
 // One alert per device per week per job (push_sends dedupe).
@@ -139,6 +140,47 @@ async function runThu(now) {
   return { job: 'thu', key, kickoff: new Date(slate.kickoff).toISOString(), ...out };
 }
 
+// One-off broadcasts — the same message to every device, no per-account reads.
+// Each entry goes out once per device (push_sends dedupe: kind 'bcast', key = id) on
+// the first ?job=bcast run between sendAt and sendAt + BCAST_GRACE_MS. Honors the
+// device's `pref` toggle. Retire entries (and the bcast cron) once they've gone out.
+const BROADCASTS = [
+  {
+    // Thanksgiving week 2026 — games Wed, Thu, Fri, Sun, Mon. Replaces this week's
+    // first-game lineup check (push_job_state 'thu:2026-12' was marked done by hand).
+    id: 'thanksgiving-2026',
+    sendAt: Date.parse('2026-11-25T19:00:00Z'), // 1:00pm CT, Wed Nov 25
+    pref: 'thu',
+    message: {
+      kind: 'thu', // a tap on an already-open app goes to Lineup Check-In (index.html cf-push-open)
+      title: 'Loosen the belt. Tighten the lineups.',
+      body: 'Games Wednesday through Monday, with Saturday off to digest. Get everyone set before the first kickoff.',
+      url: '/?checkin=1&push=tgiving',
+      tag: 'cf-tgiving-2026'
+    }
+  }
+];
+const BCAST_GRACE_MS = 90 * 60000;
+async function runBcast(now) {
+  const due = BROADCASTS.filter((b) => now >= b.sendAt && now < b.sendAt + BCAST_GRACE_MS);
+  if (!due.length) return { waiting: 'no broadcast due' };
+  const out = [];
+  for (const b of due) {
+    const subs = await subsFor(b.pref);
+    let sent = 0, failed = 0, skipped = 0;
+    for (let i = 0; i < subs.length; i += 10) {
+      await Promise.all(subs.slice(i, i + 10).map(async (sub) => {
+        try {
+          if (!(await claim(sub.id, 'bcast', b.id))) { skipped++; return; }
+          (await deliver(sub, b.message, 6 * 3600)) ? sent++ : failed++;
+        } catch (e) { failed++; console.error('bcast send error', sub.id, e.message); }
+      }));
+    }
+    out.push({ id: b.id, devices: subs.length, sent, failed, skipped });
+  }
+  return { job: 'bcast', out };
+}
+
 function localParts(tz, now) {
   try {
     const o = {};
@@ -167,7 +209,7 @@ module.exports = async (req, res) => {
   try {
     const job = (req.query && req.query.job) || '';
     const now = Date.now();
-    const out = job === 'tue' ? await runTue(now) : job === 'snf' ? await runSnf(now) : job === 'mnf' ? await runMnf(now) : job === 'thu' ? await runThu(now) : { error: 'unknown job' };
+    const out = job === 'tue' ? await runTue(now) : job === 'snf' ? await runSnf(now) : job === 'mnf' ? await runMnf(now) : job === 'thu' ? await runThu(now) : job === 'bcast' ? await runBcast(now) : { error: 'unknown job' };
     res.status(200).json(out);
   } catch (e) {
     console.error('status cron error:', e.message);
@@ -177,4 +219,4 @@ module.exports = async (req, res) => {
 };
 
 module.exports = require('../_lib/observe').wrap(module.exports, 'push:status');
-module.exports._test = { runSnf, runTue, runMnf, runThu, localParts };
+module.exports._test = { runSnf, runTue, runMnf, runThu, runBcast, BROADCASTS, localParts };
